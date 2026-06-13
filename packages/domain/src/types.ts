@@ -1,7 +1,7 @@
 /**
  * Tipos compartidos del dominio — agnósticos de jurisdicción.
  */
-import type { Currency, Jurisdiction } from './enums.js';
+import type { Currency, Jurisdiction } from './enums';
 
 /** Importe monetario. Se transporta como string decimal para evitar errores de float. */
 export interface Money {

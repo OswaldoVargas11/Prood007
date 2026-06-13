@@ -16,7 +16,7 @@ import type {
   ProceduralDeadlineResult,
   TaxIdValidationResult,
   TaxRatesResult,
-} from './types.js';
+} from './types';
 
 export interface ComplianceProvider {
   /** Jurisdicción que implementa este provider. */

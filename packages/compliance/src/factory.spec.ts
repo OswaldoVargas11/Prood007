@@ -1,7 +1,7 @@
 import { Jurisdiction } from '@legalflow/domain';
-import { ComplianceProviderFactory } from './factory.js';
-import { SpainComplianceProvider } from './providers/spain.provider.js';
-import { DominicanComplianceProvider } from './providers/dominican.provider.js';
+import { ComplianceProviderFactory } from './factory';
+import { SpainComplianceProvider } from './providers/spain.provider';
+import { DominicanComplianceProvider } from './providers/dominican.provider';
 
 describe('ComplianceProviderFactory', () => {
   it('devuelve el provider de España para jurisdicción es', () => {

@@ -8,7 +8,7 @@
  * lógica real pendiente (E9). El envío a AEAT va STUBBEADO.
  */
 import { Jurisdiction, TaxIdKind } from '@legalflow/domain';
-import type { ComplianceProvider } from '../provider.interface.js';
+import type { ComplianceProvider } from '../provider.interface';
 import type {
   CourtIntegration,
   FiscalReports,
@@ -18,7 +18,7 @@ import type {
   ProceduralDeadlineResult,
   TaxIdValidationResult,
   TaxRatesResult,
-} from '../types.js';
+} from '../types';
 
 export class SpainComplianceProvider implements ComplianceProvider {
   readonly jurisdiction = Jurisdiction.ES;

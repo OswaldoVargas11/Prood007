@@ -9,6 +9,7 @@ module.exports = {
     global: { branches: 70, functions: 80, lines: 80, statements: 80 },
   },
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
+    // Resuelve el paquete de dominio desde su fuente para que los tests no dependan del build.
+    '^@legalflow/domain$': '<rootDir>/../domain/src/index.ts',
   },
 };
