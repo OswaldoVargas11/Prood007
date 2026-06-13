@@ -1,0 +1,20 @@
+{
+  "app": {
+    "name": "LegalFlow",
+    "tagline": "El sistema operativo del despacho moderno"
+  },
+  "home": {
+    "welcome": "Bienvenido a LegalFlow",
+    "jurisdiction": "Jurisdicción: España",
+    "billing": "Facturación electrónica: Verifactu (AEAT)",
+    "currency": "Moneda: EUR"
+  },
+  "nav": {
+    "matters": "Expedientes",
+    "clients": "Clientes",
+    "documents": "Documentos",
+    "tasks": "Tareas",
+    "billing": "Facturación",
+    "portal": "Portal del cliente"
+  }
+}

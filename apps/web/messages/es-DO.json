@@ -1,0 +1,20 @@
+{
+  "app": {
+    "name": "LegalFlow",
+    "tagline": "El sistema operativo del despacho moderno"
+  },
+  "home": {
+    "welcome": "Bienvenido a LegalFlow",
+    "jurisdiction": "Jurisdicción: República Dominicana",
+    "billing": "Facturación electrónica: e-CF (DGII)",
+    "currency": "Moneda: DOP"
+  },
+  "nav": {
+    "matters": "Expedientes",
+    "clients": "Clientes",
+    "documents": "Documentos",
+    "tasks": "Tareas",
+    "billing": "Facturación",
+    "portal": "Portal del cliente"
+  }
+}

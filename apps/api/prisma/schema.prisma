@@ -1,0 +1,495 @@
+// LegalFlow — esquema de dominio (Prisma + PostgreSQL).
+//
+// MULTI-TENANCY: aislamiento row-level por `tenantId` en toda tabla de negocio, con índices
+// compuestos (tenantId, ...). Camino a Postgres RLS dejado preparado (ver DECISIONS D-004):
+// activar policies por current_setting('app.tenant_id') en una migración posterior.
+//
+// AGNOSTICISMO: este esquema NO codifica ninguna ley concreta. Los campos fiscales específicos
+// de cada país viajan en `Invoice.complianceRecord` (JSON opaco) generado por el ComplianceProvider.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Enums (espejo de @legalflow/domain)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum Jurisdiction {
+  es
+  do
+}
+
+enum Currency {
+  EUR
+  DOP
+}
+
+enum MatterStatus {
+  OPEN
+  IN_PROGRESS
+  ON_HOLD
+  CLOSED
+  ARCHIVED
+}
+
+enum DocumentReviewStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum LedgerEntryType {
+  PROVISION
+  DISBURSEMENT
+  TIME_FEE
+  FEE
+  INVOICE
+  PAYMENT
+  ADJUSTMENT
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  SENT
+  PAID
+  CANCELLED
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tenancy & Auth / RBAC
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id           String       @id @default(cuid())
+  name         String
+  jurisdiction Jurisdiction
+  currency     Currency
+  locale       String       @default("es-ES")
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  users         User[]
+  roles         Role[]
+  clients       Client[]
+  matters       Matter[]
+  documents     Document[]
+  tasks         Task[]
+  timeEntries   TimeEntry[]
+  ledgerEntries LedgerEntry[]
+  invoices      Invoice[]
+  notifications Notification[]
+  messages      Message[]
+  auditLogs     AuditLog[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  tenantId     String
+  email        String
+  passwordHash String
+  fullName     String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roles         UserRole[]
+  refreshTokens RefreshToken[]
+
+  // Relaciones de negocio
+  responsibleMatters Matter[]      @relation("MatterLawyer")
+  clientProfile      Client?       @relation("ClientUser")
+  assignedTasks      Task[]        @relation("TaskAssignee")
+  timeEntries        TimeEntry[]
+  uploadedVersions   DocumentVersion[] @relation("VersionUploader")
+  reviews            DocumentReview[]
+  messages           Message[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  tenantId  String
+  // Código base: CLIENT | LAWYER | FIRM_ADMIN (extensible).
+  code      String
+  name      String
+  createdAt DateTime @default(now())
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Permission {
+  id    String @id @default(cuid())
+  // p. ej. "matter:read", "invoice:create", "document:approve".
+  code  String @unique
+  name  String
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  // Hash del refresh token (nunca se guarda en claro). Rotación + revocación.
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Clientes y Expedientes
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Client {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  // Identificador fiscal validado por el ComplianceProvider (NIF/CIF · RNC/Cédula).
+  taxId     String
+  // Tipo detectado por el provider (NIF/CIF/NIE/RNC/CEDULA). Texto libre para no acoplar al país.
+  taxIdKind String?
+  email     String?
+  phone     String?
+  address   String?
+  // Vínculo opcional a un User con rol CLIENT (acceso al portal).
+  userId    String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User?    @relation("ClientUser", fields: [userId], references: [id])
+  matters  Matter[]
+  invoices Invoice[]
+
+  @@index([tenantId])
+  @@index([tenantId, taxId])
+}
+
+model Matter {
+  id           String       @id @default(cuid())
+  tenantId     String
+  reference    String // referencia interna del expediente
+  title        String
+  type         String // tipo de asunto (texto libre; catálogo en capa de app)
+  status       MatterStatus @default(OPEN)
+  clientId     String
+  lawyerId     String? // abogado responsable
+  openedAt     DateTime     @default(now())
+  closedAt     DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client        Client        @relation(fields: [clientId], references: [id])
+  lawyer        User?         @relation("MatterLawyer", fields: [lawyerId], references: [id])
+  documents     Document[]
+  tasks         Task[]
+  timeEntries   TimeEntry[]
+  ledgerEntries LedgerEntry[]
+  invoices      Invoice[]
+  messages      Message[]
+
+  @@unique([tenantId, reference])
+  @@index([tenantId])
+  @@index([tenantId, clientId])
+  @@index([tenantId, status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Documentos + versionado + revisión
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Document {
+  id        String   @id @default(cuid())
+  tenantId  String
+  matterId  String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter   Matter            @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  versions DocumentVersion[]
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+}
+
+model DocumentVersion {
+  id           String               @id @default(cuid())
+  tenantId     String
+  documentId   String
+  version      Int
+  // Clave del objeto en el StorageProvider (S3/MinIO/local).
+  storageKey   String
+  mimeType     String
+  sizeBytes    Int
+  // Hash del contenido (integridad).
+  contentHash  String
+  reviewStatus DocumentReviewStatus @default(PENDING)
+  uploadedById String
+  createdAt    DateTime             @default(now())
+
+  // tenantId es escalar (sin relación a Tenant) para el filtrado por tenant; ver DocumentReview.
+  document   Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedBy User             @relation("VersionUploader", fields: [uploadedById], references: [id])
+  reviews    DocumentReview[]
+
+  @@unique([documentId, version])
+  @@index([tenantId])
+  @@index([tenantId, documentId])
+}
+
+model DocumentReview {
+  id         String               @id @default(cuid())
+  tenantId   String
+  versionId  String
+  reviewerId String
+  status     DocumentReviewStatus
+  comment    String?
+  createdAt  DateTime             @default(now())
+
+  version  DocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  reviewer User            @relation(fields: [reviewerId], references: [id])
+
+  @@index([tenantId])
+  @@index([versionId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tareas y tiempo
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Task {
+  id          String     @id @default(cuid())
+  tenantId    String
+  matterId    String?
+  title       String
+  description String?
+  status      TaskStatus @default(TODO)
+  dueDate     DateTime?
+  // Si la tarea nace de un plazo procesal calculado, se guarda el tipo y metadatos.
+  deadlineType String?
+  // true si dueDate proviene de getProceduralDeadlines (vínculo a plazo procesal).
+  isProcedural Boolean   @default(false)
+  assigneeId  String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter   Matter? @relation(fields: [matterId], references: [id], onDelete: SetNull)
+  assignee User?   @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+  @@index([tenantId, dueDate])
+}
+
+model TimeEntry {
+  id          String   @id @default(cuid())
+  tenantId    String
+  matterId    String
+  userId      String
+  description String
+  // Minutos trabajados.
+  minutes     Int
+  // Tarifa por hora aplicada (Decimal para evitar floats).
+  hourlyRate  Decimal  @db.Decimal(18, 2)
+  // true cuando ya se ha trasladado al ledger / facturado.
+  billed      Boolean  @default(false)
+  workedAt    DateTime
+  createdAt   DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ledger transparente + Facturación
+// ─────────────────────────────────────────────────────────────────────────────
+
+model LedgerEntry {
+  id          String          @id @default(cuid())
+  tenantId    String
+  matterId    String
+  type        LedgerEntryType
+  description String
+  // Importe con signo según convención de tipo (provisión +, suplido −, etc.).
+  amount      Decimal         @db.Decimal(18, 2)
+  currency    Currency
+  // Factura asociada cuando type = INVOICE/PAYMENT.
+  invoiceId   String?
+  occurredAt  DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+
+  tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter  Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  invoice Invoice? @relation(fields: [invoiceId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+  @@index([tenantId, occurredAt])
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  tenantId      String
+  matterId      String
+  clientId      String
+  number        String
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime
+  currency      Currency
+
+  // Totales neutrales calculados por el provider (Decimal, no float).
+  taxableBase       Decimal @db.Decimal(18, 2)
+  taxAmount         Decimal @db.Decimal(18, 2)
+  withholdingAmount Decimal @db.Decimal(18, 2) @default(0)
+  total             Decimal @db.Decimal(18, 2)
+
+  // Registro fiscal específico del país (Verifactu / e-CF) como JSON OPACO al núcleo.
+  complianceRecord  Json?
+  // Formato del registro: "VERIFACTU" | "ECF".
+  complianceFormat  String?
+  // Hash del registro fiscal (encadenamiento Verifactu).
+  recordHash        String?
+  // Hash del registro inmediatamente anterior (cadena inalterable).
+  previousRecordHash String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter        @relation(fields: [matterId], references: [id])
+  client Client        @relation(fields: [clientId], references: [id])
+  lines  InvoiceLine[]
+  ledger LedgerEntry[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId])
+  @@index([tenantId, clientId])
+}
+
+model InvoiceLine {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Decimal @db.Decimal(18, 4)
+  unitPrice   Decimal @db.Decimal(18, 2)
+  // Código de impuesto aplicado (de getTaxRates), p. ej. "IVA_STANDARD" | "ITBIS_STANDARD".
+  taxCode     String
+  lineTotal   Decimal @db.Decimal(18, 2)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notificaciones, chat y auditoría
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  type      String
+  title     String
+  body      String?
+  // Metadatos arbitrarios (ids relacionados).
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  tenantId  String
+  matterId  String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  author User   @relation(fields: [authorId], references: [id])
+
+  @@index([tenantId, matterId])
+}
+
+// AuditLog inmutable (append-only a nivel de aplicación; endurecible con trigger/RLS en Postgres).
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  // Usuario que ejecuta la acción (puede ser null para acciones del sistema).
+  actorId    String?
+  action     String // p. ej. "invoice.issued", "document.approved"
+  entityType String
+  entityId   String
+  // Instantánea de datos relevantes (sin secretos).
+  metadata   Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, createdAt])
+}
