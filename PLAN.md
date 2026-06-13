@@ -59,12 +59,14 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 - [x] `AuditService` inmutable enganchado en create/update/status.
 - [x] Tests e2e (9): validación fiscal, transiciones válidas/ inválidas, aislamiento cross-tenant.
 
-## E3 — Documentos  `[ ]`
-- [ ] `StorageProvider` (interfaz) + impl. S3/MinIO + impl. disco local (dev).
-- [ ] Subida de `Document` + `DocumentVersion` (hash, mime, tamaño).
-- [ ] Flujo de revisión: `PENDING → IN_REVIEW → APPROVED / REJECTED / CHANGES_REQUESTED` + comentarios.
-- [ ] Notificaciones en transiciones de revisión.
-- [ ] Tests: versionado, transiciones, control de acceso.
+## E3 — Documentos  `[x]`
+- [x] `StorageProvider` (interfaz en domain) + impl. S3/MinIO (`minio`) + impl. disco local (dev),
+      seleccionada por `STORAGE_DRIVER`. Local con protección anti path-traversal.
+- [x] Subida de `Document` + `DocumentVersion` (hash SHA-256, mime, tamaño) + versionado incremental.
+- [x] Flujo de revisión (APPROVED/REJECTED/CHANGES_REQUESTED/IN_REVIEW) + comentarios (`DocumentReview`).
+- [x] Notificaciones persistidas al autor en cada revisión (`NotificationsService`).
+- [x] Descarga autenticada por streaming; límite de subida 25 MB.
+- [x] Tests e2e (7): subida, descarga, versionado, revisión, notificación, aislamiento, 400 PENDING.
 
 ## E4 — Tareas y plazos procesales  `[ ]`
 - [ ] CRUD `Task` con fecha límite y asignación.

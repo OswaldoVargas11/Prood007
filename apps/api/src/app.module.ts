@@ -4,8 +4,11 @@ import { PrismaModule } from './prisma/prisma.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
+import { StorageModule } from './storage/storage.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { ClientsModule } from './clients/clients.module';
 import { MattersModule } from './matters/matters.module';
+import { DocumentsModule } from './documents/documents.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -14,10 +17,13 @@ import { HealthController } from './health.controller';
     PrismaModule,
     ComplianceModule,
     AuditModule,
+    StorageModule,
+    NotificationsModule,
     AuthModule,
     ClientsModule,
     MattersModule,
-    // E3+: DocumentsModule, TasksModule, LedgerModule, NotificationsModule… (ver PLAN.md).
+    DocumentsModule,
+    // E4+: TasksModule, LedgerModule… (ver PLAN.md).
   ],
   controllers: [HealthController],
 })
