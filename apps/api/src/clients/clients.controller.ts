@@ -14,6 +14,7 @@ import { Role } from '@legalflow/domain';
 import { ClientsService } from './clients.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { CreatePortalUserDto } from './dto/create-portal-user.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -55,5 +56,15 @@ export class ClientsController {
   @Delete(':id')
   remove(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.clients.remove(user, id);
+  }
+
+  /** Da acceso al portal al cliente (crea su usuario con rol CLIENT). */
+  @Post(':id/portal-user')
+  createPortalUser(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: CreatePortalUserDto,
+  ) {
+    return this.clients.createPortalUser(user, id, dto);
   }
 }

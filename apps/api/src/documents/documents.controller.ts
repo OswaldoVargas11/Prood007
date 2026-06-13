@@ -10,9 +10,11 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
+import { Role } from '@legalflow/domain';
 import { DocumentsService } from './documents.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { ReviewDocumentDto } from './dto/review-document.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -27,6 +29,7 @@ interface MulterFile {
 /** Límite de tamaño de subida: 25 MB. */
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
+@Roles(Role.FIRM_ADMIN, Role.LAWYER)
 @Controller('documents')
 export class DocumentsController {
   constructor(private readonly documents: DocumentsService) {}

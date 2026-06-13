@@ -86,19 +86,24 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 - [x] Cobro de factura (PAYMENT + estado PAID).
 - [x] Tests: unit fiscal/encadenamiento (compliance 24) + e2e ledger/factura/cobro/aislamiento (7).
 
-## E6 — Portal del cliente  `[ ]`
-- [ ] Vista de sus expedientes, pendientes, documentos y costes (ledger).
-- [ ] Permisos de solo-lectura/acción acotada para rol `CLIENT`.
-- [ ] Realtime del ledger y notificaciones vía WebSocket.
+## E6 — Portal del cliente  `[x]`
+- [x] `PortalModule` (rol `CLIENT`, solo lectura): sus expedientes, documentos, tareas, ledger y facturas.
+- [x] Aprovisionamiento de usuario de portal (`POST /clients/:id/portal-user`) vinculado a la ficha.
+- [x] Acceso acotado a los expedientes propios (`assertMatterAccess` + `Client.userId`).
+- [x] Notificaciones realtime vía WebSocket (Socket.IO) al usuario.
+- [x] Tests e2e: visibilidad propia, 403 a lo ajeno, 403 de rol cruzado.
 
-## E7 — Auditoría y notificaciones (transversal)  `[ ]`
-- [ ] `AuditLog` inmutable (append-only) en toda acción sensible.
-- [ ] `NotificationModule` + entrega realtime (Socket.IO).
-- [ ] `Message`: chat por expediente.
+## E7 — Auditoría y notificaciones (transversal)  `[x]`
+- [x] `AuditLog` inmutable (append-only) en acciones sensibles de todos los módulos.
+- [x] `NotificationsModule` + entrega realtime (Socket.IO, salas `user:`/`tenant:`/`matter:`).
+- [x] `Message`: chat por expediente con control de acceso (staff + cliente del expediente) + emit realtime.
+- [x] Tests e2e: chat, aislamiento y recepción de notificación en tiempo real.
 
-## E8 — i18n y multimoneda (transversal)  `[ ]`
-- [ ] Locales `es-ES` y `es-DO` en web y mensajes de API; cero strings hardcodeados.
-- [ ] Moneda por tenant (EUR / DOP); formateo localizado de importes y fechas.
+## E8 — i18n y multimoneda (transversal)  `[~]`
+- [x] Locales `es-ES` y `es-DO` operativos en web (next-intl, sin strings hardcodeados en UI).
+- [x] Moneda por tenant (EUR / DOP); ledger y facturas usan `tenant.currency`.
+- [x] Errores de cumplimiento con `messageKey` para traducir en UI.
+- [ ] Catálogo i18n exhaustivo de mensajes de API (pendiente de pulido).
 
 ## E9 — Capa de cumplimiento (paquete base)  `[~]`
 - [x] Interfaz `ComplianceProvider` + tipos.

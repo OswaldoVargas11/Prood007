@@ -1,9 +1,17 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import * as argon2 from 'argon2';
+import { Role } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import { ComplianceService } from '../compliance/compliance.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
+import { CreatePortalUserDto } from './dto/create-portal-user.dto';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
@@ -98,5 +106,45 @@ export class ClientsService {
     await this.prisma.client.deleteMany({ where: { id, tenantId: user.tenantId } });
     await this.audit.log(user, 'client.deleted', 'Client', id);
     return { success: true };
+  }
+
+  /**
+   * Crea un usuario de portal (rol CLIENT) y lo vincula a la ficha de cliente, dándole acceso
+   * de solo lectura a sus expedientes. Solo staff del despacho (controlado en el controller).
+   */
+  async createPortalUser(user: RequestUser, clientId: string, dto: CreatePortalUserDto) {
+    const client = await this.findOne(user, clientId);
+    if (client.userId) {
+      throw new ConflictException('Este cliente ya tiene acceso al portal.');
+    }
+    const email = dto.email.toLowerCase();
+    const existing = await this.prisma.user.findFirst({
+      where: { tenantId: user.tenantId, email },
+      select: { id: true },
+    });
+    if (existing) throw new ConflictException('Ya existe un usuario con ese email en el despacho.');
+
+    const role = await this.prisma.role.findFirstOrThrow({
+      where: { tenantId: user.tenantId, code: Role.CLIENT },
+    });
+    const passwordHash = await argon2.hash(dto.password);
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          tenantId: user.tenantId,
+          email,
+          passwordHash,
+          fullName: dto.fullName,
+          roles: { create: [{ roleId: role.id }] },
+        },
+      });
+      await tx.client.update({ where: { id: clientId }, data: { userId: newUser.id } });
+      return newUser;
+    });
+    await this.audit.log(user, 'client.portal_user_created', 'Client', clientId, {
+      portalUserId: created.id,
+    });
+    return { userId: created.id, email };
   }
 }

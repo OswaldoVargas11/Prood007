@@ -5,12 +5,15 @@ import { ComplianceModule } from './compliance/compliance.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
 import { StorageModule } from './storage/storage.module';
+import { RealtimeModule } from './realtime/realtime.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ClientsModule } from './clients/clients.module';
 import { MattersModule } from './matters/matters.module';
 import { DocumentsModule } from './documents/documents.module';
 import { TasksModule } from './tasks/tasks.module';
 import { LedgerModule } from './ledger/ledger.module';
+import { MessagesModule } from './messages/messages.module';
+import { PortalModule } from './portal/portal.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -20,6 +23,7 @@ import { HealthController } from './health.controller';
     ComplianceModule,
     AuditModule,
     StorageModule,
+    RealtimeModule,
     NotificationsModule,
     AuthModule,
     ClientsModule,
@@ -27,7 +31,8 @@ import { HealthController } from './health.controller';
     DocumentsModule,
     TasksModule,
     LedgerModule,
-    // E6+: PortalModule, MessagesModule… (ver PLAN.md).
+    MessagesModule,
+    PortalModule,
   ],
   controllers: [HealthController],
 })

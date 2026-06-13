@@ -1,14 +1,18 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
- * Notificaciones persistidas (la entrega en tiempo real por WebSocket se añade en E7).
+ * Notificaciones persistidas + entrega en tiempo real por WebSocket (sala `user:<id>`).
  * Siempre acotadas por tenant.
  */
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   async create(params: {
     tenantId: string;
@@ -18,7 +22,7 @@ export class NotificationsService {
     body?: string;
     data?: Record<string, unknown>;
   }): Promise<void> {
-    await this.prisma.notification.create({
+    const notification = await this.prisma.notification.create({
       data: {
         tenantId: params.tenantId,
         userId: params.userId,
@@ -28,6 +32,7 @@ export class NotificationsService {
         data: params.data ? (params.data as object) : undefined,
       },
     });
+    this.realtime.emitToUser(params.userId, 'notification:new', notification);
   }
 
   async listForUser(user: RequestUser, onlyUnread = false) {
