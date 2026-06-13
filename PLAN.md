@@ -47,15 +47,17 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 - [x] Hash de contraseñas con **argon2**; política mínima (≥10 chars en DTO).
 - [x] `tenantId` + jurisdicción propagados en el token y en `RequestUser`.
 - [x] Tests e2e (8): registro, validación, login, 401, /me con rol, rotación+reuse, health público.
-- [ ] `TenantContext` como interceptor dedicado + aislamiento por tenant en queries (helper Prisma
-      + camino a RLS) → se consolida al construir E2 (primeras queries de negocio).
+- [x] Aislamiento por tenant en queries de negocio (consolidado en E2: todo filtra por `tenantId`).
+      Pendiente futuro: activar Postgres RLS como defensa en profundidad (documentado en DECISIONS).
 
-## E2 — Clientes y Expedientes  `[ ]`
-- [ ] CRUD `Client` con `validateTaxId` del provider (NIF/CIF · RNC/Cédula).
-- [ ] CRUD `Matter` (tipo, cliente, abogado responsable, estado).
-- [ ] Máquina de estados del expediente (ciclo de vida).
-- [ ] Asignación de abogado; permisos por rol.
-- [ ] Tests: validación fiscal por jurisdicción, transiciones de estado.
+## E2 — Clientes y Expedientes  `[x]`
+- [x] CRUD `Client` con `validateTaxId` del provider (NIF/CIF · RNC/Cédula) + normalización.
+- [x] CRUD `Matter` (tipo, cliente, abogado responsable, estado) + referencia autogenerada.
+- [x] Máquina de estados del expediente (`matter-status.ts`, transiciones validadas).
+- [x] Asignación de abogado (validada en tenant + rol); permisos por rol (`@Roles`).
+- [x] **Aislamiento por tenant** en todas las queries (filtro `tenantId` + `updateMany/deleteMany`).
+- [x] `AuditService` inmutable enganchado en create/update/status.
+- [x] Tests e2e (9): validación fiscal, transiciones válidas/ inválidas, aislamiento cross-tenant.
 
 ## E3 — Documentos  `[ ]`
 - [ ] `StorageProvider` (interfaz) + impl. S3/MinIO + impl. disco local (dev).

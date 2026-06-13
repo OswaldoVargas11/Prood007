@@ -3,6 +3,9 @@ import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { AuthModule } from './auth/auth.module';
+import { AuditModule } from './audit/audit.module';
+import { ClientsModule } from './clients/clients.module';
+import { MattersModule } from './matters/matters.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -10,9 +13,11 @@ import { HealthController } from './health.controller';
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
     ComplianceModule,
+    AuditModule,
     AuthModule,
-    // E2+: ClientsModule, MattersModule, DocumentsModule, TasksModule,
-    // LedgerModule, NotificationsModule, AuditModule… (ver PLAN.md).
+    ClientsModule,
+    MattersModule,
+    // E3+: DocumentsModule, TasksModule, LedgerModule, NotificationsModule… (ver PLAN.md).
   ],
   controllers: [HealthController],
 })
