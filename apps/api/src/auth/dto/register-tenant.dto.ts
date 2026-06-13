@@ -33,6 +33,11 @@ export class RegisterTenantDto {
   @IsEnum(Currency)
   currency!: Currency;
 
+  /** Identificador fiscal del despacho (para emitir facturas). */
+  @IsOptional()
+  @IsString()
+  taxId?: string;
+
   @IsOptional()
   @IsString()
   locale?: string;

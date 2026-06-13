@@ -75,14 +75,16 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 - [x] Cálculo **real** ES (días hábiles + festivos nacionales, Viernes Santo incl.); RD solo findes.
 - [x] Tests: unit de plazos (Pascua/festivos/días hábiles) + e2e from-deadline (Navidad).
 
-## E5 — Ledger + Facturación jurídica  `[ ]`
-- [ ] `LedgerEntry`: provisiones de fondos, suplidos, horas con tarifa (`TimeEntry`).
-- [ ] Ledger transparente, consistente (sin huecos), visible por el cliente en tiempo real.
-- [ ] `Invoice` con campos fiscales del provider.
-- [ ] `buildInvoiceRecord`: **Verifactu** (firma + QR + encadenamiento) en ES; **e-CF** (XML DGII) en RD.
-- [ ] Cálculo de impuestos real: IVA 21% + retención IRPF (ES); ITBIS 18% (RD).
-- [ ] Envío a AEAT/DGII **stubbeado** detrás de la interfaz.
-- [ ] **Tests obligatorios** de cobertura: cálculo fiscal, encadenamiento, ledger.
+## E5 — Ledger + Facturación jurídica  `[x]`
+- [x] `LedgerEntry`: provisiones, suplidos, honorarios + `TimeEntry` (horas con tarifa → TIME_FEE).
+- [x] Ledger transparente con saldo calculado (convención de signo documentada) por expediente.
+- [x] `Invoice` + `InvoiceLine` con campos fiscales y `complianceRecord` (JSON opaco) del provider.
+- [x] `buildInvoiceRecord` real: **Verifactu** (huella SHA-256 + QR + encadenamiento) en ES;
+      **e-CF** (XML DGII con totales) en RD.
+- [x] Cálculo fiscal real (`tax-math.ts`): IVA 21% + retención IRPF (ES); ITBIS 18% (RD).
+- [x] Envío a AEAT/DGII **stubbeado** (`submission.status = STUBBED`).
+- [x] Cobro de factura (PAYMENT + estado PAID).
+- [x] Tests: unit fiscal/encadenamiento (compliance 24) + e2e ledger/factura/cobro/aislamiento (7).
 
 ## E6 — Portal del cliente  `[ ]`
 - [ ] Vista de sus expedientes, pendientes, documentos y costes (ledger).

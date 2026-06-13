@@ -7,8 +7,10 @@
  * ESTADO: esqueleto. Los métodos devuelven estructuras correctas mínimas y marcan con TODO la
  * lógica real pendiente (E9). El envío a AEAT va STUBBEADO.
  */
+import { createHash } from 'node:crypto';
 import { Jurisdiction, TaxIdKind } from '@legalflow/domain';
 import { addBusinessDays, spanishNationalHolidays } from '../deadlines';
+import { computeInvoiceTotals } from '../tax-math';
 import type { ComplianceProvider } from '../provider.interface';
 import type {
   CourtIntegration,
@@ -56,21 +58,44 @@ export class SpainComplianceProvider implements ComplianceProvider {
   }
 
   async buildInvoiceRecord(invoice: InvoiceInput): Promise<InvoiceRecord> {
-    // TODO(E5/E9): cálculo real de totales por línea con su taxCode + firma + huella Verifactu.
+    const { rates } = this.getTaxRates();
+    const { totals } = computeInvoiceTotals(invoice.lines, rates, invoice.withholdingTaxCode);
+
+    // Encadenamiento Verifactu: huella = SHA-256 de campos canónicos + huella del registro anterior.
+    const canonical = [
+      invoice.seller.taxId,
+      invoice.invoiceNumber,
+      invoice.issueDate,
+      totals.total,
+      invoice.previousRecordHash ?? '',
+    ].join('|');
+    const recordHash = createHash('sha256').update(canonical).digest('hex');
+
+    // URL de validación con QR (estructura representativa del servicio de la AEAT).
+    const qrUrl =
+      'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR?' +
+      `nif=${encodeURIComponent(invoice.seller.taxId)}` +
+      `&numserie=${encodeURIComponent(invoice.invoiceNumber)}` +
+      `&fecha=${encodeURIComponent(invoice.issueDate)}` +
+      `&importe=${encodeURIComponent(totals.total)}`;
+
     return {
       jurisdiction: Jurisdiction.ES,
       format: 'VERIFACTU',
-      totals: { taxableBase: '0', taxAmount: '0', withholdingAmount: '0', total: '0' },
+      totals,
       payload: {
-        // Estructura representativa del registro de alta Verifactu (a completar en E9).
         idFactura: invoice.invoiceNumber,
         fechaExpedicion: invoice.issueDate,
+        emisor: invoice.seller.taxId,
+        receptor: invoice.buyer.taxId,
+        importeTotal: totals.total,
+        tipoHuella: '01', // SHA-256
+        huella: recordHash,
         encadenamiento: { huellaAnterior: invoice.previousRecordHash ?? null },
-        // qrUrl, huella, firma → pendientes (E9).
-        qrUrl: null,
-        huella: null,
+        qrUrl,
+        // Firma con certificado real → fase de integración (fuera de MVP).
       },
-      recordHash: undefined, // TODO(E9): SHA-256 del registro canónico para encadenar.
+      recordHash,
       submission: { status: 'STUBBED', detail: 'Envío a AEAT no implementado en MVP.' },
     };
   }

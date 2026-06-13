@@ -78,6 +78,8 @@ enum InvoiceStatus {
 model Tenant {
   id           String       @id @default(cuid())
   name         String
+  // Identificador fiscal del despacho emisor (NIF/CIF en ES, RNC en RD). Necesario para facturar.
+  taxId        String?
   jurisdiction Jurisdiction
   currency     Currency
   locale       String       @default("es-ES")

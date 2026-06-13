@@ -7,8 +7,10 @@
  *
  * ESTADO: esqueleto. Envío a DGII STUBBEADO.
  */
+import { createHash } from 'node:crypto';
 import { Jurisdiction, TaxIdKind } from '@legalflow/domain';
 import { addBusinessDays } from '../deadlines';
+import { computeInvoiceTotals } from '../tax-math';
 import type { ComplianceProvider } from '../provider.interface';
 import type {
   CourtIntegration,
@@ -49,27 +51,46 @@ export class DominicanComplianceProvider implements ComplianceProvider {
   }
 
   async buildInvoiceRecord(invoice: InvoiceInput): Promise<InvoiceRecord> {
-    // TODO(E5/E9): totales reales por línea + e-CF XML conforme al estándar DGII, listo para firma.
+    const { rates } = this.getTaxRates();
+    // En RD no hay retención de IRPF; solo ITBIS repercutido.
+    const { totals } = computeInvoiceTotals(invoice.lines, rates);
+
     const ecfXml = [
       '<?xml version="1.0" encoding="UTF-8"?>',
-      '<ECF>', // estructura representativa (a completar en E9 con el esquema DGII real)
+      '<ECF>',
       '  <Encabezado>',
-      `    <NumeroComprobante>${invoice.invoiceNumber}</NumeroComprobante>`,
-      `    <FechaEmision>${invoice.issueDate}</FechaEmision>`,
-      `    <RNCEmisor>${invoice.seller.taxId}</RNCEmisor>`,
-      `    <RNCComprador>${invoice.buyer.taxId}</RNCComprador>`,
+      '    <IdDoc>',
+      `      <eNCF>${invoice.invoiceNumber}</eNCF>`,
+      `      <FechaEmision>${invoice.issueDate}</FechaEmision>`,
+      '    </IdDoc>',
+      '    <Emisor>',
+      `      <RNCEmisor>${invoice.seller.taxId}</RNCEmisor>`,
+      '    </Emisor>',
+      '    <Comprador>',
+      `      <RNCComprador>${invoice.buyer.taxId}</RNCComprador>`,
+      '    </Comprador>',
+      '    <Totales>',
+      `      <MontoGravadoTotal>${totals.taxableBase}</MontoGravadoTotal>`,
+      `      <TotalITBIS>${totals.taxAmount}</TotalITBIS>`,
+      `      <MontoTotal>${totals.total}</MontoTotal>`,
+      '    </Totales>',
       '  </Encabezado>',
-      '  <!-- Detalle, totales ITBIS y firma con certificado pendientes (E9) -->',
+      '  <!-- Firma con certificado digital → fase de integración (fuera de MVP) -->',
       '</ECF>',
     ].join('\n');
+
+    const recordHash = createHash('sha256').update(ecfXml).digest('hex');
 
     return {
       jurisdiction: Jurisdiction.DO,
       format: 'ECF',
-      totals: { taxableBase: '0', taxAmount: '0', withholdingAmount: '0', total: '0' },
+      totals,
       payload: { ecfXml },
-      recordHash: undefined,
-      submission: { status: 'STUBBED', detail: 'Validación en tiempo real con DGII no implementada en MVP.' },
+      recordHash,
+      submission: {
+        status: 'STUBBED',
+        detail: 'Validación en tiempo real con DGII no implementada en MVP.',
+      },
     };
   }
 

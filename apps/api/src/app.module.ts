@@ -10,6 +10,7 @@ import { ClientsModule } from './clients/clients.module';
 import { MattersModule } from './matters/matters.module';
 import { DocumentsModule } from './documents/documents.module';
 import { TasksModule } from './tasks/tasks.module';
+import { LedgerModule } from './ledger/ledger.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -25,7 +26,8 @@ import { HealthController } from './health.controller';
     MattersModule,
     DocumentsModule,
     TasksModule,
-    // E5+: LedgerModule, MessagesModule… (ver PLAN.md).
+    LedgerModule,
+    // E6+: PortalModule, MessagesModule… (ver PLAN.md).
   ],
   controllers: [HealthController],
 })

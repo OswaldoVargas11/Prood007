@@ -46,6 +46,7 @@ export class AuthService {
       const tenant = await tx.tenant.create({
         data: {
           name: dto.tenantName,
+          taxId: dto.taxId,
           jurisdiction: dto.jurisdiction as unknown as Jurisdiction,
           currency: dto.currency as unknown as Currency,
           locale: dto.locale ?? (dto.jurisdiction === Jurisdiction.DO ? 'es-DO' : 'es-ES'),
