@@ -8,6 +8,7 @@
  * ESTADO: esqueleto. Envío a DGII STUBBEADO.
  */
 import { Jurisdiction, TaxIdKind } from '@legalflow/domain';
+import { addBusinessDays } from '../deadlines';
 import type { ComplianceProvider } from '../provider.interface';
 import type {
   CourtIntegration,
@@ -73,13 +74,19 @@ export class DominicanComplianceProvider implements ComplianceProvider {
   }
 
   getProceduralDeadlines(params: ProceduralDeadlineParams): ProceduralDeadlineResult {
+    // Se excluyen fines de semana; el calendario de festivos judiciales de RD no está consolidado.
+    const { dueDate, holidaysApplied } = addBusinessDays(
+      new Date(params.startDate),
+      params.days,
+      () => false,
+    );
     return {
       deadlineType: params.deadlineType,
       startDate: params.startDate,
-      dueDate: params.startDate, // placeholder
+      dueDate,
       businessDays: true,
-      holidaysApplied: [],
-      notes: ['Calendario judicial de RD no consolidado; cálculo aproximado (E9).'],
+      holidaysApplied,
+      notes: ['Solo se excluyen fines de semana; festivos judiciales RD pendientes (E9).'],
     };
   }
 

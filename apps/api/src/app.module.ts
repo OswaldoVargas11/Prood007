@@ -9,6 +9,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ClientsModule } from './clients/clients.module';
 import { MattersModule } from './matters/matters.module';
 import { DocumentsModule } from './documents/documents.module';
+import { TasksModule } from './tasks/tasks.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -23,7 +24,8 @@ import { HealthController } from './health.controller';
     ClientsModule,
     MattersModule,
     DocumentsModule,
-    // E4+: TasksModule, LedgerModule… (ver PLAN.md).
+    TasksModule,
+    // E5+: LedgerModule, MessagesModule… (ver PLAN.md).
   ],
   controllers: [HealthController],
 })

@@ -68,11 +68,12 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 - [x] Descarga autenticada por streaming; límite de subida 25 MB.
 - [x] Tests e2e (7): subida, descarga, versionado, revisión, notificación, aislamiento, 400 PENDING.
 
-## E4 — Tareas y plazos procesales  `[ ]`
-- [ ] CRUD `Task` con fecha límite y asignación.
-- [ ] Vínculo opcional `Task → ProceduralDeadline` calculado por `getProceduralDeadlines`.
-- [ ] Cálculo real ES (días hábiles + festivos); RD interfaz lista (calendario mínimo).
-- [ ] Tests: cálculo de plazos ES con festivos.
+## E4 — Tareas y plazos procesales  `[x]`
+- [x] CRUD `Task` con fecha límite, estado y asignación (+ notificación al asignado).
+- [x] `POST /tasks/from-deadline`: crea la tarea con `dueDate` calculada por `getProceduralDeadlines`
+      (isProcedural + deadlineType persistidos).
+- [x] Cálculo **real** ES (días hábiles + festivos nacionales, Viernes Santo incl.); RD solo findes.
+- [x] Tests: unit de plazos (Pascua/festivos/días hábiles) + e2e from-deadline (Navidad).
 
 ## E5 — Ledger + Facturación jurídica  `[ ]`
 - [ ] `LedgerEntry`: provisiones de fondos, suplidos, horas con tarifa (`TimeEntry`).

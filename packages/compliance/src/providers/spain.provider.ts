@@ -8,6 +8,7 @@
  * lógica real pendiente (E9). El envío a AEAT va STUBBEADO.
  */
 import { Jurisdiction, TaxIdKind } from '@legalflow/domain';
+import { addBusinessDays, spanishNationalHolidays } from '../deadlines';
 import type { ComplianceProvider } from '../provider.interface';
 import type {
   CourtIntegration,
@@ -75,14 +76,22 @@ export class SpainComplianceProvider implements ComplianceProvider {
   }
 
   getProceduralDeadlines(params: ProceduralDeadlineParams): ProceduralDeadlineResult {
-    // TODO(E9): cómputo real en días hábiles con festivos nacionales/autonómicos.
+    const start = new Date(params.startDate);
+    const cache = new Map<number, Set<string>>();
+    const isHoliday = (date: Date): boolean => {
+      const year = date.getUTCFullYear();
+      if (!cache.has(year)) cache.set(year, spanishNationalHolidays(year));
+      return cache.get(year)!.has(date.toISOString().slice(0, 10));
+    };
+    const { dueDate, holidaysApplied } = addBusinessDays(start, params.days, isHoliday);
     return {
       deadlineType: params.deadlineType,
       startDate: params.startDate,
-      dueDate: params.startDate, // placeholder
+      dueDate,
       businessDays: true,
-      holidaysApplied: [],
-      notes: ['Cálculo de festivos pendiente (E9).'],
+      holidaysApplied,
+      // Solo festivos nacionales; autonómicos/locales pendientes (E9).
+      notes: ['Festivos nacionales aplicados; faltan autonómicos y locales (E9).'],
     };
   }
 
