@@ -79,6 +79,16 @@ Formato: `ID · Título · Estado` → Contexto / Decisión / Consecuencias.
   expediente; Redis como adaptador para escalado horizontal (pub/sub) — preparado en
   docker-compose.
 
+## D-012 · Paquetes compartidos en CommonJS · Aceptada
+- **Contexto:** `domain` y `compliance` se autoraron como ESM (`"type":"module"` +
+  specifiers `.js`). Al ejecutar de verdad, esto rompía Jest y chocaba con NestJS (CommonJS).
+- **Decisión:** compilar ambos paquetes a **CommonJS** (`module=commonjs`,
+  `moduleResolution=node`, sin extensiones `.js` en imports). La web (Next.js) los transpila vía
+  `transpilePackages`, así que no pierde nada.
+- **Decisión:** cada paquete que use `extends` de `@legalflow/config` debe declararlo como
+  dependencia (`workspace:*`) para que TS resuelva el `tsconfig.base.json`.
+- **Consecuencia:** build y tests verdes en todo el monorepo; interоp limpio con Nest.
+
 ## D-011 · IA solo contrato · Aceptada
 - **Decisión:** `AiAssistantProvider` definido como interfaz (sin implementación) con métodos
   de redacción/resumen/revisión que exigen `sources` (citación) y devuelven señales de

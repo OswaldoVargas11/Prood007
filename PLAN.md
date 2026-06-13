@@ -32,21 +32,23 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 - [x] `apps/web`: esqueleto Next.js (App Router) + Tailwind + i18n.
 - [x] `apps/api/prisma/schema.prisma`: modelo de dominio completo.
 - [x] `docker-compose.yml`: Postgres + MinIO + Redis.
-- [ ] **(requiere toolchain)** `pnpm install` y verificación de build.
-- [ ] **(requiere toolchain)** `prisma migrate dev` (migración inicial).
+- [x] `pnpm install` y verificación de build (domain/compliance/api/web compilan).
+- [x] `prisma migrate dev` (migración inicial `20260613174416_init` aplicada).
+- [x] Smoke test: API arranca, conecta a Postgres y `/api/health` responde 200.
 - [ ] Husky + lint-staged + commitlint (Conventional Commits).
 - [ ] CI básica (lint + test + build).
 
-## E1 — Auth multi-tenant + RBAC  `[ ]`
-- [ ] Modelo `Tenant`, `User`, `Role`, `Permission`, `RefreshToken` (en schema).
-- [ ] `AuthModule`: registro de tenant + primer usuario Admin.
-- [ ] Login con JWT **access** (corto) + **refresh** (rotación + revocación).
-- [ ] `JwtStrategy` + `RefreshStrategy` (passport) + guards.
-- [ ] `TenantContext` (middleware/interceptor que fija `tenantId` por request).
-- [ ] RBAC: roles `CLIENT` / `LAWYER` / `FIRM_ADMIN`; decorador `@Roles` + `RolesGuard`.
-- [ ] Hash de contraseñas (argon2), política de credenciales.
-- [ ] Aislamiento por tenant en todas las queries (helper Prisma + camino a RLS).
-- [ ] Tests e2e: registro, login, refresh, expiración, acceso cruzado denegado.
+## E1 — Auth multi-tenant + RBAC  `[~]`
+- [x] Modelo `Tenant`, `User`, `Role`, `Permission`, `RefreshToken` (en schema/migración).
+- [x] `AuthModule`: registro de tenant + siembra de RBAC + primer usuario FIRM_ADMIN.
+- [x] Login con JWT **access** (15 min) + **refresh** (7 d, rotación + revocación + reuse-detection).
+- [x] `JwtStrategy` (access) + rotación de refresh en `TokensService` + guards globales.
+- [x] RBAC: roles `CLIENT` / `LAWYER` / `FIRM_ADMIN`; decorador `@Roles` + `RolesGuard`.
+- [x] Hash de contraseñas con **argon2**; política mínima (≥10 chars en DTO).
+- [x] `tenantId` + jurisdicción propagados en el token y en `RequestUser`.
+- [x] Tests e2e (8): registro, validación, login, 401, /me con rol, rotación+reuse, health público.
+- [ ] `TenantContext` como interceptor dedicado + aislamiento por tenant en queries (helper Prisma
+      + camino a RLS) → se consolida al construir E2 (primeras queries de negocio).
 
 ## E2 — Clientes y Expedientes  `[ ]`
 - [ ] CRUD `Client` con `validateTaxId` del provider (NIF/CIF · RNC/Cédula).
