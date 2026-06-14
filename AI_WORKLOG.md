@@ -200,3 +200,17 @@ Siguiente punto recomendado (Sesion 2):
 
 - Implementar la UI del despacho (shell, dashboard, clientes, expedientes, documentos, tareas) con
   el diseno de Claude Design, consumiendo la API via lib/api.
+
+### 2026-06-14 - Claude - Decisiones de rumbo (UI espera, sin rebrand) + nota de worktrees
+
+Decisiones del usuario (vinculantes):
+
+- UI: ESPERAR al diseno de Claude Design. Trabajo no visual mientras tanto (SDK/tipos en apps/web/src/lib,
+  mas tests e2e, y E9: reportes 606/607 y SII mas alla del stub). NADA de pantallas todavia.
+- Naming: seguir con @legalflow/\*; rebrand al final (mecanico).
+
+Aviso operativo de ramas/worktrees:
+
+- La unica rama valida es feat/mvp-fase1 (remoto). Si un chat aparece en un worktree aislado pinneado a
+  un commit viejo (claude/\* @ 4be391c), reconciliar antes de tocar nada:
+  git fetch origin && git reset --hard origin/feat/mvp-fase1; push con git push origin HEAD:feat/mvp-fase1.

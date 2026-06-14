@@ -79,7 +79,23 @@ entrada por bloque de trabajo). Codex hizo la validación de tax-ids y el baseli
 - **Decisión pendiente del usuario.** Si elige nombre → rebrand (`@<nombre>/*`, package.json,
   README, i18n, títulos, DESIGN_PROMPT.md).
 
+## Decisiones del usuario (2026-06-14) — VINCULANTES
+
+- **UI: ESPERAR al diseño de Claude Design.** No construir pantallas todavía. Mientras tanto, solo
+  trabajo **no visual**: ampliar el SDK de API/tipos en `apps/web/src/lib`, más tests e2e, y E9
+  (reportes fiscales **606/607** y **SII** más allá del stub). Cuando llegue el diseño → Sesión 2 (UI completa).
+- **Naming: seguir con `@legalflow/*`.** Rebrand (a Segnora u otro) se hará **al final**, es mecánico.
+  No renombrar ahora.
+
+## Nota de worktrees / ramas
+
+La única rama válida con todo el trabajo es **`feat/mvp-fase1`** (remoto, `f5868e1`+). Si un chat se
+abre en un worktree aislado pinneado a un commit viejo (p. ej. `claude/* @ 4be391c`), **reconciliar
+antes de trabajar**: `git fetch origin && git reset --hard origin/feat/mvp-fase1`, y empujar con
+`git push origin HEAD:feat/mvp-fase1`. No fragmentar en ramas `claude/*`.
+
 ## Siguiente acción recomendada
 
-Esperar diseño (Claude Design) + decisión de nombre. Al volver: arrancar **Sesión 2 = UI núcleo**
-(app shell, dashboard, clientes, expedientes, documentos, tareas) consumiendo la API vía `lib/api`.
+Otro chat (no visual, ya): reconciliar a `feat/mvp-fase1` y avanzar **E9 reportes 606/607 + SII** y
+ampliación del SDK/tests. Diseño: el usuario lanza `DESIGN_PROMPT.md` en Claude Design y vuelve →
+entonces Sesión 2 = UI núcleo sobre `lib/api`/`lib/auth`.
