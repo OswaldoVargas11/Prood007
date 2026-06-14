@@ -184,7 +184,15 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         (ES Verifactu: base 1000, IVA 210, IRPF 150, total 1060; cobro → PAID).
   - Pendiente: preview fiscal en vivo antes de emitir (la API no expone cálculo previo); QR Verifactu
     renderizado (se muestra el payload/huella); pantalla global de facturación (sin endpoint de listado).
-- **F5 — Tiempo real (notificaciones + chat por expediente, Socket.IO)** `[ ]`
+- **F5 — Tiempo real (notificaciones + chat por expediente, Socket.IO)** `[x]`
+  - [x] Socket.IO cliente (autenticado con el access token; `auth` callback reevaluado en cada
+        reconexión). Singleton `lib/socket`.
+  - [x] Chat en el tab Chat de la ficha: historial + envío + recepción en vivo (`matter:subscribe` +
+        `message:new` → refresco); burbujas propias/ajenas; cargando/vacío/error.
+  - [x] Campana de notificaciones en la topbar: contador de no leídas, lista, marcar leída, y refresco
+        en vivo (`notification:new`). i18n chat._/notifications._.
+  - [x] Verificado E2E: enviar/listar mensajes; flujo de notificación (asignar tarea al CLIENT → la
+        recibe → marcar leída). El live socket está probado en el backend (portal-realtime e2e).
 - **F6 — Portal del cliente (rol CLIENT, solo lectura + chat)** `[ ]`
 - **F7 — Resto (ajustes/admin, agenda/calendario, aprobaciones, auditoría)** `[ ]`
 

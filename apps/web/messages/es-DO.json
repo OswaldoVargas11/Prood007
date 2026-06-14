@@ -190,6 +190,17 @@
       "CANCELLED": "Anulada"
     }
   },
+  "chat": {
+    "placeholder": "Escribe un mensaje…",
+    "empty": "Sin mensajes todavía. Empieza la conversación.",
+    "loadError": "No se pudo cargar el chat",
+    "retry": "Reintentar"
+  },
+  "notifications": {
+    "open": "Abrir notificaciones",
+    "title": "Notificaciones",
+    "empty": "No tienes notificaciones."
+  },
   "command": {
     "placeholder": "Buscar o ejecutar una acción…",
     "empty": "Sin resultados.",

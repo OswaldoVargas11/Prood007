@@ -12,6 +12,8 @@ import type {
   MatterDocument,
   MatterLedger,
   MatterStatus,
+  Message,
+  Notification,
   Paginated,
   Task,
   TaskStatus,
@@ -239,6 +241,40 @@ export function usePayInvoice(id: string) {
       qc.setQueryData(['invoice', id], data);
       void qc.invalidateQueries({ queryKey: ['ledger'] });
     },
+  });
+}
+
+// ── Chat por expediente (F5) ─────────────────────────────────────────────────
+export function useMessages(matterId: string) {
+  return useQuery({
+    queryKey: ['messages', matterId],
+    queryFn: () => api.get<Message[]>(`/matters/${matterId}/messages`),
+    enabled: Boolean(matterId),
+  });
+}
+
+export function useSendMessage(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: string) => api.post<Message>(`/matters/${matterId}/messages`, { body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['messages', matterId] }),
+  });
+}
+
+// ── Notificaciones (F5) ──────────────────────────────────────────────────────
+export function useNotifications() {
+  return useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api.get<Notification[]>('/notifications'),
+    refetchInterval: 60_000,
+  });
+}
+
+export function useMarkNotificationRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.patch(`/notifications/${id}/read`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
 }
 

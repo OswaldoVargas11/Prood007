@@ -38,6 +38,26 @@ export interface Client {
   createdAt: string;
 }
 
+export interface Message {
+  id: string;
+  matterId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  author: { id: string; fullName: string };
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  body: string | null;
+  data: Record<string, unknown> | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
 export type LedgerEntryType =
   | 'PROVISION'
   | 'DISBURSEMENT'

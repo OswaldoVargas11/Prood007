@@ -8,6 +8,7 @@ import { useRouter } from '@/i18n/navigation';
 import { AppSidebar } from './app-sidebar';
 import { CommandMenu, useCommandMenu } from './command-menu';
 import { AiPanel } from './ai-panel';
+import { NotificationsBell } from './notifications-bell';
 import { UserMenu } from './user-menu';
 import { ThemeToggle } from './theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
           <div className="ml-auto flex items-center gap-2">
             <AiPanel />
+            <NotificationsBell />
             <ThemeToggle />
             <UserMenu />
           </div>

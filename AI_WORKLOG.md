@@ -412,3 +412,14 @@ Siguiente: F2 (Documentos) — rellena el tab Documentos de la ficha.
 - Pruebas: tsc/lint/build OK. E2E real (tenant con taxId): apunte PROVISION, tiempo 90min@120=180,
   factura ES Verifactu (base 1000, IVA 21%=210, IRPF 15%=150, total 1060, huella presente), cobro->PAID.
 - Pendiente: preview fiscal en vivo (sin endpoint de calculo), QR Verifactu renderizado, listado global.
+
+### 2026-06-14 - Claude - Slice F5 (Tiempo real: chat + notificaciones)
+
+- socket.io-client + lib/socket (singleton autenticado con el access token, auth callback reevaluado
+  en reconexion). Tipos Message/Notification + hooks (useMessages/useSendMessage/useNotifications/
+  useMarkNotificationRead).
+- ChatTab (tab Chat de la ficha): historial + envio + recepcion en vivo (matter:subscribe +
+  message:new), burbujas propias/ajenas. NotificationsBell en la topbar: contador no leidas, lista,
+  marcar leida, refresco en vivo (notification:new). i18n chat._/notifications._.
+- Pruebas: tsc/lint/build OK. E2E real: enviar/listar mensajes; flujo de notificacion (admin asigna
+  tarea al CLIENT -> CLIENT la recibe (task.assigned) -> marcar leida). Live socket probado en backend.
