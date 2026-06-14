@@ -148,7 +148,17 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         dashboard con datos reales; refresh con rotación; logout; middleware redirige.
   - [x] Tests: cliente de API (token/refresh, 4 verdes en Vitest).
   - Pendiente de slices siguientes: framer-motion (animaciones), nav móvil (Drawer), Geist webfont.
-- **F1 — Dashboard + Expedientes (lista + detalle hero)** `[ ]`
+- **F1 — Dashboard + Expedientes (lista + detalle hero)** `[~]`
+  - [x] Dashboard: KPIs reales (expedientes, clientes) + expedientes recientes + cumplimiento por
+        jurisdicción; estados cargando/error.
+  - [x] Expedientes: lista real (`GET /matters`, paginación, filtro por estado, badges de la máquina
+        de estados, cargando/vacío/error).
+  - [x] Ficha de expediente (hero): overview con datos reales + **control de transición de estado**
+        (solo transiciones válidas → `PATCH /matters/:id/status`) + tabs (Resumen activo).
+  - [x] Hooks TanStack Query (`useMatters`/`useMatter`/`useChangeMatterStatus`) + tests
+        (matter-status, scope). Verificado E2E contra la API real.
+  - Pendiente (se completa con sus slices): tabs Documentos/Tareas/Costes/Chat/Actividad (F2–F5),
+    alta de expediente, búsqueda semántica (la API aún no expone búsqueda de texto), cronómetro.
 - **F2 — Documentos (subida/versión/revisión/comparar)** `[ ]`
 - **F3 — Tareas y plazos procesales (+ crear desde plazo)** `[ ]`
 - **F4 — Facturación (ledger, nueva factura con preview fiscal, detalle con bloque de cumplimiento)** `[ ]`

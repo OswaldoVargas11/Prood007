@@ -27,14 +27,57 @@
   },
   "dashboard": {
     "welcome": "Bienvenido de nuevo",
-    "clients": "Clientes",
     "compliance": "Cumplimiento del despacho",
     "country": "Jurisdicción",
     "eInvoice": "Facturación electrónica",
     "taxes": "Impuestos",
     "loadError": "No se pudieron cargar los datos",
     "retry": "Reintentar",
-    "next": "La interfaz completa llega por slices verticales (expedientes, documentos, tareas, facturación…)."
+    "recentMatters": "Expedientes recientes",
+    "viewAll": "Ver todos",
+    "noMatters": "Aún no hay expedientes."
+  },
+  "matters": {
+    "title": "Expedientes",
+    "subtitle": "Asuntos del despacho, su estado y responsables.",
+    "filterAll": "Todos",
+    "status": {
+      "OPEN": "Abierto",
+      "IN_PROGRESS": "En curso",
+      "ON_HOLD": "En espera",
+      "CLOSED": "Cerrado",
+      "ARCHIVED": "Archivado"
+    },
+    "col": {
+      "reference": "Referencia",
+      "title": "Título",
+      "type": "Tipo",
+      "status": "Estado",
+      "opened": "Apertura"
+    },
+    "empty": "No hay expedientes para este filtro.",
+    "loadError": "No se pudieron cargar los expedientes",
+    "retry": "Reintentar",
+    "prev": "Anterior",
+    "next": "Siguiente",
+    "pageOf": "Página {page} de {pages}",
+    "changeStatus": "Cambiar estado",
+    "statusError": "No se pudo cambiar el estado (transición no válida o sin permiso).",
+    "detail": {
+      "client": "Cliente",
+      "type": "Tipo",
+      "opened": "Fecha de apertura",
+      "closed": "Fecha de cierre"
+    },
+    "tabs": {
+      "overview": "Resumen",
+      "documents": "Documentos",
+      "tasks": "Tareas",
+      "costs": "Costes",
+      "chat": "Chat",
+      "activity": "Actividad",
+      "soon": "Esta sección llega en un próximo slice."
+    }
   },
   "command": {
     "placeholder": "Buscar o ejecutar una acción…",

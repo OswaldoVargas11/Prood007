@@ -352,3 +352,29 @@ Notas:
 
 Siguiente: ESPERAR revision del usuario de la fontaneria de auth (F0) antes de F1 (dashboard +
 expedientes). Demo local viva: http://localhost:3000 (admin@demo.test / Sup3rSecret!2026).
+
+### 2026-06-14 - Claude - F0 hardening (gate de rol servidor) + Slice F1 (dashboard + expedientes)
+
+Aprobado por el usuario: tokens y ciclo 401 OK. Aplicado el fix pedido y arrancado F1.
+
+Gate de rol en servidor (D-015): BFF deriva ambito firm|client del access token y fija cookie httpOnly
+lf_scope; el middleware redirige en servidor (client fuera del portal -> /portal; firm en portal ->
+/dashboard). Helper puro lib/scope.ts con tests. Probado E2E: firm /portal->/dashboard; CLIENT real
+(creado via portal-user) /dashboard->/portal (307), /portal 200.
+
+Slice F1 (Dashboard + Expedientes):
+
+- Capa de datos: lib/types.ts, lib/hooks.ts (useMatters/useMatter/useChangeMatterStatus/useResourceCount),
+  lib/matter-status.ts (espejo de la maquina de estados + variante de badge). Primitivos ui/tabs.
+- Dashboard: KPIs reales (expedientes/clientes via total), expedientes recientes, cumplimiento por
+  jurisdiccion. Expedientes: lista real (paginacion, filtro por estado, badges, cargando/vacio/error).
+  Ficha hero: overview real + control de transicion de estado (solo validas -> PATCH /status) + tabs
+  (Resumen; resto "proximamente"). Nav "Expedientes" habilitado.
+- i18n es-ES/es-DO ampliado (matters.\*). Cero datos mock.
+
+Pruebas: tsc OK; vitest 10/10 (api, scope, matter-status); next lint limpio; next build OK
+(rutas dashboard, matters, matters/[id]). E2E real: crear expediente (EXP-2026-0001), lista total=1,
+detalle con cliente, cambio OPEN->IN_PROGRESS OK, transicion invalida IN_PROGRESS->OPEN -> 400;
+/es-ES/matters y /matters/[id] -> 200; sin sesion -> 307 login.
+
+Siguiente: F2 (Documentos) — rellena el tab Documentos de la ficha.
