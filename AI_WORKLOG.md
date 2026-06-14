@@ -538,3 +538,29 @@ rejilla mensual + rail derecho con la carga de plazos proximos.
 - Pruebas: web tsc/lint/build OK (ruta /[locale]/calendar emitida). Sin datos mock.
 
 Siguiente: A.4 Documentos (vista global del expediente) + comparar versiones (v2->v3).
+
+### 2026-06-14 - Claude - Tanda A.4: Documentos (vista completa) + comparar versiones
+
+Cuarta pantalla de la Tanda A. Replica las pantallas "Documents" (677) y "Doc review" (706) del
+prototipo, a nivel de expediente (los unicos endpoints son por expediente).
+
+- Backend: SIN cambios. GET /documents/by-matter/:id (lista con versiones), GET /documents/:id
+  (versiones + reviews), POST /documents/versions/:id/review ya existen. Nuevo hook web useDocument(id)
+  - tipos DocumentDetail/DocumentVersionDetail/DocumentReview.
+- Web:
+  - /matters/:id/documents/page.tsx: vista split del prototipo. Dropzone (clic = subida real via
+    useUploadDocument), lista agrupada por documento (chip de tipo MIME, estado, versiones con "actual")
+    y rail de vista previa (placeholder + tipo/estado + "Revisar documento ->" + descarga). Helper
+    mimeLabel en lib/doc-status.
+  - /matters/:id/documents/:docId/page.tsx: comparacion/revision. Selector de dos versiones (por defecto
+    ultima vs anterior) lado a lado con cabecera vN/fecha/"actual", metadatos (tipo/tamano/subida),
+    placeholder de preview y descarga. Rail con panel de revision (textarea + Aprobar/Solicitar
+    cambios/Rechazar/En revision, sobre POST review de la version nueva) y cronologia real (subidas de
+    version + revisiones con comentario, orden desc). El diff de TEXTO del prototipo es mock: el
+    contenido es binario (PDF/DOCX) y no extraemos texto, asi que se sustituye por metadatos+preview+
+    descarga (regla: sin datos mock).
+  - Enlace "Abrir vista de documentos" desde el tab Documentos de la ficha. i18n documents.\* ampliado +
+    matters.openDocuments en es-ES y es-DO.
+- Pruebas: web tsc/lint/build OK (rutas de documentos emitidas).
+
+Siguiente: A.5 Acercar la ficha de expediente al layout del prototipo (rail cronometro/plazos/saldo).

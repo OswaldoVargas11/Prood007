@@ -6,6 +6,7 @@ import type {
   Client,
   DashboardSummary,
   DeadlineResult,
+  DocumentDetail,
   DocumentReviewStatus,
   Invoice,
   LedgerEntryType,
@@ -94,6 +95,15 @@ export function useMatterDocuments(matterId: string) {
     queryKey: ['documents', matterId],
     queryFn: () => api.get<MatterDocument[]>(`/documents/by-matter/${matterId}`),
     enabled: Boolean(matterId),
+  });
+}
+
+/** Documento con versiones + revisiones (para la vista de comparación/revisión, A.4). */
+export function useDocument(id: string) {
+  return useQuery({
+    queryKey: ['document', id],
+    queryFn: () => api.get<DocumentDetail>(`/documents/${id}`),
+    enabled: Boolean(id),
   });
 }
 

@@ -127,6 +127,14 @@ export default function MatterDetailPage() {
         </TabsContent>
 
         <TabsContent value="documents">
+          <div className="mb-3 flex justify-end">
+            <Link
+              href={`/matters/${id}/documents`}
+              className="text-sm font-medium text-[var(--brand)] hover:underline"
+            >
+              {t('openDocuments')} →
+            </Link>
+          </div>
           <DocumentsTab matterId={id} />
         </TabsContent>
 

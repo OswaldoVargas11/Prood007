@@ -213,7 +213,13 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         (calendario propio, sin dep nueva) con chips de plazo por día coloreados por urgencia + rail
         "carga de plazos" próximos. Deriva de `GET /tasks` (con `dueDate`, sin cancelar) + `GET /matters`
         para la referencia. Click → expediente. Nav `calendar` habilitado. i18n `calendar.*`.
-  - [ ] A.4 Documentos (vista global) + comparar versiones (v2→v3).
+  - [x] **A.4 Documentos (vista completa) + comparar versiones**: split-view por expediente
+        (`/matters/:id/documents`: dropzone + lista agrupada por documento con versiones + rail de vista
+        previa) y pantalla de comparación/revisión (`/matters/:id/documents/:docId`: selector de
+        versiones lado a lado, panel de revisión aprobar/cambios/rechazar + cronología). Sobre
+        `GET /documents/by-matter/:id`, `GET /documents/:id`, `POST /documents/versions/:id/review`. El
+        diff de texto del prototipo se sustituye por metadatos+preview+descarga (el contenido es binario;
+        sin mock). Enlace desde el tab Documentos.
   - [ ] A.5 Acercar la ficha de expediente al layout del prototipo (rail cronómetro/plazos/saldo).
 - **F7 — Resto (ajustes/admin, agenda/calendario, aprobaciones, auditoría)** `[ ]` — **diferido**: el
   backend aún no expone estos endpoints (settings/suscripción/certificado/series fiscales/listado de

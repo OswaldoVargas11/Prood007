@@ -194,3 +194,30 @@ export interface MatterDocument {
   createdAt: string;
   versions: DocumentVersion[];
 }
+
+/** Una revisión registrada sobre una versión (de `GET /documents/:id`). */
+export interface DocumentReview {
+  id: string;
+  versionId: string;
+  reviewerId: string;
+  status: DocumentReviewStatus;
+  comment: string | null;
+  createdAt: string;
+}
+
+/** Versión enriquecida con sus revisiones (de `GET /documents/:id`). */
+export interface DocumentVersionDetail extends DocumentVersion {
+  documentId: string;
+  uploadedById: string;
+  reviews: DocumentReview[];
+}
+
+/** Documento con versiones y revisiones (de `GET /documents/:id`). */
+export interface DocumentDetail {
+  id: string;
+  matterId: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  versions: DocumentVersionDetail[];
+}

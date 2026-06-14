@@ -168,7 +168,8 @@
       "chat": "Chat",
       "activity": "Actividad",
       "soon": "Esta sección llega en un próximo slice."
-    }
+    },
+    "openDocuments": "Abrir vista de documentos"
   },
   "clients": {
     "title": "Clientes",
@@ -190,7 +191,26 @@
     "invoicesHint": "Las facturas se gestionan dentro de cada expediente (pestaña Costes)."
   },
   "documents": {
+    "title": "Documentos",
     "subtitle": "Documentos del expediente, con versiones y revisión.",
+    "groupedSubtitle": "Agrupados por documento, con versiones y estado de revisión.",
+    "dropzone": "Arrastra archivos aquí o haz clic para seleccionar · PDF, DOCX · máx 25 MB",
+    "back": "Expediente",
+    "current": "actual",
+    "preview": "Vista previa",
+    "typeLabel": "Tipo",
+    "statusLabel": "Estado",
+    "uploadedAt": "Subida",
+    "reviewDoc": "Revisar documento",
+    "comparing": "Comparando v{a} → v{b}",
+    "viewing": "Versión v{v}",
+    "versionOld": "Versión base",
+    "versionNew": "Comparar con",
+    "reviewVersion": "Revisar v{v}",
+    "notifyOnResolve": "Se notificará a quien subió la versión al resolver.",
+    "reviewTimeline": "Cronología de revisión",
+    "timelineUpload": "Se subió la versión v{v}",
+    "timelineReview": "Revisión de v{v}: {status}",
     "upload": "Subir documento",
     "uploadError": "No se pudo subir el documento.",
     "loadError": "No se pudieron cargar los documentos",
