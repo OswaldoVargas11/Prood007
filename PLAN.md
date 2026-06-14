@@ -134,18 +134,20 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 > shadcn/ui + next-intl), cableado a la API real, por **slices verticales** (cada uno: pantalla +
 > componentes reales + endpoints + estados cargando/vacío/error + tests + cero mock). Ver D-014.
 
-- **F0 — Fundación + login E2E** `[~]` (PARAR para revisión)
-  - [ ] Tokens del diseño en `globals.css` + `tailwind.config` extendido (handoff §03).
-  - [ ] Primitivos shadcn/ui (button, input, label, card, badge, skeleton, sheet, command, dialog,
+- **F0 — Fundación + login E2E** `[x]` (PARADO para revisión)
+  - [x] Tokens del diseño en `globals.css` + `tailwind.config` extendido (handoff §03).
+  - [x] Primitivos shadcn/ui (button, input, label, card, badge, skeleton, sheet, command, dialog,
         dropdown-menu, avatar) + `lib/utils` (cn).
-  - [ ] Providers: TanStack Query + `next-themes` (tema claro/oscuro) + NextIntlClientProvider.
-  - [ ] **Auth (BFF httpOnly):** Route Handlers `app/api/auth/{login,refresh,logout}`; access en
+  - [x] Providers: TanStack Query + `next-themes` (tema claro/oscuro) + NextIntlClientProvider.
+  - [x] **Auth (BFF httpOnly):** Route Handlers `app/api/auth/{login,refresh,logout}`; access en
         memoria; `lib/api` con Bearer + refresh en 401; `lib/auth` (sesión).
-  - [ ] **Middleware** de rutas (no autenticado → login; con sesión → fuera de login) + i18n.
-  - [ ] App shell: sidebar flotante, command bar ⌘K (cmdk), panel IA (Sheet) como patrón, toggle tema,
+  - [x] **Middleware** de rutas (no autenticado → login; con sesión → fuera de login) + i18n.
+  - [x] App shell: sidebar flotante, command bar ⌘K (cmdk), panel IA (Sheet) como patrón, toggle tema,
         menú de usuario/tenant.
-  - [ ] **Login real E2E**: login → cookie/access → `/me` → render dashboard con datos reales.
-  - [ ] Tests: cliente de API (flujo de token/refresh) + login.
+  - [x] **Login real E2E** (verificado contra la API real): login → cookie httpOnly/access → `/me` →
+        dashboard con datos reales; refresh con rotación; logout; middleware redirige.
+  - [x] Tests: cliente de API (token/refresh, 4 verdes en Vitest).
+  - Pendiente de slices siguientes: framer-motion (animaciones), nav móvil (Drawer), Geist webfont.
 - **F1 — Dashboard + Expedientes (lista + detalle hero)** `[ ]`
 - **F2 — Documentos (subida/versión/revisión/comparar)** `[ ]`
 - **F3 — Tareas y plazos procesales (+ crear desde plazo)** `[ ]`

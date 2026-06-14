@@ -2,15 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { api, tokenStore, type TokenPair } from './api';
-
-export interface AuthUser {
-  userId: string;
-  tenantId: string;
-  jurisdiction: 'es' | 'do';
-  email: string;
-  roles: string[];
-}
+import { api, ApiError, refreshAccessToken, setAccessToken } from './api';
+import type { AuthUser } from './auth-types';
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -22,41 +15,52 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+function errorMessage(data: unknown, fallback: string): string {
+  const raw = (data as { message?: string | string[] } | undefined)?.message;
+  if (Array.isArray(raw)) return raw.join(', ');
+  return raw ?? fallback;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadMe = useCallback(async () => {
-    if (!tokenStore.access) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-    try {
-      setUser(await api.get<AuthUser>('/auth/me'));
-    } catch {
-      tokenStore.clear();
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+  // Al montar: intenta mintar un access desde la cookie de refresh (BFF) y cargar /me.
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const ok = await refreshAccessToken();
+      if (ok) {
+        try {
+          const me = await api.get<AuthUser>('/auth/me');
+          if (active) setUser(me);
+        } catch {
+          if (active) setUser(null);
+        }
+      }
+      if (active) setLoading(false);
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
-  useEffect(() => {
-    void loadMe();
-  }, [loadMe]);
-
   const login = useCallback(async (email: string, password: string, tenantId?: string) => {
-    const pair = await api.post<TokenPair>('/auth/login', { email, password, tenantId }, false);
-    tokenStore.set(pair);
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, tenantId: tenantId || undefined }),
+    });
+    const data = await res.json().catch(() => undefined);
+    if (!res.ok)
+      throw new ApiError(res.status, errorMessage(data, 'No se pudo iniciar sesión'), data);
+    setAccessToken((data as { accessToken: string }).accessToken);
     setUser(await api.get<AuthUser>('/auth/me'));
   }, []);
 
   const logout = useCallback(async () => {
-    const refreshToken = tokenStore.refresh;
-    if (refreshToken)
-      await api.post('/auth/logout', { refreshToken }, false).catch(() => undefined);
-    tokenStore.clear();
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+    setAccessToken(null);
     setUser(null);
   }, []);
 

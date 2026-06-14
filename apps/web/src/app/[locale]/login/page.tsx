@@ -1,79 +1,112 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useTranslations } from 'next-intl';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { useRouter } from '@/i18n/navigation';
 import { ApiError } from '@/lib/api';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ThemeToggle } from '@/components/lexora/theme-toggle';
+
+const schema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+  tenantId: z.string().optional(),
+});
+type FormValues = z.infer<typeof schema>;
 
 export default function LoginPage() {
   const t = useTranslations('login');
   const { login } = useAuth();
   const router = useRouter();
-  const { locale } = useParams<{ locale: string }>();
+  const [serverError, setServerError] = useState<string | null>(null);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [tenantId, setTenantId] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setBusy(true);
+  async function onSubmit(values: FormValues) {
+    setServerError(null);
     try {
-      await login(email, password, tenantId || undefined);
-      router.push(`/${locale}/dashboard`);
+      await login(values.email, values.password, values.tenantId);
+      router.replace('/dashboard');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('genericError'));
-    } finally {
-      setBusy(false);
+      setServerError(err instanceof ApiError ? err.message : t('genericError'));
     }
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center p-6">
-      <h1 className="text-2xl font-bold">{t('title')}</h1>
-      <p className="mt-1 text-sm text-gray-500">{t('subtitle')}</p>
-      <form onSubmit={onSubmit} className="mt-6 space-y-4">
-        <label className="block">
-          <span className="text-sm font-medium">{t('email')}</span>
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
-          />
-        </label>
-        <label className="block">
-          <span className="text-sm font-medium">{t('password')}</span>
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
-          />
-        </label>
-        <label className="block">
-          <span className="text-sm font-medium">{t('tenantOptional')}</span>
-          <input
-            value={tenantId}
-            onChange={(e) => setTenantId(e.target.value)}
-            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
-          />
-        </label>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="submit"
-          disabled={busy}
-          className="w-full rounded-md bg-indigo-700 px-4 py-2 font-medium text-white disabled:opacity-50"
-        >
-          {busy ? t('signingIn') : t('signIn')}
-        </button>
-      </form>
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-6">
+      {/* fondo con gradiente sutil del brand */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.07]"
+        style={{
+          background: 'radial-gradient(60% 50% at 50% 0%, var(--ai-from), transparent 70%)',
+        }}
+      />
+      <div className="absolute right-5 top-5">
+        <ThemeToggle />
+      </div>
+
+      <Card className="w-full max-w-sm shadow-lg">
+        <CardHeader className="items-center text-center">
+          <div className="mb-2 flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--ai-from)] to-[var(--ai-to)]">
+            <div className="size-3.5 rotate-45 rounded border-2 border-white" />
+          </div>
+          <CardTitle className="text-xl">{t('title')}</CardTitle>
+          <CardDescription>{t('subtitle')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+            <div className="space-y-1.5">
+              <Label htmlFor="email">{t('email')}</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                autoFocus
+                {...register('email')}
+              />
+              {errors.email && <p className="text-xs text-[var(--danger)]">{t('invalidEmail')}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="password">{t('password')}</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                {...register('password')}
+              />
+              {errors.password && <p className="text-xs text-[var(--danger)]">{t('required')}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tenantId" className="text-muted-foreground">
+                {t('tenantOptional')}
+              </Label>
+              <Input id="tenantId" autoComplete="off" {...register('tenantId')} />
+            </div>
+            {serverError && (
+              <p role="alert" className="text-sm text-[var(--danger)]">
+                {serverError}
+              </p>
+            )}
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="animate-spin" />}
+              {isSubmitting ? t('signingIn') : t('signIn')}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </main>
   );
 }

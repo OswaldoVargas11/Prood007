@@ -314,3 +314,41 @@ Pruebas (todas verdes, sin BD en la nueva suite):
   sockets reales, sin regresion). `build` y `pnpm -r lint`: OK.
 
 Estado: RLS sin fail-open conocido (HTTP + WebSocket bajo contexto de tenant). D-013/HANDOFF al dia.
+
+### 2026-06-14 - Claude - Frontend Slice F0: fundacion + login E2E (PARADO para revision)
+
+Objetivo: integrar el prototipo Lexora como frontend real de apps/web, por slices verticales.
+Paso 0 (inspeccion) registrado en D-014; plan en PLAN (F0-F7). Este bloque = Slice F0.
+
+Hecho:
+
+- Fundacion: tokens del diseno en `app/globals.css` + `tailwind.config` extendido (colores
+  var(--token), radios, sombras, animaciones). Primitivos shadcn/ui propios en `components/ui/*`
+  (button,input,label,card,badge,skeleton,dialog,sheet,command,dropdown-menu,avatar) + `lib/utils`.
+  Providers: TanStack Query + next-themes (claro/oscuro) + NextIntl. Deps anadidas a apps/web.
+- Auth (decision D-014, BFF httpOnly SIN tocar el backend): Route Handlers
+  `app/api/auth/{login,refresh,logout}` que proxyan a Nest y guardan el refresh en cookie httpOnly;
+  el access vive en MEMORIA (`lib/api`), con refresh automatico en 401 via BFF. `lib/auth` (sesion),
+  `middleware` (i18n + gate por cookie; redirige login<->dashboard). El cliente NUNCA envia tenantId.
+- App shell: sidebar flotante, command bar ⌘K (cmdk), panel IA (Sheet, patron; backend D-011 sin
+  cablear), toggle de tema, menu de usuario. Login real (RHF+zod) y dashboard que lee /me + hace una
+  query autenticada real (/clients) con estados cargando/error. Copy fiscal por JURISDICCION del
+  tenant (Verifactu/IVA vs e-CF/ITBIS, NIF/CIF vs RNC), nunca hardcodeado. i18n es-ES/es-DO (sin EN).
+
+Pruebas/verificacion:
+
+- `tsc --noEmit` OK; `next lint` limpio; **`next build` OK** (rutas dashboard/login/portal + 3 BFF +
+  middleware). Vitest: **4/4** del cliente API (Bearer, refresh en 401, fallo de refresh limpia access).
+- **E2E real** (API Nest :4000 + web :3000, usuario admin@demo.test sembrado por register-tenant):
+  login via BFF -> cookie httpOnly + access -> /me 200 (FIRM_ADMIN, jur es); refresh con ROTACION ->
+  /me 200 (repetible); reuse-detection del refresh viejo -> 401 (correcto); /dashboard sin cookie ->
+  307 a /login; logout -> 204.
+
+Notas:
+
+- Nombre mostrado "Lexora" via i18n `app.name` (rebrand de paquetes @legalflow/\* sigue diferido).
+- Secciones nav F1+ se muestran deshabilitadas ("Pronto") hasta construirse. CLIENT -> /portal
+  (placeholder; superficie real en F6).
+
+Siguiente: ESPERAR revision del usuario de la fontaneria de auth (F0) antes de F1 (dashboard +
+expedientes). Demo local viva: http://localhost:3000 (admin@demo.test / Sup3rSecret!2026).

@@ -1,24 +1,20 @@
 {
   "app": {
-    "name": "LegalFlow",
+    "name": "Lexora",
     "tagline": "El sistema operativo del despacho moderno"
   },
-  "home": {
-    "welcome": "Bienvenido a LegalFlow",
-    "jurisdiction": "Jurisdicción: República Dominicana",
-    "billing": "Facturación electrónica: e-CF (DGII)",
-    "currency": "Moneda: DOP"
-  },
   "nav": {
+    "dashboard": "Panel",
     "matters": "Expedientes",
     "clients": "Clientes",
     "documents": "Documentos",
     "tasks": "Tareas",
     "billing": "Facturación",
-    "portal": "Portal del cliente"
+    "portal": "Portal del cliente",
+    "soon": "Pronto"
   },
   "login": {
-    "title": "Acceder a LegalFlow",
+    "title": "Acceder a Lexora",
     "subtitle": "Introduce tus credenciales del despacho",
     "email": "Correo electrónico",
     "password": "Contraseña",
@@ -26,16 +22,39 @@
     "signIn": "Entrar",
     "signingIn": "Entrando…",
     "genericError": "No se pudo iniciar sesión",
-    "error": "Error"
+    "invalidEmail": "Introduce un correo válido",
+    "required": "Este campo es obligatorio"
   },
   "dashboard": {
-    "title": "Panel",
-    "loading": "Cargando…",
-    "logout": "Cerrar sesión",
-    "user": "Usuario",
-    "jurisdiction": "Jurisdicción",
-    "roles": "Roles",
+    "welcome": "Bienvenido de nuevo",
     "clients": "Clientes",
-    "placeholder": "La interfaz completa llega con el diseño (Sesión 2)."
+    "compliance": "Cumplimiento del despacho",
+    "country": "Jurisdicción",
+    "eInvoice": "Facturación electrónica",
+    "taxes": "Impuestos",
+    "loadError": "No se pudieron cargar los datos",
+    "retry": "Reintentar",
+    "next": "La interfaz completa llega por slices verticales (expedientes, documentos, tareas, facturación…)."
+  },
+  "command": {
+    "placeholder": "Buscar o ejecutar una acción…",
+    "empty": "Sin resultados.",
+    "navigation": "Navegación"
+  },
+  "ai": {
+    "assistant": "Asistente IA",
+    "subtitle": "Redacta, resume y revisa con citación de fuentes.",
+    "soon": "Próximamente",
+    "placeholder": "El asistente se activará cuando se cablee el proveedor de IA del despacho.",
+    "citations": "Siempre mostrará las fuentes citadas y una señal de confianza (sin alucinaciones)."
+  },
+  "userMenu": {
+    "open": "Abrir menú de usuario",
+    "logout": "Cerrar sesión"
+  },
+  "portal": {
+    "title": "Portal del cliente",
+    "subtitle": "Tu superficie de solo lectura y chat con el despacho.",
+    "soon": "Próximamente"
   }
 }
