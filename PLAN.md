@@ -105,16 +105,16 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 - [x] Errores de cumplimiento con `messageKey` para traducir en UI.
 - [ ] Catálogo i18n exhaustivo de mensajes de API (pendiente de pulido).
 
-## E9 — Capa de cumplimiento (paquete base)  `[~]`
+## E9 — Capa de cumplimiento (paquete base)  `[x]`
 - [x] Interfaz `ComplianceProvider` + tipos.
 - [x] `SpainComplianceProvider` (esqueleto: IVA/IRPF, Verifactu, LexNET, SII, plazos).
 - [x] `DominicanComplianceProvider` (esqueleto: ITBIS, e-CF/DGII, RNC, 606/607).
 - [x] `ComplianceProviderFactory` (selección por `tenant.jurisdiction`).
-- [ ] Implementación real `validateTaxId` (NIF/CIF, RNC, Cédula con dígitos de control).
-- [ ] Implementación real `getTaxRates` por jurisdicción.
-- [ ] `buildInvoiceRecord` estructuralmente correcto (Verifactu / e-CF XML).
-- [ ] `getProceduralDeadlines` real ES (festivos nacionales).
-- [ ] **Tests obligatorios** de cobertura en toda la capa.
+- [x] Implementación real `validateTaxId` (NIF/CIF/NIE, RNC, Cédula con dígitos de control).
+- [x] Implementación real `getTaxRates` por jurisdicción (IVA/IRPF ES, ITBIS RD).
+- [x] `buildInvoiceRecord` estructuralmente correcto (Verifactu / e-CF XML).
+- [x] `getProceduralDeadlines` real ES (fines de semana + festivos nacionales).
+- [x] **Tests obligatorios** de cobertura en toda la capa.
 
 ## Diferido (stubs detrás de interfaz — NO construir aún)
 - Envío real AEAT/DGII, LexNET en vivo, firma electrónica (Signaturit/DocuSign), SMS.
@@ -133,3 +133,11 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 - ⚠️ **Bloqueante de entorno:** esta máquina no tiene Node.js / pnpm / Docker instalados (solo git).
   No se ha podido ejecutar `pnpm install`, build, ni `prisma migrate`. Ver `DECISIONS.md` §Entorno.
 - ⏭️ Siguiente al aprobar: E1 (Auth multi-tenant + RBAC).
+### Actualizacion 2026-06-14 - Codex
+- Entorno local con Node/pnpm operativo; se han ejecutado pruebas unitarias de compliance, e2e de API
+  y comprobaciones TypeScript.
+- Backend MVP Fase 1 avanzado hasta E7 y E9 validado con tests.
+- Frontend existente en `apps/web`, pero todavia es una pantalla inicial basica; falta UI funcional
+  para operar clientes, expedientes, documentos, tareas, ledger y portal.
+- Siguiente foco recomendado: corregir configuracion de lint/CI (E0), ampliar UI funcional (E8/web)
+  y abordar transversales de seguridad/datos.

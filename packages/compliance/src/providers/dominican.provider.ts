@@ -1,16 +1,14 @@
 /**
- * DominicanComplianceProvider — adaptador de cumplimiento para República Dominicana (`do`).
+ * DominicanComplianceProvider - compliance adapter for Dominican Republic (`do`).
  *
- * Cubre: RNC/Cédula, ITBIS 18 %, e-CF (Comprobante Fiscal Electrónico — Ley 32-23 / DGII) como
- * XML firmable, reportes 606 (compras) / 607 (ventas). Calendario judicial menos desarrollado:
- * la interfaz de plazos queda lista pero advierte. LexNET no aplica (no disponible).
- *
- * ESTADO: esqueleto. Envío a DGII STUBBEADO.
+ * Covers RNC/Cedula validation, ITBIS 18%, e-CF XML payloads, 606/607 reports and a clean
+ * "not available" court integration because LexNET does not apply in this jurisdiction.
  */
 import { createHash } from 'node:crypto';
-import { Jurisdiction, TaxIdKind } from '@legalflow/domain';
+import { Jurisdiction } from '@legalflow/domain';
 import { addBusinessDays } from '../deadlines';
 import { computeInvoiceTotals } from '../tax-math';
+import { validateDoTaxId } from '../taxid';
 import type { ComplianceProvider } from '../provider.interface';
 import type {
   CourtIntegration,
@@ -27,14 +25,8 @@ export class DominicanComplianceProvider implements ComplianceProvider {
   readonly jurisdiction = Jurisdiction.DO;
 
   validateTaxId(id: string): TaxIdValidationResult {
-    const normalized = id.trim().replace(/[\s-]/g, '');
-    // RNC: 9 dígitos. Cédula: 11 dígitos. TODO(E9): validar dígito verificador real de cada uno.
-    if (/^[0-9]{9}$/.test(normalized)) {
-      return { valid: true, kind: TaxIdKind.RNC, normalized };
-    }
-    if (/^[0-9]{11}$/.test(normalized)) {
-      return { valid: true, kind: TaxIdKind.CEDULA, normalized };
-    }
+    const result = validateDoTaxId(id);
+    if (result.valid) return result;
     return {
       valid: false,
       error: { code: 'INVALID_TAX_ID', messageKey: 'compliance.do.taxId.invalid' },
@@ -52,7 +44,6 @@ export class DominicanComplianceProvider implements ComplianceProvider {
 
   async buildInvoiceRecord(invoice: InvoiceInput): Promise<InvoiceRecord> {
     const { rates } = this.getTaxRates();
-    // En RD no hay retención de IRPF; solo ITBIS repercutido.
     const { totals } = computeInvoiceTotals(invoice.lines, rates);
 
     const ecfXml = [
@@ -75,7 +66,7 @@ export class DominicanComplianceProvider implements ComplianceProvider {
       `      <MontoTotal>${totals.total}</MontoTotal>`,
       '    </Totales>',
       '  </Encabezado>',
-      '  <!-- Firma con certificado digital → fase de integración (fuera de MVP) -->',
+      '  <!-- Digital certificate signature is outside the MVP integration scope. -->',
       '</ECF>',
     ].join('\n');
 
@@ -89,13 +80,12 @@ export class DominicanComplianceProvider implements ComplianceProvider {
       recordHash,
       submission: {
         status: 'STUBBED',
-        detail: 'Validación en tiempo real con DGII no implementada en MVP.',
+        detail: 'Validacion en tiempo real con DGII no implementada en MVP.',
       },
     };
   }
 
   getProceduralDeadlines(params: ProceduralDeadlineParams): ProceduralDeadlineResult {
-    // Se excluyen fines de semana; el calendario de festivos judiciales de RD no está consolidado.
     const { dueDate, holidaysApplied } = addBusinessDays(
       new Date(params.startDate),
       params.days,
@@ -112,7 +102,6 @@ export class DominicanComplianceProvider implements ComplianceProvider {
   }
 
   getCourtIntegration(): CourtIntegration {
-    // En RD no hay equivalente a LexNET integrable en el MVP → no disponible, de forma limpia.
     return { available: false };
   }
 
@@ -120,13 +109,12 @@ export class DominicanComplianceProvider implements ComplianceProvider {
     return {
       supported: ['606', '607'],
       async generate(reportCode, params) {
-        // TODO(E9): construir formatos 606 (compras) / 607 (ventas) reales de la DGII.
         return {
           reportCode,
           period: params.period,
           format: 'CSV',
           content: `# Reporte ${reportCode} ${params.period} (stub)`,
-          submission: { status: 'STUBBED', detail: 'Envío a DGII no implementado en MVP.' },
+          submission: { status: 'STUBBED', detail: 'Envio a DGII no implementado en MVP.' },
         };
       },
     };

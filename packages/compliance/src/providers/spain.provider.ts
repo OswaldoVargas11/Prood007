@@ -8,9 +8,10 @@
  * lógica real pendiente (E9). El envío a AEAT va STUBBEADO.
  */
 import { createHash } from 'node:crypto';
-import { Jurisdiction, TaxIdKind } from '@legalflow/domain';
+import { Jurisdiction } from '@legalflow/domain';
 import { addBusinessDays, spanishNationalHolidays } from '../deadlines';
 import { computeInvoiceTotals } from '../tax-math';
+import { validateEsTaxId } from '../taxid';
 import type { ComplianceProvider } from '../provider.interface';
 import type {
   CourtIntegration,
@@ -27,17 +28,8 @@ export class SpainComplianceProvider implements ComplianceProvider {
   readonly jurisdiction = Jurisdiction.ES;
 
   validateTaxId(id: string): TaxIdValidationResult {
-    const normalized = id.trim().toUpperCase().replace(/[\s-]/g, '');
-    // TODO(E9): validar dígito de control real de NIF (letra), NIE y CIF.
-    if (/^[0-9]{8}[A-Z]$/.test(normalized)) {
-      return { valid: true, kind: TaxIdKind.NIF, normalized };
-    }
-    if (/^[XYZ][0-9]{7}[A-Z]$/.test(normalized)) {
-      return { valid: true, kind: TaxIdKind.NIE, normalized };
-    }
-    if (/^[A-HJ-NP-SUVW][0-9]{7}[0-9A-J]$/.test(normalized)) {
-      return { valid: true, kind: TaxIdKind.CIF, normalized };
-    }
+    const result = validateEsTaxId(id);
+    if (result.valid) return result;
     return {
       valid: false,
       error: { code: 'INVALID_TAX_ID', messageKey: 'compliance.es.taxId.invalid' },
@@ -131,7 +123,7 @@ export class SpainComplianceProvider implements ComplianceProvider {
       async acknowledge(notificationId: string) {
         return { notificationId, acknowledgedAt: new Date().toISOString() };
       },
-      async submitFiling(filing) {
+      async submitFiling(_filing) {
         return {
           filingId: `stub-${Date.now()}`,
           acceptedAt: new Date().toISOString(),

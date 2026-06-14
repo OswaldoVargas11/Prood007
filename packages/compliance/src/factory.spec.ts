@@ -69,9 +69,15 @@ describe('DominicanComplianceProvider', () => {
   });
 
   it('valida una Cédula de 11 dígitos', () => {
-    const r = dom.validateTaxId('001-1234567-8');
+    const r = dom.validateTaxId('001-1234567-3');
     expect(r.valid).toBe(true);
-    expect(r.normalized).toBe('00112345678');
+    expect(r.normalized).toBe('00112345673');
+  });
+
+  it('rechaza una Cedula con digito de control incorrecto', () => {
+    const r = dom.validateTaxId('001-1234567-8');
+    expect(r.valid).toBe(false);
+    expect(r.error?.messageKey).toBe('compliance.do.taxId.invalid');
   });
 
   it('expone ITBIS 18%', () => {
