@@ -167,7 +167,13 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         `POST /documents/versions/:id/review`. Estados cargando/vacío/error.
   - Pendiente: pantalla global de Documentos (la API solo expone por expediente) y comparación
     de versiones lado a lado.
-- **F3 — Tareas y plazos procesales (+ crear desde plazo)** `[ ]`
+- **F3 — Tareas y plazos procesales (+ crear desde plazo)** `[x]`
+  - [x] Página global de Tareas + tab Tareas en la ficha (mismo `TasksPanel`, filtrado por expediente).
+  - [x] Lista real (`GET /tasks`, filtro por estado), badges, marcador de plazo procesal, resaltado de
+        vencidas; cambio de estado (`PATCH /tasks/:id`).
+  - [x] Crear tarea y **crear desde plazo** (`POST /tasks/from-deadline`): la jurisdicción calcula la
+        fecha (días hábiles + festivos); se muestra el vencimiento y los festivos aplicados.
+  - [x] Nav "Tareas" habilitado; i18n tasks.\*. Verificado E2E (ES: 23-dic+5 → 31-dic, festivo 25-dic).
 - **F4 — Facturación (ledger, nueva factura con preview fiscal, detalle con bloque de cumplimiento)** `[ ]`
 - **F5 — Tiempo real (notificaciones + chat por expediente, Socket.IO)** `[ ]`
 - **F6 — Portal del cliente (rol CLIENT, solo lectura + chat)** `[ ]`

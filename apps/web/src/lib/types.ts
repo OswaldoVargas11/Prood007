@@ -38,6 +38,27 @@ export interface Client {
   createdAt: string;
 }
 
+export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
+
+export interface Task {
+  id: string;
+  matterId: string | null;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  dueDate: string | null;
+  deadlineType: string | null;
+  isProcedural: boolean;
+  assigneeId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DeadlineResult {
+  dueDate: string;
+  holidaysApplied?: string[];
+}
+
 export type DocumentReviewStatus =
   | 'PENDING'
   | 'IN_REVIEW'

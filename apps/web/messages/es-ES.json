@@ -101,6 +101,38 @@
       "CHANGES_REQUESTED": "Cambios solicitados"
     }
   },
+  "tasks": {
+    "title": "Tareas",
+    "subtitle": "Tareas del despacho y plazos procesales.",
+    "filterAll": "Todas",
+    "status": {
+      "TODO": "Pendiente",
+      "IN_PROGRESS": "En curso",
+      "DONE": "Hecha",
+      "CANCELLED": "Cancelada"
+    },
+    "new": "Nueva tarea",
+    "create": "Crear",
+    "createAnother": "Crear otra",
+    "compute": "Calcular y crear",
+    "createError": "No se pudo crear la tarea.",
+    "titleField": "Título",
+    "dueField": "Fecha límite (opcional)",
+    "due": "Vence",
+    "overdue": "vencida",
+    "procedural": "Plazo procesal",
+    "setStatus": "Estado",
+    "loadError": "No se pudieron cargar las tareas",
+    "retry": "Reintentar",
+    "empty": "No hay tareas para este filtro.",
+    "fromDeadline": "Desde plazo",
+    "deadlineHelp": "La fecha límite la calcula la jurisdicción del despacho (días hábiles y festivos).",
+    "deadlineType": "Tipo de plazo",
+    "startDate": "Fecha de inicio",
+    "days": "Días",
+    "computed": "Vencimiento calculado",
+    "holidays": "Festivos aplicados"
+  },
   "command": {
     "placeholder": "Buscar o ejecutar una acción…",
     "empty": "Sin resultados.",

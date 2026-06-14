@@ -390,3 +390,13 @@ Siguiente: F2 (Documentos) — rellena el tab Documentos de la ficha.
 - Pruebas: tsc/lint/build OK; vitest 10/10. E2E real (API local storage): subir->201, listar,
   revisar APPROVED+comentario, descargar binario correcto.
 - Pendiente: pantalla global de Documentos (la API solo expone por expediente) y comparacion de versiones.
+
+### 2026-06-14 - Claude - Slice F3 (Tareas y plazos procesales)
+
+- Tipos+hooks de tareas (useTasks/useCreateTask/useCreateTaskFromDeadline/useUpdateTask/useDeleteTask),
+  task-status (variante + isOverdue). Componente TasksPanel reutilizable (global y por expediente):
+  lista con filtro por estado, badges, marca de plazo procesal, resaltado de vencidas, cambio de estado,
+  crear tarea y crear-desde-plazo (muestra vencimiento calculado + festivos). Pagina global /tasks + tab
+  Tareas en la ficha. Nav Tareas habilitado. i18n tasks.\* (es-ES/es-DO).
+- Pruebas: tsc/lint/build OK. E2E real: crear tarea (TODO), crear-desde-plazo ES (23-dic +5 habiles ->
+  31-dic, festivo 25-dic aplicado), listar por expediente, marcar DONE.

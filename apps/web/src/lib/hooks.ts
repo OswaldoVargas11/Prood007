@@ -3,12 +3,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
 import type {
+  DeadlineResult,
   DocumentReviewStatus,
   Matter,
   MatterDetail,
   MatterDocument,
   MatterStatus,
   Paginated,
+  Task,
+  TaskStatus,
 } from './types';
 
 /** Conteo barato para KPIs (pide 1 elemento y usa `total`). */
@@ -101,6 +104,65 @@ export function useReviewVersion(matterId: string) {
       comment?: string;
     }) => api.post(`/documents/versions/${versionId}/review`, { status, comment }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', matterId] }),
+  });
+}
+
+// ── Tareas y plazos (F3) ─────────────────────────────────────────────────────
+export function useTasks(filters: { matterId?: string; status?: TaskStatus } = {}) {
+  return useQuery({
+    queryKey: ['tasks', { matterId: filters.matterId ?? null, status: filters.status ?? null }],
+    queryFn: () => {
+      const qs = new URLSearchParams();
+      if (filters.matterId) qs.set('matterId', filters.matterId);
+      if (filters.status) qs.set('status', filters.status);
+      const suffix = qs.toString() ? `?${qs.toString()}` : '';
+      return api.get<Task[]>(`/tasks${suffix}`);
+    },
+  });
+}
+
+export function useCreateTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      title: string;
+      description?: string;
+      dueDate?: string;
+      matterId?: string;
+      assigneeId?: string;
+    }) => api.post<Task>('/tasks', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+}
+
+export function useCreateTaskFromDeadline() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      deadlineType: string;
+      startDate: string;
+      days: number;
+      title?: string;
+      matterId?: string;
+    }) => api.post<{ task: Task; deadline: DeadlineResult }>('/tasks/from-deadline', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+}
+
+export function useUpdateTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; status?: TaskStatus; title?: string }) =>
+      api.patch<Task>(`/tasks/${id}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+}
+
+export function useDeleteTask() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del(`/tasks/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
   });
 }
 
