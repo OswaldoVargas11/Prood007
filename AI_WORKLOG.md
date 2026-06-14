@@ -255,3 +255,37 @@ Riesgos/notas:
 Siguiente punto (commit 2): wiring de la app (AsyncLocalStorage + interceptor que fija `app.tenant_id`
 por request autenticado + extension de Prisma que envuelve cada operacion para fijar el GUC), con e2e
 que pruebe denegacion cross-tenant por HTTP.
+
+### 2026-06-14 - Claude - Postgres RLS (commit 2: wiring runtime + enforcement probado)
+
+Hecho (ahora RLS se aplica de verdad en runtime):
+
+- `prisma/tenant-context.ts`: `AsyncLocalStorage` con el tenant del request + helper
+  `tenantTransaction()` (abre una transaccion, fija el GUC una vez y marca `inTenantTx` para no
+  re-envolver dentro).
+- `prisma/prisma.service.ts`: extension Prisma (`Prisma.defineExtension` + `$allOperations`) que
+  envuelve cada operacion de modelo en una transaccion `[set_config(app.tenant_id), query]` cuando hay
+  tenant en contexto (patron oficial de Prisma para RLS). Passthrough si no hay contexto, si ya
+  estamos en `tenantTransaction`, o si es op no-modelo. El provider pasa a `useFactory` (cliente
+  extendido) con connect/disconnect gestionado por `PrismaModule`.
+- `prisma/tenant-context.interceptor.ts` (APP_INTERCEPTOR global): fija el contexto desde `req.user`
+  tras los guards. Rutas @Public y no-HTTP → sin contexto → bypass.
+- Refactor de 7 sitios `$transaction` autenticados (clients x2, matters, documents, ledger x3) a
+  `tenantTransaction`. `auth.registerTenant` se deja como esta (ruta de sistema sin contexto).
+
+Pruebas (todas verdes, conectando como `legalflow_app`):
+
+- Nuevo `test/rls-wiring.e2e-spec.ts` (5 tests): con `runWithTenant(A)`, una query SIN filtro
+  tenantId solo ve datos de A; B invisible por id; crear fila de B lo rechaza WITH CHECK;
+  `tenantTransaction` multi-sentencia aisla sin anidar; passthrough sin contexto ve ambos.
+- `jest --config test/jest-e2e.json`: **9 suites / 55 tests OK** (45 previos + 5 RLS BD + 5 wiring).
+- `pnpm --filter @legalflow/api build` y `pnpm -r lint`: OK.
+
+Notas:
+
+- El interceptor propaga el contexto envolviendo la suscripcion del handler (como nestjs-cls); el
+  AsyncLocalStorage sobrevive a las llamadas async del controlador/servicios.
+- Coste asumido: cada operacion puntual = mini-transaccion (set_config + query). Aceptable para MVP.
+- WebSocket/realtime queda en bypass (no fija contexto); documentado para endurecer mas adelante.
+
+Estado: RLS COMPLETA (politicas + rol + wiring + enforcement probado). PLAN/D-013 actualizados.

@@ -1,8 +1,9 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
+import { TenantContextInterceptor } from './prisma/tenant-context.interceptor';
 import { ComplianceModule } from './compliance/compliance.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
@@ -42,6 +43,8 @@ import { HealthController } from './health.controller';
   providers: [
     // Rate limiting global. Se ejecuta antes que la autenticación.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Fija el contexto de tenant por request (para RLS). Tras los guards (req.user ya está).
+    { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
   ],
 })
 export class AppModule {}

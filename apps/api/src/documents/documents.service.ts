@@ -9,6 +9,7 @@ import {
 import { DocumentReviewStatus, Role, STORAGE_PROVIDER } from '@legalflow/domain';
 import type { StorageProvider } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
+import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import type { RequestUser } from '../auth/auth.types';
@@ -105,7 +106,14 @@ export class DocumentsService {
       include: {
         versions: {
           orderBy: { version: 'desc' },
-          select: { id: true, version: true, reviewStatus: true, mimeType: true, sizeBytes: true, createdAt: true },
+          select: {
+            id: true,
+            version: true,
+            reviewStatus: true,
+            mimeType: true,
+            sizeBytes: true,
+            createdAt: true,
+          },
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -150,15 +158,15 @@ export class DocumentsService {
     });
     if (!version) throw new NotFoundException('Versión no encontrada.');
 
-    await this.prisma.$transaction([
-      this.prisma.documentVersion.updateMany({
+    await tenantTransaction(this.prisma, async (tx) => {
+      await tx.documentVersion.updateMany({
         where: { id: versionId, tenantId: user.tenantId },
         data: { reviewStatus: status },
-      }),
-      this.prisma.documentReview.create({
+      });
+      await tx.documentReview.create({
         data: { tenantId: user.tenantId, versionId, reviewerId: user.userId, status, comment },
-      }),
-    ]);
+      });
+    });
 
     // Notifica al autor de la versión (si no es el propio revisor).
     if (version.uploadedById !== user.userId) {

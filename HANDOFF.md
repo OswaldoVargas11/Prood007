@@ -62,9 +62,20 @@ entrada por bloque de trabajo). Codex hizo la validación de tax-ids y el baseli
 
 1. **UI completa** en `apps/web` (Sesión 2, con el diseño de Claude Design, sobre `lib/api`/`lib/auth`).
 2. Decidir **nombre** y hacer rebrand (mecánico).
-3. Pulido: i18n exhaustivo de API (E8), reportes fiscales 606/607 y SII más allá del stub (E9),
-   activar Postgres RLS como defensa en profundidad.
+3. Pulido: i18n exhaustivo de API (E8), reportes fiscales 606/607 y SII más allá del stub (E9).
+   ~~Postgres RLS~~ ✅ **hecho** (ver abajo y DECISIONS D-013).
 4. Aviso CI no bloqueante: deprecación de Node 20 en actions (subir versiones más adelante).
+
+## Postgres RLS — HECHO (2026-06-14, defensa en profundidad)
+
+- **Activada y cableada.** Políticas RLS en todas las tablas con tenant; la app conecta como rol de
+  **mínimo privilegio `legalflow_app`** y fija `app.tenant_id` por request (interceptor + extensión
+  Prisma). Enforcement probado: 55 e2e en verde (5 a nivel BD + 5 de wiring + 45 previos). Ver D-013.
+- ⚠️ **Cambio de entorno requerido:** el `.env` de la API ahora necesita **dos** URLs:
+  `DATABASE_URL` (rol app `legalflow_app:legalflow_app`) y `DIRECT_DATABASE_URL` (rol propietario
+  `legalflow:legalflow`, para `prisma migrate`). El `.env` local de dev ya está actualizado; CI
+  también. Sin `DIRECT_DATABASE_URL`, `prisma generate`/`migrate` fallan.
+- El rol `legalflow_app` lo crea la migración `20260614121000_app_role` (con `migrate deploy`).
 
 ## Naming (en curso)
 

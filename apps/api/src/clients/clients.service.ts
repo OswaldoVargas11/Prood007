@@ -7,6 +7,7 @@ import {
 import * as argon2 from 'argon2';
 import { Role } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
+import { tenantTransaction } from '../prisma/tenant-context';
 import { ComplianceService } from '../compliance/compliance.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateClientDto } from './dto/create-client.dto';
@@ -60,15 +61,16 @@ export class ClientsService {
 
   async findAll(user: RequestUser, page = 1, pageSize = 20) {
     const skip = (page - 1) * pageSize;
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.client.findMany({
+    const { items, total } = await tenantTransaction(this.prisma, async (tx) => {
+      const items = await tx.client.findMany({
         where: { tenantId: user.tenantId },
         orderBy: { createdAt: 'desc' },
         skip,
         take: pageSize,
-      }),
-      this.prisma.client.count({ where: { tenantId: user.tenantId } }),
-    ]);
+      });
+      const total = await tx.client.count({ where: { tenantId: user.tenantId } });
+      return { items, total };
+    });
     return { items, total, page, pageSize };
   }
 
@@ -129,7 +131,7 @@ export class ClientsService {
     });
     const passwordHash = await argon2.hash(dto.password);
 
-    const created = await this.prisma.$transaction(async (tx) => {
+    const created = await tenantTransaction(this.prisma, async (tx) => {
       const newUser = await tx.user.create({
         data: {
           tenantId: user.tenantId,

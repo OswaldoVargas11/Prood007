@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InvoiceStatus, LedgerEntryType } from '@legalflow/domain';
 import { round2 } from '@legalflow/compliance';
 import { PrismaService } from '../prisma/prisma.service';
+import { tenantTransaction } from '../prisma/tenant-context';
 import { ComplianceService } from '../compliance/compliance.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateLedgerEntryDto, MANUAL_LEDGER_TYPES } from './dto/create-ledger-entry.dto';
@@ -74,7 +75,7 @@ export class LedgerService {
     const matter = await this.getMatterOrThrow(user, dto.matterId);
     const feeAmount = round2((dto.minutes / 60) * Number(dto.hourlyRate));
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await tenantTransaction(this.prisma, async (tx) => {
       const time = await tx.timeEntry.create({
         data: {
           tenantId: user.tenantId,
@@ -158,7 +159,7 @@ export class LedgerService {
       previousRecordHash: previous?.recordHash ?? undefined,
     });
 
-    const invoice = await this.prisma.$transaction(async (tx) => {
+    const invoice = await tenantTransaction(this.prisma, async (tx) => {
       const created = await tx.invoice.create({
         data: {
           tenantId: user.tenantId,
@@ -224,8 +225,8 @@ export class LedgerService {
     const invoice = await this.getInvoice(user, id);
     if (invoice.status === InvoiceStatus.PAID) return invoice;
 
-    await this.prisma.$transaction([
-      this.prisma.ledgerEntry.create({
+    await tenantTransaction(this.prisma, async (tx) => {
+      await tx.ledgerEntry.create({
         data: {
           tenantId: user.tenantId,
           matterId: invoice.matterId,
@@ -235,12 +236,12 @@ export class LedgerService {
           currency: invoice.currency,
           invoiceId: invoice.id,
         },
-      }),
-      this.prisma.invoice.updateMany({
+      });
+      await tx.invoice.updateMany({
         where: { id, tenantId: user.tenantId },
         data: { status: InvoiceStatus.PAID },
-      }),
-    ]);
+      });
+    });
     await this.audit.log(user, 'invoice.paid', 'Invoice', id);
     return this.getInvoice(user, id);
   }

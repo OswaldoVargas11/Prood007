@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { MatterStatus, Role } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
+import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { CreateMatterDto } from './dto/create-matter.dto';
 import { UpdateMatterDto } from './dto/update-matter.dto';
@@ -74,10 +75,16 @@ export class MattersService {
   async findAll(user: RequestUser, page = 1, pageSize = 20, status?: MatterStatus) {
     const where = { tenantId: user.tenantId, ...(status ? { status } : {}) };
     const skip = (page - 1) * pageSize;
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.matter.findMany({ where, orderBy: { openedAt: 'desc' }, skip, take: pageSize }),
-      this.prisma.matter.count({ where }),
-    ]);
+    const { items, total } = await tenantTransaction(this.prisma, async (tx) => {
+      const items = await tx.matter.findMany({
+        where,
+        orderBy: { openedAt: 'desc' },
+        skip,
+        take: pageSize,
+      });
+      const total = await tx.matter.count({ where });
+      return { items, total };
+    });
     return { items, total, page, pageSize };
   }
 

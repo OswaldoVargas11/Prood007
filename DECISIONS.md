@@ -131,5 +131,12 @@ Formato: `ID · Título · Estado` → Contexto / Decisión / Consecuencias.
   para fijar el GUC (coste asumible; patrón oficial de Prisma). (2) `CREATE ROLE` con contraseña dev
   vive en la migración (idempotente; en prod el rol se provisiona fuera de banda con contraseña
   fuerte y la migración solo re-aplica GRANTs). (3) requiere `DIRECT_DATABASE_URL` en todos los
-  entornos (.env, CI). Probado: 5 tests RLS a nivel de BD + las 45 e2e existentes en verde como
-  `legalflow_app`. **Pendiente (commit 2): wiring de la app que fija el GUC por request.**
+  entornos (.env, CI).
+- **Wiring (cableado en runtime):** un interceptor global fija el contexto de tenant
+  (`AsyncLocalStorage`) desde `req.user` tras los guards; una extensión de Prisma envuelve cada
+  operación en una transacción que ejecuta `set_config('app.tenant_id', …)` antes de la query. Flujos
+  multi-sentencia usan `tenantTransaction()` (fija el GUC una vez, sin anidar). WebSocket queda en
+  bypass por ahora.
+- **Probado:** 55 e2e en verde como `legalflow_app`: 5 a nivel de BD (GUC manual), 5 de wiring
+  (`runWithTenant` → query sin filtro acotada por RLS, cross-tenant denegado, WITH CHECK), y las 45
+  existentes sin cambios. **RLS completa y con enforcement verificado.**
