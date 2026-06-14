@@ -289,3 +289,28 @@ Notas:
 - WebSocket/realtime queda en bypass (no fija contexto); documentado para endurecer mas adelante.
 
 Estado: RLS COMPLETA (politicas + rol + wiring + enforcement probado). PLAN/D-013 actualizados.
+
+### 2026-06-14 - Claude - RLS: cerrar el fail-open de WebSocket
+
+Contexto: el commit 2 dejo el camino WebSocket en bypass (los handlers @SubscribeMessage no fijaban
+contexto de tenant, asi que sus queries iban sin GUC). Unico punto real afectado: el gateway
+`subscribeMatter` (matter.findFirst). messages/notifications services se llaman siempre desde flujos
+HTTP, que ya tienen contexto.
+
+Hecho:
+
+- `tenant-context.interceptor.ts`: ahora resuelve el tenant tambien en contexto `ws`
+  (`socket.data.tenantId`, que fija el gateway en el handshake), no solo `http`. Cobertura general
+  para handlers WS presentes y futuros.
+- `realtime.gateway.ts`: `subscribeMatter` envuelve su query en `runWithTenant(tenantId, ...)` como
+  garantia explicita del cierre, sin depender de que Nest enganche el interceptor global a WS.
+
+Pruebas (todas verdes, sin BD en la nueva suite):
+
+- Nuevo `test/realtime-tenant-context.e2e-spec.ts` (5 tests): `subscribeMatter` ejecuta su query con
+  el GUC del tenant activo (doble de prisma que captura `getCurrentTenantId()` en el momento de la
+  query); el interceptor resuelve tenant para http y ws, y bypass cuando no hay usuario.
+- `jest --config test/jest-e2e.json`: **10 suites / 60 tests OK** (incluye el portal-realtime con
+  sockets reales, sin regresion). `build` y `pnpm -r lint`: OK.
+
+Estado: RLS sin fail-open conocido (HTTP + WebSocket bajo contexto de tenant). D-013/HANDOFF al dia.

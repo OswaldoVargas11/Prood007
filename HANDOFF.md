@@ -70,7 +70,9 @@ entrada por bloque de trabajo). Codex hizo la validación de tax-ids y el baseli
 
 - **Activada y cableada.** Políticas RLS en todas las tablas con tenant; la app conecta como rol de
   **mínimo privilegio `legalflow_app`** y fija `app.tenant_id` por request (interceptor + extensión
-  Prisma). Enforcement probado: 55 e2e en verde (5 a nivel BD + 5 de wiring + 45 previos). Ver D-013.
+  Prisma). Cubre **HTTP y WebSocket** (fail-open de realtime cerrado: el gateway fija contexto de
+  tenant). Enforcement probado: **60 e2e en verde** (5 BD + 5 wiring + 5 realtime/WS + 45 previos).
+  Ver D-013.
 - ⚠️ **Cambio de entorno requerido:** el `.env` de la API ahora necesita **dos** URLs:
   `DATABASE_URL` (rol app `legalflow_app:legalflow_app`) y `DIRECT_DATABASE_URL` (rol propietario
   `legalflow:legalflow`, para `prisma migrate`). El `.env` local de dev ya está actualizado; CI

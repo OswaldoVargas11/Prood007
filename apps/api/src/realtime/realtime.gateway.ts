@@ -11,6 +11,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from '../prisma/prisma.service';
+import { runWithTenant } from '../prisma/tenant-context';
 import type { AccessTokenPayload } from '../auth/auth.types';
 
 /**
@@ -56,10 +57,13 @@ export class RealtimeGateway implements OnGatewayConnection {
   ): Promise<{ ok: boolean }> {
     const tenantId = client.data.tenantId as string | undefined;
     if (!tenantId || !data?.matterId) return { ok: false };
-    const matter = await this.prisma.matter.findFirst({
-      where: { id: data.matterId, tenantId },
-      select: { id: true },
-    });
+    // Fija el contexto de tenant también en el camino WebSocket → RLS se aplica (no fail-open).
+    const matter = await runWithTenant(tenantId, () =>
+      this.prisma.matter.findFirst({
+        where: { id: data.matterId, tenantId },
+        select: { id: true },
+      }),
+    );
     if (!matter) return { ok: false };
     await client.join(`matter:${data.matterId}`);
     return { ok: true };

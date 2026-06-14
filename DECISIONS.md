@@ -135,8 +135,12 @@ Formato: `ID · Título · Estado` → Contexto / Decisión / Consecuencias.
 - **Wiring (cableado en runtime):** un interceptor global fija el contexto de tenant
   (`AsyncLocalStorage`) desde `req.user` tras los guards; una extensión de Prisma envuelve cada
   operación en una transacción que ejecuta `set_config('app.tenant_id', …)` antes de la query. Flujos
-  multi-sentencia usan `tenantTransaction()` (fija el GUC una vez, sin anidar). WebSocket queda en
-  bypass por ahora.
-- **Probado:** 55 e2e en verde como `legalflow_app`: 5 a nivel de BD (GUC manual), 5 de wiring
-  (`runWithTenant` → query sin filtro acotada por RLS, cross-tenant denegado, WITH CHECK), y las 45
-  existentes sin cambios. **RLS completa y con enforcement verificado.**
+  multi-sentencia usan `tenantTransaction()` (fija el GUC una vez, sin anidar).
+- **WebSocket (fail-open cerrado):** el interceptor también resuelve el tenant en contexto `ws`
+  (`socket.data.tenantId`, que fija el gateway en el handshake), y el `RealtimeGateway` envuelve
+  además su query en `runWithTenant` como garantía explícita. Así los handlers `@SubscribeMessage`
+  operan bajo RLS, no en bypass.
+- **Probado:** 60 e2e en verde como `legalflow_app`: 5 a nivel de BD (GUC manual), 5 de wiring
+  (`runWithTenant` → query sin filtro acotada por RLS, cross-tenant denegado, WITH CHECK), 5 de
+  realtime/WS (la query del gateway corre bajo contexto de tenant; interceptor resuelve http/ws), y
+  las 45 existentes sin cambios. **RLS completa y con enforcement verificado.**
