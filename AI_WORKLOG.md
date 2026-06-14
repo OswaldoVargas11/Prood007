@@ -435,3 +435,22 @@ Siguiente: F2 (Documentos) — rellena el tab Documentos de la ficha.
 
 Estado frontend: F0-F6 completos (demo real de punta a punta). F7 (ajustes/admin/agenda/aprobaciones/
 auditoria) DIFERIDO: el backend no expone esos endpoints; cablearlo exigiria mock (rompe la regla).
+
+### 2026-06-14 - Claude - Panel principal igual al diseno (endpoint de resumen + rebuild)
+
+Problema tecnico detectado y resuelto: el panel del prototipo muestra AGREGADOS de despacho (ingresos
+por mes, facturable del mes, revisiones pendientes, actividad) que el backend no exponia (solo datos
+por expediente). Para replicarlo sin mock se anadio un endpoint de resumen.
+
+Backend: nuevo DashboardModule + GET /api/dashboard/summary (solo lectura, @Roles staff, por tenant):
+KPIs (expedientes activos, plazos proximos, facturable mes, revisiones pendientes, clientes, tareas),
+revenueByMonth (6 meses desde invoices), deadlines (tareas procesales con expediente+cliente),
+recentActivity (AuditLog con nombre de actor). E2e (forma + 401).
+
+Frontend: dashboard reconstruido identico al diseno (cabecera con saludo, fila de 4 KPIs con glifo/
+delta, grafico de ingresos SVG area+linea, "Resumen del dia" = bullets CALCULADOS de numeros reales -no
+IA, D-011 sin cablear-, plazos con urgencia por color, feed de actividad). lib/activity (labels/colores/
+tiempo relativo). i18n dashboard.\* con plurales ICU. Cero mock.
+
+Pruebas: web tsc/lint/build OK; api lint OK; jest e2e 11 suites / 62 tests OK. Verificado el endpoint
+contra la API real (activeMatters 1, facturable 1060, plazos, actividad de auditoria real).

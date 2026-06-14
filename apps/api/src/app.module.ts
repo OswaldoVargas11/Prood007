@@ -17,6 +17,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { MessagesModule } from './messages/messages.module';
 import { PortalModule } from './portal/portal.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -38,6 +39,7 @@ import { HealthController } from './health.controller';
     LedgerModule,
     MessagesModule,
     PortalModule,
+    DashboardModule,
   ],
   controllers: [HealthController],
   providers: [

@@ -38,6 +38,39 @@ export interface Client {
   createdAt: string;
 }
 
+export interface DashboardSummary {
+  currency: string;
+  kpis: {
+    activeMatters: number;
+    totalMatters: number;
+    totalClients: number;
+    openTasks: number;
+    upcomingDeadlines: number;
+    urgentDeadlines: number;
+    pendingReviews: number;
+    billableThisMonth: string;
+    outstanding: string;
+  };
+  revenueByMonth: { month: string; total: string }[];
+  deadlines: {
+    taskId: string;
+    title: string;
+    deadlineType: string | null;
+    dueDate: string | null;
+    matterId: string | null;
+    reference: string | null;
+    clientName: string | null;
+  }[];
+  urgentCount: number;
+  recentActivity: {
+    action: string;
+    entityType: string;
+    entityId: string;
+    createdAt: string;
+    actor: string | null;
+  }[];
+}
+
 export interface Message {
   id: string;
   matterId: string;

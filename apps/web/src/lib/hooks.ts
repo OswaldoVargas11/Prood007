@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
 import type {
+  DashboardSummary,
   DeadlineResult,
   DocumentReviewStatus,
   Invoice,
@@ -18,6 +19,14 @@ import type {
   Task,
   TaskStatus,
 } from './types';
+
+export function useDashboardSummary() {
+  return useQuery({
+    queryKey: ['dashboard', 'summary'],
+    queryFn: () => api.get<DashboardSummary>('/dashboard/summary'),
+    staleTime: 15_000,
+  });
+}
 
 /** Conteo barato para KPIs (pide 1 elemento y usa `total`). */
 export function useResourceCount(resource: 'clients' | 'matters') {
