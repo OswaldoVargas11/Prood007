@@ -636,3 +636,30 @@ Firm Admin").
 
 Pendiente (Tanda B, backend nuevo) para completar el grupo Despacho: Aprobaciones (B.8), Auditoria (B.7,
 solo falta GET /audit), Ajustes (B.6).
+
+### 2026-06-14 - Claude - Tanda B (backend): usuarios+licencia, ajustes, auditoria, aprobaciones
+
+Backend nuevo del grupo "Despacho" (admin). Migracion aditiva tanda_b_licensing_approvals (sin tablas
+nuevas -> sin RLS nueva): Tenant.{plan,maxAdmins=2,maxLawyers=5}; LedgerEntry.{approvalStatus
+(enum ApprovalStatus default APPROVED), proposedById, resolvedById, approvalNote}.
+
+- Users (modulo nuevo, @Roles FIRM_ADMIN): GET /users (staff con rol+estado+isSelf), GET /users/seats
+  (uso de plazas por rol vs licencia), POST /users (alta de letrado/admin con ENFORCEMENT de licencia:
+  cuenta usuarios activos por rol < max), PATCH /users/:id (activar/desactivar y cambiar rol, con: (a)
+  control de plazas al activar/promover, (b) proteccion anti-bloqueo: no dejar el despacho sin admin
+  activo, (c) al desactivar revoca refresh tokens). El letrado dado de alta puede hacer login; al
+  desactivarlo, login 401.
+- Settings (modulo nuevo, @Roles FIRM_ADMIN): GET /settings (datos del tenant + seats + counts), PATCH
+  /settings (name/locale/taxId; taxId validado por compliance). La licencia es solo lectura.
+- Audit: AuditService.listForTenant + AuditController GET /audit (paginado, @Roles FIRM_ADMIN, resuelve
+  actorName).
+- Aprobaciones (en ledger): POST /ledger/costs/propose (letrado/admin -> apunte DISBURSEMENT PROPOSED,
+  no mueve saldo, notifica a admins), GET /ledger/approvals (@admin), POST /ledger/approvals/:id/
+  approve|reject (@admin, notifica al proponente). El saldo del ledger ahora SOLO suma apuntes APPROVED.
+  El portal del cliente filtra a APPROVED (no ve propuestas internas).
+- Pruebas: API build+lint OK; e2e nuevo tanda-b (12 tests) + suite completa 12 suites / 74 tests OK
+  (antes 62). Cubre licencia, anti-bloqueo, login de letrado, roles 403, propose/approve/reject y saldo,
+  y auditoria de las acciones.
+
+Pendiente Tanda B (frontend): paginas /audit, /approvals, /settings (gestion de usuarios+licencia,
+datos del despacho), alta de cliente/letrado y de expediente desde la UI, y cerrar el bucle cliente.

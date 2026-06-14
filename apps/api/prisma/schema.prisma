@@ -75,6 +75,15 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+// Estado de aprobación de un apunte del ledger (flujo de aprobación de costes).
+// Por defecto APPROVED (los apuntes normales no requieren aprobación); un coste propuesto por un
+// letrado nace PROPOSED y el admin lo aprueba o rechaza.
+enum ApprovalStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tenancy & Auth / RBAC
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,6 +96,11 @@ model Tenant {
   jurisdiction Jurisdiction
   currency     Currency
   locale       String       @default("es-ES")
+  // Licencia / suscripción: plan y plazas contratadas (asientos) por rol de staff.
+  plan         String       @default("Profesional")
+  // Máximo de usuarios ACTIVOS por rol (la licencia del despacho).
+  maxAdmins    Int          @default(2)
+  maxLawyers   Int          @default(5)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -377,6 +391,14 @@ model LedgerEntry {
   currency    Currency
   // Factura asociada cuando type = INVOICE/PAYMENT.
   invoiceId   String?
+  // Flujo de aprobación de costes: APPROVED por defecto; un coste propuesto por letrado nace PROPOSED.
+  approvalStatus ApprovalStatus @default(APPROVED)
+  // Usuario que propuso el coste (cuando approvalStatus != APPROVED por defecto).
+  proposedById   String?
+  // Usuario admin que resolvió (aprobó/rechazó) la propuesta.
+  resolvedById   String?
+  // Nota del proponente o del que resuelve.
+  approvalNote   String?
   occurredAt  DateTime        @default(now())
   createdAt   DateTime        @default(now())
 

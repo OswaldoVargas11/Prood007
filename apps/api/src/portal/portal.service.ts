@@ -56,7 +56,12 @@ export class PortalService {
 
   async ledgerView(user: RequestUser, matterId: string) {
     await assertMatterAccess(this.prisma, user, matterId);
-    return this.ledger.getMatterLedger(user, matterId);
+    const ledger = await this.ledger.getMatterLedger(user, matterId);
+    // El cliente NUNCA ve costes propuestos/rechazados (procesos internos del despacho): solo aprobados.
+    return {
+      ...ledger,
+      entries: ledger.entries.filter((e) => e.approvalStatus === 'APPROVED'),
+    };
   }
 
   async listTasks(user: RequestUser, matterId: string) {

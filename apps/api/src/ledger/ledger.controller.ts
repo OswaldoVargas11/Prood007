@@ -4,6 +4,8 @@ import { LedgerService } from './ledger.service';
 import { CreateLedgerEntryDto } from './dto/create-ledger-entry.dto';
 import { CreateTimeEntryDto } from './dto/create-time-entry.dto';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { ProposeCostDto } from './dto/propose-cost.dto';
+import { ResolveApprovalDto } from './dto/resolve-approval.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -12,6 +14,40 @@ import type { RequestUser } from '../auth/auth.types';
 @Controller('ledger')
 export class LedgerController {
   constructor(private readonly ledger: LedgerService) {}
+
+  // ── Aprobación de costes ──────────────────────────────────────────────
+  /** Un letrado o admin propone un coste pendiente de aprobación. */
+  @Post('costs/propose')
+  proposeCost(@CurrentUser() user: RequestUser, @Body() dto: ProposeCostDto) {
+    return this.ledger.proposeCost(user, dto);
+  }
+
+  /** Costes propuestos pendientes (solo admin). */
+  @Roles(Role.FIRM_ADMIN)
+  @Get('approvals')
+  listApprovals(@CurrentUser() user: RequestUser) {
+    return this.ledger.listApprovals(user);
+  }
+
+  @Roles(Role.FIRM_ADMIN)
+  @Post('approvals/:id/approve')
+  approveCost(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: ResolveApprovalDto,
+  ) {
+    return this.ledger.approveCost(user, id, dto);
+  }
+
+  @Roles(Role.FIRM_ADMIN)
+  @Post('approvals/:id/reject')
+  rejectCost(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: ResolveApprovalDto,
+  ) {
+    return this.ledger.rejectCost(user, id, dto);
+  }
 
   @Post('entries')
   addEntry(@CurrentUser() user: RequestUser, @Body() dto: CreateLedgerEntryDto) {

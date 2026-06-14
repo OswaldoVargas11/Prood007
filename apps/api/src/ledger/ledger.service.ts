@@ -1,13 +1,16 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { InvoiceStatus, LedgerEntryType } from '@legalflow/domain';
+import { ApprovalStatus, InvoiceStatus, LedgerEntryType } from '@legalflow/domain';
 import { round2 } from '@legalflow/compliance';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
 import { ComplianceService } from '../compliance/compliance.service';
 import { AuditService } from '../audit/audit.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateLedgerEntryDto, MANUAL_LEDGER_TYPES } from './dto/create-ledger-entry.dto';
 import { CreateTimeEntryDto } from './dto/create-time-entry.dto';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { ProposeCostDto } from './dto/propose-cost.dto';
+import { ResolveApprovalDto } from './dto/resolve-approval.dto';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
@@ -35,6 +38,7 @@ export class LedgerService {
     private readonly prisma: PrismaService,
     private readonly compliance: ComplianceService,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async getMatterOrThrow(user: RequestUser, matterId: string) {
@@ -110,8 +114,12 @@ export class LedgerService {
       where: { tenantId: user.tenantId, matterId },
       orderBy: { occurredAt: 'asc' },
     });
+    // Solo los apuntes APROBADOS mueven el saldo; los propuestos/rechazados no.
     const balance = entries.reduce(
-      (sum, e) => sum + BALANCE_SIGN[e.type as LedgerEntryType] * Number(e.amount),
+      (sum, e) =>
+        e.approvalStatus === ApprovalStatus.APPROVED
+          ? sum + BALANCE_SIGN[e.type as LedgerEntryType] * Number(e.amount)
+          : sum,
       0,
     );
     return {
@@ -244,5 +252,142 @@ export class LedgerService {
     });
     await this.audit.log(user, 'invoice.paid', 'Invoice', id);
     return this.getInvoice(user, id);
+  }
+
+  // ── Aprobación de costes ─────────────────────────────────────────────────
+  /** Un letrado (o admin) propone un coste (suplido). Nace PROPOSED: no afecta al saldo hasta aprobarse. */
+  async proposeCost(user: RequestUser, dto: ProposeCostDto) {
+    const amount = Number(dto.amount);
+    if (!(amount > 0)) throw new BadRequestException('El importe debe ser positivo.');
+    const matter = await this.getMatterOrThrow(user, dto.matterId);
+
+    const entry = await this.prisma.ledgerEntry.create({
+      data: {
+        tenantId: user.tenantId,
+        matterId: matter.id,
+        type: LedgerEntryType.DISBURSEMENT,
+        description: dto.description,
+        amount: dto.amount,
+        currency: matter.tenant.currency,
+        approvalStatus: ApprovalStatus.PROPOSED,
+        proposedById: user.userId,
+        approvalNote: dto.note,
+      },
+    });
+    await this.audit.log(user, 'cost.proposed', 'LedgerEntry', entry.id, {
+      matterId: matter.id,
+      amount: dto.amount,
+    });
+    // Avisa a los administradores del despacho de que hay un coste pendiente de aprobar.
+    await this.notifyAdmins(user.tenantId, {
+      type: 'cost.proposed',
+      title: `Coste pendiente de aprobar: ${matter.reference}`,
+      body: `${dto.description} · ${dto.amount}`,
+      data: { ledgerEntryId: entry.id, matterId: matter.id },
+    });
+    return entry;
+  }
+
+  /** Lista los costes propuestos pendientes (PROPOSED) del despacho, con expediente y proponente. */
+  async listApprovals(user: RequestUser) {
+    const entries = await this.prisma.ledgerEntry.findMany({
+      where: { tenantId: user.tenantId, approvalStatus: ApprovalStatus.PROPOSED },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        matter: { select: { id: true, reference: true, title: true } },
+      },
+    });
+    const proposerIds = [
+      ...new Set(entries.map((e) => e.proposedById).filter((x): x is string => Boolean(x))),
+    ];
+    const proposers = proposerIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: proposerIds }, tenantId: user.tenantId },
+          select: { id: true, fullName: true },
+        })
+      : [];
+    const nameById = new Map(proposers.map((p) => [p.id, p.fullName]));
+    return entries.map((e) => ({
+      id: e.id,
+      matter: e.matter,
+      description: e.description,
+      amount: e.amount.toString(),
+      currency: e.currency,
+      note: e.approvalNote,
+      proposedBy: e.proposedById ? (nameById.get(e.proposedById) ?? '—') : '—',
+      createdAt: e.createdAt,
+    }));
+  }
+
+  private async resolveApproval(
+    user: RequestUser,
+    id: string,
+    status: ApprovalStatus.APPROVED | ApprovalStatus.REJECTED,
+    note?: string,
+  ) {
+    const entry = await this.prisma.ledgerEntry.findFirst({
+      where: { id, tenantId: user.tenantId },
+    });
+    if (!entry) throw new NotFoundException('Apunte no encontrado.');
+    if (entry.approvalStatus !== ApprovalStatus.PROPOSED) {
+      throw new BadRequestException('Este coste ya fue resuelto.');
+    }
+    await this.prisma.ledgerEntry.updateMany({
+      where: { id, tenantId: user.tenantId },
+      data: {
+        approvalStatus: status,
+        resolvedById: user.userId,
+        approvalNote: note ?? entry.approvalNote,
+      },
+    });
+    const action = status === ApprovalStatus.APPROVED ? 'cost.approved' : 'cost.rejected';
+    await this.audit.log(user, action, 'LedgerEntry', id, { matterId: entry.matterId });
+    // Notifica al proponente la resolución.
+    if (entry.proposedById && entry.proposedById !== user.userId) {
+      await this.notifications.create({
+        tenantId: user.tenantId,
+        userId: entry.proposedById,
+        type: action,
+        title: status === ApprovalStatus.APPROVED ? 'Coste aprobado' : 'Coste rechazado',
+        body: entry.description,
+        data: { ledgerEntryId: id, matterId: entry.matterId },
+      });
+    }
+    return { id, approvalStatus: status };
+  }
+
+  approveCost(user: RequestUser, id: string, dto: ResolveApprovalDto) {
+    return this.resolveApproval(user, id, ApprovalStatus.APPROVED, dto.note);
+  }
+
+  rejectCost(user: RequestUser, id: string, dto: ResolveApprovalDto) {
+    return this.resolveApproval(user, id, ApprovalStatus.REJECTED, dto.note);
+  }
+
+  /** Notifica a todos los administradores ACTIVOS del despacho. */
+  private async notifyAdmins(
+    tenantId: string,
+    params: { type: string; title: string; body?: string; data?: Record<string, unknown> },
+  ) {
+    const admins = await this.prisma.user.findMany({
+      where: {
+        tenantId,
+        isActive: true,
+        roles: { some: { role: { code: 'FIRM_ADMIN' } } },
+      },
+      select: { id: true },
+    });
+    await Promise.all(
+      admins.map((a) =>
+        this.notifications.create({
+          tenantId,
+          userId: a.id,
+          type: params.type,
+          title: params.title,
+          body: params.body,
+          data: params.data,
+        }),
+      ),
+    );
   }
 }
