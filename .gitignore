@@ -36,8 +36,10 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-# Local storage (dev disk StorageProvider)
-storage/
+# Local storage en runtime (dev disk StorageProvider) — solo directorios de datos,
+# NO el código fuente apps/api/src/storage/.
+/storage/
+/apps/api/storage/
 uploads/
 
 # Docker volumes (if mounted locally)
