@@ -86,10 +86,11 @@ export class DominicanComplianceProvider implements ComplianceProvider {
   }
 
   getProceduralDeadlines(params: ProceduralDeadlineParams): ProceduralDeadlineResult {
+    const local = new Set(params.extraHolidays ?? []);
     const { dueDate, holidaysApplied } = addBusinessDays(
       new Date(params.startDate),
       params.days,
-      () => false,
+      (date) => local.has(date.toISOString().slice(0, 10)),
     );
     return {
       deadlineType: params.deadlineType,
@@ -97,7 +98,11 @@ export class DominicanComplianceProvider implements ComplianceProvider {
       dueDate,
       businessDays: true,
       holidaysApplied,
-      notes: ['Solo se excluyen fines de semana; festivos judiciales RD pendientes (E9).'],
+      notes: [
+        local.size > 0
+          ? 'Fines de semana + festivos locales del despacho aplicados.'
+          : 'Solo se excluyen fines de semana; añade festivos locales en Ajustes.',
+      ],
     };
   }
 

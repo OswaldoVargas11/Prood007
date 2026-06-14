@@ -133,8 +133,15 @@ export class LedgerService {
   // ── Facturación ─────────────────────────────────────────────────────────
   private async nextInvoiceNumber(tenantId: string): Promise<string> {
     const year = new Date().getFullYear();
-    const count = await this.prisma.invoice.count({ where: { tenantId } });
-    return `FAC-${year}-${String(count + 1).padStart(4, '0')}`;
+    const [count, tenant] = await Promise.all([
+      this.prisma.invoice.count({ where: { tenantId } }),
+      this.prisma.tenant.findUniqueOrThrow({
+        where: { id: tenantId },
+        select: { invoiceSeries: true },
+      }),
+    ]);
+    const series = tenant.invoiceSeries || 'FAC';
+    return `${series}-${year}-${String(count + 1).padStart(4, '0')}`;
   }
 
   async createInvoice(user: RequestUser, dto: CreateInvoiceDto) {

@@ -34,7 +34,10 @@ export class TasksService {
     if (!u) throw new BadRequestException('El usuario asignado no pertenece al despacho.');
   }
 
-  private async notifyAssignee(user: RequestUser, task: { id: string; title: string; assigneeId: string | null }) {
+  private async notifyAssignee(
+    user: RequestUser,
+    task: { id: string; title: string; assigneeId: string | null },
+  ) {
     if (task.assigneeId && task.assigneeId !== user.userId) {
       await this.notifications.create({
         tenantId: user.tenantId,
@@ -69,11 +72,23 @@ export class TasksService {
     if (dto.matterId) await this.assertMatterInTenant(user, dto.matterId);
     if (dto.assigneeId) await this.assertUserInTenant(user, dto.assigneeId);
 
+    // Festivos locales del despacho (se suman a los nacionales en el cómputo del plazo).
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: user.tenantId },
+      select: { holidays: true },
+    });
+    const extraHolidays = Array.isArray(tenant.holidays)
+      ? (tenant.holidays as { date?: string }[])
+          .map((h) => h?.date)
+          .filter((d): d is string => typeof d === 'string')
+      : [];
+
     const provider = this.compliance.forJurisdiction(user.jurisdiction);
     const deadline = provider.getProceduralDeadlines({
       deadlineType: dto.deadlineType,
       startDate: dto.startDate,
       days: dto.days,
+      extraHolidays,
     });
 
     const task = await this.prisma.task.create({

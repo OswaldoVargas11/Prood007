@@ -101,6 +101,15 @@ model Tenant {
   // Máximo de usuarios ACTIVOS por rol (la licencia del despacho).
   maxAdmins    Int          @default(2)
   maxLawyers   Int          @default(5)
+  // Serie fiscal: prefijo de la numeración de facturas (p. ej. "FAC", "A").
+  invoiceSeries String      @default("FAC")
+  // Festivos locales del despacho: array JSON [{ date: "yyyy-mm-dd", name }] que afina el cómputo de
+  // plazos procesales (se suman a los festivos nacionales de la jurisdicción).
+  holidays     Json?
+  // Certificado digital del despacho (para firmar/emitir). Metadatos; el fichero va al StorageProvider.
+  certificateName       String?
+  certificateKey        String?
+  certificateUploadedAt DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
