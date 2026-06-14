@@ -257,6 +257,12 @@ export interface SeatUsage {
   lawyers: { used: number; max: number };
 }
 
+/** Festivo local del despacho. */
+export interface Holiday {
+  date: string;
+  name: string;
+}
+
 /** Ajustes del despacho (de `GET /settings`). */
 export interface FirmSettings {
   tenant: {
@@ -269,9 +275,24 @@ export interface FirmSettings {
     plan: string;
     maxAdmins: number;
     maxLawyers: number;
+    invoiceSeries: string;
   };
   seats: SeatUsage;
   counts: { clients: number; matters: number };
+  holidays: Holiday[];
+  certificate: { name: string; uploadedAt: string | null } | null;
+}
+
+/** Resultado de la comprobación de conflictos (de `GET /clients/conflict-check`). */
+export interface ConflictResult {
+  query: string;
+  matches: {
+    id: string;
+    name: string;
+    taxId: string;
+    taxIdKind: string | null;
+    matters: { id: string; reference: string; title: string; status: MatterStatus }[];
+  }[];
 }
 
 /** Entrada del registro de auditoría (de `GET /audit`). */

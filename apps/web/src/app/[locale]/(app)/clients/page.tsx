@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Building2, Check, Loader2, Plus, User, Users } from 'lucide-react';
+import { AlertTriangle, Building2, Check, Loader2, Plus, User, Users } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
-import { useClients, useCreateClient } from '@/lib/hooks';
+import { useClients, useConflictCheck, useCreateClient } from '@/lib/hooks';
 import { formatMoney } from '@/lib/format';
 import { ApiError } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
@@ -155,8 +155,10 @@ function CreateClientDialog({ open, onClose }: { open: boolean; onClose: () => v
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const conflicts = useConflictCheck(name);
 
   const valid = name.trim().length >= 2 && taxId.trim().length >= 5;
+  const conflictMatches = conflicts.data?.matches ?? [];
 
   async function submit() {
     setError(null);
@@ -189,6 +191,22 @@ function CreateClientDialog({ open, onClose }: { open: boolean; onClose: () => v
           <div className="space-y-1.5">
             <Label>{t('name')}</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            {conflictMatches.length > 0 && (
+              <div className="rounded-lg border border-[var(--warning)] bg-[var(--warning-soft)] p-2.5 text-[12px]">
+                <div className="flex items-center gap-1.5 font-semibold text-[var(--warning)]">
+                  <AlertTriangle className="size-3.5" />
+                  {t('conflictTitle')}
+                </div>
+                <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                  {conflictMatches.map((m) => (
+                    <li key={m.id}>
+                      <span className="font-medium text-foreground">{m.name}</span> ·{' '}
+                      {t('conflictMatters', { n: m.matters.length })}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label>{t('fiscalId')}</Label>

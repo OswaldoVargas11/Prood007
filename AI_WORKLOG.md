@@ -710,3 +710,19 @@ Mejoras pedidas por el usuario en las tres pantallas principales.
 - Pruebas: web tsc/lint/build OK; api build OK; e2e afectados (clients-matters + documents) 16/16.
   Verificado en vivo: matters trae client/lawyer/updatedAt; clients trae balance(730.00)/currency;
   documents trae uploadedBy (Admin Demo); descarga de version 200.
+
+### 2026-06-14 - Claude - Tanda B (frontend resto): conflictos, serie fiscal, festivos, certificado
+
+Frontend de los 4 puntos restantes; cierra la Tanda B al completo.
+
+- Conflictos: hook useConflictCheck (debounced por nombre) en el dialogo Nuevo cliente -> aviso amarillo
+  con las coincidencias (parte ya existente + nº de expedientes) antes de crear.
+- Ajustes: campo "Serie de facturación" en la tarjeta del despacho (afecta a la numeración). Tarjeta
+  Festivos locales (alta fecha+nombre, lista, borrar). Tarjeta Certificado digital (subir .p12/.pem,
+  muestra nombre+fecha). Hooks useAddHoliday/useRemoveHoliday/useUploadCertificate, tipos FirmSettings
+  ampliados (invoiceSeries/holidays/certificate) + ConflictResult. i18n settings.firm.series/holidays._/
+  cert._ y clients.conflict\* (es-ES + es-DO).
+- Pruebas: web tsc/lint/build OK. Backend ya cubierto por e2e 79/79.
+
+TANDA B COMPLETA (B.6 Ajustes/usuarios/licencia, B.7 Auditoria, B.8 Aprobaciones, B.9 Conflictos +
+serie fiscal + festivos + certificado + altas desde UI).
