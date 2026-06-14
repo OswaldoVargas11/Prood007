@@ -305,6 +305,20 @@ export function useMarkNotificationRead() {
   });
 }
 
+/**
+ * Marca todas las notificaciones recibidas como leídas. El backend solo expone marcar una a una
+ * (`PATCH /notifications/:id/read`), así que lo hacemos en paralelo cliente-side (Tanda A, sin tocar
+ * el backend). Idempotente: el endpoint solo afecta a las no leídas.
+ */
+export function useMarkAllNotificationsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) =>
+      Promise.all(ids.map((id) => api.patch(`/notifications/${id}/read`))),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+  });
+}
+
 // ── Portal del cliente (F6, solo lectura) ────────────────────────────────────
 export function usePortalMatters() {
   return useQuery({

@@ -205,7 +205,10 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         ID fiscal → cuenta admin) sobre `POST /api/auth/register-tenant`. BFF `register-tenant` (cookie
         httpOnly + scope), `register()` en el contexto de auth, gate público de `/onboarding` en el
         middleware, enlace desde el login. i18n `onboarding.*`. Auto-login → `/dashboard`.
-  - [ ] A.2 Centro de notificaciones (página, agrupada por fecha, marcar todas leídas).
+  - [x] **A.2 Centro de notificaciones** (página `/notifications`, agrupada por fecha —Hoy/Ayer/Esta
+        semana/Anterior—, badge "en directo" por socket, icono por tipo, marcar una/todas como leídas).
+        Sobre `GET /notifications` + `PATCH /notifications/:id/read`. "Marcar todas" en paralelo
+        cliente-side (sin endpoint nuevo). Enlace "Ver todas" desde la campana.
   - [ ] A.3 Agenda/Calendario de plazos (derivar de `GET /tasks`).
   - [ ] A.4 Documentos (vista global) + comparar versiones (v2→v3).
   - [ ] A.5 Acercar la ficha de expediente al layout del prototipo (rail cronómetro/plazos/saldo).

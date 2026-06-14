@@ -497,3 +497,24 @@ barra de progreso, contenido por paso y pie con Atras/Continuar.
   El contrato de register-tenant ya tiene e2e en api.
 
 Siguiente: A.2 Centro de notificaciones (pagina completa, agrupada por fecha, marcar todas leidas).
+
+### 2026-06-14 - Claude - Tanda A.2: Centro de notificaciones (pagina)
+
+Segunda pantalla de la Tanda A. Replica el "Notifications center" del prototipo (Lexora.dc.html
+802-828): cabecera con titulo + badge "En directo" (latido) + boton "Marcar todas como leidas",
+grupos por fecha con etiqueta en mayusculas y tarjeta con filas (chip de icono por tipo, titulo+cuerpo,
+tiempo relativo, punto de no-leido).
+
+- Backend: SIN cambios. GET /notifications (lista, take 100, desc) + PATCH /notifications/:id/read ya
+  existen. "Marcar todas" = PATCH en paralelo cliente-side (Promise.all de las no leidas); idempotente
+  (el endpoint solo afecta a readAt null). No se anade endpoint (Tanda A = solo frontend).
+- Web: pagina app/[locale]/(app)/notifications/page.tsx (bajo AppShell). Helper lib/notifications.ts:
+  notificationKind (por prefijo del type: document.review/task.assigned/...) y groupNotifications
+  (buckets today/yesterday/week/earlier por dia natural, preservando orden desc). Hook
+  useMarkAllNotificationsRead. Icono y color por tipo (document=violet, task=info, message=brand).
+  Tiempo real via socket notification:new (invalida la query, igual que la campana). Enlace "Ver todas"
+  nuevo en el dropdown de la campana -> /notifications. Estados loading(skeleton)/vacio/error.
+  i18n notifications._ ampliado (viewAll/live/markAll/loadError/retry/group._) en es-ES y es-DO.
+- Pruebas: web tsc/lint/build OK (ruta /[locale]/notifications emitida). Sin datos mock.
+
+Siguiente: A.3 Agenda/Calendario de plazos (derivar de GET /tasks procesales con dueDate).

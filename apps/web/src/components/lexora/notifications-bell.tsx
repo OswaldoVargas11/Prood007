@@ -7,10 +7,12 @@ import { Bell } from 'lucide-react';
 import { useMarkNotificationRead, useNotifications } from '@/lib/hooks';
 import { getSocket } from '@/lib/socket';
 import { formatDateTime } from '@/lib/format';
+import { Link } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -74,6 +76,15 @@ export function NotificationsBell() {
             </button>
           ))}
         </div>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link
+            href="/notifications"
+            className="justify-center text-[13px] font-medium text-[var(--brand)]"
+          >
+            {t('viewAll')}
+          </Link>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

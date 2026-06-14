@@ -294,7 +294,18 @@
   "notifications": {
     "open": "Abrir notificaciones",
     "title": "Notificaciones",
-    "empty": "No tienes notificaciones."
+    "empty": "No tienes notificaciones.",
+    "viewAll": "Ver todas",
+    "live": "En directo",
+    "markAll": "Marcar todas como leídas",
+    "loadError": "No se pudieron cargar las notificaciones",
+    "retry": "Reintentar",
+    "group": {
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "week": "Esta semana",
+      "earlier": "Anterior"
+    }
   },
   "command": {
     "placeholder": "Buscar o ejecutar una acción…",
