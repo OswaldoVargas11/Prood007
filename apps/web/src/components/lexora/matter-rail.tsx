@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Pause, Play } from 'lucide-react';
-import { useAddTimeEntry, useMatterLedger, useTasks } from '@/lib/hooks';
+import { Loader2, Pause, Play, ReceiptText } from 'lucide-react';
+import { useAddTimeEntry, useMatterLedger, useProposeCost, useTasks } from '@/lib/hooks';
+import { ApiError } from '@/lib/api';
 import { daysUntil, deadlineUrgency, URGENCY_COLOR } from '@/lib/calendar';
 import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -20,8 +21,95 @@ export function MatterRail({
     <div className="flex flex-col gap-4">
       <DeadlinesCard matterId={matterId} />
       <BalanceCard matterId={matterId} onOpenLedger={onOpenLedger} />
+      <ProposeCostCard matterId={matterId} />
       <TimerCard matterId={matterId} />
     </div>
+  );
+}
+
+function ProposeCostCard({ matterId }: { matterId: string }) {
+  const t = useTranslations('matters.rail');
+  const propose = useProposeCost(matterId);
+  const [open, setOpen] = useState(false);
+  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  const valid = description.trim().length >= 2 && Number(amount) > 0;
+
+  async function submit() {
+    setError(null);
+    try {
+      await propose.mutateAsync({ description: description.trim(), amount });
+      setDescription('');
+      setAmount('');
+      setOpen(false);
+      setDone(true);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t('proposeError'));
+    }
+  }
+
+  return (
+    <Card>
+      <div className="mb-2 flex items-center gap-2">
+        <ReceiptText className="size-4 text-[var(--brand)]" />
+        <span className="text-[13px] font-semibold">{t('proposeTitle')}</span>
+      </div>
+      {!open ? (
+        <>
+          <p className="mb-2.5 text-[11.5px] text-[var(--text-subtle)]">{t('proposeHint')}</p>
+          {done && <p className="mb-2 text-[11.5px] text-[var(--success)]">{t('proposeSent')}</p>}
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(true);
+              setDone(false);
+            }}
+            className="w-full rounded-[10px] border px-3 py-2 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {t('propose')}
+          </button>
+        </>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t('proposeConcept')}
+            autoFocus
+            className="h-9 w-full rounded-[10px] border bg-[var(--surface-1)] px-3 text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            inputMode="decimal"
+            placeholder={t('proposeAmount')}
+            className="h-9 w-full rounded-[10px] border bg-[var(--surface-1)] px-3 text-[12.5px] tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          {error && <p className="text-[11px] text-[var(--danger)]">{error}</p>}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="flex-1 rounded-[10px] border px-3 py-2 text-[12px] text-muted-foreground"
+            >
+              {t('proposeCancel')}
+            </button>
+            <button
+              type="button"
+              onClick={submit}
+              disabled={!valid || propose.isPending}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-[10px] bg-[var(--brand)] px-3 py-2 text-[12px] font-semibold text-white disabled:opacity-40"
+            >
+              {propose.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              {t('proposeSend')}
+            </button>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 

@@ -663,3 +663,29 @@ nuevas -> sin RLS nueva): Tenant.{plan,maxAdmins=2,maxLawyers=5}; LedgerEntry.{a
 
 Pendiente Tanda B (frontend): paginas /audit, /approvals, /settings (gestion de usuarios+licencia,
 datos del despacho), alta de cliente/letrado y de expediente desde la UI, y cerrar el bucle cliente.
+
+### 2026-06-14 - Claude - Tanda B (frontend) + alta cliente/letrado/expediente + verificacion total
+
+Frontend del grupo Despacho + formularios de alta + cierre del bucle cliente. Sidebar: approvals/audit/
+settings pasan a enabled:true (siguen adminOnly -> solo FIRM_ADMIN los ve).
+
+- /settings: datos del despacho (nombre/taxId editables, validado), tarjeta de LICENCIA con medidores de
+  asientos (admins/letrados usados vs max), y GESTION DE USUARIOS (lista con rol+estado, alta de letrado/
+  admin con aviso si no quedan plazas, activar/desactivar, cambiar rol). Guard cliente: no-admin ve aviso.
+- /audit: tabla paginada del registro (fecha, actor, accion legible, recurso). activity.ts ampliado con
+  las acciones nuevas.
+- /approvals: tarjetas de costes propuestos con importe/proponente/nota y botones aprobar/rechazar.
+- Alta desde la UI: dialogo Nuevo cliente en /clients (nombre, ID fiscal validado por servidor, email,
+  telefono), Nuevo expediente en /matters (selector de cliente + titulo + tipo), y "Dar acceso al portal"
+  en la ficha de cliente (crea usuario CLIENT con credenciales). Proponer coste en el rail de la ficha
+  (letrado). Hooks/tipos nuevos en lib (useStaff/useSeats/useCreateStaff/useUpdateStaff, useSettings/
+  useUpdateSettings, useAuditLog, useApprovals/useProposeCost/useResolveCost, useCreateClient/
+  useCreateMatter/useCreatePortalUser). i18n settings._/audit._/approvals.\* + altas, en es-ES y es-DO.
+- VERIFICACION end-to-end contra la API viva (script efimero, 40/40 OK): onboarding admin; licencia
+  (1/2 admins, 0/5->1/5 letrados); alta de letrado + login; aislamiento letrado (403 a users/settings/
+  audit/approvals); alta de cliente + acceso al portal + login del cliente; alta de expediente;
+  aislamiento del cliente (403 a clients/users/POST matters); propose->approve de coste con efecto en el
+  saldo (0.00 -> -100.00) y letrado sin permiso de aprobar; portal del cliente (perfil, expedientes,
+  ledger sin propuestas) + CHAT bidireccional cliente<->despacho; ajustes (leer/renombrar); auditoria
+  (7 acciones); anti-bloqueo del ultimo admin.
+- Pruebas: web tsc/lint/build + vitest 10 OK; api e2e 74/74.

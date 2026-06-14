@@ -235,9 +235,18 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         **plazos procesales** (de `GET /tasks?matterId`), tarjeta de **saldo** (de `GET /ledger/matter/:id`
         con facturado/movimientos + "ver ledger →" cambia a la pestaña Costes) y **cronómetro** en vivo
         (start/stop → ficha tiempo a `POST /ledger/time` con concepto+tarifa). Tabs ahora controladas.
-- **F7 — Resto (ajustes/admin, agenda/calendario, aprobaciones, auditoría)** `[ ]` — **diferido**: el
-  backend aún no expone estos endpoints (settings/suscripción/certificado/series fiscales/listado de
-  auditoría); construirlos requeriría datos mock, lo que rompe la regla. Va "tras validar con despachos".
+- **Tanda B — grupo «Despacho» (backend NUEVO + frontend)** `[x]`
+  - [x] **Licencia de plazas**: Tenant.{plan,maxAdmins,maxLawyers}. Gestión de usuarios staff (módulo
+        Users, FIRM_ADMIN): alta de letrado/admin con enforcement de licencia, activar/desactivar,
+        cambiar rol, anti-bloqueo del último admin, revoca sesiones al desactivar.
+  - [x] **Ajustes** (`/settings`): datos del despacho + licencia/asientos + gestión de usuarios.
+  - [x] **Auditoría** (`/audit`): listado paginado del AuditLog con nombre de actor.
+  - [x] **Aprobación de costes** (`/approvals`): letrado propone (en la ficha) → admin aprueba/rechaza;
+        el saldo solo cuenta apuntes APPROVED; el portal del cliente nunca ve propuestas.
+  - [x] **Alta desde la UI**: cliente (con validación fiscal real), expediente (selector de cliente),
+        y **acceso al portal** del cliente (crea su usuario CLIENT). Cierra el bucle cliente↔despacho.
+  - [x] Verificado de punta a punta (40/40 flujos admin/letrado/cliente) + e2e 74/74.
+- **F7 — (sustituido por Tanda B, arriba)** `[x]`
 
 Reglas: cero datos mock al cerrar un slice · nada de país hardcodeado (todo fiscal/idioma sale de la
 jurisdicción del tenant) · estados cargando/vacío/error en cada vista · dark+light · AA · TanStack

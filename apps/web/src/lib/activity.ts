@@ -20,6 +20,13 @@ const ACTION_LABELS: Record<string, string> = {
   'time.logged': 'registró tiempo',
   'invoice.issued': 'emitió una factura',
   'invoice.paid': 'marcó una factura como pagada',
+  'ledger.entry_added': 'añadió un apunte al ledger',
+  'cost.proposed': 'propuso un coste',
+  'cost.approved': 'aprobó un coste',
+  'cost.rejected': 'rechazó un coste',
+  'user.created': 'dio de alta a un usuario',
+  'user.updated': 'actualizó un usuario',
+  'tenant.updated': 'actualizó los datos del despacho',
 };
 
 export function activityLabel(action: string): string {

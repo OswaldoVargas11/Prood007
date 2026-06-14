@@ -1,16 +1,29 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Check, Mail, MapPin, Phone } from 'lucide-react';
+import { Check, KeyRound, Loader2, Mail, MapPin, Phone } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import { useClient, useMatters } from '@/lib/hooks';
+import { useClient, useCreatePortalUser, useMatters } from '@/lib/hooks';
+import { ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/lexora/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import type { Client } from '@/lib/types';
 
 function initials(name: string): string {
   return name
@@ -27,6 +40,7 @@ export default function ClientProfilePage() {
   const tm = useTranslations('matters');
   const { data: client, isLoading } = useClient(id);
   const matters = useMatters({ clientId: id, pageSize: 100 });
+  const [granting, setGranting] = useState(false);
 
   if (isLoading) {
     return (
@@ -121,9 +135,20 @@ export default function ClientProfilePage() {
                 />
                 {client.userId ? t('portalActive') : t('portalInactive')}
               </div>
+              {!client.userId && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-3 w-full"
+                  onClick={() => setGranting(true)}
+                >
+                  <KeyRound /> {t('grantPortal')}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
+        <GrantPortalDialog client={client} open={granting} onClose={() => setGranting(false)} />
 
         {/* Tabs */}
         <Tabs defaultValue="matters">
@@ -180,5 +205,82 @@ export default function ClientProfilePage() {
         </Tabs>
       </div>
     </div>
+  );
+}
+
+function GrantPortalDialog({
+  client,
+  open,
+  onClose,
+}: {
+  client: Client;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const t = useTranslations('clients');
+  const grant = useCreatePortalUser(client.id);
+  const [email, setEmail] = useState(client.email ?? '');
+  const [fullName, setFullName] = useState(client.name);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const valid = emailValid && fullName.trim().length >= 2 && password.length >= 10;
+
+  async function submit() {
+    setError(null);
+    try {
+      await grant.mutateAsync({ email: email.trim(), fullName: fullName.trim(), password });
+      setPassword('');
+      onClose();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t('portalError'));
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('grantPortalTitle')}</DialogTitle>
+          <DialogDescription>{t('grantPortalDesc')}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>{t('portalName')}</Label>
+            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t('email')}</Label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t('portalPassword')}</Label>
+            <Input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+            <p className="text-[11px] text-[var(--text-subtle)]">{t('portalPasswordHint')}</p>
+          </div>
+          {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onClose}>
+            {t('cancel')}
+          </Button>
+          <Button size="sm" onClick={submit} disabled={!valid || grant.isPending}>
+            {grant.isPending && <Loader2 className="animate-spin" />}
+            {t('grantPortalConfirm')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

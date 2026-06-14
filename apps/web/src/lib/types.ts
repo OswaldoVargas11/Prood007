@@ -103,6 +103,8 @@ export type LedgerEntryType =
   | 'PAYMENT'
   | 'ADJUSTMENT';
 
+export type ApprovalStatus = 'PROPOSED' | 'APPROVED' | 'REJECTED';
+
 export interface LedgerEntry {
   id: string;
   matterId: string;
@@ -111,6 +113,7 @@ export interface LedgerEntry {
   amount: string;
   currency: string;
   invoiceId: string | null;
+  approvalStatus: ApprovalStatus;
   occurredAt: string;
   createdAt: string;
 }
@@ -220,4 +223,65 @@ export interface DocumentDetail {
   createdAt: string;
   updatedAt: string;
   versions: DocumentVersionDetail[];
+}
+
+// ── Tanda B: usuarios/licencia, ajustes, auditoría, aprobaciones ──────────────
+export type StaffRole = 'FIRM_ADMIN' | 'LAWYER';
+
+/** Un usuario del despacho (staff). De `GET /users`. */
+export interface StaffUser {
+  id: string;
+  email: string;
+  fullName: string;
+  isActive: boolean;
+  role: StaffRole;
+  isSelf: boolean;
+  createdAt: string;
+}
+
+/** Uso de plazas (asientos) por rol vs. la licencia del despacho. */
+export interface SeatUsage {
+  admins: { used: number; max: number };
+  lawyers: { used: number; max: number };
+}
+
+/** Ajustes del despacho (de `GET /settings`). */
+export interface FirmSettings {
+  tenant: {
+    id: string;
+    name: string;
+    taxId: string | null;
+    jurisdiction: 'es' | 'do';
+    currency: string;
+    locale: string;
+    plan: string;
+    maxAdmins: number;
+    maxLawyers: number;
+  };
+  seats: SeatUsage;
+  counts: { clients: number; matters: number };
+}
+
+/** Entrada del registro de auditoría (de `GET /audit`). */
+export interface AuditEntry {
+  id: string;
+  actorId: string | null;
+  actorName: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  metadata: unknown;
+  createdAt: string;
+}
+
+/** Coste propuesto pendiente de aprobación (de `GET /ledger/approvals`). */
+export interface CostApproval {
+  id: string;
+  matter: { id: string; reference: string; title: string };
+  description: string;
+  amount: string;
+  currency: string;
+  note: string | null;
+  proposedBy: string;
+  createdAt: string;
 }

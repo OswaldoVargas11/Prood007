@@ -62,10 +62,10 @@ export const NAV_GROUPS: NavGroup[] = [
     key: 'admin',
     items: [
       { key: 'calendar', href: '/calendar', icon: CalendarDays, enabled: true },
-      // Pendientes de su backend (Tanda B): aprobaciones, auditoría y ajustes. Solo FIRM_ADMIN.
-      { key: 'approvals', href: '/approvals', icon: BadgeCheck, enabled: false, adminOnly: true },
-      { key: 'audit', href: '/audit', icon: ScrollText, enabled: false, adminOnly: true },
-      { key: 'settings', href: '/settings', icon: Settings, enabled: false, adminOnly: true },
+      // Grupo «Despacho» admin (Tanda B). Solo FIRM_ADMIN.
+      { key: 'approvals', href: '/approvals', icon: BadgeCheck, enabled: true, adminOnly: true },
+      { key: 'audit', href: '/audit', icon: ScrollText, enabled: true, adminOnly: true },
+      { key: 'settings', href: '/settings', icon: Settings, enabled: true, adminOnly: true },
     ],
   },
 ];

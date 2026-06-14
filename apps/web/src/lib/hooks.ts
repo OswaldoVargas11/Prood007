@@ -3,11 +3,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
 import type {
+  AuditEntry,
   Client,
+  CostApproval,
   DashboardSummary,
   DeadlineResult,
   DocumentDetail,
   DocumentReviewStatus,
+  FirmSettings,
   Invoice,
   LedgerEntryType,
   Matter,
@@ -18,6 +21,9 @@ import type {
   Message,
   Notification,
   Paginated,
+  SeatUsage,
+  StaffRole,
+  StaffUser,
   Task,
   TaskStatus,
 } from './types';
@@ -368,6 +374,141 @@ export function usePortalInvoices() {
   return useQuery({
     queryKey: ['portal', 'invoices'],
     queryFn: () => api.get<Invoice[]>('/portal/invoices'),
+  });
+}
+
+// ── Alta de cliente / expediente / acceso al portal (Tanda B) ─────────────────
+export function useCreateClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      name: string;
+      taxId: string;
+      email?: string;
+      phone?: string;
+      address?: string;
+    }) => api.post<Client>('/clients', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
+  });
+}
+
+export function useCreateMatter() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { title: string; type: string; clientId: string; lawyerId?: string }) =>
+      api.post<Matter>('/matters', body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['matters'] });
+      void qc.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+}
+
+export function useCreatePortalUser(clientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { email: string; fullName: string; password: string }) =>
+      api.post<{ userId: string; email: string }>(`/clients/${clientId}/portal-user`, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['client', clientId] });
+      void qc.invalidateQueries({ queryKey: ['clients'] });
+    },
+  });
+}
+
+// ── Usuarios del despacho + licencia (Tanda B, solo admin) ────────────────────
+export function useStaff() {
+  return useQuery({ queryKey: ['staff'], queryFn: () => api.get<StaffUser[]>('/users') });
+}
+
+export function useSeats() {
+  return useQuery({ queryKey: ['seats'], queryFn: () => api.get<SeatUsage>('/users/seats') });
+}
+
+export function useCreateStaff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { email: string; fullName: string; password: string; role: StaffRole }) =>
+      api.post<StaffUser>('/users', body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['staff'] });
+      void qc.invalidateQueries({ queryKey: ['seats'] });
+      void qc.invalidateQueries({ queryKey: ['settings'] });
+    },
+  });
+}
+
+export function useUpdateStaff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; isActive?: boolean; role?: StaffRole }) =>
+      api.patch(`/users/${id}`, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['staff'] });
+      void qc.invalidateQueries({ queryKey: ['seats'] });
+      void qc.invalidateQueries({ queryKey: ['settings'] });
+    },
+  });
+}
+
+// ── Ajustes del despacho (Tanda B, solo admin) ────────────────────────────────
+export function useSettings() {
+  return useQuery({ queryKey: ['settings'], queryFn: () => api.get<FirmSettings>('/settings') });
+}
+
+export function useUpdateSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name?: string; taxId?: string; locale?: string }) =>
+      api.patch<FirmSettings>('/settings', body),
+    onSuccess: (data) => qc.setQueryData(['settings'], data),
+  });
+}
+
+// ── Auditoría (Tanda B, solo admin) ───────────────────────────────────────────
+export function useAuditLog(page = 1, pageSize = 50) {
+  return useQuery({
+    queryKey: ['audit', { page, pageSize }],
+    queryFn: () => api.get<Paginated<AuditEntry>>(`/audit?page=${page}&pageSize=${pageSize}`),
+  });
+}
+
+// ── Aprobación de costes (Tanda B) ────────────────────────────────────────────
+export function useApprovals() {
+  return useQuery({
+    queryKey: ['approvals'],
+    queryFn: () => api.get<CostApproval[]>('/ledger/approvals'),
+  });
+}
+
+export function useProposeCost(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { description: string; amount: string; note?: string }) =>
+      api.post('/ledger/costs/propose', { ...body, matterId }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['ledger', matterId] });
+      void qc.invalidateQueries({ queryKey: ['approvals'] });
+    },
+  });
+}
+
+export function useResolveCost() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      action,
+      note,
+    }: {
+      id: string;
+      action: 'approve' | 'reject';
+      note?: string;
+    }) => api.post(`/ledger/approvals/${id}/${action}`, { note }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['approvals'] });
+      void qc.invalidateQueries({ queryKey: ['ledger'] });
+    },
   });
 }
 
