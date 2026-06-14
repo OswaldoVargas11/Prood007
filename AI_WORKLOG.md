@@ -564,3 +564,25 @@ prototipo, a nivel de expediente (los unicos endpoints son por expediente).
 - Pruebas: web tsc/lint/build OK (rutas de documentos emitidas).
 
 Siguiente: A.5 Acercar la ficha de expediente al layout del prototipo (rail cronometro/plazos/saldo).
+
+### 2026-06-14 - Claude - Tanda A.5: Ficha de expediente acercada al prototipo (rail) — Tanda A COMPLETA
+
+Ultima pantalla de la Tanda A. Acerca la ficha de expediente al layout del prototipo (Lexora.dc.html
+453-550): la pestana Resumen pasa a 2 columnas (resumen a la izquierda + rail a la derecha con plazos,
+saldo y cronometro).
+
+- Backend: SIN cambios. Reusa GET /tasks?matterId, GET /ledger/matter/:id, POST /ledger/time.
+- Web: nuevo components/lexora/matter-rail.tsx con 3 tarjetas:
+  - Plazos procesales: tareas del expediente con dueDate + isProcedural, sin DONE/CANCELLED, orden asc,
+    top 4; dia/mes + tipo + dias restantes coloreados por urgencia (reusa lib/calendar).
+  - Saldo: balance del ledger (formato por moneda del tenant) + "facturado" (suma de apuntes INVOICE) +
+    nº de movimientos + "ver ledger ->" (callback que cambia a la pestana Costes).
+  - Cronometro EN VIVO: start/stop (intervalo 1s, mm:ss / h:mm:ss), entrada de concepto + tarifa y
+    "Fichar N min" que registra el tiempo via POST /ledger/time (useAddTimeEntry) e invalida el ledger.
+  - Ficha: Tabs ahora CONTROLADAS (useState) para permitir el salto saldo->Costes; pestana Resumen
+    reestructurada en grid 1.6fr/1fr con el rail. i18n matters.rail.\* (plurales ICU) en es-ES y es-DO.
+- Pruebas: web tsc/lint/build OK + vitest 3 archivos / 10 tests OK. Sin datos mock.
+
+Tanda A COMPLETA (A.1 Onboarding, A.2 Notificaciones, A.3 Agenda, A.4 Documentos+comparar, A.5 Rail de
+ficha). Siguiente: Tanda B (backend NUEVO): B.6 Ajustes/Admin, B.7 Auditoria, B.8 Aprobacion de costes,
+B.9 Comprobacion de conflictos + alta de cliente/expediente desde la UI.

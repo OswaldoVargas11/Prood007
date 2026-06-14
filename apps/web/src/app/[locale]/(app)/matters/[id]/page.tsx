@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronDown, Loader2 } from 'lucide-react';
@@ -8,6 +9,7 @@ import { useChangeMatterStatus, useMatter } from '@/lib/hooks';
 import { nextStatuses } from '@/lib/matter-status';
 import { formatDate } from '@/lib/format';
 import { StatusBadge } from '@/components/lexora/status-badge';
+import { MatterRail } from '@/components/lexora/matter-rail';
 import { DocumentsTab } from '@/components/lexora/documents-tab';
 import { TasksPanel } from '@/components/lexora/tasks-panel';
 import { CostsTab } from '@/components/lexora/costs-tab';
@@ -30,6 +32,7 @@ export default function MatterDetailPage() {
   const locale = useLocale();
   const { data: matter, isLoading, isError, refetch } = useMatter(id);
   const changeStatus = useChangeMatterStatus(id);
+  const [tab, setTab] = useState('overview');
 
   if (isLoading) {
     return (
@@ -98,7 +101,7 @@ export default function MatterDetailPage() {
 
       {changeStatus.isError && <p className="text-sm text-[var(--danger)]">{t('statusError')}</p>}
 
-      <Tabs defaultValue="overview">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="w-full overflow-x-auto">
           <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
           <TabsTrigger value="documents">{t('tabs.documents')}</TabsTrigger>
@@ -109,21 +112,24 @@ export default function MatterDetailPage() {
         </TabsList>
 
         <TabsContent value="overview">
-          <Card>
-            <CardContent className="grid gap-4 p-5 sm:grid-cols-2">
-              <Field
-                label={t('detail.client')}
-                value={matter.client.name}
-                hint={matter.client.taxId}
-              />
-              <Field label={t('detail.type')} value={matter.type} />
-              <Field label={t('detail.opened')} value={formatDate(matter.openedAt, locale)} />
-              <Field
-                label={t('detail.closed')}
-                value={matter.closedAt ? formatDate(matter.closedAt, locale) : '—'}
-              />
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
+            <Card>
+              <CardContent className="grid gap-4 p-5 sm:grid-cols-2">
+                <Field
+                  label={t('detail.client')}
+                  value={matter.client.name}
+                  hint={matter.client.taxId}
+                />
+                <Field label={t('detail.type')} value={matter.type} />
+                <Field label={t('detail.opened')} value={formatDate(matter.openedAt, locale)} />
+                <Field
+                  label={t('detail.closed')}
+                  value={matter.closedAt ? formatDate(matter.closedAt, locale) : '—'}
+                />
+              </CardContent>
+            </Card>
+            <MatterRail matterId={id} onOpenLedger={() => setTab('costs')} />
+          </div>
         </TabsContent>
 
         <TabsContent value="documents">

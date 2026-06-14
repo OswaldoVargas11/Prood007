@@ -200,7 +200,7 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         interactivo (mismo endpoint, el cliente del expediente puede escribir).
   - [x] i18n portal.\*. Verificado E2E como CLIENT (perfil, 1 expediente, docs, ledger 1880, 2 tareas,
         1 factura) + aislamiento (CLIENT → endpoint de staff = 403).
-- **Tanda A — pantallas del prototipo sobre endpoints existentes (solo frontend)** `[~]`
+- **Tanda A — pantallas del prototipo sobre endpoints existentes (solo frontend)** `[x]` COMPLETA
   - [x] **A.1 Onboarding** (alta de despacho multi-paso, 5 pasos: nombre → jurisdicción → moneda →
         ID fiscal → cuenta admin) sobre `POST /api/auth/register-tenant`. BFF `register-tenant` (cookie
         httpOnly + scope), `register()` en el contexto de auth, gate público de `/onboarding` en el
@@ -220,7 +220,11 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         `GET /documents/by-matter/:id`, `GET /documents/:id`, `POST /documents/versions/:id/review`. El
         diff de texto del prototipo se sustituye por metadatos+preview+descarga (el contenido es binario;
         sin mock). Enlace desde el tab Documentos.
-  - [ ] A.5 Acercar la ficha de expediente al layout del prototipo (rail cronómetro/plazos/saldo).
+  - [x] **A.5 Ficha de expediente acercada al prototipo**: pestaña Resumen reconvertida en 2 columnas
+        (resumen a la izquierda + rail a la derecha). Rail (`components/lexora/matter-rail`): tarjeta de
+        **plazos procesales** (de `GET /tasks?matterId`), tarjeta de **saldo** (de `GET /ledger/matter/:id`
+        con facturado/movimientos + "ver ledger →" cambia a la pestaña Costes) y **cronómetro** en vivo
+        (start/stop → ficha tiempo a `POST /ledger/time` con concepto+tarifa). Tabs ahora controladas.
 - **F7 — Resto (ajustes/admin, agenda/calendario, aprobaciones, auditoría)** `[ ]` — **diferido**: el
   backend aún no expone estos endpoints (settings/suscripción/certificado/series fiscales/listado de
   auditoría); construirlos requeriría datos mock, lo que rompe la regla. Va "tras validar con despachos".

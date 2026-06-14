@@ -169,7 +169,29 @@
       "activity": "Actividad",
       "soon": "Esta sección llega en un próximo slice."
     },
-    "openDocuments": "Abrir vista de documentos"
+    "openDocuments": "Abrir vista de documentos",
+    "rail": {
+      "deadlines": "Plazos procesales",
+      "noDeadlines": "No hay plazos procesales próximos.",
+      "overdue": "vencido",
+      "today": "hoy",
+      "inDays": "{n, plural, one {# día} other {# días}}",
+      "balance": "Saldo",
+      "ledger": "Ver ledger",
+      "pending": "Pendiente de cobro",
+      "billed": "Facturado",
+      "entries": "Movimientos",
+      "timer": "Tiempo",
+      "start": "Iniciar cronómetro",
+      "stop": "Pausar cronómetro",
+      "counting": "Cronometrando…",
+      "hint": "Pulsa para fichar tiempo facturable",
+      "conceptPlaceholder": "Concepto del tiempo…",
+      "defaultConcept": "Tiempo registrado",
+      "rate": "Tarifa por hora",
+      "logTime": "Fichar {min} min",
+      "logError": "No se pudo registrar el tiempo."
+    }
   },
   "clients": {
     "title": "Clientes",
