@@ -193,8 +193,16 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         en vivo (`notification:new`). i18n chat._/notifications._.
   - [x] Verificado E2E: enviar/listar mensajes; flujo de notificación (asignar tarea al CLIENT → la
         recibe → marcar leída). El live socket está probado en el backend (portal-realtime e2e).
-- **F6 — Portal del cliente (rol CLIENT, solo lectura + chat)** `[ ]`
-- **F7 — Resto (ajustes/admin, agenda/calendario, aprobaciones, auditoría)** `[ ]`
+- **F6 — Portal del cliente (rol CLIENT, solo lectura + chat)** `[x]`
+  - [x] Shell de portal propio (sin sidebar del despacho) + guard de sesión. Llegada por el role gate.
+  - [x] Home: mis expedientes + mis facturas (`/portal/matters`, `/portal/invoices`).
+  - [x] Ficha read-only con tabs Documentos/Costes/Tareas/Chat (`/portal/matters/:id/*`); el chat es
+        interactivo (mismo endpoint, el cliente del expediente puede escribir).
+  - [x] i18n portal.\*. Verificado E2E como CLIENT (perfil, 1 expediente, docs, ledger 1880, 2 tareas,
+        1 factura) + aislamiento (CLIENT → endpoint de staff = 403).
+- **F7 — Resto (ajustes/admin, agenda/calendario, aprobaciones, auditoría)** `[ ]` — **diferido**: el
+  backend aún no expone estos endpoints (settings/suscripción/certificado/series fiscales/listado de
+  auditoría); construirlos requeriría datos mock, lo que rompe la regla. Va "tras validar con despachos".
 
 Reglas: cero datos mock al cerrar un slice · nada de país hardcodeado (todo fiscal/idioma sale de la
 jurisdicción del tenant) · estados cargando/vacío/error en cada vista · dark+light · AA · TanStack

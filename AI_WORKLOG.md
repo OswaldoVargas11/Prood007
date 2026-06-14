@@ -423,3 +423,15 @@ Siguiente: F2 (Documentos) — rellena el tab Documentos de la ficha.
   marcar leida, refresco en vivo (notification:new). i18n chat._/notifications._.
 - Pruebas: tsc/lint/build OK. E2E real: enviar/listar mensajes; flujo de notificacion (admin asigna
   tarea al CLIENT -> CLIENT la recibe (task.assigned) -> marcar leida). Live socket probado en backend.
+
+### 2026-06-14 - Claude - Slice F6 (Portal del cliente, solo lectura + chat)
+
+- Hooks portal (usePortalMatters/Matter/Documents/Ledger/Tasks/Invoices). PortalShell (superficie
+  propia, sin sidebar, guard de sesion). Home /portal (mis expedientes + mis facturas). Ficha
+  /portal/matters/[id] con tabs Documentos/Costes/Tareas (read-only) + Chat (interactivo, mismo
+  endpoint de mensajes). i18n portal.\* ampliado.
+- Pruebas: tsc/lint/build OK. E2E real como CLIENT: me=Cliente Uno, 1 expediente, 1 doc, ledger
+  saldo 1880, 2 tareas, 1 factura; aislamiento CLIENT -> /matters (staff) = 403.
+
+Estado frontend: F0-F6 completos (demo real de punta a punta). F7 (ajustes/admin/agenda/aprobaciones/
+auditoria) DIFERIDO: el backend no expone esos endpoints; cablearlo exigiria mock (rompe la regla).

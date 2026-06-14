@@ -220,6 +220,13 @@
   "portal": {
     "title": "Portal del cliente",
     "subtitle": "Tu superficie de solo lectura y chat con el despacho.",
-    "soon": "Próximamente"
+    "soon": "Próximamente",
+    "welcome": "Tu espacio en el despacho",
+    "myMatters": "Mis expedientes",
+    "myInvoices": "Mis facturas",
+    "noMatters": "Aún no tienes expedientes.",
+    "noInvoices": "Aún no tienes facturas.",
+    "loadError": "No se pudo cargar la información",
+    "back": "Volver"
   }
 }

@@ -1,25 +1,98 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useLocale, useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
+import { useAuth } from '@/lib/auth';
+import { usePortalInvoices, usePortalMatters } from '@/lib/hooks';
+import { jurisdictionCopy } from '@/lib/jurisdiction';
+import { invoiceStatusVariant } from '@/lib/ledger';
+import { formatDate, formatMoney } from '@/lib/format';
+import { StatusBadge } from '@/components/lexora/status-badge';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
-/**
- * Placeholder del portal del cliente (rol CLIENT). El shell del despacho redirige aquí a los usuarios
- * sin rol de staff. La superficie real (solo lectura + chat) llega en el slice F6.
- */
-export default function PortalPage() {
+export default function PortalHome() {
   const t = useTranslations('portal');
+  const tInv = useTranslations('billing');
+  const locale = useLocale();
+  const { user } = useAuth();
+  const matters = usePortalMatters();
+  const invoices = usePortalInvoices();
+  const copy = user ? jurisdictionCopy(user.jurisdiction) : null;
+
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <Card className="w-full max-w-md text-center">
-        <CardHeader className="items-center">
-          <Badge variant="info">{t('soon')}</Badge>
-          <CardTitle className="mt-2">{t('title')}</CardTitle>
-          <CardDescription>{t('subtitle')}</CardDescription>
-        </CardHeader>
-        <CardContent />
-      </Card>
-    </main>
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('welcome')}</h1>
+        {copy && <p className="mt-1 text-sm text-muted-foreground">{copy.country}</p>}
+      </div>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-muted-foreground">{t('myMatters')}</h2>
+        {matters.isLoading && <Skeleton className="h-28 w-full" />}
+        {matters.isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
+        {matters.data?.length === 0 && (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              {t('noMatters')}
+            </CardContent>
+          </Card>
+        )}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {matters.data?.map((m) => (
+            <Link key={m.id} href={`/portal/matters/${m.id}`}>
+              <Card className="transition-colors hover:border-[var(--brand-line)]">
+                <CardContent className="space-y-2 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs text-muted-foreground">{m.reference}</span>
+                    <StatusBadge status={m.status} />
+                  </div>
+                  <div className="font-medium">{m.title}</div>
+                  <div className="text-xs text-muted-foreground">{m.type}</div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-sm font-medium text-muted-foreground">{t('myInvoices')}</h2>
+        {invoices.isLoading && <Skeleton className="h-24 w-full" />}
+        {invoices.isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
+        {invoices.data?.length === 0 && (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              {t('noInvoices')}
+            </CardContent>
+          </Card>
+        )}
+        {invoices.data && invoices.data.length > 0 && (
+          <Card className="overflow-hidden">
+            <table className="w-full text-sm">
+              <tbody>
+                {invoices.data.map((inv) => (
+                  <tr key={inv.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3 font-mono text-xs">{inv.number}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={invoiceStatusVariant(inv.status)}>
+                        {tInv(`invoiceStatus.${inv.status}`)}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                      {formatDate(inv.issueDate, locale)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium tabular-nums">
+                      {formatMoney(inv.total, inv.currency, locale)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+        )}
+      </section>
+    </div>
   );
 }

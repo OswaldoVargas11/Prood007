@@ -278,6 +278,48 @@ export function useMarkNotificationRead() {
   });
 }
 
+// ── Portal del cliente (F6, solo lectura) ────────────────────────────────────
+export function usePortalMatters() {
+  return useQuery({
+    queryKey: ['portal', 'matters'],
+    queryFn: () => api.get<Matter[]>('/portal/matters'),
+  });
+}
+export function usePortalMatter(id: string) {
+  return useQuery({
+    queryKey: ['portal', 'matter', id],
+    queryFn: () => api.get<Matter>(`/portal/matters/${id}`),
+    enabled: Boolean(id),
+  });
+}
+export function usePortalDocuments(id: string) {
+  return useQuery({
+    queryKey: ['portal', 'documents', id],
+    queryFn: () => api.get<MatterDocument[]>(`/portal/matters/${id}/documents`),
+    enabled: Boolean(id),
+  });
+}
+export function usePortalLedger(id: string) {
+  return useQuery({
+    queryKey: ['portal', 'ledger', id],
+    queryFn: () => api.get<MatterLedger>(`/portal/matters/${id}/ledger`),
+    enabled: Boolean(id),
+  });
+}
+export function usePortalTasks(id: string) {
+  return useQuery({
+    queryKey: ['portal', 'tasks', id],
+    queryFn: () => api.get<Task[]>(`/portal/matters/${id}/tasks`),
+    enabled: Boolean(id),
+  });
+}
+export function usePortalInvoices() {
+  return useQuery({
+    queryKey: ['portal', 'invoices'],
+    queryFn: () => api.get<Invoice[]>('/portal/invoices'),
+  });
+}
+
 /** Descarga una versión y dispara la descarga en el navegador. */
 export async function downloadVersion(versionId: string, filename: string): Promise<void> {
   const blob = await api.download(`/documents/versions/${versionId}/download`);
