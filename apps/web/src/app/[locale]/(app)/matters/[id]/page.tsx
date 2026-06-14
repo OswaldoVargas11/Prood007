@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
@@ -32,7 +32,12 @@ export default function MatterDetailPage() {
   const locale = useLocale();
   const { data: matter, isLoading, isError, refetch } = useMatter(id);
   const changeStatus = useChangeMatterStatus(id);
-  const [tab, setTab] = useState('overview');
+  const searchParams = useSearchParams();
+  const validTabs = ['overview', 'documents', 'tasks', 'costs', 'chat', 'activity'];
+  const initialTab = searchParams.get('tab');
+  const [tab, setTab] = useState(
+    initialTab && validTabs.includes(initialTab) ? initialTab : 'overview',
+  );
 
   if (isLoading) {
     return (

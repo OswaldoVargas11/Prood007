@@ -11,8 +11,19 @@
     "tasks": "Tareas",
     "calendar": "Agenda",
     "billing": "Facturación",
+    "invoices": "Facturas",
+    "chat": "Mensajes",
+    "approvals": "Aprobaciones",
+    "audit": "Auditoría",
+    "settings": "Ajustes",
     "portal": "Portal del cliente",
-    "soon": "Pronto"
+    "soon": "Pronto",
+    "groups": {
+      "workspace": "Espacio de trabajo",
+      "finance": "Finanzas",
+      "comms": "Comunicación",
+      "admin": "Despacho"
+    }
   },
   "calendar": {
     "title": "Agenda de plazos",
@@ -231,6 +242,23 @@
     "colBilled": "Facturado",
     "colBalance": "Saldo",
     "hint": "El detalle y la emisión de facturas se gestionan dentro de cada expediente (pestaña Costes)."
+  },
+  "invoicesOverview": {
+    "title": "Facturas",
+    "subtitle": "Todas las facturas emitidas por el despacho.",
+    "loadError": "No se pudieron cargar las facturas.",
+    "empty": "Aún no hay facturas emitidas.",
+    "colNumber": "Número",
+    "colClient": "Cliente",
+    "colDate": "Fecha",
+    "colTotal": "Total",
+    "colStatus": "Estado"
+  },
+  "messagesOverview": {
+    "title": "Mensajes",
+    "subtitle": "Conversaciones del despacho, una por expediente.",
+    "loadError": "No se pudieron cargar los mensajes.",
+    "empty": "Aún no hay conversaciones."
   },
   "documents": {
     "title": "Documentos",

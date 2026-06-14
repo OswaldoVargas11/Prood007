@@ -608,3 +608,31 @@ deshabilitadas. Se activan como vistas GLOBALES agregando en el cliente (sin bac
 
 Nota para Tanda B: una version mas eficiente usaria endpoints firm-wide (GET /documents, GET
 /ledger/invoices) en vez de N llamadas por expediente; queda anotado.
+
+### 2026-06-14 - Claude - Sidebar agrupado fiel a la plantilla (4 grupos) + Facturas y Mensajes globales
+
+El usuario detecto que la plantilla agrupa el sidebar en categorias y pidio fidelidad. Revisado el
+sidebar de Lexora.dc.html (112-192) y los labels (1459-1460): hay UNA app de despacho con 4 grupos
+(no dos dashboards), mas el portal del cliente aparte. Grupos: Espacio de trabajo (Panel, Expedientes,
+Clientes, Tareas, Documentos) · Finanzas (Facturacion, Facturas) · Comunicacion (Mensajes) · Despacho
+(Agenda, Aprobaciones, Auditoria, Ajustes). El grupo Despacho admin es rol FIRM_ADMIN (settings: "rol
+Firm Admin").
+
+- nav.ts: reescrito a NAV_GROUPS (4 grupos) + NAV_ITEMS derivado (plano, para la paleta). Items con
+  flag adminOnly. Agenda movida al grupo Despacho. Aprobaciones/Auditoria/Ajustes enabled:false (su
+  backend es Tanda B) y adminOnly:true.
+- app-sidebar.tsx: render por grupos con cabecera; filtra items adminOnly si !FIRM_ADMIN (useAuth.hasRole).
+  El grupo Despacho sigue mostrando Agenda a todo el staff; Aprobaciones/Auditoria/Ajustes solo a admin.
+- Vistas globales nuevas (agregacion en cliente, sin backend, sin mock):
+  - /invoices (Facturas): reune invoiceId de los apuntes INVOICE de cada expediente (useQueries sobre
+    GET /ledger/matter/:id) y trae cada factura (GET /ledger/invoices/:id); tabla numero/cliente/fecha/
+    total/estado -> detalle /invoices/:id.
+  - /messages (Mensajes): bandeja con una conversacion por expediente (ultimo mensaje), useQueries sobre
+    GET /matters/:id/messages; enlaza a /matters/:id?tab=chat.
+- Ficha de expediente: soporta deep-link ?tab= (useSearchParams) para abrir la pestana Chat desde Mensajes.
+- i18n: nav.invoices/chat/approvals/audit/settings + nav.groups._ + invoicesOverview._/messagesOverview.\*
+  en es-ES y es-DO.
+- Pruebas: web tsc/lint/build OK (rutas /invoices y /messages emitidas). Servidor reiniciado.
+
+Pendiente (Tanda B, backend nuevo) para completar el grupo Despacho: Aprobaciones (B.8), Auditoria (B.7,
+solo falta GET /audit), Ajustes (B.6).

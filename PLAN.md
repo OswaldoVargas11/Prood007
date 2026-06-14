@@ -200,6 +200,16 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         interactivo (mismo endpoint, el cliente del expediente puede escribir).
   - [x] i18n portal.\*. Verificado E2E como CLIENT (perfil, 1 expediente, docs, ledger 1880, 2 tareas,
         1 factura) + aislamiento (CLIENT → endpoint de staff = 403).
+- **Sidebar agrupado fiel a la plantilla (4 grupos) + vistas globales** `[x]`
+  - [x] Sidebar reagrupado igual que la plantilla (Lexora.dc.html 112–192): **Espacio de trabajo**
+        (Panel/Expedientes/Clientes/Tareas/Documentos) · **Finanzas** (Facturación/Facturas) ·
+        **Comunicación** (Mensajes) · **Despacho** (Agenda/Aprobaciones/Auditoría/Ajustes). Agenda
+        reubicada en Despacho. `NAV_GROUPS` en `lib/nav`; cabeceras de grupo en el sidebar.
+  - [x] **Gating por rol**: Aprobaciones/Auditoría/Ajustes (`adminOnly`) solo visibles para FIRM_ADMIN;
+        además deshabilitadas ("Pronto") hasta su backend (Tanda B).
+  - [x] **Facturas** (`/invoices`): lista global de facturas (agrega `invoiceId` de apuntes INVOICE +
+        `GET /ledger/invoices/:id`). **Mensajes** (`/messages`): bandeja global (último mensaje por
+        expediente). Ambas en cliente, sin backend nuevo. Deep-link `?tab=` en la ficha de expediente.
 - **Tanda A — pantallas del prototipo sobre endpoints existentes (solo frontend)** `[x]` COMPLETA
   - [x] **A.1 Onboarding** (alta de despacho multi-paso, 5 pasos: nombre → jurisdicción → moneda →
         ID fiscal → cuenta admin) sobre `POST /api/auth/register-tenant`. BFF `register-tenant` (cookie
