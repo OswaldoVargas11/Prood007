@@ -16,5 +16,26 @@
     "tasks": "Tareas",
     "billing": "Facturación",
     "portal": "Portal del cliente"
+  },
+  "login": {
+    "title": "Acceder a LegalFlow",
+    "subtitle": "Introduce tus credenciales del despacho",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "tenantOptional": "ID del despacho (opcional)",
+    "signIn": "Entrar",
+    "signingIn": "Entrando…",
+    "genericError": "No se pudo iniciar sesión",
+    "error": "Error"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "loading": "Cargando…",
+    "logout": "Cerrar sesión",
+    "user": "Usuario",
+    "jurisdiction": "Jurisdicción",
+    "roles": "Roles",
+    "clients": "Clientes",
+    "placeholder": "La interfaz completa llega con el diseño (Sesión 2)."
   }
 }
