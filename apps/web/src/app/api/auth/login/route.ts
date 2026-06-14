@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import type { TokenPair } from '@/lib/auth-types';
-import { nestUrl, setSessionCookie } from '@/lib/server/session';
+import { scopeFromAccessToken } from '@/lib/scope';
+import { nestUrl, setScopeCookie, setSessionCookie } from '@/lib/server/session';
 
 /**
  * BFF de login: proxya a Nest `POST /api/auth/login`, guarda el refresh en cookie httpOnly y devuelve
@@ -21,5 +22,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
   const pair = data as TokenPair;
   setSessionCookie(pair.refreshToken);
+  setScopeCookie(scopeFromAccessToken(pair.accessToken));
   return NextResponse.json({ accessToken: pair.accessToken, expiresIn: pair.expiresIn });
 }

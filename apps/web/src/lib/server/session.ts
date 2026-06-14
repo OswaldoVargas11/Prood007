@@ -5,7 +5,11 @@ import { cookies } from 'next/headers';
  * Gestión de la cookie de sesión (refresh token) en el BFF de Next. La cookie es **httpOnly**, así
  * que el JS de cliente nunca la ve; solo los Route Handlers la leen/escriben. Ver D-014.
  */
+import type { Scope } from '../scope';
+
 export const SESSION_COOKIE = 'lf_session';
+/** Ámbito de navegación (firm/client) para el gate de rol en el middleware de servidor. */
+export const SCOPE_COOKIE = 'lf_scope';
 const REFRESH_MAX_AGE = 7 * 24 * 60 * 60; // 7 días, igual que el refresh TTL del backend
 
 /** URL de la API Nest para llamadas servidor→servidor (sin CORS). */
@@ -26,8 +30,20 @@ export function setSessionCookie(refreshToken: string): void {
 
 export function clearSessionCookie(): void {
   cookies().delete(SESSION_COOKIE);
+  cookies().delete(SCOPE_COOKIE);
 }
 
 export function getSessionToken(): string | null {
   return cookies().get(SESSION_COOKIE)?.value ?? null;
+}
+
+/** Fija el ámbito (no es secreto, pero httpOnly evita manipulación trivial desde el cliente). */
+export function setScopeCookie(scope: Scope): void {
+  cookies().set(SCOPE_COOKIE, scope, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: REFRESH_MAX_AGE,
+  });
 }

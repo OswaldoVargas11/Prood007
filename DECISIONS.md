@@ -178,3 +178,17 @@ Decisiones:
   la **jurisdicción del tenant** gobierna copy fiscal (Verifactu/IVA vs e-CF/ITBIS, NIF/CIF vs RNC) —
   nunca hardcodeado. **Nombre de producto mostrado:** `Lexora` (vía clave i18n `app.name`); el rebrand
   de paquetes `@legalflow/*` sigue diferido (HANDOFF). Trabajo por **slices verticales** (ver PLAN F0–F7).
+
+## D-015 · Gate de rol en middleware de servidor (cookie de ámbito) · Aceptada
+
+- **Contexto:** F0 protegía la autenticación en el middleware (servidor) por la cookie de sesión, pero
+  el gate por ROL (CLIENT → solo portal) era client-side (en el shell), saltable con JS desactivado.
+  El backend ya bloquea de verdad (RBAC + RLS), pero se quería impedir incluso cargar la ruta.
+- **Decisión:** el BFF, que ya recibe el access token en login/refresh, deriva el ámbito
+  (`firm` si hay rol staff FIRM_ADMIN/LAWYER; si no, `client`) decodificando el JWT (solo para
+  enrutar, sin verificar firma — el token viene de nuestro backend) y lo fija en una cookie
+  **httpOnly `lf_scope`**. El **middleware** la lee y redirige en servidor: `client` fuera del portal →
+  `/portal`; `firm` en el portal → `/dashboard`. La verificación real sigue en el backend.
+- **Consecuencia:** un CLIENT no puede siquiera cargar las rutas de la firm app aunque desactive JS.
+  Probado E2E (firm: /portal→/dashboard; client real creado vía portal-user: /dashboard→/portal). El
+  shell de cliente se mantiene como defensa en profundidad. Helper puro `lib/scope.ts` con tests.
