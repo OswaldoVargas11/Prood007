@@ -9,9 +9,24 @@
     "clients": "Clientes",
     "documents": "Documentos",
     "tasks": "Tareas",
+    "calendar": "Agenda",
     "billing": "Facturación",
     "portal": "Portal del cliente",
     "soon": "Pronto"
+  },
+  "calendar": {
+    "title": "Agenda de plazos",
+    "subtitle": "Plazos procesales · cómputo por jurisdicción con festivos aplicados.",
+    "prevMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente",
+    "todayBadge": "HOY",
+    "today": "hoy",
+    "overdue": "vencido",
+    "inDays": "{n, plural, one {# día} other {# días}}",
+    "more": "+{n} más",
+    "load": "Carga de plazos",
+    "empty": "No hay plazos próximos.",
+    "loadError": "No se pudieron cargar los plazos."
   },
   "login": {
     "title": "Acceder a Lexora",

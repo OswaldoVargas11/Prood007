@@ -209,7 +209,10 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         semana/Anterior—, badge "en directo" por socket, icono por tipo, marcar una/todas como leídas).
         Sobre `GET /notifications` + `PATCH /notifications/:id/read`. "Marcar todas" en paralelo
         cliente-side (sin endpoint nuevo). Enlace "Ver todas" desde la campana.
-  - [ ] A.3 Agenda/Calendario de plazos (derivar de `GET /tasks`).
+  - [x] **A.3 Agenda/Calendario de plazos** (página `/calendar`): rejilla mensual lunes-first
+        (calendario propio, sin dep nueva) con chips de plazo por día coloreados por urgencia + rail
+        "carga de plazos" próximos. Deriva de `GET /tasks` (con `dueDate`, sin cancelar) + `GET /matters`
+        para la referencia. Click → expediente. Nav `calendar` habilitado. i18n `calendar.*`.
   - [ ] A.4 Documentos (vista global) + comparar versiones (v2→v3).
   - [ ] A.5 Acercar la ficha de expediente al layout del prototipo (rail cronómetro/plazos/saldo).
 - **F7 — Resto (ajustes/admin, agenda/calendario, aprobaciones, auditoría)** `[ ]` — **diferido**: el

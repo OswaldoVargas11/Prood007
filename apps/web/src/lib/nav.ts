@@ -1,5 +1,6 @@
 import {
   Briefcase,
+  CalendarDays,
   CheckSquare,
   FileText,
   LayoutDashboard,
@@ -25,5 +26,6 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'clients', href: '/clients', icon: Users, enabled: true },
   { key: 'documents', href: '/documents', icon: FileText, enabled: false },
   { key: 'tasks', href: '/tasks', icon: CheckSquare, enabled: true },
+  { key: 'calendar', href: '/calendar', icon: CalendarDays, enabled: true },
   { key: 'billing', href: '/billing', icon: Receipt, enabled: false },
 ];

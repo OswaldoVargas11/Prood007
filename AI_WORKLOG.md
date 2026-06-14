@@ -518,3 +518,23 @@ tiempo relativo, punto de no-leido).
 - Pruebas: web tsc/lint/build OK (ruta /[locale]/notifications emitida). Sin datos mock.
 
 Siguiente: A.3 Agenda/Calendario de plazos (derivar de GET /tasks procesales con dueDate).
+
+### 2026-06-14 - Claude - Tanda A.3: Agenda/Calendario de plazos
+
+Tercera pantalla de la Tanda A. Replica el "Calendar/agenda" del prototipo (Lexora.dc.html 868-903):
+rejilla mensual + rail derecho con la carga de plazos proximos.
+
+- Backend: SIN cambios. Deriva de GET /tasks (tareas con dueDate, sin CANCELLED) + GET /matters
+  (?pageSize=100) para mapear matterId -> referencia.
+- Web: calendario PROPIO (sin anadir react-day-picker, evita churn de lockfile). lib/calendar.ts:
+  buildMonthGrid (6 semanas lunes-first con relleno de meses adyacentes), dayKey (clave de dia local,
+  no UTC), daysUntil, deadlineUrgency (overdue/urgent/soon/later/done) + URGENCY_COLOR (tokens). Pagina
+  app/[locale]/(app)/calendar/page.tsx: navegacion de mes (prev/next), celdas con numero + badge HOY +
+  hasta 3 chips de plazo coloreados (resto "+N mas"), fin de semana sombreado, rail "Carga de plazos"
+  (proximos >=0 dias, orden asc, top 8) con barra de color, tipo/titulo, referencia + dia y dias
+  restantes. Click en plazo -> ficha del expediente (o /tasks si no tiene). Nav 'calendar' habilitado
+  (icono CalendarDays). i18n nav.calendar + calendar.\* (plural ICU en inDays) en es-ES y es-DO. Estados
+  loading(skeleton)/vacio/error.
+- Pruebas: web tsc/lint/build OK (ruta /[locale]/calendar emitida). Sin datos mock.
+
+Siguiente: A.4 Documentos (vista global del expediente) + comparar versiones (v2->v3).
