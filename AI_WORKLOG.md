@@ -125,3 +125,27 @@ Porcentaje estimado:
 Siguiente punto recomendado:
 - Construir UI funcional en `apps/web` para consumir auth/clientes/expedientes/documentos/tareas/ledger.
 - Despues, anadir CI basica y hooks Husky reales (`pre-commit`, `commit-msg`).
+
+### 2026-06-14 - Claude - Verificacion de cambios de Codex + plan de 3 sesiones
+
+Objetivo:
+- Revisar el trabajo de Codex (taxid + baseline de lint), verificar todo verde y planificar las
+  3 sesiones de trabajo del dia segun lo pedido por el usuario.
+
+Comprobaciones (todas OK):
+- `pnpm install` tras cambio de lockfile: OK.
+- Builds domain/compliance/api: OK.
+- `pnpm --filter @legalflow/compliance test`: 4 suites / 32 tests OK (incluye taxid).
+- `pnpm --filter @legalflow/api test:e2e`: 6 suites / 43 tests OK.
+- `pnpm -r lint`: limpio en domain, compliance, web y api.
+- Total: 75 pruebas verdes. Commit `abda88d` de Codex empujado a `origin/feat/mvp-fase1` (PR #1).
+
+Decisiones:
+- Confirmada la validacion de tax-ids de Codex como correcta (NIF/NIE/CIF, RNC, Cedula).
+- Creado `SESSIONS.md` con el plan de 3 slots (5 h c/u, limitados por tokens).
+- UI: se delega el diseno a Claude Design (prompt entregado al usuario). El trabajo no visual de
+  frontend (SDK API, auth, i18n) y el hardening de backend no dependen del diseno y avanzan ya.
+
+Siguiente punto recomendado (esta sesion):
+- Backend hardening de seguridad (rate limiting/throttler + helmet), CI (GitHub Actions) y hooks
+  Husky reales; despues, plomeria de frontend (cliente API tipado + auth) a la espera del diseno.
