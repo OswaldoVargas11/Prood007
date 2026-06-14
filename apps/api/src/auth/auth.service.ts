@@ -27,16 +27,13 @@ export class AuthService {
     const passwordHash = await this.hashPassword(dto.admin.password);
 
     const result = await this.prisma.$transaction(async (tx) => {
-      // 1) Asegurar catálogo de permisos global (idempotente).
-      await Promise.all(
-        PERMISSIONS.map((code) =>
-          tx.permission.upsert({
-            where: { code },
-            update: {},
-            create: { code, name: PERMISSION_NAMES[code] },
-          }),
-        ),
-      );
+      // 1) Asegurar catálogo de permisos global (idempotente y SEGURO ante concurrencia).
+      //    createMany + skipDuplicates compila a INSERT ... ON CONFLICT DO NOTHING, atómico:
+      //    evita la "Unique constraint failed on (code)" cuando dos despachos se registran a la vez.
+      await tx.permission.createMany({
+        data: PERMISSIONS.map((code) => ({ code, name: PERMISSION_NAMES[code] })),
+        skipDuplicates: true,
+      });
       const permissions = await tx.permission.findMany({
         where: { code: { in: [...PERMISSIONS] } },
       });
