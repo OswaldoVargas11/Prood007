@@ -1,94 +1,122 @@
-# Prompt para Claude Design — UI de LegalFlow
+# Prompt para Claude Design — UI de Lexora
 
-> Copia todo lo de debajo de la línea y pégalo en Claude Design. Cuando vuelvas con el resultado
-> (design system + pantallas), lo implementamos en `apps/web` con Next.js + Tailwind + shadcn/ui.
+> Copia TODO lo que hay debajo de la línea en Claude Design. Está afinado para que el diseño sea
+> implementable sobre nuestra app real (Next.js App Router + Tailwind + shadcn/ui + next-intl) y la
+> API ya construida (auth/RBAC, clientes, expedientes, documentos, tareas, ledger/facturación,
+> portal, chat y notificaciones en tiempo real). "Lexora" es el nombre de producto; el repositorio
+> se llama LegalFlow.
 
 ---
 
-Diseña la interfaz completa de **LegalFlow**, un SaaS de gestión para despachos de abogados que
-opera en **dos jurisdicciones**: **España** y **República Dominicana**. Necesito un **design
-system** y las **pantallas clave**, pensados para implementarse con **Next.js (App Router) +
-TailwindCSS + shadcn/ui** (usa componentes tipo shadcn: Button, Card, Table, Dialog, Sheet,
-Tabs, Badge, Input, Select, DropdownMenu, Toast, Avatar, Skeleton).
+You are the Head of Product Design at Stripe, Linear, Attio and Vercel.
 
-## Marca y tono
-- Sector legal: transmite **confianza, rigor y calma**, pero moderno (no anticuado como los players
-  tradicionales). Limpio, mucho espacio en blanco, tipografía legible, densidad de datos media-alta.
-- Paleta: un **azul/índigo profundo** como color primario (autoridad/confianza) + neutros (grises
-  fríos) + acentos semánticos (verde éxito, ámbar aviso, rojo error). Define tokens para **modo
-  claro y oscuro**.
-- Tipografía: una sans moderna y legible (p. ej. Inter) con buena jerarquía. Números tabulares para
-  importes y fechas.
-- Define **design tokens** (color, espaciado, radios, sombras, tipografía) como variables CSS,
-  compatibles con la convención de theming de shadcn/ui (`--background`, `--foreground`,
-  `--primary`, etc.).
+Design a world-class SaaS platform for law firms called **"Lexora"**. This is NOT traditional legal
+software. It is an **AI-native operating system for modern law firms**, operating in **two
+jurisdictions from day one: Spain and the Dominican Republic**.
 
-## Dos experiencias (roles)
-1. **App del despacho (staff: Abogado / Admin)** — densa, orientada a productividad.
-2. **Portal del cliente (rol Cliente)** — más simple, tranquilizadora, solo lectura + chat.
-Diferéncialas visualmente (p. ej. el portal más espacioso y guiado) pero compartiendo el sistema.
+## Avoid
 
-## Requisitos transversales
-- **Bilingüe es-ES / es-DO**: textos en español; prevé un **selector de idioma** y que los importes
-  se muestren en **EUR** (España) o **DOP** (RD) según el despacho. Nada de strings "quemados".
-- **Responsive** (desktop primero, pero usable en tablet/móvil).
-- **Accesibilidad** AA: contraste, focos visibles, navegación por teclado, labels.
-- Estados de **carga (skeletons)**, **vacío** y **error** para cada vista de datos.
+- generic admin dashboards · blue sidebars · old legal aesthetics · gavels · courthouse columns ·
+  scales of justice · enterprise software from 2015.
 
-## Pantallas a diseñar
+## It should feel like
 
-### Autenticación
-- **Login** (email + contraseña). 
-- **Registro de despacho** (alta del tenant): nombre del despacho, **jurisdicción** (España/RD),
-  **moneda** (EUR/DOP), identificador fiscal del despacho, y datos del primer usuario admin.
+Linear · Attio · Notion · Stripe Dashboard · Mercury · Arc Browser · Vercel.
 
-### App del despacho (staff)
-- **App shell**: barra lateral de navegación (Dashboard, Clientes, Expedientes, Documentos, Tareas,
-  Facturación), cabecera con buscador, **campana de notificaciones** (tiempo real), selector de
-  idioma, menú de usuario.
-- **Dashboard**: tarjetas resumen (expedientes activos, tareas/plazos próximos, facturación del mes),
-  lista de **plazos procesales** próximos con urgencia, actividad reciente.
-- **Clientes**: tabla (nombre, identificador fiscal, email, nº expedientes) con búsqueda y paginación;
-  **alta/edición** en panel lateral con **validación del identificador fiscal en vivo** (NIF/CIF/NIE
-  en ES, RNC/Cédula en RD) y un botón "Dar acceso al portal".
-- **Expedientes (matters)**: tabla con estado (Abierto, En curso, En espera, Cerrado, Archivado) como
-  **badges de color**; **ficha de expediente** con pestañas: Resumen, Documentos, Tareas, Tiempo,
-  **Ledger/Costes**, Chat. Incluye control para **cambiar de estado** (máquina de estados) y asignar
-  abogado responsable.
-- **Documentos**: dentro del expediente — lista de documentos con sus **versiones** y **estado de
-  revisión** (Pendiente, En revisión, Aprobado, Rechazado, Requiere cambios) como badges; acción de
-  **subir versión** y **flujo de revisión** (aprobar/rechazar/pedir cambios con comentario).
-- **Tareas**: lista filtrable por estado/asignado/expediente; **alta de tarea** y **alta de tarea
-  desde un plazo procesal** (tipo de plazo + fecha de inicio + nº de días → fecha límite calculada).
-  Resalta tareas vencidas/próximas.
-- **Facturación (ledger + facturas)**: 
-  - Vista de **ledger por expediente**: lista de movimientos (provisión, suplido, honorarios/horas,
-    factura, cobro, ajuste) con su signo y un **saldo** destacado.
-  - **Emitir factura**: selección de líneas (descripción, cantidad, precio, impuesto), opción de
-    **retención IRPF** (solo ES); previsualización de **totales fiscales** (base, IVA/ITBIS,
-    retención, total).
-  - **Detalle de factura**: cabecera fiscal, líneas, totales, estado (Borrador/Emitida/Pagada), y un
-    bloque del **registro de cumplimiento** (Verifactu en ES con su huella/QR; e-CF en RD); botón "Cobrar".
+## Design principles
 
-### Portal del cliente
-- **Inicio del portal**: saludo, sus expedientes con estado, pendientes y un resumen de costes.
-- **Detalle de expediente (cliente)**: estado, documentos (descarga), tareas/pendientes, **ledger
-  transparente** (qué se ha provisionado/gastado/facturado) y **chat** con el despacho.
-- **Sus facturas**: lista con estado e importes; detalle con totales fiscales.
+premium · calm · high trust · high density · extremely modern · fast · **AI-native**.
 
-### Componentes transversales
-- **Panel/bandeja de notificaciones** (tiempo real).
-- **Chat por expediente** (mensajes con autor y hora, en tiempo real).
-- Tabla de datos reutilizable (orden, búsqueda, paginación, vacío/carga).
-- Badges de estado coherentes (expediente, revisión de documento, factura, tarea).
-- Formularios con validación y errores en línea.
+## Visual language
 
-## Entregables que necesito
-1. **Design system**: tokens (claro/oscuro), tipografía, paleta semántica, y los componentes base
-   listados (en clave shadcn/ui), con sus estados (hover/focus/disabled/loading).
-2. **Mockups de alta fidelidad** de todas las pantallas anteriores (desktop + una muestra responsive).
-3. Especificación suficiente para implementarlo con Tailwind + shadcn/ui (clases/variables, no solo
-   imágenes): idealmente componentes/HTML+CSS o referencias a componentes shadcn concretos.
-4. Patrones de **estado vacío, carga y error** y de **badges/estados**.
+glassmorphism used sparingly · layered surfaces · subtle gradients · large spacing · elegant
+typography · floating navigation · sophisticated shadows · smooth animations · **command palette
+first**.
 
-Prioriza que sea **implementable rápido** sobre shadcn/ui y fiel a un producto legal serio y moderno.
+## Technology assumptions
+
+Next.js 15 · React 19 · Tailwind v4 · shadcn/ui · Framer Motion · Radix UI.
+(Implementation note: our codebase currently runs Next.js 14 App Router + Tailwind 3 + next-intl;
+keep the design adaptable to that. Define color tokens as CSS variables in the shadcn convention so
+they drop into `globals.css`.)
+
+## Product context that MUST shape the design
+
+- **Two jurisdictions** selected per firm (tenant): **Spain (`es`)** → e-invoicing **Verifactu/AEAT**,
+  **IVA 21% + IRPF withholding**, identifiers **NIF/CIF/NIE**, procedural deadlines in business days.
+  **Dominican Republic (`do`)** → **e-CF/DGII**, **ITBIS 18%**, identifier **RNC/Cédula**. The UI
+  must surface the right tax/compliance language per firm (don't hardcode one country).
+- **Bilingual**: Spanish, locales **es-ES** and **es-DO**, with a language switcher. Amounts in
+  **EUR** or **DOP** per firm, with locale-aware number/date formatting.
+- **Three roles → two experiences**:
+  1. **Firm app** for staff (**Firm Admin**, **Lawyer**) — dense, productivity-first.
+  2. **Client Portal** (**Client**) — calmer, reassuring, read-only + chat.
+- **AI-native**: a contextual **AI Assistant panel** (draft / summarize / review documents) that
+  **always shows source citations and a confidence signal** (no hallucinations) — make this a
+  first-class, recurring surface, not a gimmick.
+
+## Build complete high-fidelity interfaces for (with the real data each must show)
+
+1. **Login** — email + password; SSO/magic-link ready; subtle layered gradient; language switcher;
+   firm context. Loading/error/disabled states.
+2. **Firm onboarding** — elegant multi-step: firm name → **jurisdiction (Spain / Dominican Republic)**
+   → **currency (EUR / DOP)** → **firm fiscal ID (NIF/CIF or RNC)** → first admin user. The
+   jurisdiction choice live-updates the compliance copy (Verifactu vs e-CF). Progress + summary.
+3. **Dashboard** — KPI cards (active matters, **upcoming procedural deadlines** with urgency,
+   billables/revenue this month, pending document reviews), **activity timeline**, an **AI daily
+   digest**, premium charts (revenue trend, deadline load). Command bar entry point.
+4. **Clients** — high-density table: name, **fiscal ID (validated live)**, type, #matters, balance.
+   Smart/semantic search, advanced filters, bulk actions, split-view to the profile.
+5. **Client Profile** — split-view: header (name, fiscal ID, contact, **portal access status**),
+   tabs (Matters, Documents, Invoices, Activity), running balance, "**Grant portal access**" action.
+6. **Cases / Matters** — table + board toggle. Status badges: **Open · In progress · On hold ·
+   Closed · Archived** (state machine). Responsible-lawyer avatar, client, reference (EXP-YYYY-NNNN),
+   filters, smart search.
+7. **Matter Detail** — the hero screen. Split-view with tabs: **Overview, Documents, Tasks, Time,
+   Ledger/Costs, Chat, Activity**. A **state transition control** (only valid transitions),
+   assignee, procedural deadlines, and a **contextual AI Assistant panel** scoped to the matter.
+8. **Documents** — list grouped by document with **versions** and **review-status badges** (Pending,
+   In review, Approved, Rejected, Changes requested); drag-and-drop upload; preview pane; size/mime.
+9. **Document Review Workflow** — approve / reject / request changes with comment; **side-by-side
+   version compare**; reviewer assignment; review timeline; resulting notification.
+10. **Tasks** — list + filters (status / assignee / matter); create; **"Create from procedural
+    deadline"** (deadline type + start date + days → jurisdiction-aware computed due date, holidays
+    applied); overdue/upcoming urgency; keyboard-driven.
+11. **Billing** — **transparent ledger per matter** (Provision, Disbursement, Time fee, Invoice,
+    Payment, Adjustment) with a prominent running **balance**; invoice list; **"New invoice"** with
+    line items and a **live tax preview** (base, IVA + IRPF / ITBIS, total) and the Verifactu/e-CF
+    indicator.
+12. **Invoice Detail** — fiscal header (issuer/buyer), line items, totals (taxable base, tax,
+    withholding, total), status (Draft / Issued / Paid), **compliance record block** (Spain:
+    Verifactu **hash + QR + chaining**; DR: **e-CF XML**), "Mark as paid", PDF/export.
+13. **Notifications Center** — real-time feed, grouped, read/unread, types (document review, task
+    assigned, new message). Bell with live count.
+14. **Real-time Chat** — per-matter thread; participants = firm staff + the matter's client;
+    presence, typing indicator, attachments, timestamps, optimistic send.
+15. **Client Portal** — distinct, calmer surface: their matters with status, documents (download),
+    **transparent ledger/costs**, their invoices, and chat with the firm. Reassuring, guided.
+16. **Mobile responsive experience** — key flows on mobile (dashboard, matter detail, chat,
+    approvals, notifications); floating navigation adapts; bottom command access.
+
+## Cross-cutting requirements
+
+split-view layouts · contextual navigation · **command bar (⌘K)** · **AI assistant panel (with
+citations + confidence)** · activity timeline · keyboard shortcuts (document the map) · advanced
+filters · smart/semantic search · premium charts · collaborative UI patterns (presence/cursors) ·
+real-time updates · empty / loading (skeleton) / error states for every data view · full **dark and
+light** themes · accessibility AA (contrast, focus rings, keyboard nav).
+
+## Deliverables
+
+1. **Design system**: tokens for **light + dark** (color in oklch, spacing, radius, shadows,
+   typography with tabular numerals for money/dates), in shadcn/ui CSS-variable convention.
+2. **High-fidelity mockups** of all 16 screens (desktop) + the mobile experience.
+3. **Component hierarchy** and a **spacing/type scale**.
+4. **Interaction states**, **animations** (Framer Motion specs: durations/easings), and **responsive
+   behavior**.
+5. **Implementation notes** for **Next.js + Tailwind + shadcn/ui** — concrete component mapping
+   (Button, Card, Table, Dialog, Sheet, Tabs, Badge, Command, DropdownMenu, Tooltip, Toast, Avatar,
+   Skeleton, Popover, ScrollArea), class/variable references, not just images.
+
+Every screen should look like a **2026 SaaS unicorn worth $100M+ ARR**: premium, calm, fast,
+AI-native, and unmistakably modern. Prioritize that it is **implementable quickly** on shadcn/ui.
