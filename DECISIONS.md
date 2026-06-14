@@ -144,3 +144,37 @@ Formato: `ID · Título · Estado` → Contexto / Decisión / Consecuencias.
   (`runWithTenant` → query sin filtro acotada por RLS, cross-tenant denegado, WITH CHECK), 5 de
   realtime/WS (la query del gateway corre bajo contexto de tenant; interceptor resuelve http/ws), y
   las 45 existentes sin cambios. **RLS completa y con enforcement verificado.**
+
+## D-014 · Integración del prototipo Lexora → frontend real (Paso 0) · Aceptada
+
+Inspección previa a escribir UI (no asumir contratos). Hallazgos:
+
+- **`apps/web` actual:** andamiaje next-intl con locales **`es-ES`/`es-DO`** ya configurado (sin EN en
+  código; el EN solo vivía en el prototipo). Tailwind 3 con `extend` vacío, `globals.css` solo con
+  `@tailwind`. Plomería previa: `lib/api` (tokens en localStorage), `lib/auth` (context), `lib/format`.
+  No hay shadcn, TanStack Query ni sistema de tema.
+- **Contrato de auth (real, no inventado):** `POST /api/auth/login {email,password,tenantId?}` →
+  `TokenPair {accessToken,refreshToken,tokenType:'Bearer',expiresIn}` **en el cuerpo JSON** (200).
+  `POST /api/auth/refresh {refreshToken}` y `POST /api/auth/logout {refreshToken}` igual.
+  `GET /api/auth/me` → `{userId,tenantId,jurisdiction,email,roles}`. El refresh JWT NO lleva rol
+  (`sub,tid,jti`); el rol va en el access JWT. **El cliente nunca envía `tenantId`** (lo fija el
+  servidor por RLS).
+- **OpenAPI/Swagger:** NO hay. → se reutilizan tipos de `@legalflow/domain` y se tipan a mano.
+- **CORS:** en dev `enableCors({ origin: true, credentials: true })` ya refleja el origen del web con
+  credenciales. No requiere cambios para dev.
+
+Decisiones:
+
+- **Auth httpOnly sin tocar el backend (BFF):** como la API devuelve el refresh en el cuerpo y se
+  prefiere httpOnly, el web expone **Route Handlers** (`app/api/auth/{login,refresh,logout}`) que
+  hacen de _backend-for-frontend_: proxyan a Nest y guardan el **refresh en una cookie httpOnly del
+  origen del web** (SameSite=Lax). El **access token vive en memoria** (no localStorage). Las llamadas
+  de datos van directas a Nest con `Authorization: Bearer`. Así se honra "access en memoria + refresh
+  httpOnly" sin cambiar el contrato probado del backend.
+- **Protección de rutas:** el middleware (next-intl + auth) redirige a login si falta la cookie de
+  sesión, y a dashboard si sobra. El gate **por rol** (CLIENT → solo portal) se hace en el shell de
+  cliente con los datos de `/me` (el middleware no puede leer el rol de una cookie opaca).
+- **Estado de servidor:** TanStack Query (sin fetch suelto). **i18n:** locale gobierna formato/moneda;
+  la **jurisdicción del tenant** gobierna copy fiscal (Verifactu/IVA vs e-CF/ITBIS, NIF/CIF vs RNC) —
+  nunca hardcodeado. **Nombre de producto mostrado:** `Lexora` (vía clave i18n `app.name`); el rebrand
+  de paquetes `@legalflow/*` sigue diferido (HANDOFF). Trabajo por **slices verticales** (ver PLAN F0–F7).

@@ -128,6 +128,36 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 - [x] `getProceduralDeadlines` real ES (fines de semana + festivos nacionales).
 - [x] **Tests obligatorios** de cobertura en toda la capa.
 
+## Frontend — Integración del prototipo Lexora (slices verticales) `[~]`
+
+> Convertir el prototipo de diseño en el frontend real de `apps/web` (Next.js 14 + Tailwind 3 +
+> shadcn/ui + next-intl), cableado a la API real, por **slices verticales** (cada uno: pantalla +
+> componentes reales + endpoints + estados cargando/vacío/error + tests + cero mock). Ver D-014.
+
+- **F0 — Fundación + login E2E** `[~]` (PARAR para revisión)
+  - [ ] Tokens del diseño en `globals.css` + `tailwind.config` extendido (handoff §03).
+  - [ ] Primitivos shadcn/ui (button, input, label, card, badge, skeleton, sheet, command, dialog,
+        dropdown-menu, avatar) + `lib/utils` (cn).
+  - [ ] Providers: TanStack Query + `next-themes` (tema claro/oscuro) + NextIntlClientProvider.
+  - [ ] **Auth (BFF httpOnly):** Route Handlers `app/api/auth/{login,refresh,logout}`; access en
+        memoria; `lib/api` con Bearer + refresh en 401; `lib/auth` (sesión).
+  - [ ] **Middleware** de rutas (no autenticado → login; con sesión → fuera de login) + i18n.
+  - [ ] App shell: sidebar flotante, command bar ⌘K (cmdk), panel IA (Sheet) como patrón, toggle tema,
+        menú de usuario/tenant.
+  - [ ] **Login real E2E**: login → cookie/access → `/me` → render dashboard con datos reales.
+  - [ ] Tests: cliente de API (flujo de token/refresh) + login.
+- **F1 — Dashboard + Expedientes (lista + detalle hero)** `[ ]`
+- **F2 — Documentos (subida/versión/revisión/comparar)** `[ ]`
+- **F3 — Tareas y plazos procesales (+ crear desde plazo)** `[ ]`
+- **F4 — Facturación (ledger, nueva factura con preview fiscal, detalle con bloque de cumplimiento)** `[ ]`
+- **F5 — Tiempo real (notificaciones + chat por expediente, Socket.IO)** `[ ]`
+- **F6 — Portal del cliente (rol CLIENT, solo lectura + chat)** `[ ]`
+- **F7 — Resto (ajustes/admin, agenda/calendario, aprobaciones, auditoría)** `[ ]`
+
+Reglas: cero datos mock al cerrar un slice · nada de país hardcodeado (todo fiscal/idioma sale de la
+jurisdicción del tenant) · estados cargando/vacío/error en cada vista · dark+light · AA · TanStack
+Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
+
 ## Diferido (stubs detrás de interfaz — NO construir aún)
 
 - Envío real AEAT/DGII, LexNET en vivo, firma electrónica (Signaturit/DocuSign), SMS.

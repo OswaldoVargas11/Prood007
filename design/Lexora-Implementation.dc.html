@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Geist',system-ui,sans-serif;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased}
+  .lxi ::-webkit-scrollbar{width:10px;height:10px}.lxi ::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:8px}
+  :root{
+    --bg:oklch(0.165 0.008 264);--fg:oklch(0.97 0.004 264);--card:oklch(0.2 0.009 264);--card-2:oklch(0.226 0.01 264);
+    --muted-fg:oklch(0.745 0.012 264);--subtle:oklch(0.57 0.012 264);--border:oklch(1 0 0 / 0.09);--border-2:oklch(1 0 0 / 0.14);
+    --primary:oklch(0.645 0.16 264);--primary-2:oklch(0.72 0.14 285);--primary-soft:oklch(0.645 0.16 264 / 0.16);--primary-line:oklch(0.645 0.16 264 / 0.45);
+    --ok:oklch(0.74 0.14 162);--violet:oklch(0.72 0.15 305);--warn:oklch(0.81 0.14 78);--muted-soft:oklch(1 0 0 / 0.06);
+    --code:oklch(0.145 0.008 264);--shadow-sm:0 1px 2px oklch(0 0 0 / 0.5);
+  }
+  .lxi[data-theme="light"]{
+    --bg:oklch(0.986 0.003 264);--fg:oklch(0.25 0.013 264);--card:oklch(1 0 0);--card-2:oklch(0.974 0.004 264);
+    --muted-fg:oklch(0.47 0.013 264);--subtle:oklch(0.62 0.013 264);--border:oklch(0.25 0.03 264 / 0.1);--border-2:oklch(0.25 0.03 264 / 0.16);
+    --primary:oklch(0.52 0.2 264);--primary-2:oklch(0.55 0.18 285);--primary-soft:oklch(0.52 0.2 264 / 0.1);--primary-line:oklch(0.52 0.2 264 / 0.3);
+    --ok:oklch(0.56 0.13 162);--violet:oklch(0.55 0.17 305);--warn:oklch(0.66 0.13 70);--muted-soft:oklch(0.25 0.02 264 / 0.05);
+    --code:oklch(0.97 0.004 264);--shadow-sm:0 1px 2px oklch(0.2 0.02 264 / 0.08);
+  }
+  @keyframes lxfade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+<div class="lxi" data-theme="{{ theme }}" style="min-height:100vh;background:var(--bg);color:var(--fg)">
+  <header style="position:sticky;top:0;z-index:10;height:58px;display:flex;align-items:center;gap:12px;padding:0 26px;border-bottom:1px solid var(--border);background:color-mix(in oklab,var(--bg) 82%, transparent);backdrop-filter:blur(14px)">
+    <div style="width:28px;height:28px;border-radius:8px;background:linear-gradient(140deg,var(--primary),var(--primary-2));display:flex;align-items:center;justify-content:center"><div style="width:10px;height:10px;border:2px solid white;border-radius:3px;transform:rotate(45deg)"></div></div>
+    <div><div style="font-size:14px;font-weight:600;letter-spacing:-0.02em;line-height:1.05">Lexora · Implementation notes</div><div style="font-size:10.5px;color:var(--subtle)">Next.js 14 · Tailwind 3 · shadcn/ui · next-intl · Framer Motion · Radix</div></div>
+    <button onClick="{{ toggleTheme }}" style="margin-left:auto;height:32px;padding:0 13px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--fg);cursor:pointer;font-size:12px;font-weight:600">{{ themeLabel }}</button>
+  </header>
+
+  <div style="max-width:1000px;margin:0 auto;padding:34px 26px 80px">
+    <div style="animation:lxfade .4s ease both">
+      <div style="font-size:11.5px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--primary)">Handoff técnico</div>
+      <h1 style="font-size:30px;font-weight:600;letter-spacing:-0.03em;margin-top:8px;line-height:1.1">De diseño a código, sin ambigüedad.</h1>
+      <p style="font-size:14.5px;color:var(--muted-fg);margin-top:12px;line-height:1.6;max-width:720px">Mapeo concreto de cada patrón a un componente shadcn/ui, referencias de clases y variables (no imágenes), specs de animación de Framer Motion, comportamiento responsive y estructura de i18n con next-intl. Los tokens viven en <code style="font-family:'Geist Mono',monospace;font-size:13px;background:var(--muted-soft);padding:1px 6px;border-radius:5px">globals.css</code> (entregado).</p>
+    </div>
+
+    <!-- 01 stack -->
+    <div style="margin-top:44px">
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:20px"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--subtle)">01</span><h2 style="font-size:21px;font-weight:600;letter-spacing:-0.02em">Stack &amp; estructura</h2></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div style="padding:16px;border:1px solid var(--border);border-radius:13px;background:var(--card)">
+          <div style="font-size:12.5px;font-weight:600;margin-bottom:10px">Dependencias clave</div>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted-fg);font-family:'Geist Mono',monospace">
+            <div>next@14 · app router · RSC</div><div>tailwindcss@3 · tailwindcss-animate</div><div>shadcn/ui (Radix UI primitives)</div><div>next-intl@3 · @formatjs/intl</div><div>framer-motion@11</div><div>@tanstack/react-table · cmdk · vaul · sonner</div><div>react-hook-form · zod</div>
+          </div>
+        </div>
+        <div style="padding:16px;border:1px solid var(--border);border-radius:13px;background:var(--card)">
+          <div style="font-size:12.5px;font-weight:600;margin-bottom:10px">Árbol (App Router)</div>
+          <pre style="margin:0;font-family:'Geist Mono',monospace;font-size:11.5px;line-height:1.7;color:var(--muted-fg)">{{ tree }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 02 component map -->
+    <div style="margin-top:44px">
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:20px"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--subtle)">02</span><h2 style="font-size:21px;font-weight:600;letter-spacing:-0.02em">Mapeo de componentes</h2><span style="font-size:13px;color:var(--subtle);margin-left:auto">patrón Lexora → shadcn/ui + clases</span></div>
+      <div style="border:1px solid var(--border);border-radius:13px;overflow:hidden;background:var(--card)">
+        <div style="display:grid;grid-template-columns:1.1fr 1.2fr 1.5fr;gap:12px;padding:10px 16px;border-bottom:1px solid var(--border);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--subtle)"><span>Patrón</span><span>shadcn / lib</span><span>Notas &amp; clases</span></div>
+        <sc-for list="{{ compMap }}" as="r" hint-placeholder-count="14">
+          <div style="display:grid;grid-template-columns:1.1fr 1.2fr 1.5fr;gap:12px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--border)">
+            <span style="font-size:12.5px;font-weight:500">{{ r.pat }}</span>
+            <span style="font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">{{ r.cmp }}</span>
+            <span style="font-size:11.5px;color:var(--muted-fg);line-height:1.45">{{ r.note }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <!-- 03 tokens in tailwind -->
+    <div style="margin-top:44px">
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:20px"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--subtle)">03</span><h2 style="font-size:21px;font-weight:600;letter-spacing:-0.02em">Tokens en Tailwind</h2></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <div style="font-size:12.5px;color:var(--muted-fg);margin-bottom:10px;line-height:1.55">Núcleo shadcn ya mapeado (<code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">bg-background</code>, <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">text-foreground</code>…). Extiende los semánticos de Lexora en <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">tailwind.config.ts</code>:</div>
+          <pre style="margin:0;padding:16px;border-radius:12px;background:var(--code);border:1px solid var(--border);overflow-x:auto;font-family:'Geist Mono',monospace;font-size:11.5px;line-height:1.65;color:var(--muted-fg)">{{ twConfig }}</pre>
+        </div>
+        <div>
+          <div style="font-size:12.5px;color:var(--muted-fg);margin-bottom:10px;line-height:1.55">Uso en JSX — estado, dinero con numerales tabulares y focus ring AA:</div>
+          <pre style="margin:0;padding:16px;border-radius:12px;background:var(--code);border:1px solid var(--border);overflow-x:auto;font-family:'Geist Mono',monospace;font-size:11.5px;line-height:1.65;color:var(--muted-fg)">{{ jsxUsage }}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- 04 motion -->
+    <div style="margin-top:44px">
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:20px"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--subtle)">04</span><h2 style="font-size:21px;font-weight:600;letter-spacing:-0.02em">Animación · Framer Motion</h2></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">
+        <div style="border:1px solid var(--border);border-radius:13px;overflow:hidden;background:var(--card)">
+          <div style="display:grid;grid-template-columns:1.2fr 80px 1.4fr;gap:10px;padding:9px 16px;border-bottom:1px solid var(--border);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--subtle)"><span>Interacción</span><span>Dur.</span><span>Easing / nota</span></div>
+          <sc-for list="{{ motionRows }}" as="m" hint-placeholder-count="6">
+            <div style="display:grid;grid-template-columns:1.2fr 80px 1.4fr;gap:10px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border)"><span style="font-size:12px">{{ m.act }}</span><span style="font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">{{ m.dur }}</span><span style="font-size:11px;color:var(--muted-fg);font-family:'Geist Mono',monospace">{{ m.ease }}</span></div>
+          </sc-for>
+        </div>
+        <pre style="margin:0;padding:16px;border-radius:12px;background:var(--code);border:1px solid var(--border);overflow-x:auto;font-family:'Geist Mono',monospace;font-size:11.5px;line-height:1.65;color:var(--muted-fg)">{{ motionCode }}</pre>
+      </div>
+    </div>
+
+    <!-- 05 responsive -->
+    <div style="margin-top:44px">
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:20px"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--subtle)">05</span><h2 style="font-size:21px;font-weight:600;letter-spacing:-0.02em">Responsive</h2></div>
+      <div style="border:1px solid var(--border);border-radius:13px;overflow:hidden;background:var(--card)">
+        <sc-for list="{{ respRows }}" as="r" hint-placeholder-count="4">
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:14px;padding:12px 16px;border-bottom:1px solid var(--border)"><span style="font-size:12px;font-weight:600;font-family:'Geist Mono',monospace;color:var(--primary)">{{ r.bp }}</span><span style="font-size:12.5px;color:var(--muted-fg);line-height:1.5">{{ r.note }}</span></div>
+        </sc-for>
+      </div>
+      <div style="margin-top:12px;font-size:12px;color:var(--subtle);line-height:1.55">Touch targets ≥ 44px · <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">env(safe-area-inset-bottom)</code> en la nav flotante móvil · split-views colapsan a una columna con navegación &laquo;atrás&raquo; · el panel de IA pasa de aside embebido a <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">Sheet</code> a pantalla completa.</div>
+    </div>
+
+    <!-- 06 i18n -->
+    <div style="margin-top:44px">
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:20px"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--subtle)">06</span><h2 style="font-size:21px;font-weight:600;letter-spacing:-0.02em">i18n &amp; multi-jurisdicción · next-intl</h2></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <pre style="margin:0;padding:16px;border-radius:12px;background:var(--code);border:1px solid var(--border);overflow-x:auto;font-family:'Geist Mono',monospace;font-size:11.5px;line-height:1.65;color:var(--muted-fg)">{{ i18nCode }}</pre>
+        <div style="padding:16px;border:1px solid var(--border);border-radius:13px;background:var(--card);font-size:12.5px;color:var(--muted-fg);line-height:1.6">
+          <div style="font-size:12.5px;font-weight:600;color:var(--fg);margin-bottom:8px">Regla de oro</div>
+          <strong style="color:var(--fg)">locale ≠ jurisdicción.</strong> El <em>locale</em> (es-ES / es-DO) gobierna formato de número/fecha y moneda (EUR / DOP) vía <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">Intl</code>. La <em>jurisdicción</em> del tenant (<code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">es</code> / <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">do</code>) gobierna cumplimiento e impuestos (Verifactu/IVA+IRPF vs e-CF/ITBIS) e identificadores (NIF/CIF/NIE vs RNC/Cédula). Nunca acoples ambos: un despacho dominicano podría operar en es-ES.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { theme:'dark' };
+  renderVals(){
+    const tree = [
+      'app/[locale]/',
+      '  (auth)/login',
+      '  (app)/dashboard · matters · clients',
+      '         billing · tasks · documents',
+      '  (admin)/settings · approvals · audit',
+      '  layout.tsx  // NextIntlClientProvider',
+      'components/ui/   // shadcn',
+      'components/lexora/ // AiPanel, Cmdk, …',
+      'lib/ tax.ts · deadlines.ts · audit.ts',
+      'messages/ es-ES.json · es-DO.json',
+      'app/globals.css  // tokens'
+    ].join('\n');
+    const cm=(pat,cmp,note)=>({pat,cmp,note});
+    const compMap=[
+      cm('Sidebar flotante','custom + Sidebar','aside bg-card/60 backdrop-blur-xl border-r; item activo data-[active] bg-primary/15 + barra 3px'),
+      cm('Command bar ⌘K','cmdk · CommandDialog','useHotkeys("mod+k"); CommandGroup/Item; grupos Navegación/Acciones/IA'),
+      cm('KPI cards','Card','CardHeader/Content; cifras .tabular-nums; delta text-[--success]'),
+      cm('Tablas densas','Table + TanStack','data-table con sorting/filters; fila → Sheet split-view'),
+      cm('Badges de estado','Badge','variant custom: text-[--status] bg-[--status]/15; máquina de estados en lib'),
+      cm('Tabs de expediente','Tabs','TabsList/Trigger/Content; underline data-[state=active]'),
+      cm('Transición de estado','DropdownMenu','solo transiciones válidas (lib/state-machine.ts)'),
+      cm('Panel de IA','Sheet side=right','aside lg+, Sheet en <lg; cita = Card; confianza = Badge por umbral'),
+      cm('Modal conflictos','Dialog','AlertDialog si bloqueante; resultado en lib/conflicts.ts'),
+      cm('Bottom sheet móvil','Drawer (vaul)','command + acciones; snap points'),
+      cm('Notificaciones','Sonner + feed','toast en vivo (canal realtime) + página agrupada'),
+      cm('Calendario plazos','react-day-picker','Calendar custom; pills por día; lib/deadlines computa días hábiles'),
+      cm('Chat','ScrollArea + RHF','optimistic update + reconcile; presencia/typing vía socket'),
+      cm('Formularios','react-hook-form + zod','Form/Input/Label/Select; validación NIF/CIF/RNC en zod refine'),
+      cm('Skeleton / empty / error','Skeleton','estado por vista; <Suspense> + error.tsx + empty component'),
+      cm('Tooltip · Avatar · Popover','Radix','filtros avanzados en Popover; presencia en Avatar')
+    ];
+    const twConfig = [
+      'extend: { colors: {',
+      "  background:'oklch(var(--background))',",
+      "  foreground:'oklch(var(--foreground))',",
+      "  primary:{DEFAULT:'oklch(var(--primary))',",
+      "    foreground:'oklch(var(--primary-foreground))'},",
+      '  // semánticos Lexora',
+      "  success:'oklch(var(--success))',",
+      "  warning:'oklch(var(--warning))',",
+      "  info:'oklch(var(--info))',",
+      "  danger:'oklch(var(--destructive))',",
+      '}, borderRadius:{',
+      "  lg:'var(--radius)',",
+      "  md:'calc(var(--radius) - 2px)' } }"
+    ].join('\n');
+    const jsxUsage = [
+      '// estado + dinero tabular',
+      '<Badge className="text-info',
+      '  bg-info/15 border-info/20">',
+      '  En curso',
+      '</Badge>',
+      '',
+      '<span className="tabular-nums',
+      '  font-medium">',
+      '  {fmt(amount, locale, currency)}',
+      '</span>',
+      '',
+      '// focus ring AA (global)',
+      'focus-visible:ring-2',
+      'focus-visible:ring-ring',
+      'focus-visible:ring-offset-2'
+    ].join('\n');
+    const mr=(act,dur,ease)=>({act,dur,ease});
+    const motionRows=[
+      mr('Entrada de pantalla','220ms','[.22,.8,.2,1] · y:8→0'),
+      mr('Tabs · badges','220ms','ease-out'),
+      mr('⌘K · Sheet · Dialog','320ms','ease-out + AnimatePresence'),
+      mr('Drawer móvil','—','spring damping 30'),
+      mr('Hover / press','140ms','ease-out · scale .97 al press'),
+      mr('Charts · progreso','480ms','ease-out · pathLength')
+    ];
+    const motionCode=[
+      'const ease=[0.22,0.8,0.2,1]',
+      'const screen={',
+      '  initial:{opacity:0,y:8},',
+      '  animate:{opacity:1,y:0},',
+      '  exit:{opacity:0,y:8},',
+      '  transition:{duration:.22,ease}',
+      '}',
+      '// listas: layout + stagger .03',
+      '// global: useReducedMotion()',
+      '//   → desactiva y/scale, deja opacity'
+    ].join('\n');
+    const respRows=[
+      {bp:'base · <640',note:'Móvil: nav flotante inferior + Drawer de comandos; tablas → tarjetas apiladas; split → 1 columna + back; panel IA = Sheet full-screen.'},
+      {bp:'md · 768',note:'Sidebar colapsa a iconos; topbar muestra ⌘K; tablas con scroll horizontal controlado.'},
+      {bp:'lg · 1024',note:'Sidebar 236px fija; panel IA pasa a aside embebido; split-views a dos columnas.'},
+      {bp:'xl · 1280+',note:'Layout completo de 3 zonas (nav · contenido · IA); densidad máxima Linear/Attio.'}
+    ];
+    const i18nCode=[
+      "// i18n/request.ts",
+      "locales = ['es-ES','es-DO']",
+      "// messages/es-ES.json",
+      '{ "matters": { "status": {',
+      '  "open":"Abierto",',
+      '  "in_progress":"En curso" } } }',
+      '',
+      '// formato dependiente de locale',
+      'new Intl.NumberFormat(locale,{',
+      "  style:'currency', currency })",
+      "  .format(amount)  // € o RD$"
+    ].join('\n');
+    return {
+      theme:this.state.theme, themeLabel:this.state.theme==='dark'?'Light':'Dark',
+      toggleTheme:()=>this.setState(s=>({theme:s.theme==='dark'?'light':'dark'})),
+      tree, compMap, twConfig, jsxUsage, motionRows, motionCode, respRows, i18nCode
+    };
+  }
+}
+</script>
+</body>
+</html>
