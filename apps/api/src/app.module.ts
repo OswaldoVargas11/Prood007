@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { ComplianceModule } from './compliance/compliance.module';
 import { AuthModule } from './auth/auth.module';
@@ -19,6 +21,8 @@ import { HealthController } from './health.controller';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // Rate limiting global (in-memory; para multi-instancia usar almacenamiento Redis).
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
     PrismaModule,
     ComplianceModule,
     AuditModule,
@@ -35,5 +39,9 @@ import { HealthController } from './health.controller';
     PortalModule,
   ],
   controllers: [HealthController],
+  providers: [
+    // Rate limiting global. Se ejecuta antes que la autenticación.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}
