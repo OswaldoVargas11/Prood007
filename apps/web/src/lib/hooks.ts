@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
 import type {
+  Client,
   DashboardSummary,
   DeadlineResult,
   DocumentReviewStatus,
@@ -37,16 +38,33 @@ export function useResourceCount(resource: 'clients' | 'matters') {
 }
 
 export function useMatters(
-  params: { page?: number; pageSize?: number; status?: MatterStatus } = {},
+  params: { page?: number; pageSize?: number; status?: MatterStatus; clientId?: string } = {},
 ) {
-  const { page = 1, pageSize = 20, status } = params;
+  const { page = 1, pageSize = 20, status, clientId } = params;
   return useQuery({
-    queryKey: ['matters', { page, pageSize, status: status ?? null }],
+    queryKey: ['matters', { page, pageSize, status: status ?? null, clientId: clientId ?? null }],
     queryFn: () => {
       const qs = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
       if (status) qs.set('status', status);
+      if (clientId) qs.set('clientId', clientId);
       return api.get<Paginated<Matter>>(`/matters?${qs.toString()}`);
     },
+  });
+}
+
+export function useClients(params: { page?: number; pageSize?: number } = {}) {
+  const { page = 1, pageSize = 50 } = params;
+  return useQuery({
+    queryKey: ['clients', { page, pageSize }],
+    queryFn: () => api.get<Paginated<Client>>(`/clients?page=${page}&pageSize=${pageSize}`),
+  });
+}
+
+export function useClient(id: string) {
+  return useQuery({
+    queryKey: ['client', id],
+    queryFn: () => api.get<Client>(`/clients/${id}`),
+    enabled: Boolean(id),
   });
 }
 

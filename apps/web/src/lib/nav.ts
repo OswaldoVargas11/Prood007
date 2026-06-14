@@ -22,7 +22,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard, enabled: true },
   { key: 'matters', href: '/matters', icon: Briefcase, enabled: true },
-  { key: 'clients', href: '/clients', icon: Users, enabled: false },
+  { key: 'clients', href: '/clients', icon: Users, enabled: true },
   { key: 'documents', href: '/documents', icon: FileText, enabled: false },
   { key: 'tasks', href: '/tasks', icon: CheckSquare, enabled: true },
   { key: 'billing', href: '/billing', icon: Receipt, enabled: false },

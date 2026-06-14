@@ -35,7 +35,10 @@ export interface Client {
   taxIdKind: string | null;
   email: string | null;
   phone: string | null;
+  address?: string | null;
+  userId?: string | null;
   createdAt: string;
+  _count?: { matters: number };
 }
 
 export interface DashboardSummary {

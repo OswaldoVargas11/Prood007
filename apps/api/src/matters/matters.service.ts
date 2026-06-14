@@ -72,8 +72,18 @@ export class MattersService {
     return matter;
   }
 
-  async findAll(user: RequestUser, page = 1, pageSize = 20, status?: MatterStatus) {
-    const where = { tenantId: user.tenantId, ...(status ? { status } : {}) };
+  async findAll(
+    user: RequestUser,
+    page = 1,
+    pageSize = 20,
+    status?: MatterStatus,
+    clientId?: string,
+  ) {
+    const where = {
+      tenantId: user.tenantId,
+      ...(status ? { status } : {}),
+      ...(clientId ? { clientId } : {}),
+    };
     const skip = (page - 1) * pageSize;
     const { items, total } = await tenantTransaction(this.prisma, async (tx) => {
       const items = await tx.matter.findMany({

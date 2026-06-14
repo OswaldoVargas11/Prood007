@@ -98,6 +98,25 @@
       "soon": "Esta sección llega en un próximo slice."
     }
   },
+  "clients": {
+    "title": "Clientes",
+    "subtitle": "Cartera de clientes del despacho, con su identificación fiscal validada.",
+    "name": "Cliente",
+    "fiscalId": "ID fiscal",
+    "email": "Email",
+    "matters": "Expedientes",
+    "loadError": "No se pudieron cargar los clientes",
+    "retry": "Reintentar",
+    "empty": "Aún no hay clientes.",
+    "client": "Cliente",
+    "validated": "Validado",
+    "portalActive": "Acceso al portal activo",
+    "portalInactive": "Sin acceso al portal",
+    "tabDocuments": "Documentos",
+    "tabInvoices": "Facturas",
+    "docsHint": "Los documentos se gestionan dentro de cada expediente.",
+    "invoicesHint": "Las facturas se gestionan dentro de cada expediente (pestaña Costes)."
+  },
   "documents": {
     "subtitle": "Documentos del expediente, con versiones y revisión.",
     "upload": "Subir documento",

@@ -65,6 +65,7 @@ export class ClientsService {
       const items = await tx.client.findMany({
         where: { tenantId: user.tenantId },
         orderBy: { createdAt: 'desc' },
+        include: { _count: { select: { matters: true } } },
         skip,
         take: pageSize,
       });

@@ -454,3 +454,22 @@ tiempo relativo). i18n dashboard.\* con plurales ICU. Cero mock.
 
 Pruebas: web tsc/lint/build OK; api lint OK; jest e2e 11 suites / 62 tests OK. Verificado el endpoint
 contra la API real (activeMatters 1, facturable 1060, plazos, actividad de auditoria real).
+
+### 2026-06-14 - Claude - Seed de demo + pantallas de Clientes/Ficha (replicar prototipo, tanda 1)
+
+Revisado el prototipo Lexora.dc.html de principio a fin (~20 pantallas). Inventario en el chat:
+ya hechas / frontend-sobre-endpoints-existentes / requieren backend nuevo (Ajustes, Auditoria,
+Aprobaciones, Conflictos). Esta tanda:
+
+- Seed: apps/api/scripts/seed-demo.mjs (contra la API real): 6 clientes, 8 expedientes con estados
+  variados, tareas (procesales+normales), tiempo, ledger, facturas repartidas en 6 meses (algunas
+  pagadas), documentos+revision, chat. Llena dashboard/expedientes/facturacion/portal/actividad.
+- Backend (aditivo): GET /matters acepta ?clientId; lista de clientes incluye \_count.matters.
+- Frontend: pantalla Clientes (tabla con avatar, ID fiscal validado, nº expedientes) + Ficha de cliente
+  (resumen con contacto y acceso al portal + tabs Expedientes real / Documentos / Facturas). Nav
+  Clientes habilitado. i18n clients.\*.
+- Pruebas: api build/lint OK, e2e clients-matters 9/9; web tsc/lint/build OK. Verificado contra API real.
+
+Pendiente (siguientes tandas): Onboarding, Centro de notificaciones (pagina), Calendario de plazos,
+Documentos global + comparar versiones, y backend NUEVO para Ajustes/Admin, Auditoria, Aprobaciones,
+Conflictos.
