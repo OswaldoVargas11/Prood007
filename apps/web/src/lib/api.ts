@@ -103,9 +103,47 @@ async function request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
   return (await res.json()) as T;
 }
 
+async function errorFromResponse(res: Response): Promise<ApiError> {
+  let payload: unknown;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = undefined;
+  }
+  const raw = (payload as { message?: string | string[] } | undefined)?.message;
+  const message = Array.isArray(raw) ? raw.join(', ') : (raw ?? `Error ${res.status}`);
+  return new ApiError(res.status, message, payload);
+}
+
+/** Subida multipart (FormData). No fija Content-Type (el navegador pone el boundary). */
+async function upload<T>(path: string, form: FormData, _retried = false): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  const res = await fetch(`${apiBaseUrl()}/api${path}`, { method: 'POST', headers, body: form });
+  if (res.status === 401 && !_retried && (await refreshAccessToken())) {
+    return upload<T>(path, form, true);
+  }
+  if (!res.ok) throw await errorFromResponse(res);
+  return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
+}
+
+/** Descarga autenticada → Blob (para visores/descargas; el endpoint exige Bearer). */
+async function download(path: string, _retried = false): Promise<Blob> {
+  const headers: Record<string, string> = {};
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  const res = await fetch(`${apiBaseUrl()}/api${path}`, { headers });
+  if (res.status === 401 && !_retried && (await refreshAccessToken())) {
+    return download(path, true);
+  }
+  if (!res.ok) throw await errorFromResponse(res);
+  return res.blob();
+}
+
 export const api = {
   get: <T>(path: string, signal?: AbortSignal) => request<T>(path, { method: 'GET', signal }),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  upload,
+  download,
 };

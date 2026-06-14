@@ -159,7 +159,14 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         (matter-status, scope). Verificado E2E contra la API real.
   - Pendiente (se completa con sus slices): tabs Documentos/Tareas/Costes/Chat/Actividad (F2–F5),
     alta de expediente, búsqueda semántica (la API aún no expone búsqueda de texto), cronómetro.
-- **F2 — Documentos (subida/versión/revisión/comparar)** `[ ]`
+- **F2 — Documentos (subida/versión/revisión)** `[x]` (en el tab Documentos de la ficha)
+  - [x] Lista por expediente (`GET /documents/by-matter/:id`) con versiones y badges de revisión.
+  - [x] Subida (multipart) y nueva versión; descarga autenticada (blob). Cliente API ampliado
+        (`api.upload`/`api.download` con refresh).
+  - [x] Flujo de revisión (Aprobar/Solicitar cambios/Rechazar/En revisión + comentario) →
+        `POST /documents/versions/:id/review`. Estados cargando/vacío/error.
+  - Pendiente: pantalla global de Documentos (la API solo expone por expediente) y comparación
+    de versiones lado a lado.
 - **F3 — Tareas y plazos procesales (+ crear desde plazo)** `[ ]`
 - **F4 — Facturación (ledger, nueva factura con preview fiscal, detalle con bloque de cumplimiento)** `[ ]`
 - **F5 — Tiempo real (notificaciones + chat por expediente, Socket.IO)** `[ ]`

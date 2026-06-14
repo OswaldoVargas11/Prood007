@@ -37,3 +37,26 @@ export interface Client {
   phone: string | null;
   createdAt: string;
 }
+
+export type DocumentReviewStatus =
+  | 'PENDING'
+  | 'IN_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'CHANGES_REQUESTED';
+
+export interface DocumentVersion {
+  id: string;
+  version: number;
+  reviewStatus: DocumentReviewStatus;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export interface MatterDocument {
+  id: string;
+  name: string;
+  createdAt: string;
+  versions: DocumentVersion[];
+}

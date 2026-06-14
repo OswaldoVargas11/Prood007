@@ -378,3 +378,15 @@ detalle con cliente, cambio OPEN->IN_PROGRESS OK, transicion invalida IN_PROGRES
 /es-ES/matters y /matters/[id] -> 200; sin sesion -> 307 login.
 
 Siguiente: F2 (Documentos) — rellena el tab Documentos de la ficha.
+
+### 2026-06-14 - Claude - Slice F2 (Documentos en la ficha de expediente)
+
+- Cliente API ampliado: api.upload (multipart) y api.download (blob), con el mismo refresh en 401.
+- Hooks: useMatterDocuments/useUploadDocument/useAddDocumentVersion/useReviewVersion + downloadVersion.
+- Tab Documentos (components/lexora/documents-tab): lista con versiones + badges de revision, subir
+  documento, nueva version, descargar, y dialogo de revision (Aprobar/Cambios/Rechazar/En revision +
+  comentario). doc-status (variante + formatBytes). i18n documents.\* (es-ES/es-DO). Primitivos textarea
+  y DialogFooter.
+- Pruebas: tsc/lint/build OK; vitest 10/10. E2E real (API local storage): subir->201, listar,
+  revisar APPROVED+comentario, descargar binario correcto.
+- Pendiente: pantalla global de Documentos (la API solo expone por expediente) y comparacion de versiones.

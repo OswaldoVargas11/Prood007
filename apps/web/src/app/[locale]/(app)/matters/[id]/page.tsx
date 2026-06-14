@@ -8,6 +8,7 @@ import { useChangeMatterStatus, useMatter } from '@/lib/hooks';
 import { nextStatuses } from '@/lib/matter-status';
 import { formatDate } from '@/lib/format';
 import { StatusBadge } from '@/components/lexora/status-badge';
+import { DocumentsTab } from '@/components/lexora/documents-tab';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -122,7 +123,11 @@ export default function MatterDetailPage() {
           </Card>
         </TabsContent>
 
-        {['documents', 'tasks', 'costs', 'chat', 'activity'].map((tab) => (
+        <TabsContent value="documents">
+          <DocumentsTab matterId={id} />
+        </TabsContent>
+
+        {['tasks', 'costs', 'chat', 'activity'].map((tab) => (
           <TabsContent key={tab} value={tab}>
             <Card>
               <CardContent className="p-12 text-center text-sm text-muted-foreground">
