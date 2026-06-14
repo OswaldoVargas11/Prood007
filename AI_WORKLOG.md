@@ -586,3 +586,25 @@ saldo y cronometro).
 Tanda A COMPLETA (A.1 Onboarding, A.2 Notificaciones, A.3 Agenda, A.4 Documentos+comparar, A.5 Rail de
 ficha). Siguiente: Tanda B (backend NUEVO): B.6 Ajustes/Admin, B.7 Auditoria, B.8 Aprobacion de costes,
 B.9 Comprobacion de conflictos + alta de cliente/expediente desde la UI.
+
+### 2026-06-14 - Claude - Fix: activar Documentos y Facturacion (vistas globales agregadas en cliente)
+
+El usuario reporto que los items de sidebar "Documentos" y "Facturacion" salian bloqueados
+(enabled:false desde antes de la Tanda A). En el prototipo ambas pantallas son POR EXPEDIENTE
+(muestran md.ref / EXP-2026-0042), y el backend solo expone endpoints por expediente, por eso estaban
+deshabilitadas. Se activan como vistas GLOBALES agregando en el cliente (sin backend nuevo, sin mock).
+
+- /documents (page.tsx): useMatters(100) + useQueries sobre GET /documents/by-matter/:id de cada
+  expediente -> lista plana de todos los documentos (chip MIME, referencia del expediente, version,
+  estado de revision, fecha) ordenada desc; cada fila enlaza a /matters/:id/documents/:docId.
+- /billing (page.tsx): useMatters(100) + useClients(100) + useQueries sobre GET /ledger/matter/:id ->
+  resumen del despacho (facturado total, saldo pendiente, movimientos) + tabla por expediente
+  (expediente, cliente, facturado=suma de apuntes INVOICE, saldo) que enlaza a la ficha. Nota de que la
+  emision se gestiona dentro de cada expediente.
+- nav.ts: documents y billing pasan a enabled:true. i18n documentsOverview._ y billingOverview._ en
+  es-ES y es-DO.
+- Pruebas: web tsc/lint/build OK (rutas /[locale]/documents y /[locale]/billing emitidas). Servidor web
+  reiniciado con el build nuevo.
+
+Nota para Tanda B: una version mas eficiente usaria endpoints firm-wide (GET /documents, GET
+/ledger/invoices) en vez de N llamadas por expediente; queda anotado.

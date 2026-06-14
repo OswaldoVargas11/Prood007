@@ -212,6 +212,26 @@
     "docsHint": "Los documentos se gestionan dentro de cada expediente.",
     "invoicesHint": "Las facturas se gestionan dentro de cada expediente (pestaña Costes)."
   },
+  "documentsOverview": {
+    "title": "Documentos",
+    "subtitle": "Todos los documentos del despacho, agrupados por expediente.",
+    "loadError": "No se pudieron cargar los documentos.",
+    "empty": "Aún no hay documentos en el despacho."
+  },
+  "billingOverview": {
+    "title": "Facturación",
+    "subtitle": "Resumen de facturación del despacho, por expediente.",
+    "loadError": "No se pudo cargar la facturación.",
+    "empty": "Aún no hay movimientos de facturación.",
+    "totalBilled": "Facturado (total)",
+    "totalBalance": "Saldo pendiente",
+    "totalMovements": "Movimientos",
+    "colMatter": "Expediente",
+    "colClient": "Cliente",
+    "colBilled": "Facturado",
+    "colBalance": "Saldo",
+    "hint": "El detalle y la emisión de facturas se gestionan dentro de cada expediente (pestaña Costes)."
+  },
   "documents": {
     "title": "Documentos",
     "subtitle": "Documentos del expediente, con versiones y revisión.",
