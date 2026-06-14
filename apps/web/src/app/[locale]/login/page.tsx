@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { useTranslations } from 'next-intl';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
-import { useRouter } from '@/i18n/navigation';
+import { useRouter, Link } from '@/i18n/navigation';
 import { ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -105,6 +105,12 @@ export default function LoginPage() {
               {isSubmitting ? t('signingIn') : t('signIn')}
             </Button>
           </form>
+          <p className="mt-4 text-center text-xs text-muted-foreground">
+            {t('noAccount')}{' '}
+            <Link href="/onboarding" className="font-medium text-[var(--brand)] hover:underline">
+              {t('createFirm')}
+            </Link>
+          </p>
         </CardContent>
       </Card>
     </main>

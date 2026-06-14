@@ -200,6 +200,15 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         interactivo (mismo endpoint, el cliente del expediente puede escribir).
   - [x] i18n portal.\*. Verificado E2E como CLIENT (perfil, 1 expediente, docs, ledger 1880, 2 tareas,
         1 factura) + aislamiento (CLIENT → endpoint de staff = 403).
+- **Tanda A — pantallas del prototipo sobre endpoints existentes (solo frontend)** `[~]`
+  - [x] **A.1 Onboarding** (alta de despacho multi-paso, 5 pasos: nombre → jurisdicción → moneda →
+        ID fiscal → cuenta admin) sobre `POST /api/auth/register-tenant`. BFF `register-tenant` (cookie
+        httpOnly + scope), `register()` en el contexto de auth, gate público de `/onboarding` en el
+        middleware, enlace desde el login. i18n `onboarding.*`. Auto-login → `/dashboard`.
+  - [ ] A.2 Centro de notificaciones (página, agrupada por fecha, marcar todas leídas).
+  - [ ] A.3 Agenda/Calendario de plazos (derivar de `GET /tasks`).
+  - [ ] A.4 Documentos (vista global) + comparar versiones (v2→v3).
+  - [ ] A.5 Acercar la ficha de expediente al layout del prototipo (rail cronómetro/plazos/saldo).
 - **F7 — Resto (ajustes/admin, agenda/calendario, aprobaciones, auditoría)** `[ ]` — **diferido**: el
   backend aún no expone estos endpoints (settings/suscripción/certificado/series fiscales/listado de
   auditoría); construirlos requeriría datos mock, lo que rompe la regla. Va "tras validar con despachos".

@@ -27,13 +27,15 @@ export default function middleware(req: NextRequest) {
   const hasSession = req.cookies.has(SESSION_COOKIE);
   const scope = req.cookies.get(SCOPE_COOKIE)?.value;
   const isLogin = rest === '/login' || rest.startsWith('/login/');
+  const isOnboarding = rest === '/onboarding' || rest.startsWith('/onboarding/');
+  const isPublic = isLogin || isOnboarding;
   const isPortal = rest === '/portal' || rest.startsWith('/portal/');
   const home = scope === 'client' ? 'portal' : 'dashboard';
 
-  if (!hasSession && !isLogin) {
+  if (!hasSession && !isPublic) {
     return NextResponse.redirect(new URL(`/${locale}/login`, req.url));
   }
-  if (hasSession && isLogin) {
+  if (hasSession && isPublic) {
     return NextResponse.redirect(new URL(`/${locale}/${home}`, req.url));
   }
   // Gate de rol (solo si conocemos el ámbito; si falta, el shell de cliente lo resuelve).

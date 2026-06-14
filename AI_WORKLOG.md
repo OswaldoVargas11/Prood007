@@ -473,3 +473,27 @@ Aprobaciones, Conflictos). Esta tanda:
 Pendiente (siguientes tandas): Onboarding, Centro de notificaciones (pagina), Calendario de plazos,
 Documentos global + comparar versiones, y backend NUEVO para Ajustes/Admin, Auditoria, Aprobaciones,
 Conflictos.
+
+### 2026-06-14 - Claude - Tanda A.1: Onboarding (alta de despacho multi-paso)
+
+Primera pantalla de la Tanda A (frontend sobre endpoints existentes). Replica el onboarding del
+prototipo (Lexora.dc.html 1219-1307): rail izquierdo con los 5 pasos + tarjeta de resumen en vivo,
+barra de progreso, contenido por paso y pie con Atras/Continuar.
+
+- Flujo de 5 pasos: nombre del despacho -> jurisdiccion (ES/DO, cards con compliance) -> moneda
+  (EUR/DOP, sugerida por jurisdiccion) -> identificacion fiscal (opcional; badge de formato valido por
+  jurisdiccion, NIF/CIF vs RNC/Cedula) -> cuenta admin (nombre, email, password >=10). El prototipo
+  omite el password; se anade porque el backend lo exige (RegisterTenantDto, MinLength 10).
+- Backend: SIN cambios. Se usa el `POST /auth/register-tenant` ya existente (devuelve {tenantId,
+  tokens} = auto-login, cubierto por auth.e2e-spec).
+- Web: BFF `app/api/auth/register-tenant/route.ts` (proxya a Nest, guarda refresh en cookie httpOnly +
+  scope, devuelve solo el access, espejo del login). `register()` nuevo en el contexto de auth
+  (lib/auth.tsx) que setea access + carga /me. Gate publico de `/onboarding` en middleware (igual que
+  /login: sin sesion permitido, con sesion redirige al home). Pagina
+  `app/[locale]/onboarding/page.tsx` con primitivos shadcn + tokens (--brand/--ai-from/--success).
+  Enlace "crea uno nuevo" desde el login. i18n `onboarding.*` + `login.noAccount/createFirm` en es-ES
+  y es-DO. Estados de error de servidor; sin datos mock.
+- Pruebas: web tsc/lint/build OK (rutas /[locale]/onboarding y /api/auth/register-tenant emitidas).
+  El contrato de register-tenant ya tiene e2e en api.
+
+Siguiente: A.2 Centro de notificaciones (pagina completa, agrupada por fecha, marcar todas leidas).

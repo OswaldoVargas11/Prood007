@@ -23,7 +23,64 @@
     "signingIn": "Entrando…",
     "genericError": "No se pudo iniciar sesión",
     "invalidEmail": "Introduce un correo válido",
-    "required": "Este campo es obligatorio"
+    "required": "Este campo es obligatorio",
+    "noAccount": "¿Aún no tienes un despacho?",
+    "createFirm": "Crea uno nuevo"
+  },
+  "onboarding": {
+    "setup": "Configuración",
+    "summary": "Resumen",
+    "firm": "Despacho",
+    "jurisdictionLabel": "Jurisdicción",
+    "currencyLabel": "Moneda",
+    "jurisdiction": {
+      "es": "España",
+      "do": "República Dominicana"
+    },
+    "currency": {
+      "eurName": "Euro",
+      "dopName": "Peso dominicano"
+    },
+    "valid": "Válido",
+    "fullName": "Nombre completo",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "passwordHint": "Mínimo 10 caracteres.",
+    "adminRole": "Administrador del despacho",
+    "adminDesc": "Tendrás control total: usuarios, facturación y configuración.",
+    "toLogin": "Ya tengo cuenta",
+    "back": "Atrás",
+    "continue": "Continuar",
+    "create": "Crear despacho",
+    "genericError": "No se pudo crear el despacho. Inténtalo de nuevo.",
+    "step1": {
+      "nav": "Despacho",
+      "title": "¿Cómo se llama tu despacho?",
+      "sub": "Aparecerá en facturas, en el portal del cliente y en toda la aplicación."
+    },
+    "step2": {
+      "nav": "Jurisdicción",
+      "title": "¿Dónde ejerce tu despacho?",
+      "sub": "Determina el sistema de facturación electrónica, los impuestos y los identificadores fiscales. No se puede cambiar después."
+    },
+    "step3": {
+      "nav": "Moneda",
+      "title": "¿En qué moneda facturas?",
+      "sub": "Gobierna el formato de importes en todo el despacho. Se sugiere según la jurisdicción."
+    },
+    "step4": {
+      "nav": "Identificación fiscal",
+      "title": "Identificación fiscal del despacho",
+      "sub": "Necesaria para emitir facturas. Puedes añadirla más tarde desde Ajustes.",
+      "labelEs": "NIF / CIF",
+      "labelDo": "RNC / Cédula",
+      "hint": "Validamos el formato aquí; el servidor verifica el identificador al emitir cada factura."
+    },
+    "step5": {
+      "nav": "Tu cuenta",
+      "title": "Crea tu cuenta de administrador",
+      "sub": "Serás el primer usuario del despacho, con rol de administrador."
+    }
   },
   "dashboard": {
     "morning": "Buenos días",
