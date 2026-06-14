@@ -214,3 +214,44 @@ Aviso operativo de ramas/worktrees:
 - La unica rama valida es feat/mvp-fase1 (remoto). Si un chat aparece en un worktree aislado pinneado a
   un commit viejo (claude/\* @ 4be391c), reconciliar antes de tocar nada:
   git fetch origin && git reset --hard origin/feat/mvp-fase1; push con git push origin HEAD:feat/mvp-fase1.
+
+### 2026-06-14 - Claude - Postgres RLS (commit 1: politicas + rol + prueba a nivel BD)
+
+Contexto: el usuario eligio avanzar "Postgres RLS" (no dependiente del diseno, prioridad seguridad).
+Trabajo en worktree, push a feat/mvp-fase1 (PR #1).
+
+Hecho (commit 1, defensa en profundidad, SIN cambiar el comportamiento runtime todavia):
+
+- Migracion `20260614120000_enable_rls`: RLS + FORCE + policy `tenant_isolation` en las 14 tablas con
+  `tenantId`, en `Tenant` (por id) y en `InvoiceLine` (via su factura). Funcion `app_current_tenant()`
+  que normaliza el GUC `app.tenant_id` con NULLIF (NULL/'' = sin contexto -> bypass para rutas de
+  sistema: login, registro, rotacion de tokens, seed).
+- Migracion `20260614121000_app_role`: rol `legalflow_app` de MINIMO PRIVILEGIO (sin superusuario,
+  sin BYPASSRLS, no propietario, solo DML). Necesario porque Postgres NO aplica RLS a superusuarios
+  ni con FORCE. `schema.prisma` ahora separa `url` (rol app, runtime/tests) de `directUrl` (rol
+  privilegiado, migraciones). `.env` y `ci.yml` actualizados con ambas URLs.
+- Test `test/rls.e2e-spec.ts`: prueba el aislamiento DIRECTAMENTE a nivel de BD (fija el GUC en una
+  transaccion y verifica que A no ve/inserta filas de B, y que el bypass sin contexto funciona).
+
+BUG REAL detectado y corregido durante la prueba:
+
+- Un GUC placeholder (`app.tenant_id`) fijado transaction-local se RESETEA a '' (no NULL) al cerrar
+  la transaccion. La policy inicial solo hacia bypass con `IS NULL` -> una conexion reutilizada del
+  pool con '' habria roto login/rutas de sistema en cuanto llegara el wiring. Corregido con
+  `app_current_tenant()` (NULLIF a NULL). El test de bypass lo cazo.
+
+Pruebas (todas verdes, conectando como `legalflow_app`):
+
+- `prisma migrate reset --force --skip-seed` + `migrate deploy`: OK (4 migraciones).
+- `jest --config test/jest-e2e.json`: **8 suites / 50 tests OK** (45 existentes + 5 RLS).
+
+Riesgos/notas:
+
+- `CREATE ROLE` con password dev vive en la migracion (idempotente; prod provisiona el rol fuera de
+  banda). Requiere `DIRECT_DATABASE_URL` en todos los entornos (ya en .env de dev y en ci.yml).
+- Aun NO hay enforcement en runtime: la app conecta como `legalflow_app` pero todavia no fija el GUC,
+  asi que opera en bypass (comportamiento identico al anterior). Eso llega en el commit 2.
+
+Siguiente punto (commit 2): wiring de la app (AsyncLocalStorage + interceptor que fija `app.tenant_id`
+por request autenticado + extension de Prisma que envuelve cada operacion para fijar el GUC), con e2e
+que pruebe denegacion cross-tenant por HTTP.

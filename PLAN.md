@@ -137,7 +137,9 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 ## Transversales de seguridad / cumplimiento de datos
 
 - [ ] Cifrado en tránsito (TLS) y en reposo (campos sensibles / disco).
-- [ ] Control de acceso granular + aislamiento estricto por tenant (camino a Postgres RLS).
+- [~] Control de acceso granular + aislamiento estricto por tenant. **Postgres RLS activa** como
+  defensa en profundidad (políticas + rol de mínimo privilegio, ver D-013); pendiente el wiring de
+  la app que fija `app.tenant_id` por request.
 - [ ] Preparado RGPD/LOPDGDD (ES) y Ley 172-13 (RD); trazabilidad para futuro AI Act.
 
 ---

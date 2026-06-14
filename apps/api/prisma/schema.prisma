@@ -1,8 +1,9 @@
 // LegalFlow — esquema de dominio (Prisma + PostgreSQL).
 //
 // MULTI-TENANCY: aislamiento row-level por `tenantId` en toda tabla de negocio, con índices
-// compuestos (tenantId, ...). Camino a Postgres RLS dejado preparado (ver DECISIONS D-004):
-// activar policies por current_setting('app.tenant_id') en una migración posterior.
+// compuestos (tenantId, ...). Postgres RLS ACTIVA como defensa en profundidad (ver DECISIONS
+// D-004 y D-013): políticas por current_setting('app.tenant_id'); el runtime conecta como rol de
+// mínimo privilegio y fija el GUC por request.
 //
 // AGNOSTICISMO: este esquema NO codifica ninguna ley concreta. Los campos fiscales específicos
 // de cada país viajan en `Invoice.complianceRecord` (JSON opaco) generado por el ComplianceProvider.
@@ -13,7 +14,10 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // url = rol de aplicación de mínimo privilegio (sin superusuario) → RLS SÍ se aplica en runtime.
+  url       = env("DATABASE_URL")
+  // directUrl = rol propietario/privilegiado, usado SOLO por Prisma Migrate (DDL, roles, RLS).
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -29,7 +29,11 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL: postgresql://legalflow:legalflow@localhost:5432/legalflow?schema=public
+      # Runtime/tests: rol de mínimo privilegio (RLS se aplica). El rol lo crea la migración
+      # 20260614121000_app_role al ejecutar `migrate deploy` con el rol privilegiado (directUrl).
+      DATABASE_URL: postgresql://legalflow_app:legalflow_app@localhost:5432/legalflow?schema=public
+      # Migraciones: rol propietario/privilegiado (superusuario del servicio Postgres de CI).
+      DIRECT_DATABASE_URL: postgresql://legalflow:legalflow@localhost:5432/legalflow?schema=public
       JWT_ACCESS_SECRET: ci-access-secret
       JWT_REFRESH_SECRET: ci-refresh-secret
       STORAGE_DRIVER: local
