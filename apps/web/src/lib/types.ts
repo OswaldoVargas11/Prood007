@@ -38,6 +38,63 @@ export interface Client {
   createdAt: string;
 }
 
+export type LedgerEntryType =
+  | 'PROVISION'
+  | 'DISBURSEMENT'
+  | 'TIME_FEE'
+  | 'FEE'
+  | 'INVOICE'
+  | 'PAYMENT'
+  | 'ADJUSTMENT';
+
+export interface LedgerEntry {
+  id: string;
+  matterId: string;
+  type: LedgerEntryType;
+  description: string;
+  amount: string;
+  currency: string;
+  invoiceId: string | null;
+  occurredAt: string;
+  createdAt: string;
+}
+
+export interface MatterLedger {
+  matterId: string;
+  currency: string;
+  balance: string;
+  entries: LedgerEntry[];
+}
+
+export type InvoiceStatus = 'DRAFT' | 'ISSUED' | 'SENT' | 'PAID' | 'CANCELLED';
+
+export interface InvoiceLine {
+  id: string;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  taxCode: string;
+  lineTotal: string;
+}
+
+export interface Invoice {
+  id: string;
+  number: string;
+  status: InvoiceStatus;
+  issueDate: string;
+  currency: string;
+  taxableBase: string;
+  taxAmount: string;
+  withholdingAmount: string;
+  total: string;
+  complianceFormat: 'VERIFACTU' | 'ECF' | null;
+  complianceRecord: Record<string, unknown> | null;
+  recordHash: string | null;
+  previousRecordHash: string | null;
+  lines: InvoiceLine[];
+  client?: { id: string; name: string; taxId: string };
+}
+
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
 
 export interface Task {

@@ -5,9 +5,12 @@ import { api } from './api';
 import type {
   DeadlineResult,
   DocumentReviewStatus,
+  Invoice,
+  LedgerEntryType,
   Matter,
   MatterDetail,
   MatterDocument,
+  MatterLedger,
   MatterStatus,
   Paginated,
   Task,
@@ -163,6 +166,79 @@ export function useDeleteTask() {
   return useMutation({
     mutationFn: (id: string) => api.del(`/tasks/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+}
+
+// ── Ledger + Facturación (F4) ────────────────────────────────────────────────
+export function useMatterLedger(matterId: string) {
+  return useQuery({
+    queryKey: ['ledger', matterId],
+    queryFn: () => api.get<MatterLedger>(`/ledger/matter/${matterId}`),
+    enabled: Boolean(matterId),
+  });
+}
+
+function invalidateMatterBilling(qc: ReturnType<typeof useQueryClient>, matterId: string) {
+  void qc.invalidateQueries({ queryKey: ['ledger', matterId] });
+}
+
+export function useAddLedgerEntry(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { type: LedgerEntryType; amount: string; description: string }) =>
+      api.post('/ledger/entries', { ...body, matterId }),
+    onSuccess: () => invalidateMatterBilling(qc, matterId),
+  });
+}
+
+export function useAddTimeEntry(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      description: string;
+      minutes: number;
+      hourlyRate: string;
+      workedAt: string;
+    }) => api.post('/ledger/time', { ...body, matterId }),
+    onSuccess: () => invalidateMatterBilling(qc, matterId),
+  });
+}
+
+export interface InvoiceLineInput {
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  taxCode: string;
+}
+
+export function useCreateInvoice(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      lines: InvoiceLineInput[];
+      withholdingTaxCode?: string;
+      issueDate?: string;
+    }) => api.post<{ invoice: Invoice }>('/ledger/invoices', { ...body, matterId }),
+    onSuccess: () => invalidateMatterBilling(qc, matterId),
+  });
+}
+
+export function useInvoice(id: string) {
+  return useQuery({
+    queryKey: ['invoice', id],
+    queryFn: () => api.get<Invoice>(`/ledger/invoices/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+export function usePayInvoice(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<Invoice>(`/ledger/invoices/${id}/pay`),
+    onSuccess: (data) => {
+      qc.setQueryData(['invoice', id], data);
+      void qc.invalidateQueries({ queryKey: ['ledger'] });
+    },
   });
 }
 

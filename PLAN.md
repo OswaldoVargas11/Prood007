@@ -174,7 +174,16 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
   - [x] Crear tarea y **crear desde plazo** (`POST /tasks/from-deadline`): la jurisdicción calcula la
         fecha (días hábiles + festivos); se muestra el vencimiento y los festivos aplicados.
   - [x] Nav "Tareas" habilitado; i18n tasks.\*. Verificado E2E (ES: 23-dic+5 → 31-dic, festivo 25-dic).
-- **F4 — Facturación (ledger, nueva factura con preview fiscal, detalle con bloque de cumplimiento)** `[ ]`
+- **F4 — Facturación (ledger, factura, detalle con bloque de cumplimiento)** `[x]` (tab Costes + /invoices/[id])
+  - [x] Tab Costes: ledger transparente con **saldo** + tabla de apuntes (signo por tipo), añadir
+        apunte, registrar tiempo, y **emitir factura** (líneas + retención).
+  - [x] Detalle de factura `/invoices/[id]`: cabecera fiscal, líneas, totales (base/IVA o ITBIS/
+        retención/total), estado, **bloque de cumplimiento real** (formato Verifactu/e-CF + huella +
+        encadenamiento + payload), y **marcar como pagada**.
+  - [x] Códigos fiscales por jurisdicción (IVA/IRPF vs ITBIS). i18n billing.\*. Verificado E2E
+        (ES Verifactu: base 1000, IVA 210, IRPF 150, total 1060; cobro → PAID).
+  - Pendiente: preview fiscal en vivo antes de emitir (la API no expone cálculo previo); QR Verifactu
+    renderizado (se muestra el payload/huella); pantalla global de facturación (sin endpoint de listado).
 - **F5 — Tiempo real (notificaciones + chat por expediente, Socket.IO)** `[ ]`
 - **F6 — Portal del cliente (rol CLIENT, solo lectura + chat)** `[ ]`
 - **F7 — Resto (ajustes/admin, agenda/calendario, aprobaciones, auditoría)** `[ ]`

@@ -10,6 +10,7 @@ import { formatDate } from '@/lib/format';
 import { StatusBadge } from '@/components/lexora/status-badge';
 import { DocumentsTab } from '@/components/lexora/documents-tab';
 import { TasksPanel } from '@/components/lexora/tasks-panel';
+import { CostsTab } from '@/components/lexora/costs-tab';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -132,7 +133,11 @@ export default function MatterDetailPage() {
           <TasksPanel matterId={id} />
         </TabsContent>
 
-        {['costs', 'chat', 'activity'].map((tab) => (
+        <TabsContent value="costs">
+          <CostsTab matterId={id} />
+        </TabsContent>
+
+        {['chat', 'activity'].map((tab) => (
           <TabsContent key={tab} value={tab}>
             <Card>
               <CardContent className="p-12 text-center text-sm text-muted-foreground">

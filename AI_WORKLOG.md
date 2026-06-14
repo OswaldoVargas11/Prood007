@@ -400,3 +400,15 @@ Siguiente: F2 (Documentos) — rellena el tab Documentos de la ficha.
   Tareas en la ficha. Nav Tareas habilitado. i18n tasks.\* (es-ES/es-DO).
 - Pruebas: tsc/lint/build OK. E2E real: crear tarea (TODO), crear-desde-plazo ES (23-dic +5 habiles ->
   31-dic, festivo 25-dic aplicado), listar por expediente, marcar DONE.
+
+### 2026-06-14 - Claude - Slice F4 (Facturacion: ledger + factura + cumplimiento)
+
+- Tipos+hooks ledger/facturas (useMatterLedger/useAddLedgerEntry/useAddTimeEntry/useCreateInvoice/
+  useInvoice/usePayInvoice). lib/ledger (BALANCE_SIGN, variantes, defaultTaxCodes por jurisdiccion).
+- Tab Costes (costs-tab): saldo + tabla de apuntes con signo, dialogos de apunte/tiempo/nueva factura
+  (lineas + retencion + base indicativa). Detalle de factura /invoices/[id]: cabecera, lineas, totales,
+  estado, BLOQUE DE CUMPLIMIENTO real (formato Verifactu/e-CF + huella + encadenamiento + payload JSON),
+  marcar como pagada. i18n billing.\* (es-ES/es-DO).
+- Pruebas: tsc/lint/build OK. E2E real (tenant con taxId): apunte PROVISION, tiempo 90min@120=180,
+  factura ES Verifactu (base 1000, IVA 21%=210, IRPF 15%=150, total 1060, huella presente), cobro->PAID.
+- Pendiente: preview fiscal en vivo (sin endpoint de calculo), QR Verifactu renderizado, listado global.
