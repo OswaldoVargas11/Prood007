@@ -689,3 +689,24 @@ settings pasan a enabled:true (siguen adminOnly -> solo FIRM_ADMIN los ve).
   ledger sin propuestas) + CHAT bidireccional cliente<->despacho; ajustes (leer/renombrar); auditoria
   (7 acciones); anti-bloqueo del ultimo admin.
 - Pruebas: web tsc/lint/build + vitest 10 OK; api e2e 74/74.
+
+### 2026-06-14 - Claude - UX: Expedientes (tabla/tablero), Clientes (tipo/saldo), Documentos (drag&drop/preview)
+
+Mejoras pedidas por el usuario en las tres pantallas principales.
+
+- Expedientes (/matters): conmutador TABLA / TABLERO (kanban por estado). Backend: GET /matters ahora
+  incluye client{ id,name } y lawyer{ id,fullName }. Tabla con columnas nuevas Cliente, Letrado y
+  Actualizado (updatedAt). Tablero: 5 columnas por estado con tarjetas (ref, titulo, cliente, letrado,
+  fecha). i18n matters.col.client/lawyer/updated + viewTable/viewBoard.
+- Clientes (/clients): columnas nuevas Tipo (Empresa/Particular, derivado de taxIdKind: CIF/RNC=empresa,
+  resto=particular) y Saldo. Backend: GET /clients calcula el saldo agregado por cliente (suma con signo
+  de los apuntes APROBADOS de todos sus expedientes) y devuelve la moneda del tenant. i18n clients.type/
+  typeCompany/typeIndividual/balance.
+- Documentos (/matters/:id/documents): subida por ARRASTRAR Y SOLTAR (onDragOver/Drop, resalte) ademas
+  del clic. Cada version muestra el LETRADO que la subio (backend: listByMatter y getOne incluyen
+  uploadedBy{ id,fullName }). VISTA PREVIA REAL: descarga la version (Bearer) y la renderiza -> PDF en
+  iframe, imagen en img, texto/JSON en <pre>; otros formatos (DOCX) ofrecen descarga. El tab de
+  documentos tambien muestra el autor de cada version.
+- Pruebas: web tsc/lint/build OK; api build OK; e2e afectados (clients-matters + documents) 16/16.
+  Verificado en vivo: matters trae client/lawyer/updatedAt; clients trae balance(730.00)/currency;
+  documents trae uploadedBy (Admin Demo); descarga de version 200.

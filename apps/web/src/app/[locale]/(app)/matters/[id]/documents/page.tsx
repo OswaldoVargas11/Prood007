@@ -1,17 +1,18 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { Download, Loader2, Upload } from 'lucide-react';
+import { Download, FileText, Loader2, Upload } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { downloadVersion, useMatter, useMatterDocuments, useUploadDocument } from '@/lib/hooks';
+import { api } from '@/lib/api';
 import { docStatusVariant, formatBytes, mimeLabel } from '@/lib/doc-status';
 import { formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import type { MatterDocument } from '@/lib/types';
+import type { DocumentVersion, MatterDocument } from '@/lib/types';
 
 export default function MatterDocumentsPage() {
   const { id } = useParams<{ id: string }>();
@@ -25,6 +26,7 @@ export default function MatterDocumentsPage() {
   const upload = useUploadDocument(id);
   const fileRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   const selected = useMemo<MatterDocument | null>(
     () => data?.find((d) => d.id === selectedId) ?? data?.[0] ?? null,
@@ -35,6 +37,13 @@ export default function MatterDocumentsPage() {
     const file = e.target.files?.[0];
     if (file) upload.mutate({ file, name: file.name });
     e.target.value = '';
+  }
+
+  function onDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) upload.mutate({ file, name: file.name });
   }
 
   const latest = selected?.versions[0];
@@ -56,19 +65,30 @@ export default function MatterDocumentsPage() {
         </div>
       </div>
 
-      {/* Dropzone (clic para seleccionar; subida real) */}
+      {/* Dropzone: clic o arrastrar y soltar (subida real) */}
       <button
         type="button"
         onClick={() => fileRef.current?.click()}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={onDrop}
         disabled={upload.isPending}
-        className="flex w-full items-center justify-center gap-3 rounded-xl border-[1.5px] border-dashed bg-card p-[18px] text-muted-foreground transition-colors hover:border-[var(--brand-line)] hover:text-foreground disabled:opacity-60"
+        className={cn(
+          'flex w-full items-center justify-center gap-3 rounded-xl border-[1.5px] border-dashed p-[18px] text-muted-foreground transition-colors disabled:opacity-60',
+          dragging
+            ? 'border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)]'
+            : 'bg-card hover:border-[var(--brand-line)] hover:text-foreground',
+        )}
       >
         {upload.isPending ? (
           <Loader2 className="size-[18px] animate-spin" />
         ) : (
           <Upload className="size-[18px]" />
         )}
-        <span className="text-[13px] font-medium">{t('dropzone')}</span>
+        <span className="text-[13px] font-medium">{dragging ? t('dropHere') : t('dropzone')}</span>
       </button>
       <input ref={fileRef} type="file" className="hidden" onChange={onFile} />
       {upload.isError && <p className="text-sm text-[var(--danger)]">{t('uploadError')}</p>}
@@ -134,8 +154,11 @@ export default function MatterDocumentsPage() {
                           v{v.version}
                         </span>
                         <span>{formatDate(v.createdAt, locale)}</span>
+                        {v.uploadedBy?.fullName && (
+                          <span className="truncate">· {v.uploadedBy.fullName}</span>
+                        )}
                         {i === 0 && (
-                          <span className="rounded-[5px] bg-[var(--brand-soft)] px-1.5 py-px text-[9.5px] font-semibold text-[var(--brand)]">
+                          <span className="ml-auto rounded-[5px] bg-[var(--brand-soft)] px-1.5 py-px text-[9.5px] font-semibold text-[var(--brand)]">
                             {t('current')}
                           </span>
                         )}
@@ -150,16 +173,14 @@ export default function MatterDocumentsPage() {
           {/* Rail de vista previa */}
           <div className="overflow-hidden rounded-xl border bg-card shadow-sm lg:sticky lg:top-2">
             <div className="border-b px-4 py-3 text-[13px] font-semibold">{t('preview')}</div>
-            <div
-              className="m-4 flex aspect-[1/1.1] items-center justify-center rounded-[10px] border"
-              style={{
-                background:
-                  'repeating-linear-gradient(135deg,var(--surface-1),var(--surface-1) 11px,var(--card) 11px,var(--card) 22px)',
-              }}
-            >
-              <span className="font-mono text-[11px] text-[var(--text-subtle)]">
-                {selected && latest ? `${selected.name} · v${latest.version}` : '—'}
-              </span>
+            <div className="m-4 overflow-hidden rounded-[10px] border">
+              {selected && latest ? (
+                <DocPreview key={latest.id} version={latest} name={selected.name} />
+              ) : (
+                <div className="flex aspect-[1/1.1] items-center justify-center">
+                  <span className="font-mono text-[11px] text-[var(--text-subtle)]">—</span>
+                </div>
+              )}
             </div>
             {selected && latest && (
               <div className="flex flex-col gap-2 px-4 pb-4 text-[12px]">
@@ -202,6 +223,94 @@ function Row({ label, value }: { label: string; value: string }) {
     <div className="flex justify-between">
       <span className="text-[var(--text-subtle)]">{label}</span>
       <span>{value}</span>
+    </div>
+  );
+}
+
+/**
+ * Vista previa real del documento: descarga la versión (Bearer) a un blob y la muestra.
+ * PDF -> iframe, imagen -> img. Otros formatos (DOCX…) no se pueden previsualizar en el navegador:
+ * se ofrece la descarga. El object URL se revoca al desmontar.
+ */
+function DocPreview({ version, name }: { version: DocumentVersion; name: string }) {
+  const t = useTranslations('documents');
+  const [url, setUrl] = useState<string | null>(null);
+  const [text, setText] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  const isPdf = version.mimeType === 'application/pdf';
+  const isImg = version.mimeType.startsWith('image/');
+  const isText = version.mimeType.startsWith('text/') || version.mimeType === 'application/json';
+  const canPreview = isPdf || isImg || isText;
+
+  useEffect(() => {
+    let active = true;
+    let objUrl: string | null = null;
+    setUrl(null);
+    setText(null);
+    setError(false);
+    if (!canPreview) return;
+    api
+      .download(`/documents/versions/${version.id}/download`)
+      .then(async (blob) => {
+        if (!active) return;
+        if (isText) {
+          setText(await blob.text());
+        } else {
+          objUrl = URL.createObjectURL(blob);
+          setUrl(objUrl);
+        }
+      })
+      .catch(() => active && setError(true));
+    return () => {
+      active = false;
+      if (objUrl) URL.revokeObjectURL(objUrl);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [version.id]);
+
+  if (isText && text !== null) {
+    return (
+      <pre className="max-h-[360px] overflow-auto whitespace-pre-wrap bg-[var(--surface-1)] p-4 text-[11.5px] leading-relaxed text-foreground">
+        {text}
+      </pre>
+    );
+  }
+  if (!isText && url) {
+    return isPdf ? (
+      <iframe src={url} title={name} className="h-[360px] w-full bg-white" />
+    ) : (
+      <div className="flex max-h-[360px] items-center justify-center bg-[var(--surface-1)]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={url} alt={name} className="max-h-[360px] w-auto object-contain" />
+      </div>
+    );
+  }
+
+  // Cargando o formato no previsualizable.
+  return (
+    <div className="flex aspect-[1/1.1] flex-col items-center justify-center gap-2 bg-[var(--surface-1)] p-4 text-center">
+      {!error && canPreview ? (
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      ) : (
+        <>
+          <FileText className="size-7 text-muted-foreground" />
+          <span className="font-mono text-[11px] text-[var(--text-subtle)]">
+            {mimeLabel(version.mimeType)} · v{version.version}
+          </span>
+          <span className="text-[11px] text-muted-foreground">
+            {error ? t('previewError') : t('previewUnsupported')}
+          </span>
+          <button
+            type="button"
+            onClick={() => downloadVersion(version.id, `${name}-v${version.version}`)}
+            className="mt-1 inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11.5px] font-medium text-muted-foreground hover:text-foreground"
+          >
+            <Download className="size-3" />
+            {t('download')}
+          </button>
+        </>
+      )}
     </div>
   );
 }

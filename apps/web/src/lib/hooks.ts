@@ -5,6 +5,7 @@ import { api } from './api';
 import type {
   AuditEntry,
   Client,
+  ClientsPage,
   CostApproval,
   DashboardSummary,
   DeadlineResult,
@@ -63,7 +64,7 @@ export function useClients(params: { page?: number; pageSize?: number } = {}) {
   const { page = 1, pageSize = 50 } = params;
   return useQuery({
     queryKey: ['clients', { page, pageSize }],
-    queryFn: () => api.get<Paginated<Client>>(`/clients?page=${page}&pageSize=${pageSize}`),
+    queryFn: () => api.get<ClientsPage>(`/clients?page=${page}&pageSize=${pageSize}`),
   });
 }
 

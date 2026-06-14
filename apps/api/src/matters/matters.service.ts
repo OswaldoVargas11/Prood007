@@ -89,6 +89,10 @@ export class MattersService {
       const items = await tx.matter.findMany({
         where,
         orderBy: { openedAt: 'desc' },
+        include: {
+          client: { select: { id: true, name: true } },
+          lawyer: { select: { id: true, fullName: true } },
+        },
         skip,
         take: pageSize,
       });

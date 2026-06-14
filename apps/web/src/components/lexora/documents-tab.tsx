@@ -120,6 +120,11 @@ export function DocumentsTab({ matterId }: { matterId: string }) {
                       <span className="text-xs text-muted-foreground">
                         {formatBytes(v.sizeBytes)}
                       </span>
+                      {v.uploadedBy?.fullName && (
+                        <span className="hidden text-xs text-muted-foreground md:inline">
+                          {v.uploadedBy.fullName}
+                        </span>
+                      )}
                       <span className="hidden text-xs text-muted-foreground sm:inline">
                         {formatDateTime(v.createdAt, locale)}
                       </span>

@@ -21,6 +21,9 @@ export interface Matter {
   closedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Incluidos en `GET /matters` (lista): cliente y letrado responsable. */
+  client?: { id: string; name: string };
+  lawyer?: { id: string; fullName: string } | null;
 }
 
 /** `GET /matters/:id` incluye un extracto del cliente. */
@@ -39,6 +42,13 @@ export interface Client {
   userId?: string | null;
   createdAt: string;
   _count?: { matters: number };
+  /** Saldo agregado (apuntes aprobados de todos sus expedientes). Incluido en `GET /clients`. */
+  balance?: string;
+}
+
+/** Respuesta de `GET /clients` (página + moneda del tenant para formatear el saldo). */
+export interface ClientsPage extends Paginated<Client> {
+  currency: string;
 }
 
 export interface DashboardSummary {
@@ -189,6 +199,8 @@ export interface DocumentVersion {
   mimeType: string;
   sizeBytes: number;
   createdAt: string;
+  /** Letrado que subió la versión (de `GET /documents/by-matter/:id`). */
+  uploadedBy?: { id: string; fullName: string };
 }
 
 export interface MatterDocument {

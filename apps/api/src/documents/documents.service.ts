@@ -113,6 +113,7 @@ export class DocumentsService {
             mimeType: true,
             sizeBytes: true,
             createdAt: true,
+            uploadedBy: { select: { id: true, fullName: true } },
           },
         },
       },
@@ -123,7 +124,12 @@ export class DocumentsService {
   async getOne(user: RequestUser, id: string) {
     const document = await this.prisma.document.findFirst({
       where: { id, tenantId: user.tenantId },
-      include: { versions: { orderBy: { version: 'desc' }, include: { reviews: true } } },
+      include: {
+        versions: {
+          orderBy: { version: 'desc' },
+          include: { reviews: true, uploadedBy: { select: { id: true, fullName: true } } },
+        },
+      },
     });
     if (!document) throw new NotFoundException('Documento no encontrado.');
     return document;

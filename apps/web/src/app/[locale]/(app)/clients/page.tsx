@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { Check, Loader2, Plus, Users } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import { Building2, Check, Loader2, Plus, User, Users } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useClients, useCreateClient } from '@/lib/hooks';
+import { formatMoney } from '@/lib/format';
 import { ApiError } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -30,10 +31,18 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
+/** Tipo de cliente derivado del tipo de identificador fiscal (sin acoplar al país). */
+function clientType(kind: string | null): 'company' | 'individual' | null {
+  if (!kind) return null;
+  return kind === 'CIF' || kind === 'RNC' ? 'company' : 'individual';
+}
+
 export default function ClientsPage() {
   const t = useTranslations('clients');
+  const locale = useLocale();
   const { data, isLoading, isError, refetch } = useClients();
   const [creating, setCreating] = useState(false);
+  const currency = data?.currency ?? 'EUR';
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -54,15 +63,16 @@ export default function ClientsPage() {
             <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
               <th className="px-4 py-3 font-medium">{t('name')}</th>
               <th className="px-4 py-3 font-medium">{t('fiscalId')}</th>
-              <th className="px-4 py-3 font-medium">{t('email')}</th>
+              <th className="px-4 py-3 font-medium">{t('type')}</th>
               <th className="px-4 py-3 text-center font-medium">{t('matters')}</th>
+              <th className="px-4 py-3 text-right font-medium">{t('balance')}</th>
             </tr>
           </thead>
           <tbody>
             {isLoading &&
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i} className="border-b border-border last:border-0">
-                  <td colSpan={4} className="px-4 py-3">
+                  <td colSpan={5} className="px-4 py-3">
                     <Skeleton className="h-6 w-full" />
                   </td>
                 </tr>
@@ -93,9 +103,24 @@ export default function ClientsPage() {
                       )}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.email ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const ct = clientType(c.taxIdKind);
+                      if (!ct) return <span className="text-muted-foreground">—</span>;
+                      const Icon = ct === 'company' ? Building2 : User;
+                      return (
+                        <span className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                          <Icon className="size-3.5" />
+                          {ct === 'company' ? t('typeCompany') : t('typeIndividual')}
+                        </span>
+                      );
+                    })()}
+                  </td>
                   <td className="px-4 py-3 text-center font-semibold tabular-nums">
                     {c._count?.matters ?? 0}
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold tabular-nums">
+                    {formatMoney(c.balance ?? '0', currency, locale)}
                   </td>
                 </tr>
               ))}
