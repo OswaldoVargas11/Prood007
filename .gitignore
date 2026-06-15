@@ -54,3 +54,6 @@ uploads/
 
 # Playwright e2e seed (generado por global-setup)
 apps/web/e2e/.auth/
+
+# QA exploratorio (capturas de trabajo)
+qa-screenshots/

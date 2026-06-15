@@ -14,6 +14,7 @@ export function ThemeToggle() {
   const isDark = resolvedTheme === 'dark';
   return (
     <Button
+      type="button"
       variant="ghost"
       size="icon"
       aria-label={isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
