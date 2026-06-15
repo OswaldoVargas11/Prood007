@@ -197,6 +197,14 @@ export const API_MESSAGES = {
     'es-ES': 'El cobro online no está configurado para esta jurisdicción.',
     'es-DO': 'El cobro online no está configurado para esta jurisdicción.',
   },
+  'payments.stripeNotConnected': {
+    'es-ES': 'El despacho aún no ha conectado su cuenta de Stripe.',
+    'es-DO': 'El despacho aún no ha conectado su cuenta de Stripe.',
+  },
+  'payments.webhookInvalid': {
+    'es-ES': 'Webhook inválido.',
+    'es-DO': 'Webhook inválido.',
+  },
 
   // ── Tareas ────────────────────────────────────────────────────────────────
   'tasks.assigneeNotInFirm': {

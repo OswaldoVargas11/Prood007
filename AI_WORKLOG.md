@@ -933,3 +933,38 @@ Pruebas:
 
 - **Sensibilidad / merge:** auto-mergeable (sin rutas CODEOWNERS) → auto-merge en verde.
 - **Siguiente:** PR-3 (PaymentProvider + modelo Payment; PR-y-espera, depende de PR-1/#47).
+
+### 2026-06-15 - Claude - Fase 1 (cobro) · PR-4 Stripe Connect (ES) + webhook
+
+Objetivo:
+
+- Cobro online real con **Stripe Connect (Standard)**: el dinero va a la cuenta del despacho, no a la
+  plataforma. Decisiones del usuario: Standard + mocks en CI (env-gated, sin claves reales). Apilado
+  sobre PR-3.
+
+Acciones (PR-4):
+
+- Dep `stripe`. Migración `tenant_stripe_account` (Tenant.stripeAccountId; toca prisma/ → CODEOWNERS).
+- `StripePaymentProvider` real (env-gated, cliente lazy): `createCheckout` (Checkout Session DIRECTO en
+  la cuenta conectada del despacho, metadata invoiceId/tenantId), `verifyWebhook` (firma), Account
+  Links de onboarding + estado de la cuenta. Tipos de Stripe vía `InstanceType<typeof Stripe>` (el
+  namespace `Stripe.*` no resuelve como tipo con esta tsconfig).
+- `PaymentsService`: `createCheckout` (exige cuenta conectada + saldo pendiente), `handleStripeWebhook`
+  (verifica firma → en `checkout.session.completed` concilia bajo `runWithTenant(tenantId del evento)`,
+  idempotente por `providerRef`; los conflictos de negocio no provocan reintentos), `connectOnboard`/
+  `connectStatus`. Actor del webhook = sistema (audit "Sistema", sin FK).
+- Controllers: `POST /payments/checkout`, `connect/onboard`+`status` (admin); **webhook PÚBLICO**
+  (`PaymentsWebhookController`, `@Public`, cuerpo CRUDO vía `rawBody:true` en main.ts) separado para no
+  heredar `@Roles`. i18n `payments.*`. `.env.example`: STRIPE_SECRET_KEY/WEBHOOK_SECRET/APP_PUBLIC_URL.
+- Web: botón "Pagar online" en la factura (si `payments/config.onlineEnabled`) + progreso de cobro
+  parcial; tarjeta "Cobro online (Stripe)" en Ajustes (conectar/gestionar/estado). Hooks + i18n.
+
+Pruebas:
+
+- e2e mockeado `payments-stripe` 6/6 (checkout exige conexión, onboarding guarda accountId, webhook→PAID
+  - Payment STRIPE, idempotencia, evento no manejado sin efectos) + `payments` 8/8 + `ledger` 18/18.
+    api/web typecheck + lint + build limpios. `pnpm audit --prod`: 0 high (stripe no añade advisory).
+
+- **Sensibilidad / merge:** migración + dinero + webhook sin auth + secretos → **PR-y-espera**. Apilado
+  sobre PR-3 (#49). **Verificación EN VIVO pendiente: el owner cablea sus claves Stripe + onboarding.**
+- **Cierre Fase 1 (rebanada fina):** PR-1→PR-4 entregados. Cola (retainer/dunning/recurrente) pendiente.

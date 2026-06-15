@@ -4,13 +4,16 @@ import type { Jurisdiction, PaymentMethod } from '@legalflow/domain';
 export interface PaymentCheckoutParams {
   invoiceId: string;
   invoiceNumber: string;
+  tenantId: string;
+  /** Cuenta conectada del despacho (Stripe Connect Standard) a la que va el cobro. */
+  connectedAccountId: string;
   /** Importe a cobrar (saldo pendiente), como string decimal. */
   amount: string;
   currency: string;
   description: string;
   /** URLs de retorno del checkout (las fija el caller según el origen del despacho). */
-  successUrl?: string;
-  cancelUrl?: string;
+  successUrl: string;
+  cancelUrl: string;
 }
 
 /** Resultado de crear un checkout: enlace al que redirigir y referencia externa para conciliar. */
