@@ -35,14 +35,17 @@ Acciones para dejar main limpio: `pnpm db:generate` + rebuild de `packages/**` +
 | Dashboard                                              | 🟢          | 0                                                            |
 | Expedientes (lista + ficha + tabs)                     | 🟢          | 0                                                            |
 | Clientes (lista + alta + validación NIF)               | 🟢          | 0                                                            |
-| Documentos (subida)                                    | 🟢          | 0 (download no ejercido)                                     |
+| Documentos (subida + descarga + comparador)            | 🟢          | 0 — download y comparador v1/v2 verificados (Parte B)        |
 | Tareas                                                 | 🟢          | 0                                                            |
 | Facturas (lista + detalle + QR Verifactu)              | 🟢          | 0                                                            |
 | Facturación / Nueva factura (preview en vivo + emitir) | 🟢          | 0                                                            |
-| Agenda / Calendario                                    | 🟢          | 0 (crear evento no ejercido)                                 |
+| Cronómetro → Costes (facturable)                       | 🟢          | 0 — iniciar/parar/guardar verificado (Parte B)               |
+| Agenda / Calendario                                    | 🟡          | sin alta de eventos (solo plazos, read-only)                 |
 | Mensajes                                               | 🟢          | 0                                                            |
-| Notificaciones                                         | 🟢          | estado vacío correcto                                        |
-| Ajustes                                                | 🟢          | render OK (guardado no ejercido)                             |
+| Notificaciones                                         | 🟢          | marcar leída verificado · nit i18n (enum sin traducir)       |
+| Ajustes (guardar · serie · festivos · invitar)         | 🟢          | 0 — persistencia verificada (Parte B)                        |
+| RGPD (export + anonimizar)                             | 🟡          | backend OK vía API · **sin UI/botón**                        |
+| Onboarding (wizard 5 pasos)                            | 🟢          | 0 — crea tenant nuevo (Parte B)                              |
 | Aprobaciones / Auditoría                               | 🟢          | 0                                                            |
 | Command bar (Ctrl/⌘K)                                  | 🟢          | 0                                                            |
 | Dark / Light                                           | 🟢          | 0                                                            |
@@ -195,18 +198,50 @@ El E2E valida **el cableado y la lógica** (API, RLS, cifrado, matemática fisca
 - **Validación de NIF** mostrada inline en el formulario.
 - **Command bar, dark/light, responsive/hamburguesa, anti-enumeración visible, logout** — todo ello sin cobertura E2E previa.
 
-### Huecos de cobertura (recomendado automatizar/probar después)
+### Huecos de cobertura → cerrados en la **Parte B** (ver sección siguiente)
 
-Descarga de documento desde UI · comparar versiones · guardar cronómetro de tiempo · crear evento de calendario · guardar Ajustes / invitar usuario / festivos / serie fiscal desde UI · RGPD export/anonimizar desde UI · marcar notificación como leída · onboarding multi-paso (el owner ya está onboarded → redirige a dashboard).
+La primera pasada dejó 8 flujos sin pulsar. La Parte B los ejercitó de verdad (creando los datos que faltaban por la propia UI). Resultado: **6 🟢 y 2 🟡 (gaps de UI)**. Detalle abajo.
+
+---
+
+## Segunda pasada — Parte B (flujos ejercitados de verdad)
+
+> Ejecutado contra la web en **producción** (`next build` + `next start`) tras el fix del toggle/Tailwind. Los datos que faltaban se crearon **por la UI** (salvo RGPD, que no tiene UI — ver abajo). Capturas `bdocs-*`, `btimer-*`, `bset-*`, `bnotif-*`, `bonb-*`.
+
+| #   | Flujo                             | Estado | Resultado                                                                                                                                                                                                                                                                                                                                                                                       |
+| --- | --------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Descargar documento** (UI)      | 🟢     | Descarga autenticada OK (`qa-upload-sample.txt-v1`, 38 B). El blob baja con bearer token.                                                                                                                                                                                                                                                                                                       |
+| 2   | **Comparar versiones**            | 🟢     | Subí v2 (81 B) por "Nueva versión"; el detalle del documento muestra **comparador lado a lado "Comparando v1 → v2"** con selector de versiones y descarga por versión. (La 1ª pasada dudaba que existiera: **existe y funciona**.)                                                                                                                                                              |
+| 3   | **Cronómetro** (load-bearing)     | 🟢     | Iniciar → contar → parar → **Fichar 1 min** → guarda sin error. Aparece en **Costes** como `Honorarios (tiempo)` **facturable** ("Honorarios (0.02 h): QA cronometro prueba −2,00 €"); alimenta el ledger y es facturable vía "Nueva factura".                                                                                                                                                  |
+| 4   | **Agenda — crear evento**         | 🟡     | **No existe creación de eventos.** La Agenda es una vista **read-only de plazos procesales** (cómputo por jurisdicción con festivos). Gap respecto al checklist.                                                                                                                                                                                                                                |
+| 5   | **Ajustes**                       | 🟢     | Guardar datos del despacho + **serie fiscal** (cambié nombre `Lexora Demo`→`+QA` y serie `FAC`→`QAX`, **persisten tras recargar**, luego revertí) · **añadir festivo** (Navidad QA 25-dic) · **invitar usuario** (QA Lawyer, rol LAWYER). Todo sin error.                                                                                                                                       |
+| 6   | **RGPD** (export + anonimizar)    | 🟡     | **No hay botón/UI en la web** (grep exhaustivo: 0 resultados). El **backend funciona de extremo a extremo** (verificado vía API en cliente desechable): `gdpr-export` devuelve la PII; `anonymize` → `name="[Titular anonimizado]"`, `email=null`, `taxId="ANON-…"`, y **`preserved: {matters:1, invoices:1}`** (expediente y factura conservados). Capacidad sólida, **sin superficie de UI**. |
+| 7   | **Notificaciones — marcar leída** | 🟢     | Generé una notificación real (el letrado QA revisó/aprobó un documento del owner): apareció **en tiempo real** ("Documento 'qa-upload-sample.txt' — APPROVED ahora") y **"Marcar todas como leídas"** la limpió. _(Nit 🟡 i18n: el título muestra el enum crudo `APPROVED` en vez de "Aprobado".)_                                                                                              |
+| 8   | **Onboarding**                    | 🟢     | Wizard de **5 pasos** completo (despacho → jurisdicción ES → moneda EUR → ID fiscal → cuenta admin) → "Crear despacho" sin error → **aterriza en el dashboard** del tenant nuevo.                                                                                                                                                                                                               |
+
+### Nuevos hallazgos de la Parte B
+
+- **🟡 Agenda sin creación de eventos.** Es un calendario de plazos procesales, no un gestor de eventos. Si el piloto promete "agenda/calendario" general, falta el alta de eventos.
+- **🟡 RGPD sin UI.** El despacho no puede ejercer export/anonimización desde la app (solo por API). Para un piloto con datos reales y obligaciones RGPD/Ley 172-13, conviene exponer el botón (el backend ya está, con su test e2e).
+- **🟡 (menor) i18n en notificaciones:** el título incrusta el enum de estado (`APPROVED`) sin traducir.
+
+### Datos de prueba creados (quedan en la demo — anotados para que no sorprendan)
+
+- **Tenant nuevo** "Despacho QA &lt;timestamp&gt;" + admin `qa.onboard.<ts>@lexora.test` (onboarding).
+- **Usuario staff** "QA Lawyer" `qa.lawyer@lexora.test` (rol LAWYER) en el tenant demo.
+- **Cliente anonimizado** "[Titular anonimizado]" (era "RGPD Test QA") + su expediente "Asunto RGPD QA" + 1 factura, en el tenant demo.
+- **Festivo** "Navidad QA" (2026-12-25) en Ajustes del tenant demo.
+- En **EXP-2026-0008**: doc `qa-upload-sample.txt` (v1+v2, v2 aprobada), entrada de tiempo "QA cronometro prueba", y factura **FAC-2026-0009** (de la 1ª pasada).
+- El nombre del despacho y la serie fiscal se cambiaron y **se revirtieron** (sin residuo).
 
 ---
 
 ## Recomendaciones priorizadas
 
-1. **(DX, antes de seguir desarrollando)** Arreglar `tailwind.config.ts:72` para que `next dev` no se caiga en main (`import` en vez de `require`). No afecta al piloto (prod va bien) pero rompe el bucle de desarrollo local.
-2. **(Pulido visible en el piloto)** Cambiar el toggle de tema del login a `type="button"` para que no envíe el formulario.
-3. **(A11y)** Añadir `DialogTitle` (o `VisuallyHidden`) a los diálogos para lectores de pantalla.
-4. **(Robustez)** Manejar `/portal/matters` (índice) — redirigir a `/portal` en vez de 404 — y silenciar el `401 /api/auth/refresh` en páginas públicas.
-5. **(Cobertura)** Subir un par de smoke E2E de UI para los flujos no cubiertos visualmente: descarga de documento, guardar tiempo, y emitir factura desde la UI (ya verificados manualmente aquí, conviene blindarlos).
+1. ✅ **HECHO (PR #38)** — `tailwind.config.ts` ESM, toggle de login `type="button"`, `DialogTitle` en command bar, índice `/portal/matters`. El ruido `401 /api/auth/refresh` queda **pendiente del OK** (PR aparte, lógica de auth).
+2. **(Producto — decidir antes del piloto)** **RGPD sin UI.** Exponer botones de export/anonimización (el backend ya está). Crítico si el piloto se vende con cumplimiento RGPD/Ley 172-13 operable por el despacho.
+3. **(Producto — alinear expectativas)** **Agenda sin alta de eventos.** O se añade creación de eventos, o se comunica que la Agenda es "calendario de plazos procesales" (no agenda general).
+4. **(Pulido)** Traducir el estado en el título de las notificaciones (`APPROVED` → "Aprobado").
+5. **(Cobertura)** Blindar con smoke E2E de UI los flujos ya verificados a mano: descarga/comparador de documentos, cronómetro→Costes, emitir factura, onboarding.
 
-**Para enseñar a despachos:** ✅ adelante. Ningún 🔴. Los caminos críticos (emitir factura con QR Verifactu, subir documento, aislamiento staff/cliente) funcionan. Lo pendiente es pulido (1–4) y endurecer cobertura (5).
+**Para enseñar a despachos:** ✅ adelante. **Ningún 🔴 en Parte A ni Parte B.** Todos los caminos críticos funcionan (emitir factura + QR Verifactu, subir/descargar/comparar documentos, cronómetro facturable, aislamiento staff/cliente, onboarding). Las 2 decisiones de producto a tomar son **RGPD sin UI** y **Agenda sin eventos**: no rompen nada, pero son funciones del checklist que hoy no tienen botón. El resto es pulido.
