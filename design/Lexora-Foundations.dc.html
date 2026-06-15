@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Geist',-apple-system,system-ui,sans-serif;background:var(--bg);color:var(--fg);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  ::selection{background:var(--primary-soft)}
+  .lxf ::-webkit-scrollbar{width:10px;height:10px}
+  .lxf ::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:8px}
+  .lxf ::-webkit-scrollbar-track{background:transparent}
+  :root{
+    --bg:oklch(0.165 0.008 264);--fg:oklch(0.97 0.004 264);
+    --card:oklch(0.198 0.009 264);--card-2:oklch(0.224 0.01 264);--elevated:oklch(0.246 0.011 264);
+    --muted-fg:oklch(0.745 0.012 264);--subtle:oklch(0.57 0.012 264);
+    --border:oklch(1 0 0 / 0.09);--border-2:oklch(1 0 0 / 0.14);
+    --primary:oklch(0.645 0.16 264);--primary-2:oklch(0.72 0.14 285);--primary-fg:oklch(0.99 0 0);
+    --primary-soft:oklch(0.645 0.16 264 / 0.16);--primary-line:oklch(0.645 0.16 264 / 0.45);
+    --success:oklch(0.74 0.14 162);--success-soft:oklch(0.74 0.14 162 / 0.15);
+    --warning:oklch(0.81 0.14 78);--warning-soft:oklch(0.81 0.14 78 / 0.15);
+    --info:oklch(0.71 0.13 244);--info-soft:oklch(0.71 0.13 244 / 0.15);
+    --violet:oklch(0.72 0.15 305);--violet-soft:oklch(0.72 0.15 305 / 0.15);
+    --danger:oklch(0.68 0.19 22);--danger-soft:oklch(0.68 0.19 22 / 0.15);
+    --muted-soft:oklch(1 0 0 / 0.06);
+    --shadow-sm:0 1px 2px oklch(0 0 0 / 0.5);--shadow-md:0 12px 34px oklch(0 0 0 / 0.5);--shadow-lg:0 30px 70px oklch(0 0 0 / 0.6);
+    --code-bg:oklch(0.145 0.008 264);
+    color-scheme:dark;
+  }
+  .lxf[data-theme="light"]{
+    --bg:oklch(0.986 0.003 264);--fg:oklch(0.25 0.013 264);
+    --card:oklch(1 0 0);--card-2:oklch(0.976 0.004 264);--elevated:oklch(1 0 0);
+    --muted-fg:oklch(0.47 0.013 264);--subtle:oklch(0.62 0.013 264);
+    --border:oklch(0.25 0.03 264 / 0.1);--border-2:oklch(0.25 0.03 264 / 0.16);
+    --primary:oklch(0.52 0.2 264);--primary-2:oklch(0.55 0.18 285);
+    --primary-soft:oklch(0.52 0.2 264 / 0.1);--primary-line:oklch(0.52 0.2 264 / 0.3);
+    --success:oklch(0.56 0.13 162);--success-soft:oklch(0.56 0.13 162 / 0.12);
+    --warning:oklch(0.66 0.13 70);--warning-soft:oklch(0.66 0.13 70 / 0.13);
+    --info:oklch(0.55 0.15 250);--info-soft:oklch(0.55 0.15 250 / 0.11);
+    --violet:oklch(0.55 0.17 305);--violet-soft:oklch(0.55 0.17 305 / 0.11);
+    --danger:oklch(0.57 0.19 24);--danger-soft:oklch(0.57 0.19 24 / 0.11);
+    --muted-soft:oklch(0.25 0.02 264 / 0.05);
+    --shadow-sm:0 1px 2px oklch(0.2 0.02 264 / 0.08);--shadow-md:0 12px 32px oklch(0.2 0.02 264 / 0.1);--shadow-lg:0 28px 64px oklch(0.2 0.02 264 / 0.16);
+    --code-bg:oklch(0.97 0.004 264);
+    color-scheme:light;
+  }
+  @keyframes lxfade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  @keyframes lxpop{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+  @keyframes lxspin{to{transform:rotate(360deg)}}
+  @keyframes lxblink{0%,100%{opacity:1}50%{opacity:.25}}
+  @keyframes lxmoveOut{0%{left:2px}100%{left:calc(100% - 22px)}}
+  @keyframes lxmoveInOut{0%{left:2px}100%{left:calc(100% - 22px)}}
+  @keyframes lxmoveSpring{0%{left:2px}100%{left:calc(100% - 22px)}}
+</style>
+</helmet>
+<div class="lxf" data-theme="{{ theme }}" style="min-height:100vh;width:100%;background:var(--bg);color:var(--fg);position:relative">
+  <div style="position:fixed;inset:0;pointer-events:none;background:radial-gradient(900px 540px at 8% -6%, var(--primary-soft), transparent 60%), radial-gradient(760px 520px at 100% 0%, oklch(0.72 0.14 305 / 0.08), transparent 55%);z-index:0"></div>
+
+  <!-- TOPBAR -->
+  <header style="position:sticky;top:0;z-index:20;height:60px;display:flex;align-items:center;gap:14px;padding:0 26px;border-bottom:1px solid var(--border);background:color-mix(in oklab,var(--bg) 80%, transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)">
+    <div style="display:flex;align-items:center;gap:11px">
+      <div style="width:30px;height:30px;border-radius:9px;background:linear-gradient(140deg,var(--primary),var(--primary-2));display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px var(--primary-soft)"><div style="width:11px;height:11px;border:2px solid white;border-radius:3px;transform:rotate(45deg)"></div></div>
+      <div><div style="font-size:15px;font-weight:600;letter-spacing:-0.02em;line-height:1.05">Lexora</div><div style="font-size:10.5px;color:var(--subtle);letter-spacing:0.02em">Foundations · v1.0</div></div>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+      <span style="font-size:11.5px;color:var(--subtle);padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:var(--card)">Base · sin pantallas de producto</span>
+      <button onClick="{{ openCmdk }}" style="height:34px;padding:0 12px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--muted-fg);cursor:pointer;font-size:12.5px;font-weight:500;display:flex;align-items:center;gap:8px" style-hover="border-color:var(--primary-line)">⌘K<span style="color:var(--subtle)">·</span> probar command bar</button>
+      <button onClick="{{ toggleTheme }}" style="height:34px;padding:0 13px;border-radius:9px;border:1px solid var(--border);background:var(--card);color:var(--fg);cursor:pointer;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:7px" style-hover="border-color:var(--border-2)">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="3.2"/><path d="M8 1v1.6M8 13.4V15M15 8h-1.6M2.6 8H1M12.9 3.1l-1.1 1.1M4.2 11.8l-1.1 1.1M12.9 12.9l-1.1-1.1M4.2 4.2L3.1 3.1"/></svg>
+        {{ themeLabel }}
+      </button>
+    </div>
+  </header>
+
+  <div style="position:relative;z-index:1;max-width:1080px;margin:0 auto;padding:40px 26px 80px 26px">
+
+    <!-- INTRO -->
+    <div style="animation:lxfade .4s ease both">
+      <div style="font-size:11.5px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--primary)">Sistema de diseño</div>
+      <h1 style="font-size:38px;font-weight:600;letter-spacing:-0.03em;margin-top:10px;line-height:1.08">La base que heredará todo Lexora.</h1>
+      <p style="font-size:15.5px;color:var(--muted-fg);margin-top:14px;line-height:1.6;max-width:680px">Tokens en <strong style="color:var(--fg);font-weight:600">oklch</strong> con convención shadcn/ui (light <code style="font-family:'Geist Mono',monospace;font-size:13px;background:var(--muted-soft);padding:1px 6px;border-radius:5px">:root</code> · dark <code style="font-family:'Geist Mono',monospace;font-size:13px;background:var(--muted-soft);padding:1px 6px;border-radius:5px">.dark</code>), escalas de tipografía y espaciado, y los tres patrones del shell —navegación flotante, command bar (⌘K) y panel de IA con citas + confianza—. AI-native, bilingüe es-ES / es-DO, EUR / DOP.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px">
+        <span style="font-size:12px;font-weight:500;color:var(--muted-fg);padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card)">Premium</span>
+        <span style="font-size:12px;font-weight:500;color:var(--muted-fg);padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card)">Calmado</span>
+        <span style="font-size:12px;font-weight:500;color:var(--muted-fg);padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card)">Alta densidad</span>
+        <span style="font-size:12px;font-weight:500;color:var(--muted-fg);padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card)">Rápido</span>
+        <span style="font-size:12px;font-weight:500;color:var(--primary);padding:6px 12px;border-radius:8px;border:1px solid var(--primary-line);background:var(--primary-soft)">AI-native</span>
+      </div>
+    </div>
+
+    <!-- ============ COLOR ============ -->
+    <div style="margin-top:56px">
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:24px">
+        <span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--subtle)">01</span>
+        <h2 style="font-size:22px;font-weight:600;letter-spacing:-0.02em">Color</h2>
+        <span style="font-size:13px;color:var(--subtle);margin-left:auto">oklch · light + dark · cada fila muestra ambos temas</span>
+      </div>
+
+      <sc-for list="{{ colorGroups }}" as="g" hint-placeholder-count="5">
+        <div style="margin-bottom:26px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px">{{ g.label }}</div>
+          <div style="font-size:12px;color:var(--subtle);margin-bottom:12px">{{ g.note }}</div>
+          <div style="border:1px solid var(--border);border-radius:13px;overflow:hidden;background:var(--card)">
+            <div style="display:grid;grid-template-columns:1.1fr 1.3fr 60px 1fr 60px 1fr;gap:12px;padding:9px 16px;border-bottom:1px solid var(--border);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--subtle)">
+              <span>Token</span><span>Variable CSS</span><span>Light</span><span></span><span>Dark</span><span></span>
+            </div>
+            <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="4">
+              <div style="display:grid;grid-template-columns:1.1fr 1.3fr 60px 1fr 60px 1fr;gap:12px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--border)">
+                <span style="font-size:12.5px;font-weight:500">{{ r.name }}</span>
+                <span style="font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">{{ r.var }}</span>
+                <span style="width:52px;height:30px;border-radius:8px;border:1px solid var(--border-2);background:{{ r.light }}"></span>
+                <span style="font-size:10.5px;font-family:'Geist Mono',monospace;color:var(--subtle);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.lightVal }}</span>
+                <span style="width:52px;height:30px;border-radius:8px;border:1px solid var(--border-2);background:{{ r.dark }}"></span>
+                <span style="font-size:10.5px;font-family:'Geist Mono',monospace;color:var(--subtle);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.darkVal }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+
+      <!-- globals.css block -->
+      <div style="margin-top:8px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px">Listo para <code style="font-family:'Geist Mono',monospace;font-size:12.5px;background:var(--muted-soft);padding:1px 6px;border-radius:5px">globals.css</code></div>
+        <div style="font-size:12px;color:var(--subtle);margin-bottom:12px">El fichero completo está en el proyecto (<code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">globals.css</code>) — incluye superficies, estado, espaciado, radius, sombras, tipografía y motion. Núcleo shadcn:</div>
+        <pre style="margin:0;padding:18px 20px;border-radius:13px;background:var(--code-bg);border:1px solid var(--border);overflow-x:auto;font-family:'Geist Mono',monospace;font-size:12px;line-height:1.7;color:var(--fg)"><span style="color:var(--subtle)">/* light */</span>
+<span style="color:var(--violet)">:root</span> {
+  <span style="color:var(--primary)">--background</span>: oklch(0.986 0.003 264);
+  <span style="color:var(--primary)">--foreground</span>: oklch(0.250 0.013 264);
+  <span style="color:var(--primary)">--card</span>: oklch(1 0 0);
+  <span style="color:var(--primary)">--primary</span>: oklch(0.520 0.200 264);
+  <span style="color:var(--primary)">--primary-foreground</span>: oklch(0.990 0 0);
+  <span style="color:var(--primary)">--muted-foreground</span>: oklch(0.470 0.013 264);
+  <span style="color:var(--primary)">--border</span>: oklch(0.250 0.030 264 / 0.10);
+  <span style="color:var(--primary)">--ring</span>: oklch(0.520 0.200 264);
+  <span style="color:var(--primary)">--radius</span>: 0.8rem;
+  <span style="color:var(--subtle)">/* + surface-1..3, success/warning/info/violet/danger, charts, motion */</span>
+}
+<span style="color:var(--subtle)">/* dark */</span>
+<span style="color:var(--violet)">.dark</span> {
+  <span style="color:var(--primary)">--background</span>: oklch(0.165 0.008 264);
+  <span style="color:var(--primary)">--foreground</span>: oklch(0.970 0.004 264);
+  <span style="color:var(--primary)">--card</span>: oklch(0.198 0.009 264);
+  <span style="color:var(--primary)">--primary</span>: oklch(0.645 0.160 264);
+  <span style="color:var(--primary)">--muted-foreground</span>: oklch(0.745 0.012 264);
+  <span style="color:var(--primary)">--border</span>: oklch(1 0 0 / 0.09);
+  <span style="color:var(--primary)">--ring</span>: oklch(0.645 0.160 264);
+}</pre>
+      </div>
+    </div>
+
+    <!-- ============ TYPOGRAPHY ============ -->
+    <div style="margin-top:56px">
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:24px">
+        <span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--subtle)">02</span>
+        <h2 style="font-size:22px;font-weight:600;letter-spacing:-0.02em">Tipografía</h2>
+        <span style="font-size:13px;color:var(--subtle);margin-left:auto">Geist · Geist Mono · numerales tabulares para dinero y fechas</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px">
+        <div style="padding:18px;border:1px solid var(--border);border-radius:13px;background:var(--card)"><div style="font-size:11px;color:var(--subtle);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Sans · UI + display</div><div style="font-size:30px;font-weight:600;letter-spacing:-0.025em">Geist</div><div style="font-size:12.5px;color:var(--muted-fg);margin-top:4px">300 · 400 · 500 · 600 · 700</div></div>
+        <div style="padding:18px;border:1px solid var(--border);border-radius:13px;background:var(--card)"><div style="font-size:11px;color:var(--subtle);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">Mono · cifras, IDs, código</div><div style="font-size:30px;font-weight:500;font-family:'Geist Mono',monospace;letter-spacing:-0.01em">Geist Mono</div><div style="font-size:12.5px;color:var(--muted-fg);margin-top:4px;font-family:'Geist Mono',monospace">EXP-2026-0042 · B-86742159</div></div>
+      </div>
+
+      <div style="border:1px solid var(--border);border-radius:13px;overflow:hidden;background:var(--card)">
+        <div style="display:grid;grid-template-columns:140px 110px 1fr;gap:12px;padding:9px 18px;border-bottom:1px solid var(--border);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--subtle)"><span>Token</span><span>Tamaño</span><span>Specimen</span></div>
+        <div style="display:grid;grid-template-columns:140px 110px 1fr;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--primary)">--text-display</span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">44 / 700</span><span style="font-size:44px;font-weight:600;letter-spacing:-0.03em;line-height:1.05">Despachos modernos</span></div>
+        <div style="display:grid;grid-template-columns:140px 110px 1fr;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--primary)">--text-3xl</span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">34 / 600</span><span style="font-size:34px;font-weight:600;letter-spacing:-0.025em">Título de página</span></div>
+        <div style="display:grid;grid-template-columns:140px 110px 1fr;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--primary)">--text-2xl</span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">26 / 600</span><span style="font-size:26px;font-weight:600;letter-spacing:-0.02em">Sección</span></div>
+        <div style="display:grid;grid-template-columns:140px 110px 1fr;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--primary)">--text-xl</span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">21 / 600</span><span style="font-size:21px;font-weight:600;letter-spacing:-0.015em">Encabezado de tarjeta</span></div>
+        <div style="display:grid;grid-template-columns:140px 110px 1fr;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--primary)">--text-base</span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">14 / 400</span><span style="font-size:14px;color:var(--muted-fg);line-height:1.55">Texto base de interfaz — la densidad de Linear/Attio parte de 14px con interlineado 1.55.</span></div>
+        <div style="display:grid;grid-template-columns:140px 110px 1fr;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--primary)">--text-sm</span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">13 / 500</span><span style="font-size:13px;color:var(--muted-fg)">Etiquetas, metadatos, columnas de tabla</span></div>
+        <div style="display:grid;grid-template-columns:140px 110px 1fr;gap:12px;align-items:center;padding:14px 18px"><span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--primary)">--text-xs</span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">12 / 600</span><span style="font-size:12px;color:var(--subtle);text-transform:uppercase;letter-spacing:0.05em;font-weight:600">Eyebrow · overline</span></div>
+      </div>
+
+      <!-- tabular demo -->
+      <div style="margin-top:16px;border:1px solid var(--border);border-radius:13px;background:var(--card);padding:18px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:3px">Numerales tabulares — dinero y fechas</div>
+        <div style="font-size:12px;color:var(--subtle);margin-bottom:14px"><code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">font-variant-numeric: tabular-nums</code> · alineación perfecta de cifras por columna</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
+          <div>
+            <div style="font-size:11px;color:var(--subtle);margin-bottom:8px">EUR · es-ES</div>
+            <div style="display:flex;flex-direction:column;gap:7px;font-variant-numeric:tabular-nums;font-size:14px;font-weight:500">
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted-fg)">Base imponible</span><span>2.400,00 €</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted-fg)">IVA 21%</span><span style="color:var(--success)">+ 504,00 €</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted-fg)">IRPF 15%</span><span style="color:var(--danger)">− 360,00 €</span></div>
+              <div style="display:flex;justify-content:space-between;font-weight:600;padding-top:7px;border-top:1px solid var(--border)"><span>Total</span><span>2.544,00 €</span></div>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--subtle);margin-bottom:8px">DOP · es-DO</div>
+            <div style="display:flex;flex-direction:column;gap:7px;font-variant-numeric:tabular-nums;font-size:14px;font-weight:500">
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted-fg)">Base imponible</span><span>RD$ 140.000,00</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted-fg)">ITBIS 18%</span><span style="color:var(--success)">+ RD$ 25.200,00</span></div>
+              <div style="display:flex;justify-content:space-between"><span style="color:var(--muted-fg)">Vencimiento</span><span style="font-family:'Geist Mono',monospace">16/06/2026</span></div>
+              <div style="display:flex;justify-content:space-between;font-weight:600;padding-top:7px;border-top:1px solid var(--border)"><span>Total</span><span>RD$ 165.200,00</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ SPACING / RADIUS / ELEVATION ============ -->
+    <div style="margin-top:56px">
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:24px">
+        <span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--subtle)">03</span>
+        <h2 style="font-size:22px;font-weight:600;letter-spacing:-0.02em">Espaciado · Radius · Elevación</h2>
+        <span style="font-size:13px;color:var(--subtle);margin-left:auto">rejilla base de 4px</span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:16px">
+        <!-- spacing -->
+        <div style="padding:18px;border:1px solid var(--border);border-radius:13px;background:var(--card)">
+          <div style="font-size:13px;font-weight:600;margin-bottom:14px">Espaciado</div>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:14px"><span style="width:60px;font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">space-1</span><span style="height:14px;width:4px;background:var(--primary);border-radius:2px"></span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">4px</span></div>
+            <div style="display:flex;align-items:center;gap:14px"><span style="width:60px;font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">space-2</span><span style="height:14px;width:8px;background:var(--primary);border-radius:2px"></span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">8px</span></div>
+            <div style="display:flex;align-items:center;gap:14px"><span style="width:60px;font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">space-3</span><span style="height:14px;width:12px;background:var(--primary);border-radius:2px"></span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">12px</span></div>
+            <div style="display:flex;align-items:center;gap:14px"><span style="width:60px;font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">space-4</span><span style="height:14px;width:16px;background:var(--primary);border-radius:2px"></span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">16px</span></div>
+            <div style="display:flex;align-items:center;gap:14px"><span style="width:60px;font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">space-6</span><span style="height:14px;width:24px;background:var(--primary);border-radius:2px"></span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">24px</span></div>
+            <div style="display:flex;align-items:center;gap:14px"><span style="width:60px;font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">space-8</span><span style="height:14px;width:32px;background:var(--primary);border-radius:2px"></span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">32px</span></div>
+            <div style="display:flex;align-items:center;gap:14px"><span style="width:60px;font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">space-12</span><span style="height:14px;width:48px;background:var(--primary);border-radius:2px"></span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">48px</span></div>
+            <div style="display:flex;align-items:center;gap:14px"><span style="width:60px;font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">space-16</span><span style="height:14px;width:64px;background:var(--primary);border-radius:2px"></span><span style="font-size:11.5px;color:var(--subtle);font-family:'Geist Mono',monospace">64px</span></div>
+          </div>
+        </div>
+
+        <!-- radius -->
+        <div style="padding:18px;border:1px solid var(--border);border-radius:13px;background:var(--card)">
+          <div style="font-size:13px;font-weight:600;margin-bottom:14px">Radius</div>
+          <div style="display:flex;gap:14px;flex-wrap:wrap">
+            <div style="text-align:center"><div style="width:58px;height:58px;border-radius:5px;background:var(--primary-soft);border:1.5px solid var(--primary-line)"></div><div style="font-size:10.5px;color:var(--subtle);margin-top:6px;font-family:'Geist Mono',monospace">sm · 8</div></div>
+            <div style="text-align:center"><div style="width:58px;height:58px;border-radius:11px;background:var(--primary-soft);border:1.5px solid var(--primary-line)"></div><div style="font-size:10.5px;color:var(--subtle);margin-top:6px;font-family:'Geist Mono',monospace">md · 11</div></div>
+            <div style="text-align:center"><div style="width:58px;height:58px;border-radius:13px;background:var(--primary-soft);border:1.5px solid var(--primary-line)"></div><div style="font-size:10.5px;color:var(--subtle);margin-top:6px;font-family:'Geist Mono',monospace">lg · 13</div></div>
+            <div style="text-align:center"><div style="width:58px;height:58px;border-radius:19px;background:var(--primary-soft);border:1.5px solid var(--primary-line)"></div><div style="font-size:10.5px;color:var(--subtle);margin-top:6px;font-family:'Geist Mono',monospace">xl · 19</div></div>
+            <div style="text-align:center"><div style="width:58px;height:58px;border-radius:50%;background:var(--primary-soft);border:1.5px solid var(--primary-line)"></div><div style="font-size:10.5px;color:var(--subtle);margin-top:6px;font-family:'Geist Mono',monospace">full</div></div>
+          </div>
+          <div style="font-size:13px;font-weight:600;margin:20px 0 14px">Elevación</div>
+          <div style="display:flex;gap:16px">
+            <div style="text-align:center"><div style="width:64px;height:44px;border-radius:10px;background:var(--elevated);box-shadow:var(--shadow-sm);border:1px solid var(--border)"></div><div style="font-size:10.5px;color:var(--subtle);margin-top:7px;font-family:'Geist Mono',monospace">sm</div></div>
+            <div style="text-align:center"><div style="width:64px;height:44px;border-radius:10px;background:var(--elevated);box-shadow:var(--shadow-md);border:1px solid var(--border)"></div><div style="font-size:10.5px;color:var(--subtle);margin-top:7px;font-family:'Geist Mono',monospace">md</div></div>
+            <div style="text-align:center"><div style="width:64px;height:44px;border-radius:10px;background:var(--elevated);box-shadow:var(--shadow-lg);border:1px solid var(--border)"></div><div style="font-size:10.5px;color:var(--subtle);margin-top:7px;font-family:'Geist Mono',monospace">lg</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ APP SHELL ============ -->
+    <div style="margin-top:56px">
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:24px">
+        <span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--subtle)">04</span>
+        <h2 style="font-size:22px;font-weight:600;letter-spacing:-0.02em">App shell</h2>
+        <span style="font-size:13px;color:var(--subtle);margin-left:auto">navegación flotante · command bar ⌘K · panel de IA</span>
+      </div>
+
+      <!-- floating nav anatomy -->
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">Navegación flotante</div>
+      <div style="font-size:12.5px;color:var(--subtle);margin-bottom:14px;line-height:1.55;max-width:720px">Rail de 236px sobre superficie translúcida (<code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">backdrop-filter: blur(18px)</code>), borde de 1px y firma del despacho arriba. El ítem activo lleva una barra de acento de 3px y fondo <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">--primary-soft</code>; el resto en <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">--muted-foreground</code>.</div>
+      <div style="display:flex;gap:16px;border:1px solid var(--border);border-radius:14px;background:var(--card-2);padding:16px;margin-bottom:26px">
+        <div style="width:210px;flex-shrink:0;border-radius:12px;border:1px solid var(--border);background:color-mix(in oklab,var(--card) 70%, transparent);backdrop-filter:blur(8px);padding:12px;box-shadow:var(--shadow-sm)">
+          <div style="display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:9px;border:1px solid var(--border);margin-bottom:10px"><div style="width:22px;height:22px;border-radius:7px;background:var(--card-2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;color:var(--muted-fg);font-family:'Geist Mono',monospace">BA</div><div style="font-size:12px;font-weight:600">Bufete Aurora</div></div>
+          <div style="position:relative;display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;background:var(--primary-soft);font-size:12.5px;font-weight:600"><span style="position:absolute;left:-12px;top:50%;transform:translateY(-50%);width:3px;height:15px;border-radius:3px;background:var(--primary)"></span><span style="width:13px;height:13px;border-radius:3px;border:1.5px solid currentColor"></span>Panel</div>
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;color:var(--muted-fg);font-size:12.5px"><span style="width:13px;height:13px;border-radius:3px;border:1.5px solid currentColor"></span>Expedientes<span style="margin-left:auto;font-size:10px;font-family:'Geist Mono',monospace;color:var(--subtle);background:var(--muted-soft);padding:1px 5px;border-radius:5px">47</span></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:8px;color:var(--muted-fg);font-size:12.5px"><span style="width:13px;height:13px;border-radius:50%;border:1.5px solid currentColor"></span>Clientes</div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:10px;justify-content:center">
+          <div style="font-size:12px;color:var(--muted-fg);line-height:1.6"><strong style="color:var(--fg);font-weight:600">Anatomía:</strong> firma del despacho (clic → cambio de tenant) · grupos <span style="color:var(--subtle)">Espacio de trabajo / Finanzas / Comunicación</span> · ítems con icono lineal 16px y contador opcional · usuario + tema al pie.</div>
+          <div style="font-size:12px;color:var(--muted-fg);line-height:1.6"><strong style="color:var(--fg);font-weight:600">shadcn:</strong> <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">Sidebar</code> + <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">Button variant=&quot;ghost&quot;</code> · <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">Badge</code> · <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">Avatar</code>.</div>
+        </div>
+      </div>
+
+      <!-- command bar -->
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">Command bar (⌘K) — patrón central</div>
+      <div style="font-size:12.5px;color:var(--subtle);margin-bottom:14px;line-height:1.55;max-width:720px">Punto de entrada a TODA acción y navegación. Overlay <code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">--elevated</code> centrado, resultados agrupados (Navegación · Acciones · IA), atajos a la derecha. <button onClick="{{ openCmdk }}" style="color:var(--primary);background:none;border:none;cursor:pointer;font-weight:600;font-size:12.5px;padding:0">Pulsa ⌘K para abrirlo →</button></div>
+      <div style="border:1px solid var(--border-2);border-radius:14px;background:var(--elevated);box-shadow:var(--shadow-md);overflow:hidden;max-width:560px;margin-bottom:26px">
+        <div style="display:flex;align-items:center;gap:11px;padding:14px 16px;border-bottom:1px solid var(--border)"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--subtle)" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg><span style="flex:1;font-size:14px;color:var(--subtle)">Escribe un comando o busca…</span><span style="font-family:'Geist Mono',monospace;font-size:10.5px;border:1px solid var(--border-2);border-radius:6px;padding:2px 7px;color:var(--muted-fg)">esc</span></div>
+        <div style="padding:8px">
+          <div style="font-size:10px;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:0.05em;padding:7px 10px 4px">Navegación</div>
+          <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:9px;background:var(--primary-soft)"><span style="width:22px;height:22px;border-radius:7px;background:var(--card-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'Geist Mono',monospace;color:var(--muted-fg)">⊞</span><span style="flex:1;font-size:13px">Panel</span><span style="font-size:11px;color:var(--subtle);font-family:'Geist Mono',monospace">G D</span></div>
+          <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:9px"><span style="width:22px;height:22px;border-radius:7px;background:var(--card-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'Geist Mono',monospace;color:var(--muted-fg)">▤</span><span style="flex:1;font-size:13px;color:var(--muted-fg)">Expedientes</span><span style="font-size:11px;color:var(--subtle);font-family:'Geist Mono',monospace">G M</span></div>
+          <div style="font-size:10px;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:0.05em;padding:9px 10px 4px">Inteligencia artificial</div>
+          <div style="display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:9px"><span style="width:22px;height:22px;border-radius:7px;background:linear-gradient(140deg,var(--primary),var(--primary-2));display:flex;align-items:center;justify-content:center"><span style="width:6px;height:6px;border-radius:50%;background:white"></span></span><span style="flex:1;font-size:13px;color:var(--muted-fg)">Preguntar a la IA sobre el expediente actual</span></div>
+        </div>
+      </div>
+
+      <!-- AI assistant panel pattern -->
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px">Panel de IA — patrón reutilizable (citas + confianza)</div>
+      <div style="font-size:12.5px;color:var(--subtle);margin-bottom:14px;line-height:1.55;max-width:720px">No es un gadget: es superficie recurrente, contextual al expediente/cliente activo. <strong style="color:var(--fg);font-weight:600">Toda</strong> respuesta de IA muestra <strong style="color:var(--fg);font-weight:600">fuentes citadas</strong> (documento + localización, navegables) y una <strong style="color:var(--fg);font-weight:600">señal de confianza</strong> con color por umbral. Sin esto, ninguna salida de IA es válida.</div>
+      <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:16px">
+        <div style="border:1px solid var(--border);border-radius:14px;background:var(--card);overflow:hidden;box-shadow:var(--shadow-sm)">
+          <div style="padding:13px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px"><span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(140deg,var(--primary),var(--primary-2));display:flex;align-items:center;justify-content:center"><span style="width:6px;height:6px;border-radius:50%;background:white"></span></span><div><div style="font-size:12.5px;font-weight:600">Asistente Lexora</div><div style="font-size:10.5px;color:var(--subtle)">Contexto: EXP-2026-0042</div></div></div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+            <div style="align-self:flex-end;max-width:80%;padding:10px 12px;border-radius:13px;border-bottom-right-radius:4px;background:var(--primary);color:white;font-size:12.5px;line-height:1.5">Resume el estado y los próximos plazos.</div>
+            <div style="max-width:92%;padding:11px 13px;border-radius:13px;border-bottom-left-radius:4px;background:var(--card-2);border:1px solid var(--border);font-size:12.5px;line-height:1.5">El plazo de contestación vence el 16 de junio (2 días hábiles). Quedan 894,00 € pendientes de cobro.</div>
+            <div>
+              <div style="display:flex;align-items:center;gap:7px;margin-bottom:7px"><span style="font-size:10px;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:0.04em">Fuentes</span><span style="flex:1;height:1px;background:var(--border)"></span><span style="font-size:10.5px;font-weight:600;color:var(--success);display:flex;align-items:center;gap:4px"><span style="width:5px;height:5px;border-radius:50%;background:var(--success)"></span>Confianza 94%</span></div>
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:var(--card)"><span style="width:20px;height:20px;border-radius:6px;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:'Geist Mono',monospace">1</span><div style="flex:1;min-width:0"><div style="font-size:11.5px;font-weight:500">Demanda_inicial_v2.pdf</div><div style="font-size:10px;color:var(--subtle)">pág. 4 · fundamentos de derecho</div></div><span style="font-size:11px;color:var(--subtle)">↗</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="padding:15px;border:1px solid var(--border);border-radius:13px;background:var(--card)">
+            <div style="font-size:12px;font-weight:600;margin-bottom:11px">Señal de confianza</div>
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <div style="display:flex;align-items:center;gap:9px"><span style="font-size:11px;font-weight:600;color:var(--success);background:var(--success-soft);padding:3px 9px;border-radius:6px;display:flex;align-items:center;gap:5px"><span style="width:5px;height:5px;border-radius:50%;background:var(--success)"></span>Alta</span><span style="font-size:11.5px;color:var(--muted-fg)">≥ 85% · fuentes claras</span></div>
+              <div style="display:flex;align-items:center;gap:9px"><span style="font-size:11px;font-weight:600;color:var(--warning);background:var(--warning-soft);padding:3px 9px;border-radius:6px;display:flex;align-items:center;gap:5px"><span style="width:5px;height:5px;border-radius:50%;background:var(--warning)"></span>Media</span><span style="font-size:11.5px;color:var(--muted-fg)">60–84% · revisar</span></div>
+              <div style="display:flex;align-items:center;gap:9px"><span style="font-size:11px;font-weight:600;color:var(--danger);background:var(--danger-soft);padding:3px 9px;border-radius:6px;display:flex;align-items:center;gap:5px"><span style="width:5px;height:5px;border-radius:50%;background:var(--danger)"></span>Baja</span><span style="font-size:11.5px;color:var(--muted-fg)">&lt; 60% · no fiarse</span></div>
+            </div>
+          </div>
+          <div style="padding:15px;border:1px solid var(--border);border-radius:13px;background:var(--card);font-size:11.5px;color:var(--muted-fg);line-height:1.6"><strong style="color:var(--fg);font-weight:600">Reglas:</strong> cita siempre ≥1 fuente · si no hay fuente, se declara explícitamente · la confianza nunca se inventa · acciones de IA (redactar/resumir/revisar) abren este panel.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ MOTION ============ -->
+    <div style="margin-top:56px">
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:24px">
+        <span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--subtle)">05</span>
+        <h2 style="font-size:22px;font-weight:600;letter-spacing:-0.02em">Motion</h2>
+        <span style="font-size:13px;color:var(--subtle);margin-left:auto">Framer Motion · duraciones + easings</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px">
+        <div style="border:1px solid var(--border);border-radius:13px;background:var(--card);overflow:hidden">
+          <div style="display:grid;grid-template-columns:1fr 70px 1.3fr;gap:10px;padding:9px 16px;border-bottom:1px solid var(--border);font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--subtle)"><span>Token</span><span>Dur.</span><span>Uso</span></div>
+          <div style="display:grid;grid-template-columns:1fr 70px 1.3fr;gap:10px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--border)"><span style="font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">dur-fast</span><span style="font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--subtle)">140ms</span><span style="font-size:12px;color:var(--muted-fg)">hover · press · toggle</span></div>
+          <div style="display:grid;grid-template-columns:1fr 70px 1.3fr;gap:10px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--border)"><span style="font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">dur-base</span><span style="font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--subtle)">220ms</span><span style="font-size:12px;color:var(--muted-fg)">entradas · tabs · badges</span></div>
+          <div style="display:grid;grid-template-columns:1fr 70px 1.3fr;gap:10px;align-items:center;padding:11px 16px;border-bottom:1px solid var(--border)"><span style="font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">dur-slow</span><span style="font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--subtle)">320ms</span><span style="font-size:12px;color:var(--muted-fg)">overlays · paneles · ⌘K</span></div>
+          <div style="display:grid;grid-template-columns:1fr 70px 1.3fr;gap:10px;align-items:center;padding:11px 16px"><span style="font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--primary)">dur-slower</span><span style="font-size:11.5px;font-family:'Geist Mono',monospace;color:var(--subtle)">480ms</span><span style="font-size:12px;color:var(--muted-fg)">progreso · dibujo de charts</span></div>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:13px;background:var(--card);padding:16px">
+          <div style="font-size:12px;font-weight:600;margin-bottom:14px">Easings — observa la diferencia</div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div><div style="font-size:11px;color:var(--subtle);margin-bottom:6px;font-family:'Geist Mono',monospace">ease-out · (0.22, 0.8, 0.2, 1)</div><div style="position:relative;height:20px;background:var(--card-2);border-radius:10px"><span style="position:absolute;top:2px;width:16px;height:16px;border-radius:50%;background:var(--primary);animation:lxmoveOut 1.8s cubic-bezier(0.22,0.8,0.2,1) infinite alternate"></span></div></div>
+            <div><div style="font-size:11px;color:var(--subtle);margin-bottom:6px;font-family:'Geist Mono',monospace">ease-in-out · (0.65, 0, 0.35, 1)</div><div style="position:relative;height:20px;background:var(--card-2);border-radius:10px"><span style="position:absolute;top:2px;width:16px;height:16px;border-radius:50%;background:var(--info);animation:lxmoveInOut 1.8s cubic-bezier(0.65,0,0.35,1) infinite alternate"></span></div></div>
+            <div><div style="font-size:11px;color:var(--subtle);margin-bottom:6px;font-family:'Geist Mono',monospace">spring · (0.34, 1.4, 0.46, 1)</div><div style="position:relative;height:20px;background:var(--card-2);border-radius:10px"><span style="position:absolute;top:2px;width:16px;height:16px;border-radius:50%;background:var(--violet);animation:lxmoveSpring 1.8s cubic-bezier(0.34,1.4,0.46,1) infinite alternate"></span></div></div>
+          </div>
+        </div>
+      </div>
+      <pre style="margin:16px 0 0;padding:18px 20px;border-radius:13px;background:var(--code-bg);border:1px solid var(--border);overflow-x:auto;font-family:'Geist Mono',monospace;font-size:12px;line-height:1.7;color:var(--muted-fg)">{{ framerCode }}</pre>
+    </div>
+
+    <!-- ============ ACCESSIBILITY ============ -->
+    <div style="margin-top:56px">
+      <div style="display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:24px">
+        <span style="font-size:12px;font-family:'Geist Mono',monospace;color:var(--subtle)">06</span>
+        <h2 style="font-size:22px;font-weight:600;letter-spacing:-0.02em">Accesibilidad · AA</h2>
+        <span style="font-size:13px;color:var(--subtle);margin-left:auto">contraste · focus ring · teclado</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <!-- contrast -->
+        <div style="border:1px solid var(--border);border-radius:13px;background:var(--card);padding:18px">
+          <div style="font-size:13px;font-weight:600;margin-bottom:13px">Contraste (tema actual)</div>
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;background:var(--bg);border:1px solid var(--border)"><span style="font-size:13px;color:var(--fg);flex:1">Texto principal</span><span style="font-size:11px;font-weight:600;color:var(--success);background:var(--success-soft);padding:2px 8px;border-radius:6px;font-variant-numeric:tabular-nums">~15:1 · AAA</span></div>
+            <div style="display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;background:var(--bg);border:1px solid var(--border)"><span style="font-size:13px;color:var(--muted-fg);flex:1">Texto atenuado</span><span style="font-size:11px;font-weight:600;color:var(--success);background:var(--success-soft);padding:2px 8px;border-radius:6px;font-variant-numeric:tabular-nums">~5.4:1 · AA</span></div>
+            <div style="display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;background:var(--primary);border:1px solid var(--border)"><span style="font-size:13px;color:var(--primary-fg);flex:1;font-weight:500">Botón primario</span><span style="font-size:11px;font-weight:600;color:white;background:oklch(1 0 0 / 0.2);padding:2px 8px;border-radius:6px;font-variant-numeric:tabular-nums">≥ 4.5:1 · AA</span></div>
+            <div style="display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;background:var(--danger-soft);border:1px solid var(--border)"><span style="font-size:13px;color:var(--danger);flex:1;font-weight:500">Estado de error</span><span style="font-size:11px;font-weight:600;color:var(--danger);background:var(--card);padding:2px 8px;border-radius:6px">texto + icono</span></div>
+          </div>
+          <div style="font-size:11px;color:var(--subtle);margin-top:12px;line-height:1.5">El color nunca es el único portador de significado: estado siempre lleva texto o icono además del color.</div>
+        </div>
+        <!-- focus + keyboard -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div style="border:1px solid var(--border);border-radius:13px;background:var(--card);padding:18px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:6px">Focus ring</div>
+            <div style="font-size:11.5px;color:var(--subtle);margin-bottom:13px;line-height:1.5"><code style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 5px;border-radius:4px">box-shadow: 0 0 0 3px var(--ring)/45%</code> · usa <kbd style="font-family:'Geist Mono',monospace;background:var(--muted-soft);padding:1px 6px;border-radius:4px;border:1px solid var(--border-2)">Tab</kbd></div>
+            <div style="display:flex;gap:10px">
+              <button style="padding:8px 14px;border-radius:9px;border:1px solid var(--border-2);background:var(--card-2);color:var(--fg);font-size:12.5px;font-weight:600;cursor:pointer;outline:none" style-focus="box-shadow:0 0 0 3px var(--primary-line)">Enfócame</button>
+              <button style="padding:8px 14px;border-radius:9px;border:none;background:var(--primary);color:var(--primary-fg);font-size:12.5px;font-weight:600;cursor:pointer;outline:none" style-focus="box-shadow:0 0 0 3px var(--primary-line)">Y a mí</button>
+            </div>
+          </div>
+          <div style="border:1px solid var(--border);border-radius:13px;background:var(--card);padding:18px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:13px">Mapa de teclado</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="display:flex;align-items:center;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;border:1px solid var(--border-2);border-radius:6px;padding:2px 8px;color:var(--muted-fg)">⌘ K</span><span style="font-size:12px;color:var(--muted-fg)">Abrir command bar</span></div>
+              <div style="display:flex;align-items:center;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;border:1px solid var(--border-2);border-radius:6px;padding:2px 8px;color:var(--muted-fg)">G&nbsp;·&nbsp;D/M/C</span><span style="font-size:12px;color:var(--muted-fg)">Ir a Panel / Expedientes / Clientes</span></div>
+              <div style="display:flex;align-items:center;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;border:1px solid var(--border-2);border-radius:6px;padding:2px 8px;color:var(--muted-fg)">↑ ↓ ↵</span><span style="font-size:12px;color:var(--muted-fg)">Navegar y seleccionar resultados</span></div>
+              <div style="display:flex;align-items:center;gap:10px"><span style="font-family:'Geist Mono',monospace;font-size:11px;border:1px solid var(--border-2);border-radius:6px;padding:2px 8px;color:var(--muted-fg)">Esc</span><span style="font-size:12px;color:var(--muted-fg)">Cerrar overlay / panel</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:48px;padding-top:20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;font-size:12px;color:var(--subtle)">
+      <div style="width:20px;height:20px;border-radius:6px;background:linear-gradient(140deg,var(--primary),var(--primary-2));display:flex;align-items:center;justify-content:center"><div style="width:7px;height:7px;border:1.5px solid white;border-radius:2px;transform:rotate(45deg)"></div></div>
+      Lexora Foundations · esta base alimenta el shell y todas las pantallas de producto.
+    </div>
+  </div>
+
+  <!-- COMMAND PALETTE (live demo) -->
+  <sc-if value="{{ cmdkOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeCmdk }}" style="position:fixed;inset:0;z-index:60;background:oklch(0 0 0 / 0.5);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;align-items:flex-start;justify-content:center;padding-top:13vh">
+    <div onClick="{{ stop }}" style="width:580px;max-width:92vw;background:var(--elevated);border:1px solid var(--border-2);border-radius:16px;box-shadow:var(--shadow-lg);overflow:hidden;animation:lxpop .18s ease both">
+      <div style="display:flex;align-items:center;gap:11px;padding:15px 17px;border-bottom:1px solid var(--border)"><svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="var(--subtle)" stroke-width="1.6"><circle cx="7" cy="7" r="4.5"/><line x1="10.5" y1="10.5" x2="14" y2="14"/></svg><span style="flex:1;font-size:15px;color:var(--subtle)">Escribe un comando o busca…</span><span style="font-family:'Geist Mono',monospace;font-size:10.5px;border:1px solid var(--border-2);border-radius:6px;padding:2px 7px;color:var(--muted-fg)">esc</span></div>
+      <div style="padding:8px">
+        <div style="font-size:10.5px;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:0.05em;padding:8px 10px 5px">Navegación</div>
+        <div style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:9px;background:var(--primary-soft)"><span style="width:24px;height:24px;border-radius:7px;background:var(--card-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'Geist Mono',monospace;color:var(--muted-fg)">⊞</span><span style="flex:1;font-size:13px">Panel</span><span style="font-size:11px;color:var(--subtle);font-family:'Geist Mono',monospace">G D</span></div>
+        <div style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:9px"><span style="width:24px;height:24px;border-radius:7px;background:var(--card-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:11px;font-family:'Geist Mono',monospace;color:var(--muted-fg)">▤</span><span style="flex:1;font-size:13px;color:var(--muted-fg)">Expedientes</span><span style="font-size:11px;color:var(--subtle);font-family:'Geist Mono',monospace">G M</span></div>
+        <div style="font-size:10.5px;font-weight:600;color:var(--subtle);text-transform:uppercase;letter-spacing:0.05em;padding:11px 10px 5px">Inteligencia artificial</div>
+        <div style="display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:9px"><span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(140deg,var(--primary),var(--primary-2));display:flex;align-items:center;justify-content:center"><span style="width:6px;height:6px;border-radius:50%;background:white"></span></span><span style="flex:1;font-size:13px;color:var(--muted-fg)">Preguntar a la IA sobre el expediente actual</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;padding:9px 16px;border-top:1px solid var(--border);font-size:11px;color:var(--subtle)"><span>↑↓ navegar</span><span>↵ seleccionar</span><span style="margin-left:auto;display:flex;align-items:center;gap:5px"><span style="width:14px;height:14px;border-radius:4px;background:linear-gradient(140deg,var(--primary),var(--primary-2))"></span>Lexora AI</span></div>
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { theme:'dark', cmdkOpen:false };
+  componentDidMount(){
+    this._key=(e)=>{ const k=(e.key||'').toLowerCase(); if((e.metaKey||e.ctrlKey)&&k==='k'){ e.preventDefault(); this.setState(s=>({cmdkOpen:!s.cmdkOpen})); } else if(e.key==='Escape'){ this.setState({cmdkOpen:false}); } };
+    window.addEventListener('keydown', this._key);
+  }
+  componentWillUnmount(){ window.removeEventListener('keydown', this._key); }
+  renderVals(){
+    const colorGroups=[
+      { label:'Superficies — capas', note:'background → card/surface-1 → surface-2 → surface-3 → popover/elevated', rows:[
+        {name:'background', var:'--background', light:'oklch(0.986 0.003 264)', dark:'oklch(0.165 0.008 264)', lightVal:'0.986 0.003 264', darkVal:'0.165 0.008 264'},
+        {name:'card / surface-1', var:'--card', light:'oklch(1 0 0)', dark:'oklch(0.198 0.009 264)', lightVal:'1 0 0', darkVal:'0.198 0.009 264'},
+        {name:'surface-2', var:'--surface-2', light:'oklch(0.976 0.004 264)', dark:'oklch(0.224 0.01 264)', lightVal:'0.976 0.004 264', darkVal:'0.224 0.010 264'},
+        {name:'popover / elevated', var:'--popover', light:'oklch(1 0 0)', dark:'oklch(0.246 0.011 264)', lightVal:'1 0 0', darkVal:'0.246 0.011 264'}
+      ]},
+      { label:'Texto', note:'foreground → muted-foreground → text-subtle', rows:[
+        {name:'foreground', var:'--foreground', light:'oklch(0.25 0.013 264)', dark:'oklch(0.97 0.004 264)', lightVal:'0.250 0.013 264', darkVal:'0.970 0.004 264'},
+        {name:'muted-foreground', var:'--muted-foreground', light:'oklch(0.47 0.013 264)', dark:'oklch(0.745 0.012 264)', lightVal:'0.470 0.013 264', darkVal:'0.745 0.012 264'},
+        {name:'text-subtle', var:'--text-subtle', light:'oklch(0.62 0.013 264)', dark:'oklch(0.57 0.012 264)', lightVal:'0.620 0.013 264', darkVal:'0.570 0.012 264'}
+      ]},
+      { label:'Marca + IA', note:'primary es el índigo de marca · gradiente de IA = ai-from → ai-to', rows:[
+        {name:'primary', var:'--primary', light:'oklch(0.52 0.2 264)', dark:'oklch(0.645 0.16 264)', lightVal:'0.520 0.200 264', darkVal:'0.645 0.160 264'},
+        {name:'brand-2 / ai-to', var:'--brand-2', light:'oklch(0.55 0.18 285)', dark:'oklch(0.72 0.14 285)', lightVal:'0.550 0.180 285', darkVal:'0.720 0.140 285'},
+        {name:'ring', var:'--ring', light:'oklch(0.52 0.2 264)', dark:'oklch(0.645 0.16 264)', lightVal:'0.520 0.200 264', darkVal:'0.645 0.160 264'}
+      ]},
+      { label:'Estado / semántico', note:'success · warning · info · violet · danger (cada uno con variante -soft a ~14% alpha)', rows:[
+        {name:'success', var:'--success', light:'oklch(0.56 0.13 162)', dark:'oklch(0.74 0.14 162)', lightVal:'0.560 0.130 162', darkVal:'0.740 0.140 162'},
+        {name:'warning', var:'--warning', light:'oklch(0.66 0.13 70)', dark:'oklch(0.81 0.14 78)', lightVal:'0.660 0.130 70', darkVal:'0.810 0.140 78'},
+        {name:'info', var:'--info', light:'oklch(0.55 0.15 250)', dark:'oklch(0.71 0.13 244)', lightVal:'0.550 0.150 250', darkVal:'0.710 0.130 244'},
+        {name:'violet', var:'--violet', light:'oklch(0.55 0.17 305)', dark:'oklch(0.72 0.15 305)', lightVal:'0.550 0.170 305', darkVal:'0.720 0.150 305'},
+        {name:'danger / destructive', var:'--destructive', light:'oklch(0.57 0.19 24)', dark:'oklch(0.68 0.19 22)', lightVal:'0.570 0.190 24', darkVal:'0.680 0.190 22'}
+      ]},
+      { label:'Bordes', note:'border (hairline) → border-strong → input', rows:[
+        {name:'border', var:'--border', light:'oklch(0.25 0.03 264 / 0.1)', dark:'oklch(1 0 0 / 0.09)', lightVal:'0.25 .03 264 /.10', darkVal:'1 0 0 / 0.09'},
+        {name:'input', var:'--input', light:'oklch(0.25 0.03 264 / 0.14)', dark:'oklch(1 0 0 / 0.12)', lightVal:'0.25 .03 264 /.14', darkVal:'1 0 0 / 0.12'}
+      ]}
+    ];
+    const framerCode = [
+      '// Framer Motion — transición base reutilizable',
+      'const ease = [0.22, 0.8, 0.2, 1];',
+      '',
+      '<motion.div',
+      '  initial={{ opacity: 0, y: 8 }}',
+      '  animate={{ opacity: 1, y: 0 }}',
+      '  exit={{ opacity: 0, y: 8 }}',
+      '  transition={{ duration: 0.22, ease }}   // dur-base',
+      '/>',
+      '',
+      '// ⌘K y paneles: duration 0.32, ease',
+      '// hover / press: 0.14, ease',
+      '// respeta siempre prefers-reduced-motion'
+    ].join('\n');
+    return {
+      theme:this.state.theme, themeLabel:this.state.theme==='dark'?'Dark':'Light', cmdkOpen:this.state.cmdkOpen,
+      colorGroups, framerCode,
+      toggleTheme:()=>this.setState(s=>({theme:s.theme==='dark'?'light':'dark'})),
+      openCmdk:()=>this.setState({cmdkOpen:true}),
+      closeCmdk:()=>this.setState({cmdkOpen:false}),
+      stop:(e)=>e.stopPropagation()
+    };
+  }
+}
+</script>
+</body>
+</html>

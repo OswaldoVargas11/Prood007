@@ -1,0 +1,86 @@
+'use client';
+
+import { useEffect, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
+import { Command, Search } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { useRouter } from '@/i18n/navigation';
+import { AppSidebar } from './app-sidebar';
+import { CommandMenu, useCommandMenu } from './command-menu';
+import { AiPanel } from './ai-panel';
+import { NotificationsBell } from './notifications-bell';
+import { UserMenu } from './user-menu';
+import { ThemeToggle } from './theme-toggle';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+
+function isStaff(roles: string[]): boolean {
+  return roles.includes('FIRM_ADMIN') || roles.includes('LAWYER');
+}
+
+/**
+ * Shell del despacho (staff). Guard de cliente:
+ *  - sin sesión → /login (el middleware ya hace el gate grueso; esto cubre expiración en cliente).
+ *  - rol CLIENT sin rol de staff → /portal (su superficie de solo lectura, slice F6).
+ */
+export function AppShell({ children }: { children: ReactNode }) {
+  const t = useTranslations();
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const { open, setOpen } = useCommandMenu();
+
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      router.replace('/login');
+    } else if (!isStaff(user.roles)) {
+      router.replace('/portal');
+    }
+  }, [loading, user, router]);
+
+  if (loading || !user || !isStaff(user.roles)) {
+    return (
+      <div className="flex min-h-screen">
+        <div className="hidden w-[236px] border-r border-border bg-card/60 lg:block" />
+        <div className="flex-1 p-8">
+          <Skeleton className="h-8 w-48" />
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <Skeleton className="h-28" />
+            <Skeleton className="h-28" />
+            <Skeleton className="h-28" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-screen bg-background">
+      <AppSidebar />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-5 backdrop-blur-xl">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 text-muted-foreground"
+            onClick={() => setOpen(true)}
+          >
+            <Search className="size-4" />
+            <span className="hidden sm:inline">{t('command.placeholder')}</span>
+            <kbd className="ml-2 hidden items-center gap-0.5 rounded border border-border px-1.5 text-[10px] sm:inline-flex">
+              <Command className="size-2.5" />K
+            </kbd>
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <AiPanel />
+            <NotificationsBell />
+            <ThemeToggle />
+            <UserMenu />
+          </div>
+        </header>
+        <main className="flex-1 animate-fade-in p-6 lg:p-8">{children}</main>
+      </div>
+      <CommandMenu open={open} onOpenChange={setOpen} />
+    </div>
+  );
+}

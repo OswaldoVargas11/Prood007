@@ -66,6 +66,11 @@ export interface InvoiceInput {
   seller: PartyInput;
   buyer: PartyInput;
   lines: InvoiceLineInput[];
+  /**
+   * Código de retención a aplicar sobre la base imponible total (p. ej. "IRPF_GENERAL" en ES).
+   * No aplica en RD. Si se omite, no hay retención.
+   */
+  withholdingTaxCode?: string;
   /** Hash del registro fiscal inmediatamente anterior (encadenamiento Verifactu). */
   previousRecordHash?: string;
 }

@@ -1,0 +1,266 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'feat/**']
+  pull_request:
+
+# Cancela runs obsoletos del mismo ref al empujar nuevo código.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# Convención de URLs de Postgres (inline en cada job que las usa):
+#  - DIRECT_DATABASE_URL = postgresql://legalflow:legalflow@localhost:5432/legalflow  (rol privilegiado, migraciones)
+#  - DATABASE_URL        = postgresql://legalflow_app:legalflow_app@localhost:5432/legalflow  (rol mínimo, RLS se aplica)
+
+jobs:
+  # ── 1) SETUP ───────────────────────────────────────────────────────────────
+  # Calienta la caché del store de pnpm y verifica que el lockfile y los paquetes compartidos
+  # compilan. El resto de jobs dependen de este (fail-fast) y reusan la caché.
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+
+  # ── 2) LINT + TYPECHECK ─────────────────────────────────────────────────────
+  lint-typecheck:
+    name: Lint + Typecheck
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Lint
+        run: pnpm -r lint
+      - name: Typecheck
+        run: pnpm -r typecheck
+
+  # ── 3) UNIT + COVERAGE ──────────────────────────────────────────────────────
+  # GATE OBLIGATORIO: cobertura fiscal (compliance ≥90%) + cliente API/auth del web.
+  unit:
+    name: Unit + Coverage
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Compliance (Jest, ≥90% — GATE)
+        run: pnpm --filter @legalflow/compliance test:coverage
+      - name: Domain (sin tests aún)
+        run: pnpm --filter @legalflow/domain test
+      - name: Web (Vitest, cliente API + auth — GATE)
+        run: pnpm --filter @legalflow/web test:coverage
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit
+          path: |
+            packages/compliance/coverage
+            apps/web/coverage
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ── 4) API INTEGRATION (Postgres real, RLS como rol app) ────────────────────
+  # GATE OBLIGATORIO: aislamiento de tenant (RLS) + 403 de rol, ejecutados como legalflow_app
+  # (un superusuario saltaría RLS y los tests pasarían en falso). Coberta auth de la API.
+  api-integration:
+    name: API Integration (RLS)
+    needs: setup
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: legalflow
+          POSTGRES_PASSWORD: legalflow
+          POSTGRES_DB: legalflow
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U legalflow"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://legalflow_app:legalflow_app@localhost:5432/legalflow?schema=public
+      DIRECT_DATABASE_URL: postgresql://legalflow:legalflow@localhost:5432/legalflow?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_PATH: ./storage
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Apply migrations (rol privilegiado · crea legalflow_app + RLS)
+        run: pnpm --filter @legalflow/api exec prisma migrate deploy
+      - name: E2E (Nest) como legalflow_app + cobertura auth — GATE
+        run: pnpm --filter @legalflow/api test:e2e:cov
+      - name: Upload auth coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-api-auth
+          path: apps/api/coverage-e2e
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ── 5) WEB E2E (Playwright web→API) ─────────────────────────────────────────
+  # GATE OBLIGATORIO (parte web): login por BFF (cookie httpOnly) + aislamiento de rol (403).
+  web-e2e:
+    name: Web E2E (Playwright)
+    needs: setup
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: legalflow
+          POSTGRES_PASSWORD: legalflow
+          POSTGRES_DB: legalflow
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U legalflow"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql://legalflow_app:legalflow_app@localhost:5432/legalflow?schema=public
+      DIRECT_DATABASE_URL: postgresql://legalflow:legalflow@localhost:5432/legalflow?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
+      STORAGE_DRIVER: local
+      STORAGE_LOCAL_PATH: ./storage
+      API_PORT: '4000'
+      API_URL: http://localhost:4000
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      PLAYWRIGHT_BASE_URL: http://localhost:3000
+      PLAYWRIGHT_API_URL: http://localhost:4000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Apply migrations
+        run: pnpm --filter @legalflow/api exec prisma migrate deploy
+      - name: Build API + Web
+        run: pnpm --filter @legalflow/api build && pnpm --filter @legalflow/web build
+      - name: Install Playwright (chromium)
+        run: pnpm --filter @legalflow/web exec playwright install --with-deps chromium
+      - name: Start API (:4000)
+        run: |
+          node apps/api/dist/main.js > api.log 2>&1 &
+          npx --yes wait-on -t 90000 http://localhost:4000/api/health
+      - name: Start Web (:3000)
+        run: |
+          pnpm --filter @legalflow/web start > web.log 2>&1 &
+          npx --yes wait-on -t 90000 http://localhost:3000/es-ES/login
+      - name: Run Playwright (smoke web→API)
+        run: pnpm --filter @legalflow/web exec playwright test
+      - name: Server logs on failure
+        if: failure()
+        run: |
+          echo "::group::api.log"; cat api.log || true; echo "::endgroup::"
+          echo "::group::web.log"; cat web.log || true; echo "::endgroup::"
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ── 6) SECURITY ─────────────────────────────────────────────────────────────
+  # GATE OBLIGATORIO: vulnerabilidades de PRODUCCIÓN alta/crítica (con allowlist revisada,
+  # ver D-017), secretos (gitleaks), licencias y análisis estático (CodeQL).
+  security:
+    name: Security
+    needs: setup
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # gitleaks escanea el historial
+      - uses: ./.github/actions/setup
+      - name: Audit (producción · alta/crítica — GATE)
+        run: pnpm audit --prod --audit-level high
+      - name: Audit (árbol completo · informativo, no bloquea)
+        run: pnpm audit --audit-level high || true
+      - name: License gate (producción)
+        run: |
+          pnpm licenses list --prod --json > licenses.json
+          node scripts/check-licenses.mjs licenses.json
+      - name: Gitleaks (secretos)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - name: CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'
+
+  # ── 7) MIGRATION CHECK (drift schema↔migraciones) ───────────────────────────
+  migration-check:
+    name: Migration Drift
+    needs: setup
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: legalflow
+          POSTGRES_PASSWORD: legalflow
+          POSTGRES_DB: legalflow
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U legalflow"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DIRECT_DATABASE_URL: postgresql://legalflow:legalflow@localhost:5432/legalflow?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Create shadow database
+        run: |
+          PGPASSWORD=legalflow psql -h localhost -U legalflow -d postgres \
+            -c "CREATE DATABASE legalflow_shadow;"
+      - name: Diff (migraciones replayadas ↔ schema.prisma)
+        working-directory: apps/api
+        run: |
+          pnpm exec prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema-datamodel prisma/schema.prisma \
+            --shadow-database-url "postgresql://legalflow:legalflow@localhost:5432/legalflow_shadow?schema=public" \
+            --exit-code
+
+  # ── 8) BUILD (compila de verdad: api + web) ─────────────────────────────────
+  build:
+    name: Build
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Build (todo el monorepo)
+        run: pnpm -r build
+
+  # ── Gate agregado para branch protection (un solo check requerido) ──────────
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs: [lint-typecheck, unit, api-integration, web-e2e, security, migration-check, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all required jobs passed
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "Uno o más jobs requeridos fallaron."; exit 1
+          fi
+          echo "Todos los jobs requeridos en verde."

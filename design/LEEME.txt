@@ -1,0 +1,34 @@
+LEXORA — ENTREGABLES
+====================
+
+Software de gestión para despachos de abogados (España / Rep. Dominicana).
+Probado: todos los botones, navegación, formularios y flujos funcionan.
+
+ARCHIVOS
+--------
+• Lexora.dc.html ................ App principal (escritorio). Incluye 4 superficies
+                                  conmutables desde la barra inferior:
+                                  DEMO → Login · Onboarding · Firm app · Client portal
+• Lexora Mobile.dc.html ........ Versión móvil (panel, expediente, chat, aprobaciones,
+                                  notificaciones).
+• Lexora Foundations.dc.html ... Sistema de diseño (color, tipografía, componentes).
+• Lexora Implementation.dc.html  Handoff técnico (tokens, snippets, guía de código).
+• support.js ................... Motor de render. DEBE estar junto a los .dc.html.
+• globals.css .................. Tokens de diseño en CSS (referencia).
+
+CÓMO ABRIR
+----------
+Haz doble clic en cualquier archivo .dc.html. Se abre en el navegador sin
+instalar nada. Mantén support.js en la misma carpeta que los .dc.html.
+(Conexión a internet sólo para cargar las fuentes; sin ella usa fuentes del sistema.)
+
+QUÉ SE PROBÓ Y FUNCIONA
+-----------------------
+Navegación lateral (12 secciones) · Cambio de idioma ES/EN · Cambio de tema claro/oscuro
+· Paleta de comandos (⌘K) y ejecución de acciones · Panel del asistente IA (envío y
+respuesta) · Estados de datos (Datos / Cargando / Vacío / Error + Reintentar) ·
+Detalle de expediente y cronómetro facturable (start/stop) · Chat de cliente (envío +
+respuesta automática) · Aprobación / rechazo de costes · Marcar factura como pagada ·
+Centro de notificaciones (marcar todas como leídas) · Modal de comprobación de
+conflictos · Flujo de login (validación + acceso) · Onboarding completo (5 pasos) ·
+Portal del cliente.

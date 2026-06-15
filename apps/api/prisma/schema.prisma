@@ -1,8 +1,9 @@
 // LegalFlow — esquema de dominio (Prisma + PostgreSQL).
 //
 // MULTI-TENANCY: aislamiento row-level por `tenantId` en toda tabla de negocio, con índices
-// compuestos (tenantId, ...). Camino a Postgres RLS dejado preparado (ver DECISIONS D-004):
-// activar policies por current_setting('app.tenant_id') en una migración posterior.
+// compuestos (tenantId, ...). Postgres RLS ACTIVA como defensa en profundidad (ver DECISIONS
+// D-004 y D-013): políticas por current_setting('app.tenant_id'); el runtime conecta como rol de
+// mínimo privilegio y fija el GUC por request.
 //
 // AGNOSTICISMO: este esquema NO codifica ninguna ley concreta. Los campos fiscales específicos
 // de cada país viajan en `Invoice.complianceRecord` (JSON opaco) generado por el ComplianceProvider.
@@ -13,7 +14,10 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // url = rol de aplicación de mínimo privilegio (sin superusuario) → RLS SÍ se aplica en runtime.
+  url       = env("DATABASE_URL")
+  // directUrl = rol propietario/privilegiado, usado SOLO por Prisma Migrate (DDL, roles, RLS).
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,6 +75,15 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+// Estado de aprobación de un apunte del ledger (flujo de aprobación de costes).
+// Por defecto APPROVED (los apuntes normales no requieren aprobación); un coste propuesto por un
+// letrado nace PROPOSED y el admin lo aprueba o rechaza.
+enum ApprovalStatus {
+  PROPOSED
+  APPROVED
+  REJECTED
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tenancy & Auth / RBAC
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,9 +91,16 @@ enum InvoiceStatus {
 model Tenant {
   id           String       @id @default(cuid())
   name         String
+  // Identificador fiscal del despacho emisor (NIF/CIF en ES, RNC en RD). Necesario para facturar.
+  taxId        String?
   jurisdiction Jurisdiction
   currency     Currency
   locale       String       @default("es-ES")
+  // Licencia / suscripción: plan y plazas contratadas (asientos) por rol de staff.
+  plan         String       @default("Profesional")
+  // Máximo de usuarios ACTIVOS por rol (la licencia del despacho).
+  maxAdmins    Int          @default(2)
+  maxLawyers   Int          @default(5)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -371,6 +391,14 @@ model LedgerEntry {
   currency    Currency
   // Factura asociada cuando type = INVOICE/PAYMENT.
   invoiceId   String?
+  // Flujo de aprobación de costes: APPROVED por defecto; un coste propuesto por letrado nace PROPOSED.
+  approvalStatus ApprovalStatus @default(APPROVED)
+  // Usuario que propuso el coste (cuando approvalStatus != APPROVED por defecto).
+  proposedById   String?
+  // Usuario admin que resolvió (aprobó/rechazó) la propuesta.
+  resolvedById   String?
+  // Nota del proponente o del que resuelve.
+  approvalNote   String?
   occurredAt  DateTime        @default(now())
   createdAt   DateTime        @default(now())
 

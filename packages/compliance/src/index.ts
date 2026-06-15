@@ -1,5 +1,8 @@
-export * from './types.js';
-export * from './provider.interface.js';
-export * from './factory.js';
-export { SpainComplianceProvider } from './providers/spain.provider.js';
-export { DominicanComplianceProvider } from './providers/dominican.provider.js';
+export * from './types';
+export * from './provider.interface';
+export * from './deadlines';
+export * from './tax-math';
+export * from './taxid';
+export * from './factory';
+export { SpainComplianceProvider } from './providers/spain.provider';
+export { DominicanComplianceProvider } from './providers/dominican.provider';

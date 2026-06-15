@@ -6,9 +6,9 @@
  * Para añadir un tercer país: implementar un nuevo provider y registrarlo aquí. Nada más.
  */
 import { Jurisdiction } from '@legalflow/domain';
-import type { ComplianceProvider } from './provider.interface.js';
-import { SpainComplianceProvider } from './providers/spain.provider.js';
-import { DominicanComplianceProvider } from './providers/dominican.provider.js';
+import type { ComplianceProvider } from './provider.interface';
+import { SpainComplianceProvider } from './providers/spain.provider';
+import { DominicanComplianceProvider } from './providers/dominican.provider';
 
 export class ComplianceProviderFactory {
   /** Cache de instancias (los providers son stateless). */

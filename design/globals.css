@@ -1,0 +1,225 @@
+/* ============================================================
+   LEXORA — Design Tokens
+   AI-native operating system for modern law firms
+   Convención shadcn/ui · color en oklch · light = :root, dark = .dark
+   Drop-in para app/globals.css (Next.js + Tailwind + shadcn/ui)
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* ---- shadcn core (LIGHT) ---- */
+    --background: oklch(0.986 0.003 264);
+    --foreground: oklch(0.25 0.013 264);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.25 0.013 264);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.25 0.013 264);
+    --primary: oklch(0.52 0.2 264);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.97 0.004 264);
+    --secondary-foreground: oklch(0.25 0.013 264);
+    --muted: oklch(0.97 0.004 264);
+    --muted-foreground: oklch(0.47 0.013 264);
+    --accent: oklch(0.96 0.005 264); /* hover surface */
+    --accent-foreground: oklch(0.25 0.013 264);
+    --destructive: oklch(0.57 0.19 24);
+    --destructive-foreground: oklch(0.99 0 0);
+    --border: oklch(0.25 0.03 264 / 0.1);
+    --input: oklch(0.25 0.03 264 / 0.14);
+    --ring: oklch(0.52 0.2 264);
+
+    /* ---- Lexora · layered surfaces (LIGHT) ---- */
+    --surface-1: oklch(1 0 0); /* base card */
+    --surface-2: oklch(0.976 0.004 264); /* inset / row */
+    --surface-3: oklch(0.96 0.005 264); /* deeper inset */
+    --elevated: oklch(1 0 0); /* popover / command */
+    --border-strong: oklch(0.25 0.03 264 / 0.16);
+    --text-subtle: oklch(0.62 0.013 264);
+
+    /* ---- Lexora · brand + AI ---- */
+    --brand: oklch(0.52 0.2 264);
+    --brand-2: oklch(0.55 0.18 285);
+    --brand-soft: oklch(0.52 0.2 264 / 0.1);
+    --brand-line: oklch(0.52 0.2 264 / 0.3);
+    --ai-from: oklch(0.52 0.2 264); /* assistant gradient */
+    --ai-to: oklch(0.56 0.18 300);
+
+    /* ---- Lexora · semantic / status ---- */
+    --success: oklch(0.56 0.13 162);
+    --success-soft: oklch(0.56 0.13 162 / 0.12);
+    --warning: oklch(0.66 0.13 70);
+    --warning-soft: oklch(0.66 0.13 70 / 0.13);
+    --info: oklch(0.55 0.15 250);
+    --info-soft: oklch(0.55 0.15 250 / 0.11);
+    --violet: oklch(0.55 0.17 305);
+    --violet-soft: oklch(0.55 0.17 305 / 0.11);
+    --danger: oklch(0.57 0.19 24);
+    --danger-soft: oklch(0.57 0.19 24 / 0.11);
+
+    /* ---- confidence signal (AI) ---- */
+    --confidence-high: oklch(0.56 0.13 162); /* >= 85% */
+    --confidence-med: oklch(0.66 0.13 70); /* 60–84% */
+    --confidence-low: oklch(0.57 0.19 24); /* < 60%  */
+
+    /* ---- charts ---- */
+    --chart-1: oklch(0.52 0.2 264);
+    --chart-2: oklch(0.56 0.13 162);
+    --chart-3: oklch(0.66 0.13 70);
+    --chart-4: oklch(0.55 0.17 305);
+    --chart-5: oklch(0.55 0.15 250);
+
+    /* ---- elevation (LIGHT) ---- */
+    --shadow-xs: 0 1px 2px oklch(0.2 0.02 264 / 0.06);
+    --shadow-sm: 0 1px 2px oklch(0.2 0.02 264 / 0.08);
+    --shadow-md: 0 8px 24px oklch(0.2 0.02 264 / 0.1);
+    --shadow-lg: 0 12px 32px oklch(0.2 0.02 264 / 0.12);
+    --shadow-xl: 0 28px 64px oklch(0.2 0.02 264 / 0.16);
+    --ring-shadow: 0 0 0 3px oklch(0.52 0.2 264 / 0.35);
+
+    /* ---- radius ---- */
+    --radius: 0.8rem; /* 12.8px base */
+    --radius-sm: calc(var(--radius) - 4px);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) + 6px);
+    --radius-full: 9999px;
+
+    /* ---- spacing (4px base grid) ---- */
+    --space-0: 0;
+    --space-1: 0.25rem; /* 4  */
+    --space-2: 0.5rem; /* 8  */
+    --space-3: 0.75rem; /* 12 */
+    --space-4: 1rem; /* 16 */
+    --space-5: 1.25rem; /* 20 */
+    --space-6: 1.5rem; /* 24 */
+    --space-8: 2rem; /* 32 */
+    --space-10: 2.5rem; /* 40 */
+    --space-12: 3rem; /* 48 */
+    --space-16: 4rem; /* 64 */
+
+    /* ---- typography ---- */
+    --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', monospace;
+    --text-xs: 0.75rem; /* 12 */
+    --text-sm: 0.8125rem; /* 13 */
+    --text-base: 0.875rem; /* 14 — UI base */
+    --text-md: 0.9375rem; /* 15 */
+    --text-lg: 1.0625rem; /* 17 */
+    --text-xl: 1.3125rem; /* 21 */
+    --text-2xl: 1.625rem; /* 26 */
+    --text-3xl: 2.125rem; /* 34 */
+    --text-display: 2.75rem; /* 44 */
+    --leading-tight: 1.12;
+    --leading-snug: 1.35;
+    --leading-normal: 1.55;
+    --tracking-tight: -0.025em;
+    --tracking-normal: 0;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    /* money & dates: always font-variant-numeric: tabular-nums + --font-mono optional */
+
+    /* ---- motion (Framer Motion friendly) ---- */
+    --ease-out: cubic-bezier(0.22, 0.8, 0.2, 1); /* default UI */
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --ease-spring: cubic-bezier(0.34, 1.4, 0.46, 1); /* subtle overshoot */
+    --dur-instant: 80ms;
+    --dur-fast: 140ms; /* hover / press */
+    --dur-base: 220ms; /* enter / tabs */
+    --dur-slow: 320ms; /* overlays / panels */
+    --dur-slower: 480ms; /* progress / chart draw */
+  }
+
+  .dark {
+    /* ---- shadcn core (DARK) ---- */
+    --background: oklch(0.165 0.008 264);
+    --foreground: oklch(0.97 0.004 264);
+    --card: oklch(0.198 0.009 264);
+    --card-foreground: oklch(0.97 0.004 264);
+    --popover: oklch(0.246 0.011 264);
+    --popover-foreground: oklch(0.97 0.004 264);
+    --primary: oklch(0.645 0.16 264);
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.224 0.01 264);
+    --secondary-foreground: oklch(0.97 0.004 264);
+    --muted: oklch(0.224 0.01 264);
+    --muted-foreground: oklch(0.745 0.012 264);
+    --accent: oklch(0.224 0.01 264);
+    --accent-foreground: oklch(0.97 0.004 264);
+    --destructive: oklch(0.68 0.19 22);
+    --destructive-foreground: oklch(0.99 0 0);
+    --border: oklch(1 0 0 / 0.09);
+    --input: oklch(1 0 0 / 0.12);
+    --ring: oklch(0.645 0.16 264);
+
+    /* ---- Lexora · layered surfaces (DARK) ---- */
+    --surface-1: oklch(0.198 0.009 264);
+    --surface-2: oklch(0.224 0.01 264);
+    --surface-3: oklch(0.246 0.011 264);
+    --elevated: oklch(0.246 0.011 264);
+    --border-strong: oklch(1 0 0 / 0.14);
+    --text-subtle: oklch(0.57 0.012 264);
+
+    /* ---- brand + AI (DARK) ---- */
+    --brand: oklch(0.645 0.16 264);
+    --brand-2: oklch(0.72 0.14 285);
+    --brand-soft: oklch(0.645 0.16 264 / 0.16);
+    --brand-line: oklch(0.645 0.16 264 / 0.45);
+    --ai-from: oklch(0.645 0.16 264);
+    --ai-to: oklch(0.72 0.14 300);
+
+    /* ---- semantic / status (DARK) ---- */
+    --success: oklch(0.74 0.14 162);
+    --success-soft: oklch(0.74 0.14 162 / 0.15);
+    --warning: oklch(0.81 0.14 78);
+    --warning-soft: oklch(0.81 0.14 78 / 0.15);
+    --info: oklch(0.71 0.13 244);
+    --info-soft: oklch(0.71 0.13 244 / 0.15);
+    --violet: oklch(0.72 0.15 305);
+    --violet-soft: oklch(0.72 0.15 305 / 0.15);
+    --danger: oklch(0.68 0.19 22);
+    --danger-soft: oklch(0.68 0.19 22 / 0.15);
+
+    --confidence-high: oklch(0.74 0.14 162);
+    --confidence-med: oklch(0.81 0.14 78);
+    --confidence-low: oklch(0.68 0.19 22);
+
+    --chart-1: oklch(0.645 0.16 264);
+    --chart-2: oklch(0.74 0.14 162);
+    --chart-3: oklch(0.81 0.14 78);
+    --chart-4: oklch(0.72 0.15 305);
+    --chart-5: oklch(0.71 0.13 244);
+
+    /* ---- elevation (DARK) ---- */
+    --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.4);
+    --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.5);
+    --shadow-md: 0 12px 34px oklch(0 0 0 / 0.5);
+    --shadow-lg: 0 12px 32px oklch(0 0 0 / 0.55);
+    --shadow-xl: 0 30px 70px oklch(0 0 0 / 0.6);
+    --ring-shadow: 0 0 0 3px oklch(0.645 0.16 264 / 0.45);
+  }
+}
+
+/* ----- base element wiring (optional, Tailwind @layer base) ----- */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  /* money & dates */
+  .tabular,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+  /* AA focus ring — never remove outline without replacing it */
+  :focus-visible {
+    outline: 2px solid transparent;
+    box-shadow: var(--ring-shadow);
+    border-radius: var(--radius-sm);
+  }
+}

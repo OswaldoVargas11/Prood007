@@ -12,6 +12,7 @@
     "build": "pnpm -r build",
     "dev": "pnpm -r --parallel dev",
     "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "test": "pnpm -r test",
     "api:dev": "pnpm --filter @legalflow/api start:dev",
@@ -25,13 +26,26 @@
   "devDependencies": {
     "@commitlint/cli": "^19.5.0",
     "@commitlint/config-conventional": "^19.5.0",
+    "eslint": "^8.57.1",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",
     "prettier": "^3.3.3",
     "typescript": "^5.6.3"
   },
   "lint-staged": {
-    "*.{ts,tsx,js}": ["eslint --fix", "prettier --write"],
-    "*.{json,md,yml,yaml}": ["prettier --write"]
+    "*.{ts,tsx,js,json,md,yml,yaml,css}": [
+      "prettier --write"
+    ]
+  },
+  "pnpm": {
+    "overridesComment": "Remediación de advisories de PRODUCCIÓN (ver DECISIONS D-017). multer >=2.1.1 cierra GHSA-xf7r-hgr6-v32p / GHSA-v52c-386h-88mc / GHSA-5528-5vmv-3xc2 (DoS); lodash >=4.18.0 cierra GHSA-r5fr-rjxr-66jc (code injection en _.template). Ambos dentro del mismo major → sin rotura de API.",
+    "overrides": {
+      "multer": "^2.1.1",
+      "lodash": "^4.18.0"
+    },
+    "auditConfig": {
+      "//": "Allowlist de advisories de PRODUCCIÓN alta/crítica (ver DECISIONS D-017). VACÍA: los 9 high temporales quedaron remediados — next>=15.5.16 (migración Next 14→15), multer>=2.1.1 y lodash>=4.18.0 (overrides arriba). El gate `pnpm audit --prod --audit-level high` pasa sin excepciones; cualquier high/critical de prod NUEVO vuelve a bloquear el merge.",
+      "ignoreGhsas": []
+    }
   }
 }

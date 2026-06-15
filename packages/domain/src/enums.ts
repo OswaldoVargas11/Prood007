@@ -78,6 +78,13 @@ export enum InvoiceStatus {
   CANCELLED = 'CANCELLED',
 }
 
+/** Estado de aprobación de un apunte del ledger (flujo de aprobación de costes). */
+export enum ApprovalStatus {
+  PROPOSED = 'PROPOSED',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+}
+
 /** Tipo de identificador fiscal (validado por el provider de cumplimiento). */
 export enum TaxIdKind {
   /** España */
