@@ -11,7 +11,7 @@ process.env.STORAGE_LOCAL_PATH = join(tmpdir(), `legalflow-cert-${Date.now()}`);
 // eslint-disable-next-line import/first
 import { AppModule } from '../src/app.module';
 // eslint-disable-next-line import/first
-import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../src/prisma/prisma.service';
 
 /**
  * E2E de la Tanda B (resto): comprobación de conflictos, serie fiscal en la numeración de facturas,
@@ -20,6 +20,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 describe('Tanda B (resto) — conflictos, serie fiscal, festivos, certificado (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let system: SystemPrismaService;
   const unique = Date.now();
   const password = 'Sup3rSecret!2026';
   let tenantId = '';
@@ -36,6 +37,7 @@ describe('Tanda B (resto) — conflictos, serie fiscal, festivos, certificado (e
     );
     app.setGlobalPrefix('api');
     prisma = app.get(PrismaService);
+    system = app.get(SystemPrismaService);
     await app.init();
 
     const reg = await request(app.getHttpServer())
@@ -66,7 +68,7 @@ describe('Tanda B (resto) — conflictos, serie fiscal, festivos, certificado (e
   });
 
   afterAll(async () => {
-    if (tenantId) await prisma.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
+    if (tenantId) await system.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
     await app.close();
   });
 

@@ -5,11 +5,12 @@ import * as argon2 from 'argon2';
 import request from 'supertest';
 import { io, type Socket } from 'socket.io-client';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../src/prisma/prisma.service';
 
 describe('Portal, chat & realtime (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let system: SystemPrismaService;
   let baseUrl = '';
   const unique = Date.now();
   const password = 'Sup3rSecret!2026';
@@ -33,6 +34,7 @@ describe('Portal, chat & realtime (e2e)', () => {
     );
     app.setGlobalPrefix('api');
     prisma = app.get(PrismaService);
+    system = app.get(SystemPrismaService);
     await app.init();
     await app.listen(0);
     const port = (app.getHttpServer().address() as AddressInfo).port;
@@ -52,8 +54,8 @@ describe('Portal, chat & realtime (e2e)', () => {
     adminToken = reg.body.tokens.accessToken;
 
     // Abogado (para realtime).
-    const lawyerRole = await prisma.role.findFirstOrThrow({ where: { tenantId, code: 'LAWYER' } });
-    const lawyer = await prisma.user.create({
+    const lawyerRole = await system.role.findFirstOrThrow({ where: { tenantId, code: 'LAWYER' } });
+    const lawyer = await system.user.create({
       data: {
         tenantId,
         email: `plawyer_${unique}@d.test`,
@@ -109,7 +111,7 @@ describe('Portal, chat & realtime (e2e)', () => {
   });
 
   afterAll(async () => {
-    if (tenantId) await prisma.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
+    if (tenantId) await system.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
     await app.close();
   });
 

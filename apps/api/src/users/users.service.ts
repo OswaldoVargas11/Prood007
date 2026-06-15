@@ -8,6 +8,7 @@ import {
 import * as argon2 from 'argon2';
 import { Role } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
+import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
@@ -168,7 +169,9 @@ export class UsersService {
       }
     }
 
-    await this.prisma.$transaction(async (tx) => {
+    // tenantTransaction fija `app.tenant_id` al inicio de la tx: con RLS en fail-closed, las ops
+    // sobre Role/User dentro requieren contexto (un $transaction crudo no lo fijaría). Ver D-020.
+    await tenantTransaction(this.prisma, async (tx) => {
       if (nextRole !== currentRole) {
         const oldRoleId = target.roles.find((r) => r.role.code === currentRole)!.role.id;
         const newRoleId = (

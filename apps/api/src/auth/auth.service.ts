@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { Currency, Jurisdiction, Role } from '@legalflow/domain';
-import { PrismaService } from '../prisma/prisma.service';
+import { SystemPrismaService } from '../prisma/prisma.service';
 import { TokensService } from './tokens.service';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
@@ -10,8 +10,10 @@ import type { TokenPair } from './auth.types';
 
 @Injectable()
 export class AuthService {
+  // `system`: cliente BYPASSRLS. Login y registro son rutas cross-tenant SIN contexto de tenant;
+  // con RLS en fail-closed deben pasar por el rol de sistema, no por ausencia de contexto (D-020).
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly system: SystemPrismaService,
     private readonly tokens: TokensService,
   ) {}
 
@@ -26,7 +28,7 @@ export class AuthService {
   async registerTenant(dto: RegisterTenantDto): Promise<{ tenantId: string; tokens: TokenPair }> {
     const passwordHash = await this.hashPassword(dto.admin.password);
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.system.$transaction(async (tx) => {
       // 1) Asegurar catálogo de permisos global (idempotente y SEGURO ante concurrencia).
       //    createMany + skipDuplicates compila a INSERT ... ON CONFLICT DO NOTHING, atómico:
       //    evita la "Unique constraint failed on (code)" cuando dos despachos se registran a la vez.
@@ -92,7 +94,7 @@ export class AuthService {
   /** Login con email+password. tenantId solo es necesario si el email existe en varios tenants. */
   async login(dto: LoginDto): Promise<TokenPair> {
     const email = dto.email.toLowerCase();
-    const candidates = await this.prisma.user.findMany({
+    const candidates = await this.system.user.findMany({
       where: { email, ...(dto.tenantId ? { tenantId: dto.tenantId } : {}) },
     });
 

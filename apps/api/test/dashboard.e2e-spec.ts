@@ -2,12 +2,13 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../src/prisma/prisma.service';
 
 /** E2E del resumen del panel principal (agregados por tenant, solo lectura). */
 describe('Dashboard summary (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let system: SystemPrismaService;
   let token: string;
   let tenantId: string;
   const unique = Date.now();
@@ -18,6 +19,7 @@ describe('Dashboard summary (e2e)', () => {
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     app.setGlobalPrefix('api');
     prisma = app.get(PrismaService);
+    system = app.get(SystemPrismaService);
     await app.init();
 
     const res = await request(app.getHttpServer())
@@ -38,7 +40,7 @@ describe('Dashboard summary (e2e)', () => {
   });
 
   afterAll(async () => {
-    if (tenantId) await prisma.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
+    if (tenantId) await system.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
     await app.close();
   });
 

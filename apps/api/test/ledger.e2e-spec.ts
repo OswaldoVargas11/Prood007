@@ -2,11 +2,12 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../src/prisma/prisma.service';
 
 describe('Ledger & invoicing (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let system: SystemPrismaService;
   const unique = Date.now();
   const password = 'Sup3rSecret!2026';
 
@@ -54,6 +55,7 @@ describe('Ledger & invoicing (e2e)', () => {
     );
     app.setGlobalPrefix('api');
     prisma = app.get(PrismaService);
+    system = app.get(SystemPrismaService);
     await app.init();
 
     const main = await setup(`ledger_${unique}@d.test`, true);
@@ -71,11 +73,11 @@ describe('Ledger & invoicing (e2e)', () => {
   });
 
   afterAll(async () => {
-    const ids = await prisma.tenant.findMany({
+    const ids = await system.tenant.findMany({
       where: { name: { contains: `_${unique}@d.test` } },
       select: { id: true },
     });
-    for (const { id } of ids) await prisma.tenant.delete({ where: { id } }).catch(() => undefined);
+    for (const { id } of ids) await system.tenant.delete({ where: { id } }).catch(() => undefined);
     void tenantId;
     void tenantBId;
     await app.close();
@@ -100,7 +102,13 @@ describe('Ledger & invoicing (e2e)', () => {
     await request(app.getHttpServer())
       .post('/api/ledger/time')
       .set(auth(token))
-      .send({ matterId, description: 'Estudio', minutes: 60, hourlyRate: '120.00', workedAt: '2026-02-01' })
+      .send({
+        matterId,
+        description: 'Estudio',
+        minutes: 60,
+        hourlyRate: '120.00',
+        workedAt: '2026-02-01',
+      })
       .expect(201);
     const led = await request(app.getHttpServer())
       .get(`/api/ledger/matter/${matterId}`)
@@ -116,7 +124,9 @@ describe('Ledger & invoicing (e2e)', () => {
       .send({
         matterId,
         withholdingTaxCode: 'IRPF_GENERAL',
-        lines: [{ description: 'Honorarios', quantity: '10', unitPrice: '100', taxCode: 'IVA_STANDARD' }],
+        lines: [
+          { description: 'Honorarios', quantity: '10', unitPrice: '100', taxCode: 'IVA_STANDARD' },
+        ],
       })
       .expect(201);
     expect(Number(res.body.invoice.total)).toBe(1060); // 1000 + 210 − 150
@@ -131,7 +141,14 @@ describe('Ledger & invoicing (e2e)', () => {
       .set(auth(token))
       .send({
         matterId,
-        lines: [{ description: 'Más honorarios', quantity: '1', unitPrice: '200', taxCode: 'IVA_STANDARD' }],
+        lines: [
+          {
+            description: 'Más honorarios',
+            quantity: '1',
+            unitPrice: '200',
+            taxCode: 'IVA_STANDARD',
+          },
+        ],
       })
       .expect(201);
     expect(res.body.invoice.previousRecordHash).toBe(firstInvoiceHash);
@@ -155,7 +172,9 @@ describe('Ledger & invoicing (e2e)', () => {
       .set(auth(token))
       .send({
         matterId,
-        lines: [{ description: 'Honorarios C', quantity: '1', unitPrice: '300', taxCode: 'IVA_STANDARD' }],
+        lines: [
+          { description: 'Honorarios C', quantity: '1', unitPrice: '300', taxCode: 'IVA_STANDARD' },
+        ],
       })
       .expect(201);
     const paid = await request(app.getHttpServer())
@@ -171,7 +190,9 @@ describe('Ledger & invoicing (e2e)', () => {
       .set(auth(token))
       .send({
         matterId,
-        lines: [{ description: 'Privada', quantity: '1', unitPrice: '100', taxCode: 'IVA_STANDARD' }],
+        lines: [
+          { description: 'Privada', quantity: '1', unitPrice: '100', taxCode: 'IVA_STANDARD' },
+        ],
       })
       .expect(201);
     await request(app.getHttpServer())
