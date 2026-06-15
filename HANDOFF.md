@@ -69,7 +69,8 @@ time/invoices/pay), messages (`/matters/:id/messages`), notifications, portal (`
 **dashboard (`GET /dashboard/summary`)**, realtime (Socket.IO: `matter:subscribe`, `message:new`,
 `notification:new`). **RGPD/172-13 (D-022):** `GET /clients/:id/gdpr-export` (portabilidad) y
 `POST /clients/:id/anonymize` (supresión por anonimización, **preserva** expediente/facturas/auditoría),
-ambos FIRM_ADMIN. Cifrado en reposo de documentos (AES-256-GCM, D-021) + RLS fail-closed (D-020).
+ambos FIRM_ADMIN — **expuestos en la UI** en la ficha de cliente (tarjeta RGPD: exportar + anonimizar
+con confirmación fuerte, PR #40). Cifrado en reposo de documentos (AES-256-GCM, D-021) + RLS fail-closed (D-020).
 
 **Frontend (apps/web) — integración del prototipo, hecho:**
 
