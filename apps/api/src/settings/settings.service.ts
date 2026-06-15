@@ -61,6 +61,8 @@ export class SettingsService {
         maxAdmins: tenant.maxAdmins,
         maxLawyers: tenant.maxLawyers,
         invoiceSeries: tenant.invoiceSeries,
+        dataRegion: tenant.dataRegion,
+        retentionMonths: tenant.retentionMonths,
       },
       seats,
       counts: { clients, matters },
@@ -76,6 +78,8 @@ export class SettingsService {
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.locale !== undefined) data.locale = dto.locale;
     if (dto.invoiceSeries !== undefined) data.invoiceSeries = dto.invoiceSeries.toUpperCase();
+    if (dto.dataRegion !== undefined) data.dataRegion = dto.dataRegion.trim() || null;
+    if (dto.retentionMonths !== undefined) data.retentionMonths = dto.retentionMonths;
     if (dto.taxId !== undefined) {
       const provider = this.compliance.forJurisdiction(user.jurisdiction);
       const result = provider.validateTaxId(dto.taxId);

@@ -303,7 +303,12 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
       request (interceptor + extensión Prisma). Enforcement probado por tests (ver D-013).
   - [x] **RLS a FAIL-CLOSED** (sin contexto → cero filas; rutas de sistema vía rol `legalflow_system`
         con BYPASSRLS, no por ausencia de contexto). Fusionado a main (PR #19). 90/90 e2e. Ver D-020.
-- [ ] Preparado RGPD/LOPDGDD (ES) y Ley 172-13 (RD); trazabilidad para futuro AI Act.
+- [~] Preparado RGPD/LOPDGDD (ES) y Ley 172-13 (RD); trazabilidad para futuro AI Act.
+  - [x] **Acceso/portabilidad**: `GET /clients/:id/gdpr-export` (FIRM_ADMIN) + **RAT** (`RAT.md`, art. 30).
+        Fusionado a main (PR #28). Ver D-022.
+  - [~] **Supresión por ANONIMIZACIÓN** (no hard-delete; preserva expediente/facturas/auditoría) +
+    **retención configurable** (`Tenant.dataRegion`/`retentionMonths`) — **PR `feat/gdpr-anonymize`
+    abierto, pendiente de revisión** (toca migración). 107/107 e2e en verde local. Ver D-022.
 
 ---
 

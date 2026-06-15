@@ -110,6 +110,11 @@ model Tenant {
   certificateName       String?
   certificateKey        String?
   certificateUploadedAt DateTime?
+  // RGPD/Ley 172-13 — gobernanza de datos (D-022): región de residencia de datos del despacho
+  // (p. ej. "EU" para ES; a definir para RD) y política de conservación configurable en meses. La
+  // RETENCIÓN es metadato/política (la conservación legal prevalece sobre el borrado); no auto-purga.
+  dataRegion      String?
+  retentionMonths Int?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
@@ -230,6 +235,9 @@ model Client {
   address   String?
   // Vínculo opcional a un User con rol CLIENT (acceso al portal).
   userId    String?  @unique
+  // RGPD/Ley 172-13 — derecho de supresión por ANONIMIZACIÓN (no hard-delete): sello temporal de
+  // cuándo se anonimizó la PII. El expediente/facturas/auditoría se PRESERVAN (retención legal). D-022.
+  anonymizedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -202,6 +202,71 @@ export class ClientsService {
   }
 
   /**
+   * RGPD/Ley 172-13 — DERECHO DE SUPRESIÓN por **ANONIMIZACIÓN** (no hard-delete). Sobrescribe la PII
+   * del titular (nombre, identificador fiscal, contacto) y, si tenía acceso al portal, anonimiza y
+   * **desactiva** su usuario revocando sus sesiones. **PRESERVA** expedientes, facturas y AuditLog: la
+   * conservación legal del expediente prevalece sobre el borrado. Solo FIRM_ADMIN. Rechaza
+   * re-anonimizar. Deja traza en AuditLog. Ver D-022.
+   */
+  async anonymize(user: RequestUser, id: string) {
+    const client = await this.findOne(user, id);
+    if (client.anonymizedAt) {
+      throw new ConflictException('Este cliente ya está anonimizado.');
+    }
+    const now = new Date();
+    const result = await tenantTransaction(this.prisma, async (tx) => {
+      await tx.client.update({
+        where: { id },
+        data: {
+          name: '[Titular anonimizado]',
+          taxId: `ANON-${id}`,
+          taxIdKind: null,
+          email: null,
+          phone: null,
+          address: null,
+          anonymizedAt: now,
+        },
+      });
+
+      let portalUserAnonymized = false;
+      if (client.userId) {
+        // Anonimiza la PII del usuario de portal y le corta el acceso (desactiva + revoca sesiones).
+        await tx.user.update({
+          where: { id: client.userId },
+          data: {
+            email: `anon-${client.userId}@anonimizado.invalid`,
+            fullName: '[Usuario anonimizado]',
+            isActive: false,
+          },
+        });
+        await tx.refreshToken.updateMany({
+          where: { userId: client.userId, revokedAt: null },
+          data: { revokedAt: now },
+        });
+        portalUserAnonymized = true;
+      }
+
+      // Lo que se PRESERVA (no se toca): expedientes y facturas (retención legal).
+      const matters = await tx.matter.count({ where: { tenantId: user.tenantId, clientId: id } });
+      const invoices = await tx.invoice.count({ where: { tenantId: user.tenantId, clientId: id } });
+      return { portalUserAnonymized, matters, invoices };
+    });
+
+    await this.audit.log(user, 'client.anonymized', 'Client', id, {
+      portalUserAnonymized: result.portalUserAnonymized,
+      preservedMatters: result.matters,
+      preservedInvoices: result.invoices,
+    });
+
+    return {
+      id,
+      anonymizedAt: now.toISOString(),
+      portalUserAnonymized: result.portalUserAnonymized,
+      preserved: { matters: result.matters, invoices: result.invoices },
+    };
+  }
+
+  /**
    * Comprobación de conflictos de interés: busca clientes existentes cuyo nombre coincida (parcial,
    * insensible a mayúsculas) con el de la parte que se va a dar de alta. Devuelve coincidencias con sus
    * expedientes, para que el despacho valore si existe conflicto antes de crear cliente/expediente.

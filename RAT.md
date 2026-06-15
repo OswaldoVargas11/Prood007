@@ -51,8 +51,10 @@
   - **Datos fiscales/facturación:** ES ~4–6 años (LGT/Código de Comercio); RD según normativa tributaria.
   - **Expediente / deber de custodia:** según normativa colegial y prescripción de responsabilidad.
   - **Auditoría:** se conserva (append-only); no se borra con la anonimización del cliente.
-- **Retención configurable:** previsto como ajuste por tenant (plazo de retención por categoría) — se
-  implementa con la migración de la Tarea 4 (PR aparte). Hasta entonces, política documentada aquí.
+- **Retención configurable:** `Tenant.retentionMonths` (editable por FIRM_ADMIN en Ajustes). Es
+  **metadato/política**: NO dispara auto-purga (la conservación legal prevalece sobre el borrado). El
+  derecho de supresión se ejerce por **anonimización** (`POST /clients/:id/anonymize`), preservando el
+  expediente y la auditoría. Ver D-022.
 - **Residencia de datos:**
   - **España (`es`):** datos alojados en la **UE/EEE**. Hosting y backups en región UE.
   - **República Dominicana (`do`):** **a definir** (RD: Ley 172-13). Por defecto, alojar en una región

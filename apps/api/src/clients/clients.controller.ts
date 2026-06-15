@@ -57,6 +57,13 @@ export class ClientsController {
     return this.clients.gdprExport(user, id);
   }
 
+  /** RGPD/Ley 172-13 — supresión por anonimización (preserva expediente/facturas/auditoría). FIRM_ADMIN. */
+  @Roles(Role.FIRM_ADMIN)
+  @Post(':id/anonymize')
+  anonymize(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.clients.anonymize(user, id);
+  }
+
   @Patch(':id')
   update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() dto: UpdateClientDto) {
     return this.clients.update(user, id, dto);
