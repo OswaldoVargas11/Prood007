@@ -1,0 +1,245 @@
+/**
+ * Catálogo i18n de mensajes de la API (E8).
+ *
+ * REGLA: ninguna respuesta de la API debe llevar un string de error hardcodeado como única fuente.
+ * Cada error se identifica por una `messageKey` estable y traducible; el catálogo tiene la traducción
+ * COMPLETA en las dos jurisdicciones soportadas (`es-ES`, `es-DO`). El campo `message` que viaja en la
+ * respuesta es solo un fallback legible (es-ES) para clientes que no traduzcan; la fuente de verdad
+ * para la UI es `messageKey` (+ `params` cuando el mensaje es interpolado).
+ *
+ * Las plantillas con marcadores `{x}` se interpolan en el cliente con `params`; el `message` fallback
+ * que construye cada caller ya viene resuelto en es-ES.
+ */
+export const SUPPORTED_LOCALES = ['es-ES', 'es-DO'] as const;
+export type ApiLocale = (typeof SUPPORTED_LOCALES)[number];
+export const DEFAULT_LOCALE: ApiLocale = 'es-ES';
+
+/** Catálogo: cada clave → texto por locale. `es-DO` regionaliza donde aplica (p. ej. «abogado» vs «letrado»). */
+export const API_MESSAGES = {
+  // ── Validación de entrada (class-validator) ───────────────────────────────
+  'validation.failed': {
+    'es-ES': 'Datos de entrada no válidos.',
+    'es-DO': 'Datos de entrada no válidos.',
+  },
+
+  // ── Auth / RBAC ───────────────────────────────────────────────────────────
+  'auth.invalidCredentials': {
+    'es-ES': 'Credenciales inválidas.',
+    'es-DO': 'Credenciales inválidas.',
+  },
+  'auth.ambiguousTenant': {
+    'es-ES': 'El email existe en varios despachos; indica el tenantId para iniciar sesión.',
+    'es-DO': 'El email existe en varios despachos; indica el tenantId para iniciar sesión.',
+  },
+  'auth.accountDisabled': {
+    'es-ES': 'Cuenta deshabilitada.',
+    'es-DO': 'Cuenta deshabilitada.',
+  },
+  'auth.notAuthenticated': {
+    'es-ES': 'No autenticado.',
+    'es-DO': 'No autenticado.',
+  },
+  'auth.forbidden': {
+    'es-ES': 'No tienes permisos para esta acción.',
+    'es-DO': 'No tienes permisos para esta acción.',
+  },
+  'auth.invalidToken': {
+    'es-ES': 'Token inválido.',
+    'es-DO': 'Token inválido.',
+  },
+  'auth.refreshInvalid': {
+    'es-ES': 'Refresh token inválido o expirado.',
+    'es-DO': 'Refresh token inválido o expirado.',
+  },
+  'auth.refreshUnknown': {
+    'es-ES': 'Refresh token desconocido.',
+    'es-DO': 'Refresh token desconocido.',
+  },
+  'auth.refreshReused': {
+    'es-ES': 'Refresh token reutilizado; sesiones revocadas.',
+    'es-DO': 'Refresh token reutilizado; sesiones revocadas.',
+  },
+  'auth.refreshExpired': {
+    'es-ES': 'Refresh token expirado.',
+    'es-DO': 'Refresh token expirado.',
+  },
+  'auth.invalidUser': {
+    'es-ES': 'Usuario no válido.',
+    'es-DO': 'Usuario no válido.',
+  },
+
+  // ── Clientes ──────────────────────────────────────────────────────────────
+  'clients.taxIdInvalid': {
+    'es-ES': 'Identificador fiscal no válido para la jurisdicción del despacho.',
+    'es-DO': 'Identificador fiscal no válido para la jurisdicción del despacho.',
+  },
+  'clients.notFound': {
+    'es-ES': 'Cliente no encontrado.',
+    'es-DO': 'Cliente no encontrado.',
+  },
+  'clients.alreadyAnonymized': {
+    'es-ES': 'Este cliente ya está anonimizado.',
+    'es-DO': 'Este cliente ya está anonimizado.',
+  },
+  'clients.portalAlreadyExists': {
+    'es-ES': 'Este cliente ya tiene acceso al portal.',
+    'es-DO': 'Este cliente ya tiene acceso al portal.',
+  },
+
+  // ── Expedientes ───────────────────────────────────────────────────────────
+  'matters.notInFirm': {
+    'es-ES': 'El expediente no existe en este despacho.',
+    'es-DO': 'El expediente no existe en este despacho.',
+  },
+  'matters.notFound': {
+    'es-ES': 'Expediente no encontrado.',
+    'es-DO': 'Expediente no encontrado.',
+  },
+  'matters.noAccess': {
+    'es-ES': 'No tienes acceso a este expediente.',
+    'es-DO': 'No tienes acceso a este expediente.',
+  },
+  'matters.clientNotInFirm': {
+    'es-ES': 'El cliente no existe en este despacho.',
+    'es-DO': 'El cliente no existe en este despacho.',
+  },
+  'matters.invalidLawyer': {
+    'es-ES': 'El abogado no es válido para este despacho.',
+    'es-DO': 'El abogado no es válido para este despacho.',
+  },
+  'matters.assignLawyerAdminOnly': {
+    'es-ES': 'Solo el administrador del despacho puede asignar el letrado.',
+    'es-DO': 'Solo el administrador del despacho puede asignar el abogado.',
+  },
+  'matters.referenceExists': {
+    'es-ES': 'Ya existe un expediente con esa referencia.',
+    'es-DO': 'Ya existe un expediente con esa referencia.',
+  },
+  'matters.invalidTransition': {
+    'es-ES': 'Transición de estado no permitida: {from} → {to}.',
+    'es-DO': 'Transición de estado no permitida: {from} → {to}.',
+  },
+
+  // ── Documentos ────────────────────────────────────────────────────────────
+  'documents.fileMissing': {
+    'es-ES': 'Falta el archivo.',
+    'es-DO': 'Falta el archivo.',
+  },
+  'documents.notFound': {
+    'es-ES': 'Documento no encontrado.',
+    'es-DO': 'Documento no encontrado.',
+  },
+  'documents.versionNotFound': {
+    'es-ES': 'Versión no encontrada.',
+    'es-DO': 'Versión no encontrada.',
+  },
+  'documents.invalidReviewStatus': {
+    'es-ES': 'PENDING no es un estado de revisión válido.',
+    'es-DO': 'PENDING no es un estado de revisión válido.',
+  },
+  'documents.reviewForbidden': {
+    'es-ES': 'Solo abogados o administradores pueden revisar documentos.',
+    'es-DO': 'Solo abogados o administradores pueden revisar documentos.',
+  },
+
+  // ── Ledger / Facturación ──────────────────────────────────────────────────
+  'ledger.manualTypeNotAllowed': {
+    'es-ES': 'Tipo de apunte no permitido manualmente.',
+    'es-DO': 'Tipo de apunte no permitido manualmente.',
+  },
+  'ledger.amountPositiveForType': {
+    'es-ES': 'El importe debe ser positivo para este tipo de apunte.',
+    'es-DO': 'El importe debe ser positivo para este tipo de apunte.',
+  },
+  'ledger.amountPositive': {
+    'es-ES': 'El importe debe ser positivo.',
+    'es-DO': 'El importe debe ser positivo.',
+  },
+  'ledger.firmNoTaxId': {
+    'es-ES': 'El despacho no tiene identificador fiscal configurado; no se puede facturar.',
+    'es-DO': 'El despacho no tiene identificador fiscal configurado; no se puede facturar.',
+  },
+  'ledger.invoiceNotFound': {
+    'es-ES': 'Factura no encontrada.',
+    'es-DO': 'Factura no encontrada.',
+  },
+  'ledger.entryNotFound': {
+    'es-ES': 'Apunte no encontrado.',
+    'es-DO': 'Apunte no encontrado.',
+  },
+  'ledger.costAlreadyResolved': {
+    'es-ES': 'Este coste ya fue resuelto.',
+    'es-DO': 'Este coste ya fue resuelto.',
+  },
+
+  // ── Tareas ────────────────────────────────────────────────────────────────
+  'tasks.assigneeNotInFirm': {
+    'es-ES': 'El usuario asignado no pertenece al despacho.',
+    'es-DO': 'El usuario asignado no pertenece al despacho.',
+  },
+  'tasks.notFound': {
+    'es-ES': 'Tarea no encontrada.',
+    'es-DO': 'Tarea no encontrada.',
+  },
+
+  // ── Portal del cliente ────────────────────────────────────────────────────
+  'portal.noClientProfile': {
+    'es-ES': 'No tienes una ficha de cliente asociada.',
+    'es-DO': 'No tienes una ficha de cliente asociada.',
+  },
+
+  // ── Ajustes del despacho ──────────────────────────────────────────────────
+  'settings.taxIdInvalid': {
+    'es-ES': 'Identificador fiscal del despacho no válido para la jurisdicción.',
+    'es-DO': 'Identificador fiscal del despacho no válido para la jurisdicción.',
+  },
+  'settings.holidayExists': {
+    'es-ES': 'Ya existe un festivo en esa fecha.',
+    'es-DO': 'Ya existe un festivo en esa fecha.',
+  },
+  'settings.certificateMissing': {
+    'es-ES': 'Falta el archivo del certificado.',
+    'es-DO': 'Falta el archivo del certificado.',
+  },
+
+  // ── Usuarios del despacho (licencia/plazas) ───────────────────────────────
+  'users.emailExists': {
+    'es-ES': 'Ya existe un usuario con ese email en el despacho.',
+    'es-DO': 'Ya existe un usuario con ese email en el despacho.',
+  },
+  'users.notFound': {
+    'es-ES': 'Usuario no encontrado.',
+    'es-DO': 'Usuario no encontrado.',
+  },
+  'users.notStaff': {
+    'es-ES': 'Este usuario no es del despacho (es un usuario de portal).',
+    'es-DO': 'Este usuario no es del despacho (es un usuario de portal).',
+  },
+  'users.lastAdmin': {
+    'es-ES': 'No puedes dejar el despacho sin un administrador activo. Asigna otro admin primero.',
+    'es-DO': 'No puedes dejar el despacho sin un administrador activo. Asigna otro admin primero.',
+  },
+  'users.licenseLimitReached': {
+    'es-ES': 'Límite de licencia alcanzado: {max} {role}. Amplía el plan o desactiva un usuario.',
+    'es-DO': 'Límite de licencia alcanzado: {max} {role}. Amplía el plan o desactiva un usuario.',
+  },
+} as const;
+
+export type ApiMessageKey = keyof typeof API_MESSAGES;
+
+/**
+ * Construye el cuerpo de un error de la API con su `messageKey` traducible. Por defecto resuelve el
+ * `message` fallback en es-ES desde el catálogo; el caller puede sobreescribirlo (mensajes interpolados)
+ * y adjuntar `params`/`code` extra.
+ */
+export function apiError(
+  messageKey: ApiMessageKey,
+  extra: { message?: string; params?: Record<string, unknown>; code?: string } = {},
+): { messageKey: ApiMessageKey; message: string; params?: Record<string, unknown>; code?: string } {
+  const { message, ...rest } = extra;
+  return {
+    messageKey,
+    message: message ?? API_MESSAGES[messageKey][DEFAULT_LOCALE],
+    ...rest,
+  };
+}

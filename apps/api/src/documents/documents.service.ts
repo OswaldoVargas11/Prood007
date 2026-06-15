@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
 interface UploadedFile {
@@ -35,7 +36,7 @@ export class DocumentsService {
       where: { id: matterId, tenantId: user.tenantId },
       select: { id: true },
     });
-    if (!matter) throw new BadRequestException('El expediente no existe en este despacho.');
+    if (!matter) throw new BadRequestException(apiError('matters.notInFirm'));
   }
 
   private storageKey(tenantId: string, documentId: string, version: number): string {
@@ -68,7 +69,7 @@ export class DocumentsService {
 
   /** Sube un documento nuevo (crea el Document + versión 1). */
   async upload(user: RequestUser, matterId: string, name: string | undefined, file?: UploadedFile) {
-    if (!file) throw new BadRequestException('Falta el archivo.');
+    if (!file) throw new BadRequestException(apiError('documents.fileMissing'));
     await this.assertMatterInTenant(user, matterId);
 
     const document = await this.prisma.document.create({
@@ -81,12 +82,12 @@ export class DocumentsService {
 
   /** Añade una nueva versión a un documento existente. */
   async addVersion(user: RequestUser, documentId: string, file?: UploadedFile) {
-    if (!file) throw new BadRequestException('Falta el archivo.');
+    if (!file) throw new BadRequestException(apiError('documents.fileMissing'));
     const document = await this.prisma.document.findFirst({
       where: { id: documentId, tenantId: user.tenantId },
       select: { id: true },
     });
-    if (!document) throw new NotFoundException('Documento no encontrado.');
+    if (!document) throw new NotFoundException(apiError('documents.notFound'));
 
     const last = await this.prisma.documentVersion.findFirst({
       where: { documentId, tenantId: user.tenantId },
@@ -131,7 +132,7 @@ export class DocumentsService {
         },
       },
     });
-    if (!document) throw new NotFoundException('Documento no encontrado.');
+    if (!document) throw new NotFoundException(apiError('documents.notFound'));
     return document;
   }
 
@@ -140,7 +141,7 @@ export class DocumentsService {
     const version = await this.prisma.documentVersion.findFirst({
       where: { id: versionId, tenantId: user.tenantId },
     });
-    if (!version) throw new NotFoundException('Versión no encontrada.');
+    if (!version) throw new NotFoundException(apiError('documents.versionNotFound'));
     const buffer = await this.storage.get(version.storageKey);
     return { version, buffer };
   }
@@ -153,16 +154,16 @@ export class DocumentsService {
     comment?: string,
   ) {
     if (status === DocumentReviewStatus.PENDING) {
-      throw new BadRequestException('PENDING no es un estado de revisión válido.');
+      throw new BadRequestException(apiError('documents.invalidReviewStatus'));
     }
     if (!user.roles.includes(Role.LAWYER) && !user.roles.includes(Role.FIRM_ADMIN)) {
-      throw new ForbiddenException('Solo abogados o administradores pueden revisar documentos.');
+      throw new ForbiddenException(apiError('documents.reviewForbidden'));
     }
     const version = await this.prisma.documentVersion.findFirst({
       where: { id: versionId, tenantId: user.tenantId },
       include: { document: { select: { id: true, name: true, matterId: true } } },
     });
-    if (!version) throw new NotFoundException('Versión no encontrada.');
+    if (!version) throw new NotFoundException(apiError('documents.versionNotFound'));
 
     await tenantTransaction(this.prisma, async (tx) => {
       await tx.documentVersion.updateMany({

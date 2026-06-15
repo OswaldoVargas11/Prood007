@@ -7,6 +7,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateTaskFromDeadlineDto } from './dto/create-task-from-deadline.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
+import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
 @Injectable()
@@ -23,7 +24,7 @@ export class TasksService {
       where: { id: matterId, tenantId: user.tenantId },
       select: { id: true },
     });
-    if (!matter) throw new BadRequestException('El expediente no existe en este despacho.');
+    if (!matter) throw new BadRequestException(apiError('matters.notInFirm'));
   }
 
   private async assertUserInTenant(user: RequestUser, userId: string): Promise<void> {
@@ -31,7 +32,7 @@ export class TasksService {
       where: { id: userId, tenantId: user.tenantId },
       select: { id: true },
     });
-    if (!u) throw new BadRequestException('El usuario asignado no pertenece al despacho.');
+    if (!u) throw new BadRequestException(apiError('tasks.assigneeNotInFirm'));
   }
 
   private async notifyAssignee(
@@ -129,7 +130,7 @@ export class TasksService {
 
   async findOne(user: RequestUser, id: string) {
     const task = await this.prisma.task.findFirst({ where: { id, tenantId: user.tenantId } });
-    if (!task) throw new NotFoundException('Tarea no encontrada.');
+    if (!task) throw new NotFoundException(apiError('tasks.notFound'));
     return task;
   }
 
