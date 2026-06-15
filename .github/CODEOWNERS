@@ -1,8 +1,10 @@
 # CODEOWNERS — cambios sensibles requieren revisión del responsable.
 # (La aplicación efectiva depende de activar "Require review from Code Owners" en branch protection.)
-
-# Por defecto, todo.
-*                                   @OswaldoVargas11
+#
+# SIN catch-all `*` a propósito: solo las rutas sensibles de abajo exigen revisión del
+# CODEOWNER; el resto de PR (p. ej. bumps seguros de Dependabot) son auto-mergeables en verde sin
+# review, según la política de merge. Un archivo nuevo fuera de estas rutas no tendrá owner por
+# defecto: si se añade un área sensible nueva, hay que listarla aquí explícitamente.
 
 # ── Áreas críticas de seguridad / cumplimiento (revisión obligatoria) ──────────
 # Migraciones de BD, RLS y rol de mínimo privilegio.
