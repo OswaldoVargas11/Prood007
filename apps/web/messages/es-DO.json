@@ -318,11 +318,19 @@
     "subtitle": "Todas las facturas emitidas por el despacho.",
     "loadError": "No se pudieron cargar las facturas.",
     "empty": "Aún no hay facturas emitidas.",
+    "emptyFiltered": "No hay facturas con este filtro.",
     "colNumber": "Número",
     "colClient": "Cliente",
     "colDate": "Fecha",
+    "colDue": "Vencimiento",
     "colTotal": "Total",
-    "colStatus": "Estado"
+    "colStatus": "Estado",
+    "filter": {
+      "all": "Todas",
+      "overdue": "Vencidas",
+      "partial": "Parciales",
+      "paid": "Pagadas"
+    }
   },
   "messagesOverview": {
     "title": "Mensajes",
@@ -464,6 +472,8 @@
       "DRAFT": "Borrador",
       "ISSUED": "Emitida",
       "SENT": "Enviada",
+      "PARTIAL": "Parcial",
+      "OVERDUE": "Vencida",
       "PAID": "Pagada",
       "CANCELLED": "Anulada"
     }

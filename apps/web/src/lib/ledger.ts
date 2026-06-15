@@ -45,6 +45,10 @@ export function invoiceStatusVariant(status: InvoiceStatus): NonNullable<BadgePr
     case 'ISSUED':
     case 'SENT':
       return 'info';
+    case 'PARTIAL':
+      return 'warning';
+    case 'OVERDUE':
+      return 'danger';
     case 'PAID':
       return 'success';
     case 'CANCELLED':

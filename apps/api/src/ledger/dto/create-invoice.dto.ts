@@ -35,6 +35,11 @@ export class CreateInvoiceDto {
   @IsDateString()
   issueDate?: string;
 
+  /** Vencimiento del cobro. Si se omite, se calcula como issueDate + plazo por defecto. */
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string;
+
   /** Código de retención sobre la base (p. ej. "IRPF_GENERAL" en ES). Opcional. */
   @IsOptional()
   @IsString()

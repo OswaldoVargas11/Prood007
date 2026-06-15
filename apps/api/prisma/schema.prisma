@@ -71,6 +71,8 @@ enum InvoiceStatus {
   DRAFT
   ISSUED
   SENT
+  PARTIAL
+  OVERDUE
   PAID
   CANCELLED
 }
@@ -436,6 +438,10 @@ model Invoice {
   number        String
   status        InvoiceStatus @default(DRAFT)
   issueDate     DateTime
+  // Vencimiento del cobro (issueDate + plazo de pago). Base de "vencidas" y dunning.
+  dueDate       DateTime?
+  // Momento en que la factura quedó cobrada por completo (status = PAID).
+  paidAt        DateTime?
   currency      Currency
 
   // Totales neutrales calculados por el provider (Decimal, no float).
@@ -443,6 +449,8 @@ model Invoice {
   taxAmount         Decimal @db.Decimal(18, 2)
   withholdingAmount Decimal @db.Decimal(18, 2) @default(0)
   total             Decimal @db.Decimal(18, 2)
+  // Importe cobrado acumulado (soporta cobros parciales). 0 hasta el primer cobro.
+  amountPaid        Decimal @db.Decimal(18, 2) @default(0)
 
   // Registro fiscal específico del país (Verifactu / e-CF) como JSON OPACO al núcleo.
   complianceRecord  Json?
@@ -465,6 +473,8 @@ model Invoice {
   @@unique([tenantId, number])
   @@index([tenantId])
   @@index([tenantId, clientId])
+  @@index([tenantId, status])
+  @@index([tenantId, dueDate])
 }
 
 model InvoiceLine {

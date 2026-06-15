@@ -260,6 +260,28 @@ Reglas: cero datos mock al cerrar un slice · nada de país hardcodeado (todo fi
 jurisdicción del tenant) · estados cargando/vacío/error en cada vista · dark+light · AA · TanStack
 Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
 
+## FASE 1 — Cobro y rentabilidad `[~]` (ver D-024)
+
+> Objetivo: que el dinero entre y entre rápido. Extiende el módulo ledger/facturas. Decisiones del
+> usuario (2026-06-15): `PaymentProvider` enchufable por jurisdicción · **Stripe Connect** en ES +
+> **RD stub** · rebanada fina primero (PR-1→PR-4) · dunning in-app/portal ahora (email/SMS en Fase 2).
+
+- [~] **PR-1 — Estados ricos de factura + vencimiento** (PR-y-espera, migración):
+  - [x] `InvoiceStatus += PARTIAL, OVERDUE`; `Invoice.{dueDate,paidAt,amountPaid}` + índices.
+        Migración `20260615192441_invoice_states_due_date`.
+  - [x] `dueDate` por defecto (issueDate + 30 d); cobro fija `paidAt`/`amountPaid`.
+  - [x] `GET /ledger/invoices` (listado real, filtros `status`/`overdue`); `overdue` derivado en lectura.
+  - [x] Web: lista global con filtros (incl. **Vencidas**) + columna de vencimiento; i18n es-ES/es-DO.
+  - [x] e2e ledger 15/15; typecheck/lint limpios. **Pendiente: verde en CI + OK del owner para fusionar.**
+- [ ] **PR-2 — Captura de tiempo sin fricción** (auto-mergeable): entrada rápida global, "tiempo sin
+      facturar" (`TimeEntry.billed=false`), repaso del día.
+- [ ] **PR-3 — `PaymentProvider` + modelo `Payment`** (PR-y-espera): interfaz por jurisdicción, entidad
+      `Payment` (RLS), refactor de `payInvoice` con soporte de cobro parcial. Sin red todavía.
+- [ ] **PR-4 — Stripe Connect (ES) + webhook** (PR-y-espera): enlace de pago + Checkout + webhook
+      idempotente que concilia `Payment`↔`Invoice`. RD = stub.
+- [ ] Cola de Fase 1: provisión de fondos/retainer · dunning (in-app) · recurrente/planes de pago ·
+      "tiempo sin facturar" como sugerencia. **PDF con QR ya existe** (no rehacer).
+
 ## Diferido (stubs detrás de interfaz — NO construir aún)
 
 - Envío real AEAT/DGII, LexNET en vivo, firma electrónica (Signaturit/DocuSign), SMS.

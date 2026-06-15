@@ -449,3 +449,37 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
   (paquete `geist`), encabezando `--font-sans/--font-mono`. Ambas deps MIT (gate de licencias OK).
 - **Fuera de alcance (sin cambios):** envío real AEAT/DGII, IA, LexNET, firma, SMS, CRM, app móvil nativa,
   rebrand @legalflow → Lexora. Siguen diferidos.
+
+## D-024 · Fase 1 (cobro): pasarela enchufable + estados ricos de factura · Aceptada
+
+- **Contexto:** arranca la Fase 1 (cobro y rentabilidad). El módulo ledger/facturas estaba completo
+  hasta cobro MANUAL, pero faltaban los cimientos para cobrar de verdad: la factura no tenía
+  `dueDate`/`paidAt`/`amountPaid`, `InvoiceStatus` no tenía `OVERDUE`/`PARTIAL`, no había modelo
+  `Payment` ni endpoint de listado de facturas. El PDF con QR Verifactu ya existía.
+- **Decisiones de producto (confirmadas por el usuario, 2026-06-15):**
+  1. **Pasarela enchufable por jurisdicción** — interfaz `PaymentProvider` espejo de
+     `ComplianceProvider` (factory por `tenant.jurisdiction`); **ningún país hardcodeado**. ES →
+     **Stripe** real (tarjeta + SEPA + Bizum). RD → **stub** documentado tras la misma interfaz hasta
+     tener merchant Azul/CardNet (Stripe no opera para negocios dominicanos). El cobro manual
+     (`/ledger/invoices/:id/pay`) sigue de fallback en todas las jurisdicciones.
+  2. **Stripe Connect** — cada despacho es una cuenta conectada; el dinero del cliente final va al
+     despacho, no a la plataforma → evita que Lexora sea transmisor de fondos. `SYSTEM`/secretos de
+     Stripe son "joya de la corona" (mismo principio que `SYSTEM_DATABASE_URL`/`DATA_ENCRYPTION_KEY`).
+  3. **Rebanada fina primero** — PR-1 (estados+vencimiento) → PR-2 (captura de tiempo) → PR-3
+     (`PaymentProvider`+`Payment`) → PR-4 (Stripe Connect ES). Recurrente/planes/retainer/dunning después.
+  4. **Dunning in-app/portal ahora** — usa el módulo de notificaciones existente; email/SMS engancha en
+     Fase 2 sin re-trabajo.
+- **Decisión técnica (PR-1) — `overdue` DERIVADO en lectura, no solo persistido:** el estado `OVERDUE`
+  existe en el enum (lo usará el scheduler de dunning en una PR posterior), pero la vista de "vencidas"
+  **no debe depender** de que un cron haya corrido. `listInvoices` calcula `overdue` en lectura:
+  factura no liquidada (≠ PAID/CANCELLED) con `dueDate` ESTRICTAMENTE anterior a la medianoche UTC de
+  hoy (el día de vencimiento aún no cuenta). Así "Vencidas" es correcto desde el primer día; cuando se
+  añada el scheduler, persistir `OVERDUE` será consistente con la derivación.
+- **Decisión técnica (PR-1) — plazo de pago por defecto 30 días:** si la factura no trae `dueDate`, se
+  calcula como `issueDate + 30 d`. Plazos de pago configurables por tenant quedan para una PR posterior.
+- **Sensibilidad / merge:** PR-1 toca `prisma/` (migración) → CODEOWNERS → **PR-y-espera** (no
+  auto-merge). PR-2 es auto-mergeable; PR-3/PR-4 vuelven a ser PR-y-espera (ledger/dinero/migración/
+  secretos). Ver [[fase1-cobro-decisiones]] (memoria) y AI_WORKLOG.
+- **Probado (PR-1, local como `legalflow_app`):** e2e `ledger` **15/15** (5 nuevos: dueDate por
+  defecto, amountPaid/paidAt al cobrar, listado, overdue derivado, pagada-no-vencida). web typecheck +
+  lint + api lint limpios. Migración generada contra la BD real (sin drift). Pendiente: verde en CI real.
