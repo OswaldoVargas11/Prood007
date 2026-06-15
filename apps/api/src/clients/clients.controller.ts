@@ -50,6 +50,13 @@ export class ClientsController {
     return this.clients.findOne(user, id);
   }
 
+  /** RGPD/Ley 172-13 — export de datos del titular (portabilidad). Solo FIRM_ADMIN. */
+  @Roles(Role.FIRM_ADMIN)
+  @Get(':id/gdpr-export')
+  gdprExport(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.clients.gdprExport(user, id);
+  }
+
   @Patch(':id')
   update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() dto: UpdateClientDto) {
     return this.clients.update(user, id, dto);
