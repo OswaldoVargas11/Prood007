@@ -116,13 +116,20 @@ describe('api.download (blob autenticado con refresh)', () => {
   beforeEach(() => setAccessToken(null));
   afterEach(() => vi.restoreAllMocks());
 
-  it('descarga un Blob adjuntando Bearer', async () => {
+  it('descarga adjuntando Bearer y devuelve el cuerpo', async () => {
     setAccessToken('tok');
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('contenido', { status: 200, headers: { 'content-type': 'application/pdf' } }),
-    );
+    // Nota: el tipo concreto de res.blob() varía entre entornos (jsdom vs undici/Node), así que
+    // verificamos comportamiento (Bearer enviado + cuerpo devuelto), no la clase Blob.
+    const fetchMock = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response('contenido', { status: 200, headers: { 'content-type': 'application/pdf' } }),
+      );
     const blob = await api.download('/documents/1/download');
-    expect(blob).toBeInstanceOf(Blob);
+    expect(blob).toBeTruthy();
+    expect(blob.size).toBe(9); // 'contenido'
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer tok');
   });
 
   it('ante 401 refresca y reintenta la descarga', async () => {
@@ -134,7 +141,7 @@ describe('api.download (blob autenticado con refresh)', () => {
       return dataCalls === 1 ? json({ message: 'no' }, 401) : new Response('ok', { status: 200 });
     });
     const blob = await api.download('/documents/1/download');
-    expect(blob).toBeInstanceOf(Blob);
+    expect(blob).toBeTruthy();
     expect(getAccessToken()).toBe('new');
   });
 
