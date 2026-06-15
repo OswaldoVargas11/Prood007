@@ -317,6 +317,8 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
   - [x] **Supresión por ANONIMIZACIÓN** (no hard-delete; preserva expediente/facturas/auditoría) +
         **retención configurable** (`Tenant.dataRegion`/`retentionMonths`). **Fusionado a main (PR #29).**
         Ver D-022.
+  - [x] **UI RGPD** en la ficha de cliente (solo FIRM_ADMIN): exportar (descarga JSON) y anonimizar
+        con confirmación fuerte (escribir el nombre exacto; irreversible). **Fusionado (PR #40).**
 
 ---
 
