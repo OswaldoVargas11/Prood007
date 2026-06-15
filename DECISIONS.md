@@ -192,3 +192,82 @@ Decisiones:
 - **Consecuencia:** un CLIENT no puede siquiera cargar las rutas de la firm app aunque desactive JS.
   Probado E2E (firm: /portal→/dashboard; client real creado vía portal-user: /dashboard→/portal). El
   shell de cliente se mantiene como defensa en profundidad. Helper puro `lib/scope.ts` con tests.
+
+## D-016 · Estrategia de pruebas y 4 gates obligatorios de CI · Aceptada
+
+- **Paso 0 (inspección previa, sin tocar nada):** el `ci.yml` previo era **un solo job** monolítico
+  (`build-test`): install → `pnpm -r build` → lint → unit de compliance → `prisma migrate deploy` →
+  e2e de API. Estaba en verde. Hallazgos: no había scripts `typecheck`, **ni Playwright**, ni umbrales
+  de cobertura configurados, ni CODEOWNERS/Dependabot. Tests existentes: compliance (Jest, 4 specs),
+  API (Jest e2e contra Postgres real: auth, clients-matters, documents, ledger, tasks, **rls**,
+  **rls-wiring**, **realtime-tenant-context**, **security**, **portal-realtime**, **tanda-b**,
+  dashboard), web (Vitest: api client, scope, matter-status). El aislamiento RLS y los 403 de rol ya
+  se enforaban a nivel de e2e de API ejecutando como `legalflow_app`.
+- **Pirámide adoptada:** (1) **unitarias** rápidas sin red/BD — `compliance` (fiscal/IDs/plazos/
+  facturación), `domain`, y `web` (cliente API + auth/ámbito) con Vitest; (2) **integración** —
+  módulos de API contra Postgres real como rol de mínimo privilegio (RLS efectiva); (3) **e2e** —
+  Playwright web→API (smoke ahora: login BFF + 403 de rol; flujo núcleo como continuación). Contrato
+  OpenAPI: N/A (no hay Swagger; el web tipa contra `@legalflow/domain`).
+- **4 GATES OBLIGATORIOS (bloquean merge):**
+  1. **Aislamiento de tenant / RLS** — e2e de API ejecutados como `legalflow_app` (un superusuario
+     saltaría RLS y los tests pasarían en falso). Job `api-integration`.
+  2. **Cálculo fiscal (compliance)** — umbral **≥90%** (statements/lines/functions/branches) en
+     `packages/compliance` (`jest.config.cjs > coverageThreshold`). Job `unit`.
+  3. **Aislamiento de roles (403)** — e2e de API (`security`, `portal-realtime`, `tanda-b`) + smoke
+     Playwright (CLIENT redirigido fuera de la firm app). Jobs `api-integration` + `web-e2e`.
+  4. **Cobertura mínima en paquetes críticos** — compliance ≥90%; **auth de API** (medida desde los
+     e2e: floor 88/88/85/65 stmts/lines/funcs/branches, objetivo de ratchet 90+ al cubrir ramas de
+     error); **cliente API + auth del web** (Vitest scoped a `lib/api.ts`+`lib/scope.ts`: 90/90/90/85).
+- **Higiene:** seed determinista en CI (cada e2e usa identificadores únicos por `Date.now()`); RLS se
+  reaplica por migración sobre BD limpia del service container; **reintentos solo en Playwright (máx 2)**
+  — unit e integración con 0 reintentos para no ocultar bugs. Informes de cobertura subidos como
+  artefactos del workflow.
+- **Tests añadidos para cumplir el gate fiscal** (sin tocar lógica de producción): rutas de error de
+  `computeInvoiceTotals` (código fiscal desconocido / retención mal usada), ramas de control del CIF
+  (letra obligatoria vs dígito), stubs de providers (LexNET/SII/606-607) y `factory` por defecto.
+  Resultado compliance: 99.5% stmts / 92% branch / 100% funcs / 99.5% lines.
+
+## D-017 · Gate de seguridad: audit de producción, licencias y secretos · Aceptada
+
+- **Contexto:** `pnpm audit` sobre el árbol completo marca 14 high + 1 critical, casi todo **tooling de
+  dev** (`tmp` vía @nestjs/cli, `esbuild` vía vitest/vite) que **no se despliega**. El árbol de
+  **producción** marca 9 high (next ×5, multer ×3, lodash ×1) y 0 critical.
+- **Decisión (gate):** el job de seguridad bloquea sobre **`pnpm audit --prod --audit-level high`**
+  (lo que de verdad se envía). El audit del árbol completo se ejecuta **informativo, no bloqueante**.
+- **Allowlist revisada (`pnpm.auditConfig.ignoreGhsas` en el `package.json` raíz):** los 9 high de
+  producción son de framework/transitivos sin arreglo dentro de la major actual (next solo se corrige
+  en **v15.5.16+** → migración mayor, fuera del alcance de montar CI; multer/lodash exigirían overrides
+  con riesgo de rotura). Se aceptan **temporalmente y documentados**; el gate sigue **bloqueando
+  cualquier high/critical de producción NUEVO** que no esté en la lista. **Remediación rastreada**
+  (tarea de fondo): migrar a Next 15 y revisar overrides de multer/lodash. Nota: una de las advisories
+  de next (GHSA-36qx-fr4f-26g5, _middleware bypass en apps i18n_) merece verificar que no afecta al
+  gate de rol del middleware (D-015) al migrar.
+- **Licencias:** `scripts/check-licenses.mjs` sobre `pnpm licenses list --prod --json` falla ante
+  copyleft fuerte / fuente no abierta (AGPL/GPL/SSPL/BUSL/Commons-Clause/CC-BY-NC). LGPL permitido.
+- **Secretos:** `gitleaks` sobre el historial completo. **SAST:** CodeQL (javascript-typescript);
+  el repo es público, así que CodeQL es gratuito.
+
+## D-018 · Diseño del pipeline CI (ADR) · Aceptada
+
+- **Forma:** un workflow `CI` en `pull_request` y `push` a `main`/`feat/**`, con `concurrency` que
+  cancela runs obsoletos del mismo ref. Permisos mínimos por defecto (`contents: read`); el job de
+  seguridad eleva a `security-events: write` para CodeQL.
+- **Jobs (paralelos tras `setup`):** `setup` (install con caché del store de pnpm + build de paquetes
+  compartidos, vía **composite action** `.github/actions/setup` para no repetirse) → `lint-typecheck`,
+  `unit` (+cobertura), `api-integration` (Postgres service + migraciones con `DIRECT_DATABASE_URL` +
+  e2e como `legalflow_app`), `web-e2e` (Postgres + API:4000 + web:3000 + Playwright), `security`,
+  `migration-check` (drift: replay de migraciones en BD shadow ↔ `schema.prisma` con
+  `prisma migrate diff --exit-code`), `build` (`pnpm -r build`: compila de verdad, no solo tipa).
+- **Gate agregado `ci-ok`:** depende de los 7 jobs sustantivos y falla si alguno falla/se cancela;
+  es el **único check** cómodo de exigir en branch protection (los 4 gates + lint + typecheck + build
+  - security quedan dentro).
+- **Caché de artefactos vs. re-install:** se optó por **re-instalar en cada job** (rápido por la caché
+  del store de pnpm) en lugar de pasar `node_modules`/`dist` como artefactos (frágil y pesado). El
+  cliente Prisma se genera en `postinstall`.
+- **Dos URLs de Postgres (clave para RLS):** migraciones con el rol privilegiado (`DIRECT_DATABASE_URL`)
+  que crea `legalflow_app` y las policies; runtime/tests con `DATABASE_URL` = `legalflow_app` (sin
+  superusuario, sin BYPASSRLS) para que el aislamiento se pruebe de verdad.
+- **CD (pendiente, NO activado):** build+push de imágenes a GHCR por SHA/latest en push a `main`, deploy
+  a `staging` con `prisma migrate deploy`, y un job de **producción como entorno protegido con
+  aprobación manual** + backup previo + rollback — **cableado pero desconectado** hasta elegir hosting.
+  No se construye en esta tanda (se entrega CI verde primero).

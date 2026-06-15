@@ -31,6 +31,34 @@ describe('validateEsTaxId', () => {
     expect(validateEsTaxId('X1234567A')).toEqual({ valid: false });
     expect(validateEsTaxId('B12345670')).toEqual({ valid: false });
   });
+
+  it('validates CIF whose control MUST be a letter (org type K/P/Q/R/S/N/W)', () => {
+    // P → control letter obligatoria; para dígitos 1234567 la letra de control es "D".
+    expect(validateEsTaxId('P1234567D')).toEqual({
+      valid: true,
+      kind: TaxIdKind.CIF,
+      normalized: 'P1234567D',
+    });
+    expect(validateEsTaxId('P12345674')).toEqual({ valid: false }); // dígito no vale para P
+  });
+
+  it('validates CIF whose control may be digit OR letter (org type C/D/F/G/J/L/M/U/V)', () => {
+    expect(validateEsTaxId('C12345674')).toEqual({
+      valid: true,
+      kind: TaxIdKind.CIF,
+      normalized: 'C12345674',
+    });
+    expect(validateEsTaxId('C1234567D')).toEqual({
+      valid: true,
+      kind: TaxIdKind.CIF,
+      normalized: 'C1234567D',
+    });
+  });
+
+  it('rejects malformed identifiers (no pattern match)', () => {
+    expect(validateEsTaxId('')).toEqual({ valid: false });
+    expect(validateEsTaxId('ABC')).toEqual({ valid: false });
+  });
 });
 
 describe('validateDoTaxId', () => {

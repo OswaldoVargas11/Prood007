@@ -21,6 +21,12 @@ describe('ComplianceProviderFactory', () => {
       ComplianceProviderFactory.get(Jurisdiction.ES),
     );
   });
+
+  it('lanza si la jurisdicción no tiene provider registrado', () => {
+    expect(() => ComplianceProviderFactory.get('XX' as unknown as Jurisdiction)).toThrow(
+      /No hay ComplianceProvider/,
+    );
+  });
 });
 
 describe('SpainComplianceProvider', () => {
@@ -58,6 +64,38 @@ describe('SpainComplianceProvider', () => {
     });
     expect(rec.format).toBe('VERIFACTU');
     expect(rec.submission.status).toBe('STUBBED');
+  });
+
+  it('calcula plazos procesales en días hábiles (delegado a deadlines)', () => {
+    const r = es.getProceduralDeadlines({
+      startDate: '2026-12-23',
+      days: 5,
+      deadlineType: 'GENERIC',
+    });
+    expect(r.businessDays).toBe(true);
+    expect(r.dueDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('expone la integración LexNET stubbeada (listar/acusar/presentar)', async () => {
+    const court = es.getCourtIntegration();
+    expect(court.available).toBe(true);
+    expect(court.system).toBe('LEXNET');
+    expect(await court.listNotifications!()).toEqual([]);
+    expect((await court.acknowledge!('n-1')).notificationId).toBe('n-1');
+    const receipt = await court.submitFiling!({
+      caseReference: 'c-1',
+      documentRefs: [],
+      type: 'ESCRITO',
+    });
+    expect(receipt.status).toBe('ACCEPTED');
+  });
+
+  it('genera un suministro SII stubbeado', async () => {
+    const reports = es.getFiscalReports();
+    expect(reports.supported).toContain('SII');
+    const out = await reports.generate('SII', { period: '2026-01' });
+    expect(out.format).toBe('XML');
+    expect(out.submission.status).toBe('STUBBED');
   });
 });
 
@@ -100,5 +138,23 @@ describe('DominicanComplianceProvider', () => {
 
   it('reporta LexNET como no disponible', () => {
     expect(dom.getCourtIntegration().available).toBe(false);
+  });
+
+  it('calcula plazos excluyendo solo fines de semana', () => {
+    const r = dom.getProceduralDeadlines({
+      startDate: '2026-01-02',
+      days: 3,
+      deadlineType: 'GENERIC',
+    });
+    expect(r.businessDays).toBe(true);
+    expect(r.dueDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('genera reportes 606/607 stubbeados', async () => {
+    const reports = dom.getFiscalReports();
+    expect(reports.supported).toEqual(['606', '607']);
+    const out = await reports.generate('606', { period: '2026-01' });
+    expect(out.format).toBe('CSV');
+    expect(out.submission.status).toBe('STUBBED');
   });
 });

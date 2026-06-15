@@ -34,7 +34,14 @@ Thumbs.db
 
 # Coverage / test
 coverage/
+coverage-e2e/
 .nyc_output/
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+blob-report/
 
 # Local storage en runtime (dev disk StorageProvider) — solo directorios de datos,
 # NO el código fuente apps/api/src/storage/.
@@ -44,3 +51,6 @@ uploads/
 
 # Docker volumes (if mounted locally)
 .docker-data/
+
+# Playwright e2e seed (generado por global-setup)
+apps/web/e2e/.auth/

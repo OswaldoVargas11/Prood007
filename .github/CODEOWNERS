@@ -1,0 +1,22 @@
+# CODEOWNERS — cambios sensibles requieren revisión del responsable.
+# (La aplicación efectiva depende de activar "Require review from Code Owners" en branch protection.)
+
+# Por defecto, todo.
+*                                   @OswaldoVargas11
+
+# ── Áreas críticas de seguridad / cumplimiento (revisión obligatoria) ──────────
+# Migraciones de BD, RLS y rol de mínimo privilegio.
+/apps/api/prisma/                   @OswaldoVargas11
+# Autenticación, RBAC y aislamiento de tenant.
+/apps/api/src/auth/                 @OswaldoVargas11
+/apps/api/src/prisma/               @OswaldoVargas11
+# Capa de cumplimiento fiscal (IVA/IRPF/ITBIS, Verifactu/e-CF, validación fiscal).
+/packages/compliance/               @OswaldoVargas11
+# Gate de rol y cliente de API del web (sesión httpOnly).
+/apps/web/src/middleware.ts         @OswaldoVargas11
+/apps/web/src/lib/api.ts            @OswaldoVargas11
+/apps/web/src/lib/scope.ts          @OswaldoVargas11
+/apps/web/src/app/api/auth/         @OswaldoVargas11
+
+# ── Pipeline CI/CD y gobernanza ────────────────────────────────────────────────
+/.github/                           @OswaldoVargas11

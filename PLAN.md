@@ -258,6 +258,36 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
 - `AiAssistantProvider` (solo contrato): redacción/resumen/revisión con citación y anti-alucinación.
 - CRM/captación, dashboards avanzados, app móvil.
 
+## CI/CD — Pipeline del monorepo `[~]` (ver DECISIONS D-016/D-017/D-018)
+
+> Tests como pieza central. CI completo ahora; CD hasta staging cableado aparte; producción
+> desconectada (entorno protegido con aprobación manual) hasta tener hosting.
+
+- **CI — workflow de Pull Request** `[~]`
+  - [x] **Paso 0:** inspección de `ci.yml`, scripts, tests, docker-compose y RLS registrada (D-016).
+  - [x] **Estrategia de pruebas + 4 gates** definidos (RLS, fiscal ≥90%, 403 de rol, cobertura crítica).
+  - [x] Job 1 **setup** — install con caché (composite action) + build de paquetes compartidos.
+  - [x] Job 2 **lint + typecheck** — `pnpm -r lint` + `pnpm -r typecheck` (scripts `typecheck` nuevos).
+  - [x] Job 3 **unit + coverage** — compliance ≥90% (GATE), web (cliente API+auth) con umbrales; artefacto.
+  - [x] Job 4 **api-integration** — Postgres service, migraciones con `DIRECT_DATABASE_URL`, e2e como
+        `legalflow_app` (RLS real) + cobertura auth (GATE).
+  - [x] Job 5 **web-e2e** — Postgres + API:4000 + web:3000 + Playwright smoke (login BFF + 403 de rol).
+  - [x] Job 6 **security** — `pnpm audit --prod` (bloquea, allowlist D-017), licencias, gitleaks, CodeQL.
+  - [x] Job 7 **migration-check** — drift `prisma migrate diff` (replay en BD shadow ↔ schema).
+  - [x] Job 8 **build** — `pnpm -r build` (api + web compilan de verdad).
+  - [x] `concurrency` (cancela runs obsoletos) + gate agregado `ci-ok`.
+  - [ ] **Verde en un PR real** (en curso) → parar y avisar antes de tocar CD.
+- **Gobernanza** `[~]`
+  - [x] `CODEOWNERS` (migraciones, RLS, auth, compliance, cliente API/auth web, `.github/`).
+  - [x] `dependabot.yml` (npm/pnpm + github-actions, agrupado).
+  - [ ] **Branch protection** en `main` (PR obligatorio, checks requeridos, rama al día, 1 review) —
+        se configura **al final**, tras el primer PR verde.
+- **CD — entrega** `[ ]` (NO en esta tanda)
+  - [ ] build+push de imágenes api/web a GHCR (SHA + latest) en push a `main`.
+  - [ ] deploy a `staging` con `prisma migrate deploy` (`DIRECT_DATABASE_URL`).
+  - [ ] deploy a **producción**: entorno protegido + aprobación manual + backup + rollback —
+        **cableado pero desconectado** hasta elegir hosting. No activar.
+
 ## Transversales de seguridad / cumplimiento de datos
 
 - [ ] Cifrado en tránsito (TLS) y en reposo (campos sensibles / disco).

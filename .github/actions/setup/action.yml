@@ -1,0 +1,26 @@
+name: Setup pnpm + Node + shared packages
+description: >-
+  Instala pnpm (versión del campo packageManager), Node 20 con caché del store de pnpm,
+  dependencias con lockfile congelado (genera el cliente Prisma vía postinstall) y compila los
+  paquetes compartidos (@legalflow/domain, @legalflow/compliance) para que apps/api y apps/web
+  resuelvan sus tipos y builds.
+
+runs:
+  using: composite
+  steps:
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+
+    - name: Setup Node 20 (con caché de pnpm)
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: pnpm
+
+    - name: Install (frozen lockfile)
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: Build shared packages
+      shell: bash
+      run: pnpm --filter @legalflow/domain --filter @legalflow/compliance build

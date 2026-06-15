@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # Dependencias del monorepo (pnpm se gestiona vía el ecosistema npm).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    versioning-strategy: increase
+    groups:
+      # Agrupa parches/menores para reducir ruido; los mayores van sueltos para revisar a mano.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies
+
+  # Acciones de GitHub usadas en los workflows.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - ci

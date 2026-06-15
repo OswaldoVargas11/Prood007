@@ -26,4 +26,9 @@ describe('scope', () => {
   it('ante un token inválido, devuelve client (cierra por defecto)', () => {
     expect(scopeFromAccessToken('no-es-un-jwt')).toBe('client');
   });
+
+  it('ante un payload que no es JSON válido, devuelve client (catch)', () => {
+    // El segundo segmento existe pero su base64url no decodifica a JSON → entra al catch.
+    expect(scopeFromAccessToken('header.@@@@@@.sig')).toBe('client');
+  });
 });
