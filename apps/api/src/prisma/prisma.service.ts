@@ -52,12 +52,30 @@ export class PrismaService extends PrismaClient {}
  * tenant) y carga del usuario para emitir tokens— usan ESTE cliente: el bypass es un privilegio de
  * rol deliberado y explícito, NO la ausencia de contexto. No lleva la extensión RLS (no fija el GUC).
  *
- * Fallback a `DIRECT_DATABASE_URL` (rol propietario, superusuario en dev/CI → también bypassa RLS)
- * si `SYSTEM_DATABASE_URL` no está definido, para no romper entornos que aún no lo declaran.
+ * Es la "joya de la corona": `SYSTEM_DATABASE_URL` salta TODO el aislamiento. Secreto fuerte, aparte,
+ * nunca logueado, nunca usado fuera de aquí. En **producción es obligatorio** declarar el rol dedicado
+ * (`legalflow_system`): si falta, se LANZA un error de arranque en vez de "fallar hacia más privilegio"
+ * corriendo como propietario/superusuario. El fallback a `DIRECT_DATABASE_URL` (con aviso) queda SOLO
+ * para dev/CI, donde no romper el arranque pesa más que la separación estricta de roles.
  */
 export class SystemPrismaService extends PrismaClient {}
 
 export function createSystemPrisma() {
-  const url = process.env.SYSTEM_DATABASE_URL ?? process.env.DIRECT_DATABASE_URL;
+  let url = process.env.SYSTEM_DATABASE_URL;
+  if (!url) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'SYSTEM_DATABASE_URL no está definido. En producción el rol de sistema (legalflow_system, ' +
+          'BYPASSRLS) debe declararse explícitamente; no se admite el fallback a DIRECT_DATABASE_URL ' +
+          '(propietario/superusuario) para las rutas de login/registro/carga de token.',
+      );
+    }
+    url = process.env.DIRECT_DATABASE_URL;
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[prisma] SYSTEM_DATABASE_URL no definido; usando DIRECT_DATABASE_URL como cliente de sistema ' +
+        '(solo dev/CI). En producción declara el rol dedicado legalflow_system.',
+    );
+  }
   return new PrismaClient(url ? { datasources: { db: { url } } } : undefined);
 }

@@ -323,8 +323,13 @@ Decisiones:
   `legalflow_app` (mínimo privilegio, NOBYPASSRLS → runtime, `DATABASE_URL`), `legalflow_system`
   (BYPASSRLS, no superusuario, no propietario → solo rutas de sistema, `SYSTEM_DATABASE_URL`). El rol de
   sistema se crea en la migración (requiere superusuario; lo es en dev/CI); en prod se provisiona fuera de
-  banda con contraseña fuerte. Fallback: si `SYSTEM_DATABASE_URL` no está definido, cae a
-  `DIRECT_DATABASE_URL` (no rompe entornos previos).
+  banda con contraseña fuerte. **`SYSTEM_DATABASE_URL` es ahora la "joya de la corona"** (salta TODO el
+  aislamiento): secreto fuerte, aparte, nunca logueado, nunca usado fuera de `SystemPrismaService`. Cambia
+  el modelo de amenaza: de "fail-open al olvidar contexto" a "una credencial BYPASSRLS que custodiar"
+  (trade correcto: bypass explícito y estrecho > implícito y amplio). **En producción es obligatorio**: si
+  falta `SYSTEM_DATABASE_URL`, el arranque **lanza un error** en vez de "fallar hacia más privilegio"
+  corriendo como propietario/superusuario. El fallback a `DIRECT_DATABASE_URL` (con aviso) queda **solo
+  para dev/CI**.
 - **Efectos colaterales corregidos:** (1) `users.service` usaba un `$transaction` crudo (no fijaba el GUC)
   → migrado a `tenantTransaction` (lo fija al inicio). (2) El gateway Socket.IO ya fijaba el contexto del
   tenant del socket en `subscribeMatter` (`runWithTenant`) desde D-013; bajo fail-closed eso pasa de ser
