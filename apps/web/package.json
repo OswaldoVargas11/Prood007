@@ -28,6 +28,8 @@
     "class-variance-authority": "^0.7",
     "clsx": "^2",
     "cmdk": "^1",
+    "framer-motion": "^11",
+    "geist": "^1",
     "lucide-react": "^0.460",
     "next": "^15.5.19",
     "next-intl": "^3.26.0",

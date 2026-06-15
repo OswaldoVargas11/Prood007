@@ -4,6 +4,7 @@ import { useEffect, type ReactNode } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useRouter, Link } from '@/i18n/navigation';
 import { NotificationsBell } from './notifications-bell';
+import { PageTransition } from './page-transition';
 import { ThemeToggle } from './theme-toggle';
 import { UserMenu } from './user-menu';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -47,7 +48,7 @@ export function PortalShell({ children }: { children: ReactNode }) {
           <UserMenu />
         </div>
       </header>
-      <main className="mx-auto max-w-4xl animate-fade-in p-6 lg:p-8">{children}</main>
+      <PageTransition className="mx-auto max-w-4xl p-6 lg:p-8">{children}</PageTransition>
     </div>
   );
 }

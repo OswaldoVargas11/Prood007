@@ -814,3 +814,27 @@ Paso 0 + gobernanza + el PR sensible de RLS. Objetivo: endurecer transversales s
   PII sobrescrita, expediente+facturas preservados, AuditLog conserva traza, portal cortado (401),
   409 re-anonimizar, 403 letrado, 404 cross-tenant.
 - **Siguiente:** esperar OK para fusionar PR-Y; luego Tarea 5 (pulido) si el usuario lo quiere.
+
+### 2026-06-15 - Claude - Tarea 5 (pulido): preview fiscal, QR, i18n API, nav responsive, motion+Geist
+
+- **Un PR por ítem; CODEOWNERS decide auto-merge vs revisión.**
+- **Item 1 - Preview fiscal (PR #30, ABIERTO, espera OK - toca compliance):** endpoint read-only
+  POST /ledger/invoices/preview que reutiliza la MISMA matematica fiscal que la emision real
+  (provider.previewInvoice; buildInvoiceRecord ahora delega en el) -> preview y factura no divergen.
+  UI en vivo en "Nueva factura" con indicador Verifactu/e-CF. Tests: preview==emision (ES con/sin
+  retencion, RD ITBIS) + e2e read-only no crea factura + codigo invalido 400. Ver D-023.
+- **Item 2 - QR Verifactu (PR #31, FUSIONADO):** render del QR escaneable (qrcode.react, ISC) desde la
+  qrUrl de cotejo AEAT del complianceRecord; solo VERIFACTU (en RD/e-CF no aplica); fondo blanco fijo.
+- **Item 3 - i18n exhaustivo de la API (PR #32, ABIERTO, espera OK - toca auth):** todo error por
+  messageKey con catalogo COMPLETO es-ES/es-DO (common/api-messages.ts) + apiError(); ~56 throws
+  refactorizados; validacion de DTO via pipe compartido (validation.failed); gate de completitud.
+  e2e 158/158, cobertura auth (GATE) por encima de umbrales.
+- **Item 4 - Nav responsive (PR #33, FUSIONADO):** la sidebar flotante colapsa en un Drawer (Sheet)
+  por debajo de lg con boton hamburguesa; se cierra al navegar. Responsive web, no app nativa.
+- **Item 5 - Animaciones + Geist (PR #34, FUSIONADO):** framer-motion con los tokens del handoff
+  (lib/motion.ts) + PageTransition que respeta prefers-reduced-motion; webfont Geist via next/font.
+- **Verificacion local:** compliance 50/50, api e2e 158/158, web build+unit verdes, typecheck+lint
+  limpios, gate de licencias OK. CI real verde en todos los PR (los fusionados via auto-merge).
+- **Docs:** PLAN (marcados items + corregida la linea stale de anonimizacion: #29 esta fusionado),
+  DECISIONS D-023, HANDOFF, este worklog.
+- **Siguiente:** esperar OK para fusionar #30 (preview) y #32 (i18n). Resto cerrado.
