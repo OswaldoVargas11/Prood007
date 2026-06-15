@@ -59,6 +59,15 @@ describe('validateEsTaxId', () => {
     expect(validateEsTaxId('')).toEqual({ valid: false });
     expect(validateEsTaxId('ABC')).toEqual({ valid: false });
   });
+
+  it('valida un CIF cuyo dígito de control es 0 (suma múltiplo de 10)', () => {
+    // Dígitos 0000000 → suma 0 → dígito de control 0 (rama unit===0). Org 'A' exige dígito.
+    expect(validateEsTaxId('A00000000')).toEqual({
+      valid: true,
+      kind: TaxIdKind.CIF,
+      normalized: 'A00000000',
+    });
+  });
 });
 
 describe('validateDoTaxId', () => {
