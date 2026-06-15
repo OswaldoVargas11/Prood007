@@ -5,47 +5,88 @@ import { Link, usePathname } from '@/i18n/navigation';
 import { NAV_GROUPS, type NavItem } from '@/lib/nav';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 
-/** Sidebar flotante (aside translúcido con blur), agrupado igual que la plantilla. */
-export function AppSidebar() {
+/** Marca (logo + nombre), reutilizada por el sidebar de escritorio y el Drawer móvil. */
+function Brand() {
+  return (
+    <div className="flex h-14 items-center gap-2.5 px-5">
+      <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--ai-from)] to-[var(--ai-to)]">
+        <div className="size-2.5 rotate-45 rounded-[3px] border-2 border-white" />
+      </div>
+      <span className="text-sm font-semibold tracking-tight">Lexora</span>
+    </div>
+  );
+}
+
+/** Contenido de navegación (grupos + items), compartido por escritorio y móvil. */
+function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const t = useTranslations('nav');
   const pathname = usePathname();
   const { hasRole } = useAuth();
   const isAdmin = hasRole('FIRM_ADMIN');
 
   return (
-    <aside className="hidden w-[236px] shrink-0 flex-col border-r border-border bg-card/60 backdrop-blur-xl lg:flex">
-      <div className="flex h-14 items-center gap-2.5 px-5">
-        <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--ai-from)] to-[var(--ai-to)]">
-          <div className="size-2.5 rotate-45 rounded-[3px] border-2 border-white" />
-        </div>
-        <span className="text-sm font-semibold tracking-tight">Lexora</span>
-      </div>
-
-      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-3">
-        {NAV_GROUPS.map((group) => {
-          // El grupo «Despacho» mezcla items para todo el staff (Agenda) y solo-admin; filtramos.
-          const items = group.items.filter((i) => !i.adminOnly || isAdmin);
-          if (items.length === 0) return null;
-          return (
-            <div key={group.key} className="flex flex-col gap-0.5">
-              <div className="px-3 pb-1 pt-3.5 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--text-subtle)]">
-                {t(`groups.${group.key}`)}
-              </div>
-              {items.map((item) => (
-                <SidebarItem
-                  key={item.key}
-                  item={item}
-                  active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
-                  label={t(item.key)}
-                  soon={t('soon')}
-                />
-              ))}
+    <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-3">
+      {NAV_GROUPS.map((group) => {
+        // El grupo «Despacho» mezcla items para todo el staff (Agenda) y solo-admin; filtramos.
+        const items = group.items.filter((i) => !i.adminOnly || isAdmin);
+        if (items.length === 0) return null;
+        return (
+          <div key={group.key} className="flex flex-col gap-0.5">
+            <div className="px-3 pb-1 pt-3.5 text-[10.5px] font-semibold uppercase tracking-wider text-[var(--text-subtle)]">
+              {t(`groups.${group.key}`)}
             </div>
-          );
-        })}
-      </nav>
+            {items.map((item) => (
+              <SidebarItem
+                key={item.key}
+                item={item}
+                active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
+                label={t(item.key)}
+                soon={t('soon')}
+                onNavigate={onNavigate}
+              />
+            ))}
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** Sidebar flotante de escritorio (aside translúcido). Oculto por debajo de `lg` (ver `MobileSidebar`). */
+export function AppSidebar() {
+  return (
+    <aside className="hidden w-[236px] shrink-0 flex-col border-r border-border bg-card/60 backdrop-blur-xl lg:flex">
+      <Brand />
+      <SidebarNav />
     </aside>
+  );
+}
+
+/**
+ * Navegación móvil: en anchos pequeños (donde el sidebar fijo está oculto) la navegación se ofrece
+ * en un Drawer lateral. Se controla desde el AppShell (botón hamburguesa) y se cierra al navegar.
+ */
+export function MobileSidebar({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (value: boolean) => void;
+}) {
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="left"
+        className="flex w-[270px] flex-col bg-card/95 p-0 backdrop-blur-xl lg:hidden"
+      >
+        <SheetTitle className="sr-only">Lexora</SheetTitle>
+        <SheetDescription className="sr-only">Navegación principal del despacho</SheetDescription>
+        <Brand />
+        <SidebarNav onNavigate={() => onOpenChange(false)} />
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -54,11 +95,13 @@ function SidebarItem({
   active,
   label,
   soon,
+  onNavigate,
 }: {
   item: NavItem;
   active: boolean;
   label: string;
   soon: string;
+  onNavigate?: () => void;
 }) {
   const Icon = item.icon;
   const content = (
@@ -86,7 +129,7 @@ function SidebarItem({
   );
 
   return item.enabled ? (
-    <Link href={item.href} aria-current={active ? 'page' : undefined}>
+    <Link href={item.href} aria-current={active ? 'page' : undefined} onClick={onNavigate}>
       {content}
     </Link>
   ) : (

@@ -416,3 +416,36 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
 - **Probado (local, como `legalflow_app`):** **107/107 e2e en verde**, typecheck + lint limpios. Tests de
   anonimización: PII sobrescrita, expediente y facturas **preservados**, AuditLog conserva la traza, portal
   **cortado** (login 401 tras anonimizar), 409 al re-anonimizar, 403 letrado, 404 cross-tenant.
+
+## D-023 · Pulido (Tarea 5): preview fiscal, QR Verifactu, i18n de API, nav responsive, motion + Geist · Aceptada
+
+- **Contexto:** última tanda de pulido. Dos ítems con sustancia (preview fiscal, QR) y tres cosméticos
+  (i18n exhaustivo de API, nav móvil, animaciones+fuente). Un PR pequeño por ítem; CODEOWNERS decide
+  auto-merge vs. revisión.
+- **Preview fiscal en vivo (PR #30, espera OK — toca compliance):** endpoint READ-ONLY
+  `POST /ledger/invoices/preview`. Clave de confianza: NO se duplica la matemática fiscal en el cliente
+  ni en un segundo cálculo. El provider expone `previewInvoice()` y `buildInvoiceRecord` **delega en él**,
+  de modo que preview y factura emitida comparten una ÚNICA ruta (`getTaxRates` + `computeInvoiceTotals`)
+  y no pueden divergir. Tests prueban `preview.totals === emitida.totals` (ES con/sin retención, RD ITBIS).
+  Jurisdicción-aware: el formato (VERIFACTU/ECF) lo da el provider, no el núcleo.
+- **QR Verifactu (PR #31, fusionado):** se renderiza el QR escaneable con `qrcode.react` (ISC) a partir
+  de la `qrUrl` de cotejo AEAT que YA genera el complianceRecord — no se inventa contenido. Solo en
+  formato VERIFACTU; en RD (e-CF) no aplica ese QR español → se mantiene la representación del e-CF.
+  Fondo blanco fijo para que escanee también en modo oscuro.
+- **i18n exhaustivo de la API (PR #32, espera OK — toca auth):** todo error de la API sale por una
+  `messageKey` estable con catálogo COMPLETO es-ES/es-DO (`apps/api/src/common/api-messages.ts`) + helper
+  `apiError()` (messageKey + message fallback es-ES + params/code). ~56 throws refactorizados; validación
+  de DTOs vía pipe compartido con `messageKey: 'validation.failed'`. Gate de test de completitud (toda
+  clave con ambos locales + placeholders consistentes). Es exhaustivo precisamente por incluir auth ⇒
+  CODEOWNERS exige revisión (no se fuerza auto-merge; la política CODEOWNERS prevalece sobre la etiqueta).
+- **Nav responsive (PR #33, fusionado):** la sidebar flotante estaba `hidden lg:flex` (web sin navegación
+  en móvil). El contenido del nav se extrae a `SidebarNav`, reutilizado por el aside de escritorio y por
+  un Drawer lateral (Sheet) que abre un botón hamburguesa `lg:hidden` y se cierra al navegar. Es responsive
+  web, NO app nativa (sigue diferida). A11y: SheetTitle/Description + aria-label i18n.
+- **Animaciones + Geist (PR #34, fusionado):** framer-motion con los tokens EXACTOS del handoff
+  (`design/Lexora-Implementation.dc.html`) centralizados en `lib/motion.ts` (ease [0.22,0.8,0.2,1],
+  entrada 220 ms, overlay 320 ms, press 140 ms, drawer spring). `PageTransition` aplica la entrada de
+  pantalla por ruta y **respeta `prefers-reduced-motion`** (AA). Webfont Geist autohospedada vía next/font
+  (paquete `geist`), encabezando `--font-sans/--font-mono`. Ambas deps MIT (gate de licencias OK).
+- **Fuera de alcance (sin cambios):** envío real AEAT/DGII, IA, LexNET, firma, SMS, CRM, app móvil nativa,
+  rebrand @legalflow → Lexora. Siguen diferidos.

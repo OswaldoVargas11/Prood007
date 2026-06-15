@@ -81,8 +81,11 @@
     --radius: 0.8rem;
 
     /* ---- typography ---- */
-    --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
-    --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', monospace;
+    /* La webfont Geist se autohospeda vía next/font (paquete `geist`): expone --font-geist-sans/mono
+       en <html>. Encabezamos la cadena con esas variables y conservamos los fallbacks del sistema. */
+    --font-sans:
+      var(--font-geist-sans), 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-mono: var(--font-geist-mono), 'Geist Mono', ui-monospace, 'SF Mono', monospace;
   }
 
   .dark {
