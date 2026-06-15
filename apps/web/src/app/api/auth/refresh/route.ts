@@ -14,7 +14,7 @@ import {
  * cookie con el nuevo refresh y devuelve el nuevo access. Si falla, limpia la cookie. Ver D-014.
  */
 export async function POST(): Promise<NextResponse> {
-  const refreshToken = getSessionToken();
+  const refreshToken = await getSessionToken();
   if (!refreshToken) {
     return NextResponse.json({ message: 'Sin sesión' }, { status: 401 });
   }
@@ -25,11 +25,11 @@ export async function POST(): Promise<NextResponse> {
   });
   const data = await res.json().catch(() => undefined);
   if (!res.ok) {
-    clearSessionCookie();
+    await clearSessionCookie();
     return NextResponse.json(data ?? { message: 'Sesión expirada' }, { status: 401 });
   }
   const pair = data as TokenPair;
-  setSessionCookie(pair.refreshToken);
-  setScopeCookie(scopeFromAccessToken(pair.accessToken));
+  await setSessionCookie(pair.refreshToken);
+  await setScopeCookie(scopeFromAccessToken(pair.accessToken));
   return NextResponse.json({ accessToken: pair.accessToken, expiresIn: pair.expiresIn });
 }

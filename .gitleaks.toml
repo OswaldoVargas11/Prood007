@@ -1,0 +1,18 @@
+# Config de gitleaks (extiende las reglas por defecto).
+# Allowlist: credenciales de PRUEBA y valores de ejemplo dummy — no son secretos reales.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Falsos positivos conocidos: fixtures de test y plantillas .example"
+paths = [
+  '''apps/web/e2e/.*''',          # contraseñas de prueba en specs Playwright
+  '''apps/api/test/.*''',         # credenciales de prueba en e2e de la API
+  '''\.env\.example$''',          # plantilla de entorno con valores dummy
+  '''packages/compliance/src/.*\.spec\.ts$''', # NIF/CIF de ejemplo en tests fiscales
+]
+# Las contraseñas de prueba siguen un patrón reconocible para no ocultar secretos reales.
+regexes = [
+  '''Sup3rSecret!2026''',
+  '''incorrecta-12345''',
+]

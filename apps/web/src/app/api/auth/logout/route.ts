@@ -5,7 +5,7 @@ import { clearSessionCookie, getSessionToken, nestUrl } from '@/lib/server/sessi
  * BFF de logout: revoca el refresh en Nest (best-effort) y limpia la cookie httpOnly. Ver D-014.
  */
 export async function POST(): Promise<NextResponse> {
-  const refreshToken = getSessionToken();
+  const refreshToken = await getSessionToken();
   if (refreshToken) {
     await fetch(nestUrl('/auth/logout'), {
       method: 'POST',
@@ -13,6 +13,6 @@ export async function POST(): Promise<NextResponse> {
       body: JSON.stringify({ refreshToken }),
     }).catch(() => undefined);
   }
-  clearSessionCookie();
+  await clearSessionCookie();
   return new NextResponse(null, { status: 204 });
 }
