@@ -195,6 +195,13 @@ Cruzando con `HANDOFF.md`, `PLAN.md`, `DECISIONS.md` y `RUNBOOK.md`:
    autenticado pasa el guard de rol; el control real es del servicio (membresía del expediente /
    propiedad de la notificación) + RLS. Anotado arriba como "auth".
 4. **ADRs D-000..D-023 (24), no D-001..D-023.** Existe también `D-000`. Sin impacto funcional.
+5. **`HANDOFF.md` desactualizado en el fallback de `SYSTEM_DATABASE_URL`.** HANDOFF afirma "si falta
+   `SYSTEM_DATABASE_URL`, cae a `DIRECT_DATABASE_URL`". El código (`prisma.service.ts`) es más estricto:
+   en **producción `throw`** (sin fallback); el fallback a `DIRECT_DATABASE_URL` (con aviso) **solo
+   aplica fuera de producción**. La doc nueva ([03](03-multitenancy-and-rls.md),
+   [04](04-encryption-and-secrets.md)) refleja el comportamiento real.
+6. **`HANDOFF.md` dice "Next.js 14"; el código usa Next 15.5** (`apps/web/package.json`). Doc
+   [10](10-tech-stack.md) refleja la versión real.
 
-No se detectaron discrepancias **funcionales** entre lo que los docs afirman y lo que el código hace;
-las anteriores son precisiones de recuento/redacción.
+Salvo lo anterior (precisiones de recuento y dos puntos **stale** en HANDOFF, anotados aquí), no se
+detectaron discrepancias **funcionales** entre lo que los docs afirman y lo que el código hace.

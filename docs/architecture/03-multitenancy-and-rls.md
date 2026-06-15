@@ -13,9 +13,10 @@
 
 - El runtime corre con el rol de **mínimo privilegio**; por eso RLS lo afecta. El rol de **sistema**
   (BYPASSRLS) es la **joya de la corona**: salta TODO el aislamiento y solo se usa en las rutas
-  cross-tenant legítimas (autenticar a alguien antes de saber su tenant). En producción
-  `SYSTEM_DATABASE_URL` es **obligatorio**: si falta, la API **no arranca** (sin fallback a
-  propietario/superusuario). Ver `prisma.service.ts` (`SystemPrismaService`).
+  cross-tenant legítimas (autenticar a alguien antes de saber su tenant). Comportamiento real de
+  `prisma.service.ts` (`SystemPrismaService`): en **producción** `SYSTEM_DATABASE_URL` es
+  **obligatorio** — si falta, la API **lanza** y no arranca (sin fallback). **Fuera de producción**
+  (dev), si falta, cae a `DIRECT_DATABASE_URL` con un **aviso** (comodidad de desarrollo).
 
 ## Cómo se propaga `app.tenant_id`
 
