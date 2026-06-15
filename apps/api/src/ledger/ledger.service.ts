@@ -9,6 +9,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateLedgerEntryDto, MANUAL_LEDGER_TYPES } from './dto/create-ledger-entry.dto';
 import { CreateTimeEntryDto } from './dto/create-time-entry.dto';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { PreviewInvoiceDto } from './dto/preview-invoice.dto';
 import { ProposeCostDto } from './dto/propose-cost.dto';
 import { ResolveApprovalDto } from './dto/resolve-approval.dto';
 import type { RequestUser } from '../auth/auth.types';
@@ -142,6 +143,29 @@ export class LedgerService {
     ]);
     const series = tenant.invoiceSeries || 'FAC';
     return `${series}-${year}-${String(count + 1).padStart(4, '0')}`;
+  }
+
+  /**
+   * Pre-cálculo fiscal READ-ONLY (sin crear factura ni mover estado). Resuelve el provider de la
+   * jurisdicción del tenant y delega en `previewInvoice`, que comparte la MISMA matemática fiscal
+   * que la emisión real (`buildInvoiceRecord`): preview y factura emitida nunca divergen.
+   */
+  previewInvoice(user: RequestUser, dto: PreviewInvoiceDto) {
+    const provider = this.compliance.forTenant({ jurisdiction: user.jurisdiction });
+    // La descripción no interviene en la matemática fiscal; se completa neutra para el tipo de línea.
+    const lines = dto.lines.map((l) => ({
+      description: '',
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      taxCode: l.taxCode,
+    }));
+    try {
+      return provider.previewInvoice(lines, dto.withholdingTaxCode);
+    } catch {
+      throw new BadRequestException(
+        'No se pudo calcular el preview fiscal con los datos indicados.',
+      );
+    }
   }
 
   async createInvoice(user: RequestUser, dto: CreateInvoiceDto) {

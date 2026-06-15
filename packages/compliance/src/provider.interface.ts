@@ -11,6 +11,8 @@ import type {
   CourtIntegration,
   FiscalReports,
   InvoiceInput,
+  InvoiceLineInput,
+  InvoicePreview,
   InvoiceRecord,
   ProceduralDeadlineParams,
   ProceduralDeadlineResult,
@@ -22,11 +24,21 @@ export interface ComplianceProvider {
   /** Jurisdicción que implementa este provider. */
   readonly jurisdiction: Jurisdiction;
 
+  /** Formato del registro fiscal de la jurisdicción: "VERIFACTU" (ES) | "ECF" (RD). */
+  readonly invoiceFormat: string;
+
   /** Valida un identificador fiscal: NIF/CIF/NIE (ES) o RNC/Cédula (RD), con dígito de control. */
   validateTaxId(id: string): TaxIdValidationResult;
 
   /** Tasas impositivas vigentes: IVA + retención IRPF (ES); ITBIS (RD). */
   getTaxRates(): TaxRatesResult;
+
+  /**
+   * Pre-cálculo READ-ONLY de los totales de una factura, sin emitirla ni cambiar estado.
+   * DEBE reutilizar la MISMA matemática fiscal que `buildInvoiceRecord` (no se duplica la lógica):
+   * preview y factura emitida nunca pueden divergir. Alimenta el preview fiscal en vivo de la UI.
+   */
+  previewInvoice(lines: InvoiceLineInput[], withholdingTaxCode?: string): InvoicePreview;
 
   /**
    * Genera el registro fiscal estructuralmente correcto de la factura:

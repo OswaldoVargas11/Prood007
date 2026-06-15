@@ -170,6 +170,21 @@ export interface Invoice {
   client?: { id: string; name: string; taxId: string };
 }
 
+/** Totales fiscales neutrales (base/impuestos/retención/total) que devuelve el cálculo del provider. */
+export interface InvoiceTotals {
+  taxableBase: string;
+  taxAmount: string;
+  withholdingAmount: string;
+  total: string;
+}
+
+/** Pre-cálculo fiscal en vivo (`POST /ledger/invoices/preview`): totales + formato de la jurisdicción. */
+export interface InvoicePreview {
+  jurisdiction: 'es' | 'do';
+  format: 'VERIFACTU' | 'ECF';
+  totals: InvoiceTotals;
+}
+
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED';
 
 export interface Task {

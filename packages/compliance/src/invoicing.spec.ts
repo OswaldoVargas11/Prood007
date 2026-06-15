@@ -81,6 +81,55 @@ describe('República Dominicana — buildInvoiceRecord (e-CF)', () => {
   });
 });
 
+describe('previewInvoice — pre-cálculo read-only sin divergencia con la emisión real', () => {
+  const es = new SpainComplianceProvider();
+  const dom = new DominicanComplianceProvider();
+
+  it('ES: el preview reproduce EXACTAMENTE los totales de buildInvoiceRecord (con retención)', async () => {
+    const inv = baseInvoice({ withholdingTaxCode: 'IRPF_GENERAL' });
+    const preview = es.previewInvoice(inv.lines, inv.withholdingTaxCode);
+    const emitted = await es.buildInvoiceRecord(inv);
+    expect(preview.totals).toEqual(emitted.totals);
+    expect(preview.format).toBe('VERIFACTU');
+    expect(preview.jurisdiction).toBe('es');
+    // Mismos números que la emisión: base 1000, IVA 210, IRPF 150, total 1060.
+    expect(preview.totals.total).toBe('1060.00');
+  });
+
+  it('ES: sin retención, preview = emisión (base + IVA)', async () => {
+    const inv = baseInvoice();
+    const preview = es.previewInvoice(inv.lines, inv.withholdingTaxCode);
+    const emitted = await es.buildInvoiceRecord(inv);
+    expect(preview.totals).toEqual(emitted.totals);
+    expect(preview.totals.total).toBe('1210.00');
+  });
+
+  it('RD: el preview reproduce los totales del e-CF (ITBIS 18%)', async () => {
+    const inv = baseInvoice({
+      currency: 'DOP',
+      seller: { name: 'Despacho', taxId: '101010101' },
+      buyer: { name: 'Cliente', taxId: '130000000' },
+      lines: [
+        { description: 'Honorarios', quantity: '5', unitPrice: '200', taxCode: 'ITBIS_STANDARD' },
+      ],
+    });
+    const preview = dom.previewInvoice(inv.lines);
+    const emitted = await dom.buildInvoiceRecord(inv);
+    expect(preview.totals).toEqual(emitted.totals);
+    expect(preview.format).toBe('ECF');
+    expect(preview.jurisdiction).toBe('do');
+    expect(preview.totals.total).toBe('1180.00');
+  });
+
+  it('propaga el error de un código fiscal inválido (no se emite nada)', () => {
+    expect(() =>
+      es.previewInvoice([
+        { description: '', quantity: '1', unitPrice: '100', taxCode: 'NO_EXISTE' },
+      ]),
+    ).toThrow(/desconocido/);
+  });
+});
+
 describe('computeInvoiceTotals — validación de códigos fiscales (gate de facturación)', () => {
   const rates = [
     { code: 'IVA_STANDARD', labelKey: 'tax.es.iva', ratePercent: '21', withholding: false },

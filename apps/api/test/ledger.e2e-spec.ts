@@ -135,6 +135,49 @@ describe('Ledger & invoicing (e2e)', () => {
     firstInvoiceHash = res.body.compliance.recordHash;
   });
 
+  it('el preview fiscal devuelve los mismos totales que la emisión real (sin crear factura)', async () => {
+    // El preview solo necesita cantidad · precio · código (la descripción no entra en la matemática).
+    const lines = [{ quantity: '10', unitPrice: '100', taxCode: 'IVA_STANDARD' }];
+    const before = await request(app.getHttpServer())
+      .get(`/api/ledger/matter/${matterId}`)
+      .set(auth(token))
+      .expect(200);
+    const invoicesBefore = before.body.entries.filter(
+      (e: { type: string }) => e.type === 'INVOICE',
+    ).length;
+
+    const preview = await request(app.getHttpServer())
+      .post('/api/ledger/invoices/preview')
+      .set(auth(token))
+      .send({ withholdingTaxCode: 'IRPF_GENERAL', lines })
+      .expect(201);
+    expect(preview.body.format).toBe('VERIFACTU');
+    expect(preview.body.totals).toEqual({
+      taxableBase: '1000.00',
+      taxAmount: '210.00',
+      withholdingAmount: '150.00',
+      total: '1060.00',
+    });
+
+    // Read-only: el preview NO debe haber creado ninguna factura ni apunte.
+    const after = await request(app.getHttpServer())
+      .get(`/api/ledger/matter/${matterId}`)
+      .set(auth(token))
+      .expect(200);
+    const invoicesAfter = after.body.entries.filter(
+      (e: { type: string }) => e.type === 'INVOICE',
+    ).length;
+    expect(invoicesAfter).toBe(invoicesBefore);
+  });
+
+  it('preview con código fiscal inválido responde 400', async () => {
+    await request(app.getHttpServer())
+      .post('/api/ledger/invoices/preview')
+      .set(auth(token))
+      .send({ lines: [{ quantity: '1', unitPrice: '100', taxCode: 'NO_EXISTE' }] })
+      .expect(400);
+  });
+
   it('la segunda factura encadena con la huella de la primera', async () => {
     const res = await request(app.getHttpServer())
       .post('/api/ledger/invoices')

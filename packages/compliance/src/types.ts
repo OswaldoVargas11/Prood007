@@ -116,6 +116,19 @@ export interface InvoiceTotals {
   total: string;
 }
 
+/**
+ * Pre-cálculo READ-ONLY de una factura (sin emitirla ni encadenarla). Devuelve los mismos totales
+ * que produciría la emisión real y el formato fiscal de la jurisdicción, para alimentar un preview
+ * en vivo en la UI sin duplicar la matemática fiscal en el cliente.
+ */
+export interface InvoicePreview {
+  jurisdiction: Jurisdiction;
+  /** Formato del registro fiscal de la jurisdicción: "VERIFACTU" (ES) | "ECF" (RD). */
+  format: string;
+  /** Totales neutrales (idénticos a los que `buildInvoiceRecord` persistiría). */
+  totals: InvoiceTotals;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // getProceduralDeadlines
 // ─────────────────────────────────────────────────────────────────────────────
