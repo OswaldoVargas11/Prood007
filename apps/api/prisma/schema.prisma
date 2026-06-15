@@ -86,6 +86,13 @@ enum ApprovalStatus {
   REJECTED
 }
 
+// Estado de un cobro (Payment) sobre una factura.
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tenancy & Auth / RBAC
 // ─────────────────────────────────────────────────────────────────────────────
@@ -129,6 +136,7 @@ model Tenant {
   timeEntries   TimeEntry[]
   ledgerEntries LedgerEntry[]
   invoices      Invoice[]
+  payments      Payment[]
   notifications Notification[]
   messages      Message[]
   auditLogs     AuditLog[]
@@ -464,17 +472,46 @@ model Invoice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  matter Matter        @relation(fields: [matterId], references: [id])
-  client Client        @relation(fields: [clientId], references: [id])
-  lines  InvoiceLine[]
-  ledger LedgerEntry[]
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter   Matter        @relation(fields: [matterId], references: [id])
+  client   Client        @relation(fields: [clientId], references: [id])
+  lines    InvoiceLine[]
+  ledger   LedgerEntry[]
+  payments Payment[]
 
   @@unique([tenantId, number])
   @@index([tenantId])
   @@index([tenantId, clientId])
   @@index([tenantId, status])
   @@index([tenantId, dueDate])
+}
+
+// Cobro sobre una factura. Soporta cobros parciales (varios Payment por factura) y conciliación con
+// pasarela (Stripe en ES) o registro manual. El núcleo es agnóstico de pasarela: `method`/`providerRef`
+// identifican el origen; `metadata` guarda el payload opaco del proveedor. Ver D-024.
+model Payment {
+  id          String        @id @default(cuid())
+  tenantId    String
+  invoiceId   String
+  amount      Decimal       @db.Decimal(18, 2)
+  currency    Currency
+  status      PaymentStatus @default(SUCCEEDED)
+  // Origen del cobro: "MANUAL" | "STRIPE" | … (lo fija el adaptador de pasarela).
+  method      String
+  // Identificador externo del cobro en la pasarela (p. ej. PaymentIntent de Stripe). Para idempotencia.
+  providerRef String?
+  note        String?
+  // Payload/datos de conciliación específicos del proveedor (opaco al núcleo).
+  metadata    Json?
+  paidAt      DateTime?
+  createdAt   DateTime      @default(now())
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([providerRef])
+  @@index([tenantId])
+  @@index([tenantId, invoiceId])
 }
 
 model InvoiceLine {

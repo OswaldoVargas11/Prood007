@@ -15,6 +15,7 @@ import { MattersModule } from './matters/matters.module';
 import { DocumentsModule } from './documents/documents.module';
 import { TasksModule } from './tasks/tasks.module';
 import { LedgerModule } from './ledger/ledger.module';
+import { PaymentsModule } from './payments/payments.module';
 import { MessagesModule } from './messages/messages.module';
 import { PortalModule } from './portal/portal.module';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -39,6 +40,7 @@ import { HealthController } from './health.controller';
     DocumentsModule,
     TasksModule,
     LedgerModule,
+    PaymentsModule,
     MessagesModule,
     PortalModule,
     DashboardModule,

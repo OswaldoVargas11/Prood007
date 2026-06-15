@@ -172,6 +172,32 @@ export const API_MESSAGES = {
     'es-DO': 'Este coste ya fue resuelto.',
   },
 
+  // ── Cobros (Payment) ──────────────────────────────────────────────────────
+  'payments.invoiceNotFound': {
+    'es-ES': 'Factura no encontrada.',
+    'es-DO': 'Factura no encontrada.',
+  },
+  'payments.amountPositive': {
+    'es-ES': 'El importe del cobro debe ser positivo.',
+    'es-DO': 'El importe del cobro debe ser positivo.',
+  },
+  'payments.alreadyPaid': {
+    'es-ES': 'La factura ya está cobrada por completo.',
+    'es-DO': 'La factura ya está cobrada por completo.',
+  },
+  'payments.amountExceedsOutstanding': {
+    'es-ES': 'El importe del cobro supera el saldo pendiente de la factura.',
+    'es-DO': 'El importe del cobro supera el saldo pendiente de la factura.',
+  },
+  'payments.invoiceNotPayable': {
+    'es-ES': 'La factura no admite cobros en su estado actual.',
+    'es-DO': 'La factura no admite cobros en su estado actual.',
+  },
+  'payments.onlineNotConfigured': {
+    'es-ES': 'El cobro online no está configurado para esta jurisdicción.',
+    'es-DO': 'El cobro online no está configurado para esta jurisdicción.',
+  },
+
   // ── Tareas ────────────────────────────────────────────────────────────────
   'tasks.assigneeNotInFirm': {
     'es-ES': 'El usuario asignado no pertenece al despacho.',
