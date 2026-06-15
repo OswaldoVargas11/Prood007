@@ -150,6 +150,26 @@ export interface MatterLedger {
   entries: LedgerEntry[];
 }
 
+/** Ficha de tiempo con su honorario calculado y el expediente al que pertenece. */
+export interface TimeEntryItem {
+  id: string;
+  description: string;
+  minutes: number;
+  hourlyRate: string;
+  workedAt: string;
+  billed: boolean;
+  fee: string;
+  matter: { id: string; reference: string; title: string } | null;
+}
+
+/** Respuesta de `GET /ledger/time`: fichas + totales (minutos y honorarios). */
+export interface TimeSummary {
+  entries: TimeEntryItem[];
+  totalMinutes: number;
+  totalFee: string;
+  currency: string;
+}
+
 export type InvoiceStatus = 'DRAFT' | 'ISSUED' | 'SENT' | 'PAID' | 'CANCELLED';
 
 export interface InvoiceLine {

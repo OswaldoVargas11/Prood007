@@ -8,6 +8,7 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateLedgerEntryDto, MANUAL_LEDGER_TYPES } from './dto/create-ledger-entry.dto';
 import { CreateTimeEntryDto } from './dto/create-time-entry.dto';
+import { ListTimeQueryDto } from './dto/list-time.dto';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { PreviewInvoiceDto } from './dto/preview-invoice.dto';
 import { ProposeCostDto } from './dto/propose-cost.dto';
@@ -108,6 +109,65 @@ export class LedgerService {
     });
     await this.audit.log(user, 'time.logged', 'TimeEntry', result.time.id, { feeAmount });
     return result;
+  }
+
+  /**
+   * Listado de fichas de tiempo (captura sin fricción). Acotado al tenant por RLS. Soporta el repaso
+   * del día (`mine` + `date`) y el "tiempo sin facturar" (`unbilled`). Calcula el honorario por ficha
+   * (minutos/60 × tarifa) y los totales para que la UI no recalcule.
+   */
+  async listTime(user: RequestUser, query: ListTimeQueryDto) {
+    const where: {
+      tenantId: string;
+      userId?: string;
+      billed?: boolean;
+      matterId?: string;
+      workedAt?: { gte: Date; lt: Date };
+    } = { tenantId: user.tenantId };
+    if (query.mine === 'true') where.userId = user.userId;
+    if (query.unbilled === 'true') where.billed = false;
+    if (query.matterId) where.matterId = query.matterId;
+    if (query.date) {
+      const start = new Date(query.date);
+      where.workedAt = { gte: start, lt: new Date(start.getTime() + 86_400_000) };
+    }
+
+    const [rows, tenant] = await Promise.all([
+      this.prisma.timeEntry.findMany({
+        where,
+        orderBy: { workedAt: 'desc' },
+        include: { matter: { select: { id: true, reference: true, title: true } } },
+      }),
+      this.prisma.tenant.findUniqueOrThrow({
+        where: { id: user.tenantId },
+        select: { currency: true },
+      }),
+    ]);
+
+    let totalMinutes = 0;
+    let totalFee = 0;
+    const entries = rows.map((r) => {
+      const fee = round2((r.minutes / 60) * Number(r.hourlyRate));
+      totalMinutes += r.minutes;
+      totalFee += fee;
+      return {
+        id: r.id,
+        description: r.description,
+        minutes: r.minutes,
+        hourlyRate: r.hourlyRate.toString(),
+        workedAt: r.workedAt,
+        billed: r.billed,
+        fee: fee.toFixed(2),
+        matter: r.matter,
+      };
+    });
+
+    return {
+      entries,
+      totalMinutes,
+      totalFee: round2(totalFee).toFixed(2),
+      currency: tenant.currency,
+    };
   }
 
   // ── Vista del ledger (transparente) ─────────────────────────────────────

@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, StreamableFile } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, StreamableFile } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import { LedgerService } from './ledger.service';
 import { pdfStream } from '../common/pdf-response';
 import { CreateLedgerEntryDto } from './dto/create-ledger-entry.dto';
 import { CreateTimeEntryDto } from './dto/create-time-entry.dto';
+import { ListTimeQueryDto } from './dto/list-time.dto';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { PreviewInvoiceDto } from './dto/preview-invoice.dto';
 import { ProposeCostDto } from './dto/propose-cost.dto';
@@ -59,6 +60,12 @@ export class LedgerController {
   @Post('time')
   addTime(@CurrentUser() user: RequestUser, @Body() dto: CreateTimeEntryDto) {
     return this.ledger.addTimeEntry(user, dto);
+  }
+
+  /** Listado de fichas de tiempo (captura sin fricción): repaso del día y tiempo sin facturar. */
+  @Get('time')
+  listTime(@CurrentUser() user: RequestUser, @Query() query: ListTimeQueryDto) {
+    return this.ledger.listTime(user, query);
   }
 
   @Get('matter/:matterId')
