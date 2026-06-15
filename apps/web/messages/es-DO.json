@@ -432,6 +432,8 @@
     "markPaid": "Marcar como pagada",
     "buyer": "Cliente",
     "compliance": "Registro fiscal",
+    "qrTitle": "Código QR (cotejo AEAT)",
+    "qrHint": "Escanéalo para validar la factura en la sede de la AEAT.",
     "recordHash": "Huella (hash)",
     "previousHash": "Encadenamiento (huella anterior)",
     "record": "Registro",
