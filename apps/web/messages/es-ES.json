@@ -9,6 +9,7 @@
     "clients": "Clientes",
     "documents": "Documentos",
     "tasks": "Tareas",
+    "time": "Tiempo",
     "calendar": "Agenda",
     "billing": "Facturación",
     "invoices": "Facturas",
@@ -25,6 +26,30 @@
       "comms": "Comunicación",
       "admin": "Despacho"
     }
+  },
+  "time": {
+    "title": "Tiempo",
+    "subtitle": "Captura el tiempo trabajado y recupera el que falta por facturar.",
+    "log": "Registrar tiempo",
+    "today": "Mi día",
+    "todayEmpty": "Aún no has registrado tiempo hoy.",
+    "unbilled": "Sin facturar",
+    "unbilledHint": "Tiempo trabajado que todavía no se ha llevado a una factura, agrupado por expediente.",
+    "unbilledEmpty": "No hay tiempo pendiente de facturar.",
+    "unbilledTotal": "Total sin facturar:",
+    "invoice": "Facturar",
+    "billedBadge": "Facturado",
+    "unbilledBadge": "Sin facturar",
+    "matter": "Expediente",
+    "matterPlaceholder": "Elige un expediente…",
+    "noMatters": "Aún no hay expedientes. Crea uno antes de registrar tiempo.",
+    "description": "Concepto",
+    "minutes": "Minutos",
+    "hourlyRate": "Tarifa/hora",
+    "workedAt": "Fecha",
+    "save": "Guardar",
+    "error": "No se pudo registrar el tiempo.",
+    "loadError": "No se pudo cargar el tiempo."
   },
   "calendar": {
     "title": "Agenda de plazos",

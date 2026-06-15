@@ -33,6 +33,7 @@ import type {
   StaffUser,
   Task,
   TaskStatus,
+  TimeSummary,
 } from './types';
 
 export function useDashboardSummary() {
@@ -290,7 +291,47 @@ export function useAddTimeEntry(matterId: string) {
       hourlyRate: string;
       workedAt: string;
     }) => api.post('/ledger/time', { ...body, matterId }),
-    onSuccess: () => invalidateMatterBilling(qc, matterId),
+    onSuccess: () => {
+      invalidateMatterBilling(qc, matterId);
+      void qc.invalidateQueries({ queryKey: ['time'] });
+    },
+  });
+}
+
+/** Listado de fichas de tiempo (`GET /ledger/time`): repaso del día / tiempo sin facturar. */
+export function useTimeEntries(filter?: {
+  mine?: boolean;
+  unbilled?: boolean;
+  date?: string;
+  matterId?: string;
+}) {
+  const params = new URLSearchParams();
+  if (filter?.mine) params.set('mine', 'true');
+  if (filter?.unbilled) params.set('unbilled', 'true');
+  if (filter?.date) params.set('date', filter.date);
+  if (filter?.matterId) params.set('matterId', filter.matterId);
+  const qs = params.toString();
+  return useQuery({
+    queryKey: ['time', filter ?? {}],
+    queryFn: () => api.get<TimeSummary>(`/ledger/time${qs ? `?${qs}` : ''}`),
+  });
+}
+
+/** Registro de tiempo global (sin atarse a un expediente fijo): el `matterId` va en el cuerpo. */
+export function useLogTime() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      matterId: string;
+      description: string;
+      minutes: number;
+      hourlyRate: string;
+      workedAt: string;
+    }) => api.post('/ledger/time', body),
+    onSuccess: (_data, vars) => {
+      invalidateMatterBilling(qc, vars.matterId);
+      void qc.invalidateQueries({ queryKey: ['time'] });
+    },
   });
 }
 

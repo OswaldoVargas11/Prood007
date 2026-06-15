@@ -907,3 +907,29 @@ Pruebas:
 
 - **Sensibilidad / merge:** migración + ledger → **PR-y-espera** (el owner fusiona). Apilado sobre #47.
 - **Siguiente:** PR-4 (Stripe Connect ES: checkout + webhook idempotente sobre `reconcile`).
+
+### 2026-06-15 - Claude - Fase 1 (cobro) · PR-2 captura de tiempo sin fricción
+
+Objetivo:
+
+- Reducir el tiempo no registrado y el no facturado (palanca de rentabilidad nº1). Auto-mergeable:
+  no toca migraciones/auth/compliance/prisma → fuera de CODEOWNERS. (PR-1 sigue abierto en #47,
+  PR-y-espera; esta rama parte de main, sin depender de #47.)
+
+Acciones (PR-2):
+
+- API: `GET /ledger/time` (read-only; filtros `mine`/`unbilled`/`date`/`matterId`) en
+  `ledger.service.listTime` + DTO de query. Calcula honorario por ficha y totales (la UI no recalcula).
+  Acotado al tenant por RLS.
+- Web: hooks `useTimeEntries` + `useLogTime` (registro global, matterId en el cuerpo); diálogo
+  reutilizable `LogTimeDialog` (selector de expediente + concepto + minutos + tarifa); página `/time`
+  con **Mi día** (repaso de hoy) y **Sin facturar** (agrupado por expediente, con total y enlace a
+  emitir). Nav `time` habilitado → aparece también en ⌘K ("desde cualquier pantalla"). i18n es-ES/es-DO.
+
+Pruebas:
+
+- API e2e `ledger` 13/13 (3 nuevos: tiempo del día con honorario, tiempo sin facturar, aislamiento
+  cross-tenant del tiempo). web/api typecheck + lint limpios.
+
+- **Sensibilidad / merge:** auto-mergeable (sin rutas CODEOWNERS) → auto-merge en verde.
+- **Siguiente:** PR-3 (PaymentProvider + modelo Payment; PR-y-espera, depende de PR-1/#47).
