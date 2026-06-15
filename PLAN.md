@@ -114,7 +114,9 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 - [x] Locales `es-ES` y `es-DO` operativos en web (next-intl, sin strings hardcodeados en UI).
 - [x] Moneda por tenant (EUR / DOP); ledger y facturas usan `tenant.currency`.
 - [x] Errores de cumplimiento con `messageKey` para traducir en UI.
-- [ ] Catálogo i18n exhaustivo de mensajes de API (pendiente de pulido).
+- [~] Catálogo i18n exhaustivo de mensajes de API: todo error sale por `messageKey` traducible con
+  catálogo COMPLETO es-ES/es-DO + gate de completitud. **PR #32 abierto, pendiente de revisión**
+  (toca `auth/` → CODEOWNERS).
 
 ## E9 — Capa de cumplimiento (paquete base) `[x]`
 
@@ -147,7 +149,10 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
   - [x] **Login real E2E** (verificado contra la API real): login → cookie httpOnly/access → `/me` →
         dashboard con datos reales; refresh con rotación; logout; middleware redirige.
   - [x] Tests: cliente de API (token/refresh, 4 verdes en Vitest).
-  - Pendiente de slices siguientes: framer-motion (animaciones), nav móvil (Drawer), Geist webfont.
+  - [x] **framer-motion** con los tokens del handoff (ease [0.22,0.8,0.2,1], entrada 220 ms, respeta
+        `prefers-reduced-motion`) + **webfont Geist** (next/font, self-hosted). Fusionado (PR #34).
+  - [x] **Nav móvil (Drawer)**: la sidebar flotante colapsa en un Sheet lateral por debajo de `lg`,
+        con botón hamburguesa. Fusionado (PR #33).
 - **F1 — Dashboard + Expedientes (lista + detalle hero)** `[~]`
   - [x] Dashboard: KPIs reales (expedientes, clientes) + expedientes recientes + cumplimiento por
         jurisdicción; estados cargando/error.
@@ -182,8 +187,12 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         encadenamiento + payload), y **marcar como pagada**.
   - [x] Códigos fiscales por jurisdicción (IVA/IRPF vs ITBIS). i18n billing.\*. Verificado E2E
         (ES Verifactu: base 1000, IVA 210, IRPF 150, total 1060; cobro → PAID).
-  - Pendiente: preview fiscal en vivo antes de emitir (la API no expone cálculo previo); QR Verifactu
-    renderizado (se muestra el payload/huella); pantalla global de facturación (sin endpoint de listado).
+  - [x] **QR Verifactu renderizado** en el detalle (qrcode.react; contenido = URL de cotejo AEAT del
+        complianceRecord; jurisdicción-aware: en RD/e-CF no aplica). Fusionado (PR #31).
+  - [~] **Preview fiscal en vivo** antes de emitir: endpoint read-only `POST /ledger/invoices/preview`
+    que reutiliza la MISMA matemática fiscal que la emisión (`previewInvoice` compartido) + UI en
+    vivo con indicador Verifactu/e-CF. **PR #30 abierto, pendiente de revisión** (toca compliance).
+  - Pendiente: pantalla global de facturación (sin endpoint de listado).
 - **F5 — Tiempo real (notificaciones + chat por expediente, Socket.IO)** `[x]`
   - [x] Socket.IO cliente (autenticado con el access token; `auth` callback reevaluado en cada
         reconexión). Singleton `lib/socket`.
@@ -306,9 +315,9 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
 - [~] Preparado RGPD/LOPDGDD (ES) y Ley 172-13 (RD); trazabilidad para futuro AI Act.
   - [x] **Acceso/portabilidad**: `GET /clients/:id/gdpr-export` (FIRM_ADMIN) + **RAT** (`RAT.md`, art. 30).
         Fusionado a main (PR #28). Ver D-022.
-  - [~] **Supresión por ANONIMIZACIÓN** (no hard-delete; preserva expediente/facturas/auditoría) +
-    **retención configurable** (`Tenant.dataRegion`/`retentionMonths`) — **PR `feat/gdpr-anonymize`
-    abierto, pendiente de revisión** (toca migración). 107/107 e2e en verde local. Ver D-022.
+  - [x] **Supresión por ANONIMIZACIÓN** (no hard-delete; preserva expediente/facturas/auditoría) +
+        **retención configurable** (`Tenant.dataRegion`/`retentionMonths`). **Fusionado a main (PR #29).**
+        Ver D-022.
 
 ---
 
