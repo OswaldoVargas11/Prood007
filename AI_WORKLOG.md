@@ -985,3 +985,30 @@ bypass); idempotencia (unique `providerRef` + dedup); checkout autenticado/rol/t
 - **Nota RD (confirmada por el owner):** Stripe **no sirve a RD** estructuralmente (solo ~46 países). El
   stub no es "cablear Stripe luego": RD necesita Azul/CardNet o Merchant-of-Record. La abstracción
   `PaymentProvider` lo deja añadir limpio. Memoria de decisiones de Fase 1 actualizada.
+
+### 2026-06-15 - Claude - Stripe: verificación EN VIVO (modo test) + endurecimiento
+
+Objetivo:
+
+- Probar el cimiento del webhook con eventos FIRMADOS de verdad antes de construir encima (dunning/
+  recurrente). El owner aportó claves de test; se probó contra la API real de Stripe + firma HMAC real.
+
+Verificado en vivo (no mocks):
+
+- Clave real carga → `GET /payments/config` `onlineEnabled:true`. `POST /connect/onboard` hace llamada
+  REAL a Stripe → devuelve 400 _"sign up for Connect"_: **hay que habilitar Connect una vez en
+  dashboard.stripe.com/connect** (hallazgo real; documentado en `docs/STRIPE_TEST.md`).
+- `apps/api/scripts/stripe-webhook-verify.mjs` (claves SOLO desde env): firma payloads con el SDK real
+  (mismo `constructEvent` de producción) y POSTea al webhook. **11/11**: firma válida→200 y concilia a
+  PAID, idempotencia ante reenvío (1 `Payment`), firma manipulada→400 sin conciliar, moneda distinta→no
+  cobra. Sin navegador ni Connect.
+
+Endurecimiento que destapó la corrida (aplicado):
+
+- Webhook devuelve **200** (`@HttpCode(200)`), no 201 (convención de webhooks; Stripe acepta 2xx).
+- Colisión `providerRef` (P2002, carrera/reentrega concurrente) se trata como **idempotente** (no 500).
+- e2e mockeado `payments-stripe` ajustado a 200 (8/8). typecheck + lint limpios.
+
+- **Sensibilidad / merge:** toca `src/payments/` (fuera de CODEOWNERS) + test/docs/script → auto-mergeable.
+- **Pendiente del owner:** habilitar Connect + completar onboarding → flujo de Checkout con tarjeta real.
+  **Rotar las claves de test** (estuvieron en el chat). Luego: cola de Fase 1 (retainer/dunning/recurrente).

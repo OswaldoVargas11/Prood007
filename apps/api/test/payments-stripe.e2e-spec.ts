@@ -161,7 +161,7 @@ describe('Payments · Stripe Connect (e2e, mocked)', () => {
       .post('/api/payments/webhook/stripe')
       .set({ 'stripe-signature': 'test_sig' })
       .send(sessionEvent(inv.id, inv.total * 100, { pi: 'pi_paid_1' }))
-      .expect(201);
+      .expect(200);
 
     const got = await request(app.getHttpServer())
       .get(`/api/ledger/invoices/${inv.id}`)
@@ -186,12 +186,12 @@ describe('Payments · Stripe Connect (e2e, mocked)', () => {
       .post('/api/payments/webhook/stripe')
       .set({ 'stripe-signature': 'test_sig' })
       .send(evt)
-      .expect(201);
+      .expect(200);
     await request(app.getHttpServer())
       .post('/api/payments/webhook/stripe')
       .set({ 'stripe-signature': 'test_sig' })
       .send(evt)
-      .expect(201);
+      .expect(200);
 
     const payments = await request(app.getHttpServer())
       .get(`/api/payments/by-invoice/${inv.id}`)
@@ -206,7 +206,7 @@ describe('Payments · Stripe Connect (e2e, mocked)', () => {
       .post('/api/payments/webhook/stripe')
       .set({ 'stripe-signature': 'test_sig' })
       .send(sessionEvent(inv.id, inv.total * 100, { type: 'payment_intent.created' }))
-      .expect(201);
+      .expect(200);
     const payments = await request(app.getHttpServer())
       .get(`/api/payments/by-invoice/${inv.id}`)
       .set(auth())
@@ -234,7 +234,7 @@ describe('Payments · Stripe Connect (e2e, mocked)', () => {
       .post('/api/payments/webhook/stripe')
       .set({ 'stripe-signature': 'test_sig' })
       .send(sessionEvent(inv.id, inv.total * 100, { pi: 'pi_usd', currency: 'usd' }))
-      .expect(201);
+      .expect(200);
     const got = await request(app.getHttpServer())
       .get(`/api/ledger/invoices/${inv.id}`)
       .set(auth())

@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { InvoiceStatus, LedgerEntryType, PaymentMethod, PaymentStatus } from '@legalflow/domain';
 import { round2 } from '@legalflow/compliance';
 import { PrismaService } from '../prisma/prisma.service';
@@ -276,7 +277,11 @@ export class PaymentsService {
         );
       } catch (err) {
         // Conflictos de negocio (ya pagada, etc.) no deben provocar reintentos de Stripe: se ignoran.
-        if (!(err instanceof BadRequestException)) throw err;
+        // Una colisión de `providerRef` (P2002) significa que el cobro YA está registrado (reentrega o
+        // carrera): es idempotente, también se ignora. Otros errores SÍ se propagan (Stripe reintenta).
+        const duplicate =
+          err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
+        if (!(err instanceof BadRequestException) && !duplicate) throw err;
       }
     });
     return { received: true };
