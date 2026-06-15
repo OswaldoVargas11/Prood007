@@ -58,7 +58,7 @@ jobs:
         run: pnpm --filter @legalflow/web test:coverage
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-unit
           path: |
@@ -101,7 +101,7 @@ jobs:
         run: pnpm --filter @legalflow/api test:e2e:cov
       - name: Upload auth coverage
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-api-auth
           path: apps/api/coverage-e2e
@@ -163,7 +163,7 @@ jobs:
           echo "::group::web.log"; cat web.log || true; echo "::endgroup::"
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: apps/web/playwright-report
