@@ -194,7 +194,7 @@ jobs:
           pnpm licenses list --prod --json > licenses.json
           node scripts/check-licenses.mjs licenses.json
       - name: Gitleaks (secretos)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Initialize CodeQL
