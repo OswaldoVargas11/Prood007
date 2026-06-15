@@ -272,7 +272,26 @@
     "tabDocuments": "Documentos",
     "tabInvoices": "Facturas",
     "docsHint": "Los documentos se gestionan dentro de cada expediente.",
-    "invoicesHint": "Las facturas se gestionan dentro de cada expediente (pestaña Costes)."
+    "invoicesHint": "Las facturas se gestionan dentro de cada expediente (pestaña Costes).",
+    "gdpr": {
+      "title": "Datos personales (RGPD)",
+      "desc": "Derechos del titular: portabilidad y supresión (RGPD / Ley 172-13).",
+      "export": "Exportar datos",
+      "exportHint": "Descarga todos los datos personales del cliente en formato JSON.",
+      "exporting": "Exportando…",
+      "exportError": "No se pudieron exportar los datos.",
+      "anonymize": "Anonimizar cliente",
+      "anonymizeHint": "Borra la PII del registro maestro y corta el acceso al portal.",
+      "anonymizeTitle": "Anonimizar a {name}",
+      "anonymizeWarning": "Esta acción es permanente y no se puede deshacer. Se borrarán los datos personales (nombre, identificación fiscal y contacto) del registro maestro y se cortará el acceso al portal del cliente. Por obligación legal de conservación, el expediente y las facturas se mantienen.",
+      "anonymizeConfirmLabel": "Para confirmar, escribe el nombre exacto del cliente:",
+      "anonymizeMismatch": "El texto no coincide con el nombre del cliente.",
+      "anonymizeConfirm": "Anonimizar definitivamente",
+      "anonymizeError": "No se pudo anonimizar el cliente.",
+      "anonymized": "Cliente anonimizado",
+      "anonymizedOn": "Anonimizado el {date}",
+      "anonymizedNote": "Los datos personales se han borrado y el portal está cortado. El expediente y las facturas se conservan por obligación legal."
+    }
   },
   "documentsOverview": {
     "title": "Documentos",

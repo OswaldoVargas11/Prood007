@@ -50,6 +50,15 @@ export interface Client {
   _count?: { matters: number };
   /** Saldo agregado (apuntes aprobados de todos sus expedientes). Incluido en `GET /clients`. */
   balance?: string;
+  /** RGPD/Ley 172-13: fecha de anonimización del titular (PII borrada). `null`/ausente si activo. */
+  anonymizedAt?: string | null;
+}
+
+/** Respuesta de `POST /clients/:id/anonymize`: PII borrada, expediente y facturas conservados. */
+export interface AnonymizeResult {
+  anonymizedAt: string;
+  portalUserAnonymized: boolean;
+  preserved: { matters: number; invoices: number };
 }
 
 /** Respuesta de `GET /clients` (página + moneda del tenant para formatear el saldo). */
