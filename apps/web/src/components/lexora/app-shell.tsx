@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { Command, Search } from 'lucide-react';
+import { Command, Menu, Search } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from '@/i18n/navigation';
-import { AppSidebar } from './app-sidebar';
+import { AppSidebar, MobileSidebar } from './app-sidebar';
 import { CommandMenu, useCommandMenu } from './command-menu';
 import { AiPanel } from './ai-panel';
 import { NotificationsBell } from './notifications-bell';
@@ -28,6 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const { open, setOpen } = useCommandMenu();
+  const [navOpen, setNavOpen] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -57,8 +58,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-background">
       <AppSidebar />
+      <MobileSidebar open={navOpen} onOpenChange={setNavOpen} />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-5 backdrop-blur-xl">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            aria-label={t('nav.openMenu')}
+            onClick={() => setNavOpen(true)}
+          >
+            <Menu className="size-5" />
+          </Button>
           <Button
             variant="outline"
             size="sm"
