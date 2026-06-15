@@ -776,3 +776,21 @@ Paso 0 + gobernanza + el PR sensible de RLS. Objetivo: endurecer transversales s
   Client confirmada fail-closed. PENDIENTE: verde en CI real tras push.
 - **Siguiente:** esperar OK del usuario para fusionar la Tarea 2; decidir el catch-all de CODEOWNERS;
   luego Tareas 3 (cifrado en reposo + TLS), 4 (RGPD/172-13) y 5 (pulido).
+
+### 2026-06-15 - Claude - Cierre Tarea 1/2 (fusionadas) + Tarea 3 (cifrado en reposo + TLS)
+
+- **Tarea 1 cerrada:** catch-all de CODEOWNERS quitado (PR #20, aprobado por el usuario) -> solo rutas
+  sensibles exigen review; el resto auto-mergeable. `ignore` de React major en dependabot.yml (PR #21)
+  para que no reabra React 19. Ambos fusionados por override de admin en verde (cambios autorizados).
+- **Tarea 2 fusionada (PR #19):** el usuario dio OK condicional a un checklist de 5 puntos; corridos
+  contra el diff + la BD viva: (1) 16 politicas, 0 gaps, 0 restos `IS NULL`; (2) superficie del rol de
+  sistema = solo login/registro/loadUserForToken; (3) WITH CHECK en las 16; (4) ningun raw/transaction
+  autenticado sin GUC; (5) migracion idempotente. Ademas se ENDURECIO el fallback: en produccion, si
+  falta SYSTEM_DATABASE_URL el arranque falla (no "fallar hacia mas privilegio"). CI real verde.
+- **Tarea 3 (cifrado en reposo + TLS) - PR nuevo, auto-merge en verde:** EncryptedStorageProvider
+  (decorador AES-256-GCM sobre cualquier StorageProvider) cifra el contenido de documentos; transparente
+  para DocumentsService; passthrough de objetos legacy; DATA_ENCRYPTION_KEY obligatoria en produccion
+  (arranque falla si falta). PII a nivel de columna = fase diferida (blind index / TDE de disco). TLS en
+  el borde documentado en RUNBOOK.md. Ver D-021.
+- **Pruebas (local):** encryption.e2e 7/7 + documents e2e 7/7 con clave activa; typecheck + lint limpios.
+- **Siguiente:** Tarea 4 (RGPD/Ley 172-13) -- si toca migraciones, esperar OK; y Tarea 5 (pulido).
