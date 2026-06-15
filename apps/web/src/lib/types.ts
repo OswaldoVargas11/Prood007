@@ -170,6 +170,21 @@ export interface TimeSummary {
   currency: string;
 }
 
+/** Estado del cobro online para la jurisdicción del tenant (`GET /payments/config`). */
+export interface PaymentConfig {
+  jurisdiction: 'es' | 'do';
+  method: 'MANUAL' | 'STRIPE';
+  onlineEnabled: boolean;
+}
+
+/** Estado de la conexión Stripe del despacho (`GET /payments/connect/status`). */
+export interface StripeConnectStatus {
+  connected: boolean;
+  onlineEnabled: boolean;
+  detailsSubmitted?: boolean;
+  accountId?: string;
+}
+
 export type InvoiceStatus =
   | 'DRAFT'
   | 'ISSUED'

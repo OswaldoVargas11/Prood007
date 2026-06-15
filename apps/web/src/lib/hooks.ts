@@ -28,6 +28,8 @@ import type {
   Message,
   Notification,
   Paginated,
+  PaymentConfig,
+  StripeConnectStatus,
   SeatUsage,
   StaffRole,
   StaffUser,
@@ -414,6 +416,38 @@ export function usePayInvoice(id: string) {
       qc.setQueryData(['invoice', id], data);
       void qc.invalidateQueries({ queryKey: ['ledger'] });
     },
+  });
+}
+
+// ── Cobro online (Stripe Connect, PR-4) ──────────────────────────────────────
+/** Config de cobro online del tenant (online vs manual, por jurisdicción). */
+export function usePaymentConfig() {
+  return useQuery({
+    queryKey: ['payments', 'config'],
+    queryFn: () => api.get<PaymentConfig>('/payments/config'),
+    staleTime: 60_000,
+  });
+}
+
+/** Crea un enlace de pago Stripe para la factura y redirige al checkout. */
+export function useCreateCheckout(invoiceId: string) {
+  return useMutation({
+    mutationFn: () => api.post<{ url: string }>('/payments/checkout', { invoiceId }),
+  });
+}
+
+/** Estado de la conexión Stripe del despacho (Ajustes). */
+export function useStripeStatus() {
+  return useQuery({
+    queryKey: ['payments', 'connect', 'status'],
+    queryFn: () => api.get<StripeConnectStatus>('/payments/connect/status'),
+  });
+}
+
+/** Inicia/continúa el onboarding de Stripe Connect y redirige al enlace de Stripe. */
+export function useStripeOnboard() {
+  return useMutation({
+    mutationFn: () => api.post<{ url: string }>('/payments/connect/onboard'),
   });
 }
 

@@ -277,10 +277,13 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
       (Mi día / Sin facturar) + `LogTimeDialog` global (⌘K) + i18n. **Fusionado a main (#48).**
 - [~] **PR-3 — `PaymentProvider` + modelo `Payment`** (PR-y-espera): interfaz enchufable por jurisdicción
   (Stripe ES / stub RD) + factory; modelo `Payment` (RLS fail-closed) con cobros PARCIALES; `POST
-  /payments` (+ config/listado); `payInvoice` delega en `PaymentsService`. e2e payments 8/8 + ledger
+/payments` (+ config/listado); `payInvoice` delega en `PaymentsService`. e2e payments 8/8 + ledger
   15/15. **Apilado sobre #47; espera CI verde + OK del owner.**
-- [ ] **PR-4 — Stripe Connect (ES) + webhook** (PR-y-espera): enlace de pago + Checkout + webhook
-      idempotente que concilia `Payment`↔`Invoice`. RD = stub.
+- [~] **PR-4 — Stripe Connect (ES) + webhook** (PR-y-espera): `StripePaymentProvider` real (Checkout
+  directo en la cuenta conectada + onboarding Account Links + estado), webhook público con firma y
+  conciliación bajo el tenant de los metadatos (idempotente). UI: "Pagar online" en la factura +
+  tarjeta Stripe en Ajustes. Env-gated (inerte sin claves). e2e mockeado 6/6. RD = stub. **Apilado
+  sobre PR-3; espera CI + OK del owner. Verificación EN VIVO: claves Stripe del owner.**
 - [ ] Cola de Fase 1: provisión de fondos/retainer · dunning (in-app) · recurrente/planes de pago ·
       "tiempo sin facturar" como sugerencia. **PDF con QR ya existe** (no rehacer).
 

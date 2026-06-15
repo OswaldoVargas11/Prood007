@@ -6,7 +6,8 @@ import { AppModule } from './app.module';
 import { createValidationPipe } from './common/validation';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // `rawBody: true` preserva el cuerpo crudo (para verificar la firma del webhook de Stripe).
+  const app = await NestFactory.create(AppModule, { rawBody: true });
 
   // Cabeceras de seguridad HTTP.
   app.use(helmet());

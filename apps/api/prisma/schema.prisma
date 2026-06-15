@@ -124,6 +124,9 @@ model Tenant {
   // RETENCIÓN es metadato/política (la conservación legal prevalece sobre el borrado); no auto-purga.
   dataRegion      String?
   retentionMonths Int?
+  // Cuenta conectada de Stripe (Connect Standard) del despacho. El cobro online va a SU cuenta, no a la
+  // plataforma (evita ser transmisor de fondos). Vacío = el despacho aún no ha conectado Stripe. Ver D-024.
+  stripeAccountId String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 

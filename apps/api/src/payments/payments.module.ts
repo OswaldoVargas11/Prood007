@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { PaymentsController } from './payments.controller';
+import { PaymentsWebhookController } from './payments-webhook.controller';
 import { PaymentProviderFactory } from './payment-provider.factory';
 import { StripePaymentProvider } from './providers/stripe.provider';
 import { DominicanStubPaymentProvider } from './providers/dominican-stub.provider';
@@ -10,7 +11,7 @@ import { DominicanStubPaymentProvider } from './providers/dominican-stub.provide
  * `PrismaModule` también. Exporta `PaymentsService` para que `LedgerModule` delegue el cobro. Ver D-024.
  */
 @Module({
-  controllers: [PaymentsController],
+  controllers: [PaymentsController, PaymentsWebhookController],
   providers: [
     PaymentsService,
     PaymentProviderFactory,

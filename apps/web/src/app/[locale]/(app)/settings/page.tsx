@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   CalendarOff,
+  CreditCard,
   FileBadge,
   Loader2,
   Plus,
@@ -20,6 +21,8 @@ import {
   useSeats,
   useSettings,
   useStaff,
+  useStripeOnboard,
+  useStripeStatus,
   useUpdateSettings,
   useUpdateStaff,
   useUploadCertificate,
@@ -65,7 +68,52 @@ export default function SettingsPage() {
       <StaffCard />
       <HolidaysCard />
       <CertificateCard />
+      <StripeCard />
     </div>
+  );
+}
+
+/** Conexión de cobro online con Stripe Connect (Standard). El dinero va a la cuenta del despacho. */
+function StripeCard() {
+  const t = useTranslations('settings');
+  const status = useStripeStatus();
+  const onboard = useStripeOnboard();
+
+  function connect() {
+    onboard.mutate(undefined, {
+      onSuccess: ({ url }) => {
+        window.location.href = url;
+      },
+    });
+  }
+
+  const onlineEnabled = status.data?.onlineEnabled ?? false;
+  const connected = status.data?.connected ?? false;
+
+  return (
+    <Section
+      icon={<CreditCard className="size-5 text-[var(--brand)]" />}
+      title={t('stripe.title')}
+      desc={t('stripe.desc')}
+      action={
+        onlineEnabled ? (
+          <Button size="sm" variant="outline" onClick={connect} disabled={onboard.isPending}>
+            {onboard.isPending ? <Loader2 className="animate-spin" /> : <CreditCard />}
+            {connected ? t('stripe.manage') : t('stripe.connect')}
+          </Button>
+        ) : undefined
+      }
+    >
+      {status.isLoading ? (
+        <Skeleton className="h-6 w-40" />
+      ) : !onlineEnabled ? (
+        <p className="text-sm text-muted-foreground">{t('stripe.unavailable')}</p>
+      ) : (
+        <Badge variant={connected ? 'success' : 'warning'}>
+          {connected ? t('stripe.connected') : t('stripe.pending')}
+        </Badge>
+      )}
+    </Section>
   );
 }
 

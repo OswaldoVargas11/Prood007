@@ -484,6 +484,10 @@
     "total": "Total",
     "issued": "Emitida",
     "markPaid": "Marcar como pagada",
+    "payOnline": "Pagar online",
+    "amountPaid": "Cobrado",
+    "outstanding": "Pendiente",
+    "checkoutError": "No se pudo iniciar el pago online.",
     "downloadPdf": "Descargar PDF",
     "buyer": "Cliente",
     "compliance": "Registro fiscal",
@@ -575,6 +579,15 @@
       "replace": "Reemplazar",
       "none": "No hay certificado configurado.",
       "error": "No se pudo subir el certificado."
+    },
+    "stripe": {
+      "title": "Cobro online (Stripe)",
+      "desc": "Conecta tu cuenta de Stripe para cobrar facturas con tarjeta. El dinero va a tu cuenta.",
+      "connect": "Conectar Stripe",
+      "manage": "Gestionar en Stripe",
+      "connected": "Conectado",
+      "pending": "Onboarding pendiente",
+      "unavailable": "El cobro online no está disponible en esta instalación."
     },
     "license": {
       "title": "Licencia",
