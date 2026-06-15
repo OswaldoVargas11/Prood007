@@ -14,6 +14,7 @@ import { MattersService } from './matters.service';
 import { CreateMatterDto } from './dto/create-matter.dto';
 import { UpdateMatterDto } from './dto/update-matter.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
+import { AssignLawyerDto } from './dto/assign-lawyer.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -26,6 +27,13 @@ export class MattersController {
   @Post()
   create(@CurrentUser() user: RequestUser, @Body() dto: CreateMatterDto) {
     return this.matters.create(user, dto);
+  }
+
+  /** Letrados asignables del despacho. Solo administrador (es quien asigna). */
+  @Get('assignees')
+  @Roles(Role.FIRM_ADMIN)
+  assignees(@CurrentUser() user: RequestUser) {
+    return this.matters.listAssignees(user);
   }
 
   @Get()
@@ -47,6 +55,17 @@ export class MattersController {
   @Patch(':id')
   update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() dto: UpdateMatterDto) {
     return this.matters.update(user, id, dto);
+  }
+
+  /** Asigna o desasigna el letrado responsable. Solo administrador del despacho. */
+  @Patch(':id/lawyer')
+  @Roles(Role.FIRM_ADMIN)
+  assignLawyer(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: AssignLawyerDto,
+  ) {
+    return this.matters.assignLawyer(user, id, dto.lawyerId);
   }
 
   @Patch(':id/status')

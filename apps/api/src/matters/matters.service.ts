@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { MatterStatus, Role } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
@@ -44,9 +49,33 @@ export class MattersService {
     return `EXP-${year}-${String(count + 1).padStart(4, '0')}`;
   }
 
+  /** Solo el administrador del despacho asigna el letrado responsable. */
+  private assertCanAssignLawyer(user: RequestUser): void {
+    if (!user.roles.includes(Role.FIRM_ADMIN)) {
+      throw new ForbiddenException('Solo el administrador del despacho puede asignar el letrado.');
+    }
+  }
+
+  /** Letrados del despacho a los que se puede asignar un expediente (LAWYER o FIRM_ADMIN activos). */
+  async listAssignees(user: RequestUser) {
+    const lawyers = await this.prisma.user.findMany({
+      where: {
+        tenantId: user.tenantId,
+        isActive: true,
+        roles: { some: { role: { code: { in: [Role.LAWYER, Role.FIRM_ADMIN] } } } },
+      },
+      select: { id: true, fullName: true },
+      orderBy: { fullName: 'asc' },
+    });
+    return lawyers;
+  }
+
   async create(user: RequestUser, dto: CreateMatterDto) {
     await this.assertClientInTenant(user, dto.clientId);
-    if (dto.lawyerId) await this.assertLawyerInTenant(user, dto.lawyerId);
+    if (dto.lawyerId) {
+      this.assertCanAssignLawyer(user);
+      await this.assertLawyerInTenant(user, dto.lawyerId);
+    }
 
     const reference = dto.reference?.trim() || (await this.generateReference(user.tenantId));
 
@@ -105,7 +134,10 @@ export class MattersService {
   async findOne(user: RequestUser, id: string) {
     const matter = await this.prisma.matter.findFirst({
       where: { id, tenantId: user.tenantId },
-      include: { client: { select: { id: true, name: true, taxId: true } } },
+      include: {
+        client: { select: { id: true, name: true, taxId: true } },
+        lawyer: { select: { id: true, fullName: true } },
+      },
     });
     if (!matter) throw new NotFoundException('Expediente no encontrado.');
     return matter;
@@ -113,12 +145,24 @@ export class MattersService {
 
   async update(user: RequestUser, id: string, dto: UpdateMatterDto) {
     await this.findOne(user, id);
-    if (dto.lawyerId) await this.assertLawyerInTenant(user, dto.lawyerId);
     await this.prisma.matter.updateMany({
       where: { id, tenantId: user.tenantId },
-      data: { title: dto.title, type: dto.type, lawyerId: dto.lawyerId },
+      data: { title: dto.title, type: dto.type },
     });
     await this.audit.log(user, 'matter.updated', 'Matter', id);
+    return this.findOne(user, id);
+  }
+
+  /** Asigna (o desasigna con `null`) el letrado responsable. Solo administrador del despacho. */
+  async assignLawyer(user: RequestUser, id: string, lawyerId: string | null) {
+    this.assertCanAssignLawyer(user);
+    await this.findOne(user, id);
+    if (lawyerId) await this.assertLawyerInTenant(user, lawyerId);
+    await this.prisma.matter.updateMany({
+      where: { id, tenantId: user.tenantId },
+      data: { lawyerId },
+    });
+    await this.audit.log(user, 'matter.lawyer_assigned', 'Matter', id, { lawyerId });
     return this.findOne(user, id);
   }
 

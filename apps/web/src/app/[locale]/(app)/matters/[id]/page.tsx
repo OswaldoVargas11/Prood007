@@ -5,7 +5,9 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import { useChangeMatterStatus, useMatter } from '@/lib/hooks';
+import { useAuth } from '@/lib/auth';
+import { useAssignMatterLawyer, useAssignees, useChangeMatterStatus, useMatter } from '@/lib/hooks';
+import type { MatterDetail } from '@/lib/types';
 import { nextStatuses } from '@/lib/matter-status';
 import { formatDate } from '@/lib/format';
 import { StatusBadge } from '@/components/lexora/status-badge';
@@ -126,6 +128,7 @@ export default function MatterDetailPage() {
                   hint={matter.client.taxId}
                 />
                 <Field label={t('detail.type')} value={matter.type} />
+                <LawyerField matter={matter} />
                 <Field label={t('detail.opened')} value={formatDate(matter.openedAt, locale)} />
                 <Field
                   label={t('detail.closed')}
@@ -171,6 +174,42 @@ export default function MatterDetailPage() {
           </TabsContent>
         ))}
       </Tabs>
+    </div>
+  );
+}
+
+/** Letrado responsable: lectura para todos; el administrador puede asignar/cambiar in situ. */
+function LawyerField({ matter }: { matter: MatterDetail }) {
+  const t = useTranslations('matters');
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole('FIRM_ADMIN');
+  const assignees = useAssignees(isAdmin);
+  const assign = useAssignMatterLawyer(matter.id);
+
+  if (!isAdmin) {
+    return <Field label={t('col.lawyer')} value={matter.lawyer?.fullName ?? '—'} />;
+  }
+
+  return (
+    <div className="space-y-0.5">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
+        {t('col.lawyer')}
+        {assign.isPending && <Loader2 className="size-3 animate-spin" />}
+      </div>
+      <select
+        value={matter.lawyerId ?? ''}
+        disabled={assign.isPending || assignees.isLoading}
+        onChange={(e) => assign.mutate(e.target.value === '' ? null : e.target.value)}
+        className="mt-0.5 flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+      >
+        <option value="">{t('unassigned')}</option>
+        {assignees.data?.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.fullName}
+          </option>
+        ))}
+      </select>
+      {assign.isError && <p className="text-[11px] text-[var(--danger)]">{t('assignError')}</p>}
     </div>
   );
 }
