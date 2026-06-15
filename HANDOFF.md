@@ -67,7 +67,9 @@ Router + Tailwind 3 + **shadcn/ui propio** + next-intl + **TanStack Query** + so
 clients, matters, documents (multipart + review), tasks (+ `/tasks/from-deadline`), ledger (entries/
 time/invoices/pay), messages (`/matters/:id/messages`), notifications, portal (`/portal/*`),
 **dashboard (`GET /dashboard/summary`)**, realtime (Socket.IO: `matter:subscribe`, `message:new`,
-`notification:new`).
+`notification:new`). **RGPD/172-13 (D-022):** `GET /clients/:id/gdpr-export` (portabilidad) y
+`POST /clients/:id/anonymize` (supresión por anonimización, **preserva** expediente/facturas/auditoría),
+ambos FIRM_ADMIN. Cifrado en reposo de documentos (AES-256-GCM, D-021) + RLS fail-closed (D-020).
 
 **Frontend (apps/web) — integración del prototipo, hecho:**
 

@@ -384,3 +384,28 @@ Decisiones:
 - **Probado:** e2e puros del cifrado (round-trip, passthrough legacy, autenticación/tamper, validación de
   clave, decorador) + e2e de documentos con la clave activa (sube cifrado, descarga descifra, hash SHA-256
   sobre el claro intacto). Cifrado **auto-mergeable** (no toca rutas sensibles de CODEOWNERS).
+
+## D-022 · Derechos del titular (RGPD / Ley 172-13): acceso/portabilidad + supresión por anonimización · Aceptada
+
+- **Contexto (Tarea 4):** un despacho preguntará "¿puede un cliente pedir o borrar sus datos?". Hacía falta
+  acceso/portabilidad y el derecho de supresión, **bien hechos**.
+- **Acceso / portabilidad (PR-X, fusionado en #28):** `GET /clients/:id/gdpr-export` (FIRM_ADMIN, acotado al
+  tenant por RLS) devuelve los datos del titular en JSON estructurado; no expone claves internas de storage;
+  deja traza en AuditLog. RAT (art. 30) documentado en `RAT.md`.
+- **Supresión = ANONIMIZACIÓN, NO hard-delete (clave):** el derecho de supresión RGPD/172-13 **cede ante la
+  conservación legal**: para un despacho, conservar el expediente suele ganar (deber de custodia,
+  obligaciones fiscales) y un borrado real chocaría además con el **AuditLog inmutable**. Por eso
+  `POST /clients/:id/anonymize` (FIRM_ADMIN) **sobrescribe la PII** del titular (nombre → `[Titular
+anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección → null, `anonymizedAt`), y si
+  tenía portal, **anonimiza y desactiva** su usuario revocando sus sesiones — **PRESERVANDO** expedientes,
+  facturas, ledger y AuditLog. Idempotente-seguro (rechaza re-anonimizar con 409). Deja entrada
+  `client.anonymized` en AuditLog (que **no** se borra).
+- **Retención configurable + residencia (migración):** `Tenant.dataRegion` (UE para ES; RD a definir) y
+  `Tenant.retentionMonths`, editables por FIRM_ADMIN en Ajustes. Son **metadato/política**: la retención
+  **no dispara auto-purga** (conservar prevalece sobre borrar). Residencia documentada en `RAT.md`/RUNBOOK.
+- **Migración (`20260615130000_gdpr_anonymize_retention`):** columnas nullable (seguro sobre BD con datos);
+  los GRANT de tabla ya cubren columnas nuevas; las políticas RLS de Client/Tenant ya existen (row-level).
+  → toca `prisma/` (CODEOWNERS) ⇒ **PR que espera OK del usuario**, no auto-merge.
+- **Probado (local, como `legalflow_app`):** **107/107 e2e en verde**, typecheck + lint limpios. Tests de
+  anonimización: PII sobrescrita, expediente y facturas **preservados**, AuditLog conserva la traza, portal
+  **cortado** (login 401 tras anonimizar), 409 al re-anonimizar, 403 letrado, 404 cross-tenant.

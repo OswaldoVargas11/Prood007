@@ -794,3 +794,23 @@ Paso 0 + gobernanza + el PR sensible de RLS. Objetivo: endurecer transversales s
   el borde documentado en RUNBOOK.md. Ver D-021.
 - **Pruebas (local):** encryption.e2e 7/7 + documents e2e 7/7 con clave activa; typecheck + lint limpios.
 - **Siguiente:** Tarea 4 (RGPD/Ley 172-13) -- si toca migraciones, esperar OK; y Tarea 5 (pulido).
+
+### 2026-06-15 - Claude - Tarea 4 RGPD/172-13: export (fusionado #28) + anonimizacion (PR espera OK)
+
+- **Incidencia de entorno (resuelta):** el worktree perdio su .git a mitad de sesion y git resolvia al
+  repo principal; diagnosticado y recuperado sin perdidas (Tareas 1-3 ya estaban en main). Anotado en
+  memoria. El export/RAT (PR-X) se re-aplico limpio y se fusiono (#28). Esta tarea continua en un
+  worktree nuevo FUERA del anidamiento (C:/Users/OswaldoVargasRodrigu/lf-gdpr-anon).
+- **PR-X (fusionado #28):** GET /clients/:id/gdpr-export (FIRM_ADMIN) + RAT.md (art. 30) + fixes de
+  honestidad en docs de cifrado (clave = 2a joya de la corona; rotar hoy huerfana blobs; "documentos
+  cifrados + disco cifrado", no "todo cifrado en reposo").
+- **PR-Y (feat/gdpr-anonymize, ABIERTO, NO fusionado, espera OK -- toca migracion):** supresion por
+  ANONIMIZACION (no hard-delete) POST /clients/:id/anonymize: sobrescribe PII, desactiva/anonimiza el
+  usuario de portal y revoca sesiones, PRESERVA expediente/facturas/ledger/AuditLog (retencion legal
+  manda); rechaza re-anonimizar (409). Migracion 20260615130000: Client.anonymizedAt +
+  Tenant.dataRegion/retentionMonths (retencion configurable = metadato, NO auto-purga). Settings expone
+  dataRegion/retentionMonths. Ver D-022.
+- **Pruebas (local, como legalflow_app):** 107/107 e2e en verde, typecheck + lint limpios. Anonymize:
+  PII sobrescrita, expediente+facturas preservados, AuditLog conserva traza, portal cortado (401),
+  409 re-anonimizar, 403 letrado, 404 cross-tenant.
+- **Siguiente:** esperar OK para fusionar PR-Y; luego Tarea 5 (pulido) si el usuario lo quiere.
