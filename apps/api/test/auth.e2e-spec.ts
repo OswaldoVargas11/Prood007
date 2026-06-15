@@ -2,7 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../src/prisma/prisma.service';
 
 /**
  * E2E de autenticación multi-tenant + RBAC contra Postgres real.
@@ -11,6 +11,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 describe('Auth (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let system: SystemPrismaService;
   const unique = Date.now();
   const adminEmail = `admin_${unique}@despacho.test`;
   const password = 'Sup3rSecret!2026';
@@ -19,16 +20,19 @@ describe('Auth (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
+    );
     app.setGlobalPrefix('api');
     prisma = app.get(PrismaService);
+    system = app.get(SystemPrismaService);
     await app.init();
   });
 
   afterAll(async () => {
     // Limpieza: borra el tenant de prueba (cascada elimina usuarios, roles, tokens).
     if (tenantId) {
-      await prisma.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
+      await system.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
     }
     await app.close();
   });

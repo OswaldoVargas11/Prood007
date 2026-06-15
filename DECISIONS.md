@@ -300,3 +300,44 @@ Decisiones:
   **`pnpm audit --prod --audit-level high` pasa con exit 0 sin excepciones** (quedan 7 moderate, bajo el
   umbral). El gate sigue **bloqueando cualquier high/critical de prod NUEVO**. Suite completa en verde:
   typecheck/lint/build del monorepo, web unit (Vitest, gate), API e2e (74, RLS+roles+auth), Playwright (5).
+
+## D-020 · RLS a FAIL-CLOSED + rol de sistema con BYPASSRLS · Aceptada (PR abierto, pendiente de revisión)
+
+- **Contexto:** D-013 dejó RLS **fail-open**: sin contexto de tenant (`app.tenant_id` sin fijar) las
+  políticas permitían TODO (`app_current_tenant() IS NULL OR "tenantId" = …`). El bypass cubría las
+  rutas de sistema (login/registro/refresh), pero acoplaba el aislamiento a "acordarse" de fijar el GUC:
+  un olvido de contexto en cualquier punto (un `$queryRaw`, un `$transaction` crudo, un handler nuevo)
+  se convertía en **fuga cross-tenant silenciosa** en lugar de en un error visible.
+- **Decisión (fail-closed):** la migración `20260615120000_rls_fail_closed` reescribe todas las políticas
+  `tenant_isolation` quitando la cláusula de bypass. Ahora `USING/WITH CHECK` es solo
+  `"tenantId" = app_current_tenant()` (Tenant por `id`; InvoiceLine por su factura). Sin contexto,
+  `app_current_tenant()` es NULL → `"tenantId" = NULL` es NULL → **cero filas** en lectura y **rechazo por
+  WITH CHECK** en escritura. El aislamiento ya no depende de la disciplina del código: es el default.
+- **Decisión (rutas cross-tenant legítimas por privilegio, no por ausencia de contexto):** login (busca
+  el email entre despachos), registro de despacho (crea el tenant) y `loadUserForToken` (lee User/Tenant
+  para emitir el token) corren SIN usuario autenticado. Pasan **explícitamente** por un cliente Prisma de
+  **sistema** (`SystemPrismaService`) conectado como rol **`legalflow_system` con `BYPASSRLS`** vía
+  `SYSTEM_DATABASE_URL`. El bypass es un privilegio de rol deliberado y auditable, no un descuido. Este
+  cliente **no** lleva la extensión RLS (no fija el GUC) y solo se usa en `AuthService`/`TokensService`.
+- **Tres roles de BD ahora:** `legalflow` (propietario/privilegiado → migraciones, `DIRECT_DATABASE_URL`),
+  `legalflow_app` (mínimo privilegio, NOBYPASSRLS → runtime, `DATABASE_URL`), `legalflow_system`
+  (BYPASSRLS, no superusuario, no propietario → solo rutas de sistema, `SYSTEM_DATABASE_URL`). El rol de
+  sistema se crea en la migración (requiere superusuario; lo es en dev/CI); en prod se provisiona fuera de
+  banda con contraseña fuerte. Fallback: si `SYSTEM_DATABASE_URL` no está definido, cae a
+  `DIRECT_DATABASE_URL` (no rompe entornos previos).
+- **Efectos colaterales corregidos:** (1) `users.service` usaba un `$transaction` crudo (no fijaba el GUC)
+  → migrado a `tenantTransaction` (lo fija al inicio). (2) El gateway Socket.IO ya fijaba el contexto del
+  tenant del socket en `subscribeMatter` (`runWithTenant`) desde D-013; bajo fail-closed eso pasa de ser
+  defensa adicional a **requisito** para que el realtime vea datos. (3) Las pruebas e2e que sembraban o
+  limpiaban cross-tenant por "ausencia de contexto" ahora usan el cliente de sistema; las que afirmaban la
+  semántica fail-open ("sin contexto se ve todo") se **invirtieron** a fail-closed ("sin contexto, cero
+  filas").
+- **Probado (local, como `legalflow_app`):** **90/90 e2e en verde**, typecheck y lint limpios. Tests clave:
+  `rls.e2e` (fail-closed: sin contexto cero filas + rechazo de INSERT; el rol de sistema sí ve ambos
+  tenants), `rls-wiring.e2e` (la extensión bajo contexto acota por RLS; sin contexto, cero filas),
+  `realtime-tenant-context` (la query del gateway corre bajo el tenant del socket). Pendiente: verde en CI
+  real (gate `api-integration` corre como `legalflow_app`; se añadió `SYSTEM_DATABASE_URL` a los jobs que
+  ejecutan la API).
+- **Trade-offs:** un tercer rol/URL añade superficie de configuración (documentado en `.env.example` y CI).
+  A cambio, el aislamiento es **a prueba de olvidos**: cualquier ruta nueva que olvide el contexto falla de
+  forma ruidosa (cero filas / error), nunca filtra. Es la postura correcta para datos legales.

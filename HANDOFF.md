@@ -39,11 +39,16 @@ Router + Tailwind 3 + **shadcn/ui propio** + next-intl + **TanStack Query** + so
 
 ### Base de datos / RLS (no romper)
 
-- RLS por tenant ACTIVA (D-013). La app conecta como **rol de mínimo privilegio `legalflow_app`** y
-  fija `app.tenant_id` por request (interceptor `prisma/tenant-context.interceptor` + extensión en
-  `prisma/prisma.service`). **Dos URLs en `.env`:** `DATABASE_URL` (rol app) y `DIRECT_DATABASE_URL`
-  (rol propietario `legalflow`, para migraciones). Sin `DIRECT_DATABASE_URL`, `prisma generate/migrate`
-  fallan. Las queries de servicio filtran por `tenantId` además de RLS.
+- RLS por tenant ACTIVA y **FAIL-CLOSED** (D-013 + **D-020**). La app conecta como **rol de mínimo
+  privilegio `legalflow_app`** y fija `app.tenant_id` por request (interceptor
+  `prisma/tenant-context.interceptor` + extensión en `prisma/prisma.service`). **Sin contexto → cero
+  filas** (no bypass). **Tres URLs en `.env`:** `DATABASE_URL` (rol app, runtime), `DIRECT_DATABASE_URL`
+  (rol propietario `legalflow`, para migraciones) y **`SYSTEM_DATABASE_URL`** (rol `legalflow_system`
+  con BYPASSRLS, SOLO para rutas cross-tenant legítimas: login/registro/carga de token, vía
+  `SystemPrismaService`). Si falta `SYSTEM_DATABASE_URL`, cae a `DIRECT_DATABASE_URL`. Sin
+  `DIRECT_DATABASE_URL`, `prisma generate/migrate` fallan. Las queries de servicio filtran por `tenantId`
+  además de RLS. ⚠️ Cualquier ruta nueva que olvide el contexto de tenant fallará de forma ruidosa (cero
+  filas / error WITH CHECK), nunca filtra.
 - Migraciones con `prisma migrate deploy` (usa `directUrl`). El rol app lo crea
   `20260614121000_app_role`.
 

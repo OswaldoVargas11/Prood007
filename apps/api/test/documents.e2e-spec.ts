@@ -12,11 +12,12 @@ process.env.STORAGE_LOCAL_PATH = join(tmpdir(), `legalflow-storage-${Date.now()}
 // eslint-disable-next-line import/first
 import { AppModule } from '../src/app.module';
 // eslint-disable-next-line import/first
-import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../src/prisma/prisma.service';
 
 describe('Documents & review (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let system: SystemPrismaService;
   const unique = Date.now();
   const password = 'Sup3rSecret!2026';
 
@@ -52,6 +53,7 @@ describe('Documents & review (e2e)', () => {
     );
     app.setGlobalPrefix('api');
     prisma = app.get(PrismaService);
+    system = app.get(SystemPrismaService);
     await app.init();
 
     const a = await registerTenant(`docadmin_${unique}@d.test`);
@@ -62,11 +64,11 @@ describe('Documents & review (e2e)', () => {
     adminBToken = b.token;
 
     // Crear un abogado en el tenant A (autor de documentos) y loguearlo.
-    const lawyerRole = await prisma.role.findFirstOrThrow({
+    const lawyerRole = await system.role.findFirstOrThrow({
       where: { tenantId: tenantAId, code: 'LAWYER' },
     });
     const lawyerEmail = `lawyer_${unique}@d.test`;
-    await prisma.user.create({
+    await system.user.create({
       data: {
         tenantId: tenantAId,
         email: lawyerEmail,
@@ -97,7 +99,7 @@ describe('Documents & review (e2e)', () => {
 
   afterAll(async () => {
     for (const id of [tenantAId, tenantBId]) {
-      if (id) await prisma.tenant.delete({ where: { id } }).catch(() => undefined);
+      if (id) await system.tenant.delete({ where: { id } }).catch(() => undefined);
     }
     await app.close();
   });

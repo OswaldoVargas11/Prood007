@@ -280,8 +280,11 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
 - **Gobernanza** `[~]`
   - [x] `CODEOWNERS` (migraciones, RLS, auth, compliance, cliente API/auth web, `.github/`).
   - [x] `dependabot.yml` (npm/pnpm + github-actions, agrupado).
-  - [ ] **Branch protection** en `main` (PR obligatorio, checks requeridos, rama al día, 1 review) —
-        se configura **al final**, tras el primer PR verde.
+  - [x] **Branch protection** en `main` (vía API): check requerido `CI OK` + strict (rama al día),
+        review de CODEOWNERS en rutas sensibles (`require_code_owner_reviews`, count 0), sin force-push,
+        sin deletion, resolución de conversaciones, `enforce_admins: false` (override de admin para que
+        el owner fusione los PR sensibles tras revisarlos). Pendiente: decidir el catch-all de CODEOWNERS
+        (hoy `* @owner` obliga review en todos; quitarlo deja auto-mergeables los PR no-sensibles).
 - **CD — entrega** `[ ]` (NO en esta tanda)
   - [ ] build+push de imágenes api/web a GHCR (SHA + latest) en push a `main`.
   - [ ] deploy a `staging` con `prisma migrate deploy` (`DIRECT_DATABASE_URL`).
@@ -294,6 +297,9 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
 - [x] Control de acceso granular + aislamiento estricto por tenant. **Postgres RLS activa y cableada**
       como defensa en profundidad: políticas + rol de mínimo privilegio + la app fija `app.tenant_id` por
       request (interceptor + extensión Prisma). Enforcement probado por tests (ver D-013).
+  - [~] **RLS a FAIL-CLOSED** (sin contexto → cero filas; rutas de sistema vía rol `legalflow_system`
+    con BYPASSRLS, no por ausencia de contexto) — **PR `feat/rls-fail-closed` abierto, pendiente de
+    revisión del usuario** (toca RLS/auth/migraciones). 90/90 e2e en verde local. Ver D-020.
 - [ ] Preparado RGPD/LOPDGDD (ES) y Ley 172-13 (RD); trazabilidad para futuro AI Act.
 
 ---

@@ -42,3 +42,22 @@ export type TenantAwarePrisma = ReturnType<typeof createTenantAwarePrisma>;
  * (`createTenantAwarePrisma`). Ver prisma.module.ts.
  */
 export class PrismaService extends PrismaClient {}
+
+/**
+ * Cliente de SISTEMA: conecta como rol BYPASSRLS (`legalflow_system`) vía `SYSTEM_DATABASE_URL`.
+ *
+ * Con RLS en FAIL-CLOSED (ver migración 20260615120000_rls_fail_closed / D-020), sin contexto de
+ * tenant las queries devuelven CERO filas. Las pocas rutas cross-tenant LEGÍTIMAS que se ejecutan
+ * sin usuario autenticado —login (busca el email entre despachos), registro de despacho (crea el
+ * tenant) y carga del usuario para emitir tokens— usan ESTE cliente: el bypass es un privilegio de
+ * rol deliberado y explícito, NO la ausencia de contexto. No lleva la extensión RLS (no fija el GUC).
+ *
+ * Fallback a `DIRECT_DATABASE_URL` (rol propietario, superusuario en dev/CI → también bypassa RLS)
+ * si `SYSTEM_DATABASE_URL` no está definido, para no romper entornos que aún no lo declaran.
+ */
+export class SystemPrismaService extends PrismaClient {}
+
+export function createSystemPrisma() {
+  const url = process.env.SYSTEM_DATABASE_URL ?? process.env.DIRECT_DATABASE_URL;
+  return new PrismaClient(url ? { datasources: { db: { url } } } : undefined);
+}

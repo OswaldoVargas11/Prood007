@@ -3,12 +3,13 @@ import { Test } from '@nestjs/testing';
 import helmet from 'helmet';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../src/prisma/prisma.service';
 
 /** Verifica defensas transversales: cabeceras helmet y rate limiting en login. */
 describe('Security (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let system: SystemPrismaService;
   const unique = Date.now();
   let tenantId = '';
   const email = `sec_${unique}@d.test`;
@@ -23,6 +24,7 @@ describe('Security (e2e)', () => {
     );
     app.setGlobalPrefix('api');
     prisma = app.get(PrismaService);
+    system = app.get(SystemPrismaService);
     await app.init();
 
     const reg = await request(app.getHttpServer())
@@ -38,7 +40,7 @@ describe('Security (e2e)', () => {
   });
 
   afterAll(async () => {
-    if (tenantId) await prisma.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
+    if (tenantId) await system.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
     await app.close();
   });
 

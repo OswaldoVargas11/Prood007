@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../src/prisma/prisma.service';
 import { runWithTenant, tenantTransaction } from '../src/prisma/tenant-context';
 
 /**
@@ -13,6 +13,7 @@ import { runWithTenant, tenantTransaction } from '../src/prisma/tenant-context';
 describe('RLS wiring en runtime (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let system: SystemPrismaService;
 
   const unique = Date.now();
   let tenantAId: string;
@@ -23,29 +24,30 @@ describe('RLS wiring en runtime (e2e)', () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     prisma = app.get(PrismaService);
+    system = app.get(SystemPrismaService);
     await app.init();
 
-    // Semilla sin contexto (ruta de sistema → bypass): dos tenants con un cliente cada uno.
-    const a = await prisma.tenant.create({
+    // Semilla cross-tenant por el rol de SISTEMA (BYPASSRLS): dos tenants con un cliente cada uno.
+    const a = await system.tenant.create({
       data: { name: `WIRE-A-${unique}`, jurisdiction: 'es', currency: 'EUR' },
     });
-    const b = await prisma.tenant.create({
+    const b = await system.tenant.create({
       data: { name: `WIRE-B-${unique}`, jurisdiction: 'do', currency: 'DOP' },
     });
     tenantAId = a.id;
     tenantBId = b.id;
-    await prisma.client.create({
+    await system.client.create({
       data: { tenantId: tenantAId, name: 'A1', taxId: `WA-${unique}` },
     });
-    const cb = await prisma.client.create({
+    const cb = await system.client.create({
       data: { tenantId: tenantBId, name: 'B1', taxId: `WB-${unique}` },
     });
     clientBId = cb.id;
   });
 
   afterAll(async () => {
-    if (tenantAId) await prisma.tenant.delete({ where: { id: tenantAId } }).catch(() => undefined);
-    if (tenantBId) await prisma.tenant.delete({ where: { id: tenantBId } }).catch(() => undefined);
+    if (tenantAId) await system.tenant.delete({ where: { id: tenantAId } }).catch(() => undefined);
+    if (tenantBId) await system.tenant.delete({ where: { id: tenantBId } }).catch(() => undefined);
     await app.close();
   });
 
@@ -86,8 +88,13 @@ describe('RLS wiring en runtime (e2e)', () => {
     });
   });
 
-  it('sin contexto (ruta de sistema), la extensión hace passthrough y ve ambos tenants', async () => {
+  it('FAIL-CLOSED: sin contexto, el cliente tenant-aware (rol app) NO ve ninguna fila', async () => {
     const both = await prisma.tenant.findMany({ where: { id: { in: [tenantAId, tenantBId] } } });
+    expect(both).toHaveLength(0);
+  });
+
+  it('el cliente de SISTEMA (BYPASSRLS) sí ve ambos tenants (ruta cross-tenant legítima)', async () => {
+    const both = await system.tenant.findMany({ where: { id: { in: [tenantAId, tenantBId] } } });
     expect(both.map((t) => t.id).sort()).toEqual([tenantAId, tenantBId].sort());
   });
 });

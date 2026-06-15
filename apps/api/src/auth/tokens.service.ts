@@ -3,13 +3,8 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Jurisdiction } from '@legalflow/domain';
-import { PrismaService } from '../prisma/prisma.service';
-import type {
-  AccessTokenPayload,
-  RefreshTokenPayload,
-  RequestUser,
-  TokenPair,
-} from './auth.types';
+import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
+import type { AccessTokenPayload, RefreshTokenPayload, RequestUser, TokenPair } from './auth.types';
 
 interface UserForToken {
   id: string;
@@ -28,6 +23,9 @@ export class TokensService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
+    // `system` (BYPASSRLS): solo para `loadUserForToken`, que lee User/Tenant (tablas con RLS) en
+    // rutas sin contexto (login/registro/refresh). Las ops de RefreshToken (sin RLS) van por `prisma`.
+    private readonly system: SystemPrismaService,
   ) {}
 
   private sha256(value: string): string {
@@ -147,7 +145,7 @@ export class TokensService {
 
   /** Carga usuario + roles + jurisdicción del tenant, en forma lista para firmar tokens. */
   async loadUserForToken(userId: string): Promise<UserForToken> {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.system.user.findUnique({
       where: { id: userId },
       include: { roles: { include: { role: true } }, tenant: true },
     });

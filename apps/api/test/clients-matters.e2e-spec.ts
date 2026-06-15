@@ -3,7 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import * as argon2 from 'argon2';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../src/prisma/prisma.service';
 
 /**
  * E2E de Clientes + Expedientes (E2): validación fiscal por jurisdicción, máquina de estados y
@@ -12,6 +12,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 describe('Clients & Matters (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let system: SystemPrismaService;
   const unique = Date.now();
 
   // Dos despachos para probar aislamiento.
@@ -42,17 +43,18 @@ describe('Clients & Matters (e2e)', () => {
     );
     app.setGlobalPrefix('api');
     prisma = app.get(PrismaService);
+    system = app.get(SystemPrismaService);
     await app.init();
 
     Object.assign(tenants.a, await registerTenant(tenants.a.email));
     Object.assign(tenants.b, await registerTenant(tenants.b.email));
 
     // Letrado (rol LAWYER, no admin) en el tenant A, para probar permisos de asignación.
-    const lawyerRole = await prisma.role.findFirstOrThrow({
+    const lawyerRole = await system.role.findFirstOrThrow({
       where: { tenantId: tenants.a.tenantId, code: 'LAWYER' },
     });
     const lawyerEmail = `lawyer_${unique}@d.test`;
-    const lawyer = await prisma.user.create({
+    const lawyer = await system.user.create({
       data: {
         tenantId: tenants.a.tenantId,
         email: lawyerEmail,
@@ -72,7 +74,7 @@ describe('Clients & Matters (e2e)', () => {
   afterAll(async () => {
     for (const t of [tenants.a, tenants.b]) {
       if (t.tenantId)
-        await prisma.tenant.delete({ where: { id: t.tenantId } }).catch(() => undefined);
+        await system.tenant.delete({ where: { id: t.tenantId } }).catch(() => undefined);
     }
     await app.close();
   });
@@ -221,7 +223,9 @@ describe('Clients & Matters (e2e)', () => {
   });
 
   it('registra auditoría de la creación del cliente y el expediente', async () => {
-    const logs = await prisma.auditLog.findMany({ where: { tenantId: tenants.a.tenantId } });
+    // Lectura de verificación cross-context: el rol de sistema (BYPASSRLS) ve las filas que la app
+    // escribió bajo el contexto del tenant. (Con RLS fail-closed, `prisma` sin contexto vería cero.)
+    const logs = await system.auditLog.findMany({ where: { tenantId: tenants.a.tenantId } });
     const actions = logs.map((l) => l.action);
     expect(actions).toContain('client.created');
     expect(actions).toContain('matter.created');

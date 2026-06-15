@@ -2,7 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../src/prisma/prisma.service';
 
 /**
  * E2E de la Tanda B: gestión de usuarios del despacho con LICENCIA de plazas, ajustes, auditoría
@@ -11,6 +11,7 @@ import { PrismaService } from '../src/prisma/prisma.service';
 describe('Tanda B — usuarios/licencia, ajustes, auditoría, aprobaciones (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
+  let system: SystemPrismaService;
   const unique = Date.now();
   const password = 'Sup3rSecret!2026';
 
@@ -33,6 +34,7 @@ describe('Tanda B — usuarios/licencia, ajustes, auditoría, aprobaciones (e2e)
     );
     app.setGlobalPrefix('api');
     prisma = app.get(PrismaService);
+    system = app.get(SystemPrismaService);
     await app.init();
 
     const reg = await request(app.getHttpServer())
@@ -50,7 +52,7 @@ describe('Tanda B — usuarios/licencia, ajustes, auditoría, aprobaciones (e2e)
   });
 
   afterAll(async () => {
-    if (tenantId) await prisma.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
+    if (tenantId) await system.tenant.delete({ where: { id: tenantId } }).catch(() => undefined);
     await app.close();
   });
 
@@ -103,14 +105,14 @@ describe('Tanda B — usuarios/licencia, ajustes, auditoría, aprobaciones (e2e)
   });
 
   it('respeta la LICENCIA: con maxLawyers=1 no se puede crear un segundo letrado (403)', async () => {
-    await prisma.tenant.update({ where: { id: tenantId }, data: { maxLawyers: 1 } });
+    await system.tenant.update({ where: { id: tenantId }, data: { maxLawyers: 1 } });
     await request(app.getHttpServer())
       .post('/api/users')
       .set(auth(adminToken))
       .send({ email: `lawyer2_${unique}@d.test`, fullName: 'Otro', password, role: 'LAWYER' })
       .expect(403);
     // Restaura para no afectar otras pruebas.
-    await prisma.tenant.update({ where: { id: tenantId }, data: { maxLawyers: 5 } });
+    await system.tenant.update({ where: { id: tenantId }, data: { maxLawyers: 5 } });
   });
 
   it('no permite dejar el despacho sin administrador activo (400 al desactivarse el único admin)', async () => {

@@ -746,3 +746,33 @@ ficha.
 - Pruebas: api build OK, web tsc/lint + api lint OK. e2e: +8 tests (listado, asignacion, desasignacion,
   inclusion en findOne, 403 de no-admin en listar/asignar/crear-con-lawyerId). Suite completa en serie
   (--runInBand, como CI): 87/87.
+
+### 2026-06-15 - Claude - Tanda endurecimiento: Tarea 1 (gobernanza) + Tarea 2 (RLS fail-closed)
+
+Paso 0 + gobernanza + el PR sensible de RLS. Objetivo: endurecer transversales sin anadir funcionalidad.
+
+- **Paso 0 (hallazgos):** RLS estaba en FAIL-OPEN (sin contexto -> ve todo); el gateway Socket.IO YA
+  fijaba el contexto del tenant del socket (D-013, no estaba en bypass); branch protection solo exigia
+  el check "CI OK" + strict, sin review de CODEOWNERS; 8 PRs de Dependabot abiertos (todos majors).
+- **Tarea 1 - Gobernanza (hecho):** branch protection en main via API: required check "CI OK" + strict
+  (rama al dia), `require_code_owner_reviews` + `required_approving_review_count: 0`, sin force-push, sin
+  deletion, `required_conversation_resolution`, `enforce_admins: false` (override de admin para que el
+  owner pueda fusionar los PR sensibles tras revisarlos; en repo de un solo owner no hay self-approval).
+  Triaje Dependabot: cerrado #14 (React 19) por politica deliberada (se queda en React 18, D-019);
+  dejados abiertos para el usuario los 4 majors del enunciado (#12 NestJS 11, #10 next-intl 4, #9 Prisma
+  7, #8 Zod 4) + 3 majors no listados pero igualmente breaking (#16 eslint 8->10, #15 tailwind-merge
+  2->3, #18 @vitest/coverage-v8 2->4). NO habia ningun minor/patch seguro pendiente (los previos ya
+  estaban fusionados: #3-7, #11). PENDIENTE de decision del usuario: quitar el catch-all `* @owner` de
+  CODEOWNERS para que los PR no-sensibles sean auto-mergeables en verde sin review (hoy el catch-all
+  obliga review en TODOS).
+- **Tarea 2 - RLS fail-closed (PR abierto, NO fusionado, espera OK del usuario):** ver D-020. Migracion
+  `20260615120000_rls_fail_closed` (quita la clausula de bypass de todas las politicas + crea rol
+  `legalflow_system` BYPASSRLS). `SystemPrismaService` (cliente de sistema) para login/registro/carga de
+  token. `users.service` $transaction crudo -> tenantTransaction. `.env.example` + CI con
+  `SYSTEM_DATABASE_URL`. Tests: rls/rls-wiring invertidos a fail-closed + siembra/limpieza por el rol de
+  sistema; varios specs migrados (las lecturas/escrituras de siembra sin contexto pasan por `system`).
+- **Pruebas (local, como legalflow_app):** 90/90 e2e en verde, api typecheck + lint limpios. Roles
+  verificados en BD: legalflow_app (NOBYPASSRLS), legalflow_system (BYPASSRLS, no super). Politica de
+  Client confirmada fail-closed. PENDIENTE: verde en CI real tras push.
+- **Siguiente:** esperar OK del usuario para fusionar la Tarea 2; decidir el catch-all de CODEOWNERS;
+  luego Tareas 3 (cifrado en reposo + TLS), 4 (RGPD/172-13) y 5 (pulido).
