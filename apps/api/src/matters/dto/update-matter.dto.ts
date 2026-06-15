@@ -12,8 +12,4 @@ export class UpdateMatterDto {
   @MinLength(2)
   @MaxLength(80)
   type?: string;
-
-  @IsOptional()
-  @IsString()
-  lawyerId?: string;
 }

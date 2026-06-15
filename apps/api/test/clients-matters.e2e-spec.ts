@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import * as argon2 from 'argon2';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
@@ -45,11 +46,33 @@ describe('Clients & Matters (e2e)', () => {
 
     Object.assign(tenants.a, await registerTenant(tenants.a.email));
     Object.assign(tenants.b, await registerTenant(tenants.b.email));
+
+    // Letrado (rol LAWYER, no admin) en el tenant A, para probar permisos de asignación.
+    const lawyerRole = await prisma.role.findFirstOrThrow({
+      where: { tenantId: tenants.a.tenantId, code: 'LAWYER' },
+    });
+    const lawyerEmail = `lawyer_${unique}@d.test`;
+    const lawyer = await prisma.user.create({
+      data: {
+        tenantId: tenants.a.tenantId,
+        email: lawyerEmail,
+        passwordHash: await argon2.hash(password),
+        fullName: 'Letrada A',
+        roles: { create: [{ roleId: lawyerRole.id }] },
+      },
+    });
+    lawyerAUserId = lawyer.id;
+    const login = await request(app.getHttpServer())
+      .post('/api/auth/login')
+      .send({ email: lawyerEmail, password, tenantId: tenants.a.tenantId })
+      .expect(200);
+    lawyerAToken = login.body.accessToken;
   });
 
   afterAll(async () => {
     for (const t of [tenants.a, tenants.b]) {
-      if (t.tenantId) await prisma.tenant.delete({ where: { id: t.tenantId } }).catch(() => undefined);
+      if (t.tenantId)
+        await prisma.tenant.delete({ where: { id: t.tenantId } }).catch(() => undefined);
     }
     await app.close();
   });
@@ -57,6 +80,8 @@ describe('Clients & Matters (e2e)', () => {
   const auth = (token: string) => ({ Authorization: `Bearer ${token}` });
   let clientAId = '';
   let matterAId = '';
+  let lawyerAToken = '';
+  let lawyerAUserId = '';
 
   it('crea un cliente con NIF válido (normalizado por el provider ES)', async () => {
     const res = await request(app.getHttpServer())
@@ -125,6 +150,74 @@ describe('Clients & Matters (e2e)', () => {
       .set(auth(tenants.a.token))
       .send({ status: 'ARCHIVED' })
       .expect(400);
+  });
+
+  it('el admin lista los letrados asignables del despacho', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/matters/assignees')
+      .set(auth(tenants.a.token))
+      .expect(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.map((u: { id: string }) => u.id)).toContain(lawyerAUserId);
+  });
+
+  it('un letrado (no admin) NO puede listar asignables (403)', async () => {
+    await request(app.getHttpServer())
+      .get('/api/matters/assignees')
+      .set(auth(lawyerAToken))
+      .expect(403);
+  });
+
+  it('el admin asigna el letrado responsable del expediente', async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/api/matters/${matterAId}/lawyer`)
+      .set(auth(tenants.a.token))
+      .send({ lawyerId: lawyerAUserId })
+      .expect(200);
+    expect(res.body.lawyerId).toBe(lawyerAUserId);
+    expect(res.body.lawyer?.fullName).toBe('Letrada A');
+  });
+
+  it('GET /matters/:id incluye el letrado responsable', async () => {
+    const res = await request(app.getHttpServer())
+      .get(`/api/matters/${matterAId}`)
+      .set(auth(tenants.a.token))
+      .expect(200);
+    expect(res.body.lawyer?.id).toBe(lawyerAUserId);
+  });
+
+  it('un letrado (no admin) NO puede asignar (403)', async () => {
+    await request(app.getHttpServer())
+      .patch(`/api/matters/${matterAId}/lawyer`)
+      .set(auth(lawyerAToken))
+      .send({ lawyerId: lawyerAUserId })
+      .expect(403);
+  });
+
+  it('no se puede asignar un usuario inexistente como letrado (400)', async () => {
+    await request(app.getHttpServer())
+      .patch(`/api/matters/${matterAId}/lawyer`)
+      .set(auth(tenants.a.token))
+      .send({ lawyerId: 'no-existe' })
+      .expect(400);
+  });
+
+  it('el admin puede desasignar el letrado (lawyerId: null)', async () => {
+    const res = await request(app.getHttpServer())
+      .patch(`/api/matters/${matterAId}/lawyer`)
+      .set(auth(tenants.a.token))
+      .send({ lawyerId: null })
+      .expect(200);
+    expect(res.body.lawyerId).toBeNull();
+    expect(res.body.lawyer).toBeNull();
+  });
+
+  it('un letrado (no admin) NO puede crear expediente con letrado asignado (403)', async () => {
+    await request(app.getHttpServer())
+      .post('/api/matters')
+      .set(auth(lawyerAToken))
+      .send({ title: 'Sin permiso', type: 'civil', clientId: clientAId, lawyerId: lawyerAUserId })
+      .expect(403);
   });
 
   it('registra auditoría de la creación del cliente y el expediente', async () => {

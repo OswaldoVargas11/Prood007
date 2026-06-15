@@ -26,9 +26,15 @@ export interface Matter {
   lawyer?: { id: string; fullName: string } | null;
 }
 
-/** `GET /matters/:id` incluye un extracto del cliente. */
+/** `GET /matters/:id` incluye un extracto del cliente y el letrado responsable. */
 export interface MatterDetail extends Matter {
   client: { id: string; name: string; taxId: string };
+}
+
+/** Letrado asignable a un expediente (`GET /matters/assignees`, solo admin). */
+export interface Assignee {
+  id: string;
+  fullName: string;
 }
 
 export interface Client {

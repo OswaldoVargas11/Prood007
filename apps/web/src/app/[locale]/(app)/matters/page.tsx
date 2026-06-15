@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { LayoutGrid, Loader2, Plus, Rows3 } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
-import { useClients, useCreateMatter, useMatters } from '@/lib/hooks';
+import { useAuth } from '@/lib/auth';
+import { useAssignees, useClients, useCreateMatter, useMatters } from '@/lib/hooks';
 import { MATTER_STATUSES } from '@/lib/matter-status';
 import { formatDate } from '@/lib/format';
 import { ApiError } from '@/lib/api';
@@ -281,12 +282,17 @@ function MatterBoard({
 
 function CreateMatterDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useTranslations('matters');
+  const { hasRole } = useAuth();
+  const isAdmin = hasRole('FIRM_ADMIN');
   const create = useCreateMatter();
   const router = useRouter();
   const clients = useClients({ pageSize: 100 });
+  // El listado de letrados solo lo puede leer el administrador (es quien asigna).
+  const assignees = useAssignees(isAdmin);
   const [title, setTitle] = useState('');
   const [type, setType] = useState('civil');
   const [clientId, setClientId] = useState('');
+  const [lawyerId, setLawyerId] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const valid = title.trim().length >= 2 && type.trim().length >= 2 && clientId;
@@ -294,10 +300,16 @@ function CreateMatterDialog({ open, onClose }: { open: boolean; onClose: () => v
   async function submit() {
     setError(null);
     try {
-      const matter = await create.mutateAsync({ title: title.trim(), type: type.trim(), clientId });
+      const matter = await create.mutateAsync({
+        title: title.trim(),
+        type: type.trim(),
+        clientId,
+        ...(isAdmin && lawyerId ? { lawyerId } : {}),
+      });
       setTitle('');
       setType('civil');
       setClientId('');
+      setLawyerId('');
       onClose();
       router.push(`/matters/${matter.id}`);
     } catch (e) {
@@ -339,6 +351,23 @@ function CreateMatterDialog({ open, onClose }: { open: boolean; onClose: () => v
             <Label>{t('col.type')}</Label>
             <Input value={type} onChange={(e) => setType(e.target.value)} placeholder="civil" />
           </div>
+          {isAdmin && (
+            <div className="space-y-1.5">
+              <Label>{t('newLawyer')}</Label>
+              <select
+                value={lawyerId}
+                onChange={(e) => setLawyerId(e.target.value)}
+                className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">{t('newLawyerPlaceholder')}</option>
+                {assignees.data?.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.fullName}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
         </div>
         <DialogFooter>

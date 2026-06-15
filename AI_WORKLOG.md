@@ -726,3 +726,23 @@ Frontend de los 4 puntos restantes; cierra la Tanda B al completo.
 
 TANDA B COMPLETA (B.6 Ajustes/usuarios/licencia, B.7 Auditoria, B.8 Aprobaciones, B.9 Conflictos +
 serie fiscal + festivos + certificado + altas desde UI).
+
+### 2026-06-15 - Claude - Asignacion de letrado a expedientes (admin-only)
+
+La columna "Letrado" existia en la lista de expedientes pero no habia forma de asignar un letrado desde
+la UI. Reportado por el usuario. Decision de producto: solo FIRM_ADMIN asigna; selector en creacion y
+ficha.
+
+- Backend (matters): GET /matters/:id ahora incluye lawyer{ id,fullName } (antes solo client). Nuevo
+  GET /matters/assignees (admin-only) -> letrados asignables (LAWYER/FIRM_ADMIN activos). Nuevo
+  PATCH /matters/:id/lawyer (admin-only) -> asigna o desasigna (lawyerId:null), valida que el letrado
+  pertenezca al despacho. create() solo acepta lawyerId si quien crea es FIRM_ADMIN (si no, 403).
+  Quitado lawyerId del PATCH /matters/:id generico (cierra el backdoor por el que un LAWYER reasignaba).
+  @Roles a nivel de metodo sobrescribe el de clase (getAllAndOverride).
+- Frontend: dialogo de alta con selector de letrado (opcional, solo admin). Ficha: campo Letrado de solo
+  lectura para letrados y selector editable (asignar/cambiar/desasignar in situ) para admin. Hooks
+  useAssignees / useAssignMatterLawyer + tipo Assignee. i18n matters.newLawyer/newLawyerPlaceholder/
+  unassigned/assignError (es-ES + es-DO).
+- Pruebas: api build OK, web tsc/lint + api lint OK. e2e: +8 tests (listado, asignacion, desasignacion,
+  inclusion en findOne, 403 de no-admin en listar/asignar/crear-con-lawyerId). Suite completa en serie
+  (--runInBand, como CI): 87/87.

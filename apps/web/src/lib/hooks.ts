@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
 import type {
+  Assignee,
   AuditEntry,
   Client,
   ClientsPage,
@@ -90,6 +91,29 @@ export function useChangeMatterStatus(id: string) {
   return useMutation({
     mutationFn: (status: MatterStatus) =>
       api.patch<MatterDetail>(`/matters/${id}/status`, { status }),
+    onSuccess: (data) => {
+      qc.setQueryData(['matter', id], data);
+      void qc.invalidateQueries({ queryKey: ['matters'] });
+    },
+  });
+}
+
+/** Letrados asignables (solo admin). Se habilita con `enabled` para no llamarlo con rol LAWYER. */
+export function useAssignees(enabled = true) {
+  return useQuery({
+    queryKey: ['matter-assignees'],
+    queryFn: () => api.get<Assignee[]>('/matters/assignees'),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+/** Asigna o desasigna (`null`) el letrado responsable. Solo admin. */
+export function useAssignMatterLawyer(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (lawyerId: string | null) =>
+      api.patch<MatterDetail>(`/matters/${id}/lawyer`, { lawyerId }),
     onSuccess: (data) => {
       qc.setQueryData(['matter', id], data);
       void qc.invalidateQueries({ queryKey: ['matters'] });
