@@ -359,17 +359,25 @@ Decisiones:
   MAGIC permite **passthrough de objetos legacy en claro** (migración suave, sin reescribir lo ya subido),
   y GCM **autentica** (manipular el blob hace fallar el descifrado). La descarga pasa por la API
   (streaming desde `get()`), no por `getSignedUrl`, así que el cliente nunca recibe el blob cifrado.
-- **Gestión de clave:** `DATA_ENCRYPTION_KEY` (32 bytes en base64). Secreto fuerte, aparte, **nunca
-  logueado**. **Obligatoria en producción**: si falta, el arranque **lanza error** (no guardar en claro
-  por descuido — mismo principio que `SYSTEM_DATABASE_URL`/D-020); en dev/CI se permite sin clave con
-  aviso. El byte de versión en el MAGIC deja la puerta a **rotación** (re-cifrar con clave nueva, soportar
-  varias versiones) sin romper formato.
+- **Gestión de clave (2ª "joya de la corona"):** `DATA_ENCRYPTION_KEY` (32 bytes en base64). Secreto
+  fuerte, en KMS/secrets-manager, **nunca logueado**. **Pérdida = pérdida de TODOS los documentos** (no
+  descifran); **fuga = todos legibles**. **Obligatoria en producción**: si falta, el arranque **lanza
+  error** (no guardar en claro por descuido — mismo principio que `SYSTEM_DATABASE_URL`/D-020); en dev/CI
+  se permite sin clave con aviso.
+- **Rotación de clave (limitación honesta, GAP conocido):** hoy `decryptBlob` usa **una sola clave**.
+  Rotar la clave **dejaría huérfanos** los blobs cifrados con la anterior (no se descifran) — **NO hay
+  re-cifrado todavía**. Por tanto, hasta construir ese paso: tratar la clave como **longeva**, respaldada
+  en KMS; NO rotarla con datos reales sin antes implementar el re-cifrado (el byte de versión del MAGIC
+  deja sitio para selección multi-clave, pero `decryptBlob` aún no lo usa). Tarea de fondo registrada.
 - **PII de clientes (fase diferida, documentada):** NO se cifra a nivel de columna **todavía** porque
   rompería búsqueda/orden/validación (p. ej. buscar cliente por nombre, unicidad de identificador fiscal).
   Plan: para campos consultables, _blind index_ / cifrado determinista; para el resto, **cifrado de disco/
-  volumen (TDE) en la capa de infraestructura** cubre toda la BD en reposo (más simple y sin romper
-  queries). El runbook lo recoge. Se empieza por lo binario (documentos), lo más sensible y sin coste de
-  consulta.
+  volumen (TDE) en la capa de infraestructura** (RDS encryption / disco cifrado) cubre toda la BD en
+  reposo (config de **despliegue, no código**; es la otra mitad de la Tarea 3). Se empieza por lo binario
+  (documentos), lo más sensible y sin coste de consulta.
+- **Mensaje honesto (no sobre-vender):** decir **"documentos cifrados (a nivel de app) + disco de la BD
+  cifrado (infra)"**, NUNCA "todo cifrado en reposo". La PII estructurada en Postgres (nombres, IDs
+  fiscales, datos del expediente) la cubre el cifrado de disco del volumen, no el cifrado de columna.
 - **TLS en tránsito:** terminación TLS en el borde (reverse proxy / balanceador), HSTS, redirección
   80→443, y `sslmode=require` hacia Postgres. Documentado en `RUNBOOK.md` (no se activa en esta tanda; es
   preparación de despliegue).

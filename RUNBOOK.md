@@ -21,16 +21,24 @@ Tres roles, tres URLs. Provisiónalos **fuera de banda** en producción con cont
 
 ## 2. Cifrado en reposo (D-021)
 
+> **Mensaje preciso (no sobre-vender):** "**documentos cifrados (a nivel de app) + disco de la BD
+> cifrado (infra)**". NO "todo cifrado en reposo". La PII estructurada en Postgres la cubre el cifrado
+> de disco del volumen, no el cifrado de columna (diferido).
+
 - **Contenido de documentos:** AES-256-GCM a nivel de aplicación (`EncryptedStorageProvider`).
   - `DATA_ENCRYPTION_KEY` = 32 bytes en base64. Generar:
     `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`.
-  - **Obligatorio en producción** (sin clave la API no arranca). Guardar en gestor de secretos
-    (AWS Secrets Manager / Vault / variables del entorno cifradas). Nunca en el repo ni en logs.
-  - **Rotación:** generar clave nueva, re-cifrar los objetos (el byte de versión del formato permite
-    convivencia temporal de versiones). Documentar la fecha de rotación.
+  - **Obligatorio en producción** (sin clave la API no arranca). Guardar en **KMS/secrets-manager**
+    (AWS Secrets Manager / Vault). Nunca en el repo ni en logs.
+  - **2ª joya de la corona:** **perderla = perder todos los documentos** (no descifran); **filtrarla =
+    todos legibles**. Respaldo seguro obligatorio.
+  - **Rotación (GAP conocido):** hoy se usa **una sola clave** y **no hay re-cifrado**; rotar dejaría
+    **huérfanos** los blobs antiguos. Hasta construir el paso de re-cifrado (selección multi-clave por el
+    byte de versión del formato): tratar la clave como **longeva** y **NO rotarla con datos reales**.
 - **PII de clientes y resto de la BD:** cifrado **a nivel de volumen/disco (TDE)** del gestor Postgres
-  (RDS encryption, disco cifrado del proveedor). Cubre toda la BD en reposo sin romper consultas. El
-  cifrado de columnas de PII consultable (blind index/determinista) queda como fase posterior (D-021).
+  (RDS encryption, disco cifrado del proveedor). Cubre toda la BD en reposo sin romper consultas. Es la
+  **otra mitad de la Tarea 3** y es **config de despliegue, no código**. El cifrado de columnas de PII
+  consultable (blind index/determinista) queda como fase posterior (D-021).
 - **Backups:** cifrados con la misma política; mismas claves bajo gestión de secretos.
 
 ## 3. TLS en tránsito

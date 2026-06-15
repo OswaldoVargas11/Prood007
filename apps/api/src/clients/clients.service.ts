@@ -133,6 +133,75 @@ export class ClientsService {
   }
 
   /**
+   * RGPD/Ley 172-13 — DERECHO DE ACCESO Y PORTABILIDAD: exporta todos los datos del titular en un
+   * objeto estructurado y legible. Solo FIRM_ADMIN (controlado en el controller); acotado al tenant.
+   * NO expone claves internas de storage; el contenido de documentos se descarga aparte (autenticado).
+   * Queda traza en AuditLog (acceso a datos personales). Ver D-022.
+   */
+  async gdprExport(user: RequestUser, id: string) {
+    const data = await tenantTransaction(this.prisma, async (tx) => {
+      const client = await tx.client.findFirst({
+        where: { id, tenantId: user.tenantId },
+        include: {
+          user: { select: { email: true, fullName: true, isActive: true, createdAt: true } },
+          matters: {
+            orderBy: { createdAt: 'asc' },
+            include: {
+              documents: {
+                select: {
+                  id: true,
+                  name: true,
+                  createdAt: true,
+                  versions: {
+                    select: {
+                      version: true,
+                      mimeType: true,
+                      sizeBytes: true,
+                      contentHash: true,
+                      reviewStatus: true,
+                      createdAt: true,
+                    },
+                  },
+                },
+              },
+              tasks: {
+                select: { title: true, status: true, dueDate: true, isProcedural: true },
+              },
+              ledgerEntries: {
+                select: { type: true, amount: true, description: true, createdAt: true },
+              },
+              invoices: {
+                select: {
+                  number: true,
+                  status: true,
+                  total: true,
+                  issueDate: true,
+                  lines: { select: { description: true, quantity: true, unitPrice: true } },
+                },
+              },
+              messages: { select: { body: true, createdAt: true, authorId: true } },
+            },
+          },
+        },
+      });
+      if (!client) throw new NotFoundException('Cliente no encontrado.');
+      return client;
+    });
+
+    await this.audit.log(user, 'client.data_exported', 'Client', id, {
+      mattersExported: data.matters.length,
+    });
+
+    return {
+      generatedAt: new Date().toISOString(),
+      subject: 'client',
+      jurisdiction: user.jurisdiction,
+      note: 'Export RGPD/Ley 172-13. El contenido binario de los documentos se descarga por separado (autenticado).',
+      data,
+    };
+  }
+
+  /**
    * Comprobación de conflictos de interés: busca clientes existentes cuyo nombre coincida (parcial,
    * insensible a mayúsculas) con el de la parte que se va a dar de alta. Devuelve coincidencias con sus
    * expedientes, para que el despacho valore si existe conflicto antes de crear cliente/expediente.
