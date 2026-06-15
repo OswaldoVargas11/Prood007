@@ -1,0 +1,200 @@
+# 07 · Referencia de la API (mapa de responsabilidades)
+
+> **Los 69 endpoints**, ninguno fuera. Prefijo global `api`. Cadena de guards global:
+> `ThrottlerGuard → JwtAuthGuard (@Public exime) → RolesGuard`. El **rol efectivo** combina el
+> `@Roles` de clase con el de método (el más restrictivo gana). RLS aísla por tenant aunque el rol
+> pase. Derivado de `apps/api/src/**/*.controller.ts`.
+
+## Módulo → dominio
+
+```mermaid
+flowchart LR
+    subgraph auth_d["Identidad"]
+        a1["auth · 5"]
+        u1["users · 4"]
+        au1["audit · 1"]
+    end
+    subgraph core_d["Negocio del despacho"]
+        c1["clients · 9"]
+        m1["matters · 7"]
+        d1["documents · 6"]
+        t1["tasks · 6"]
+        ms1["messages · 2"]
+    end
+    subgraph fin_d["Finanzas / cumplimiento"]
+        l1["ledger · 12"]
+        s1["settings · 5"]
+    end
+    subgraph cross_d["Transversal"]
+        n1["notifications · 2"]
+        da1["dashboard · 1"]
+        h1["health · 1"]
+        p1["portal · 8"]
+    end
+    auth_d --> core_d --> fin_d
+    cross_d -.-> core_d
+    p1 -. "solo CLIENT · vista de su propio expediente" .-> core_d
+```
+
+## Tabla exhaustiva (69 / 69)
+
+Rol = el más restrictivo aplicable. "auth" = autenticado sin `@Roles` (cualquier rol; el servicio +
+RLS acotan el acceso). "público" = `@Public`.
+
+### `auth` — `/api/auth` (5)
+
+| Método | Ruta                        | Rol     |
+| ------ | --------------------------- | ------- |
+| POST   | `/api/auth/register-tenant` | público |
+| POST   | `/api/auth/login`           | público |
+| POST   | `/api/auth/refresh`         | público |
+| POST   | `/api/auth/logout`          | público |
+| GET    | `/api/auth/me`              | auth    |
+
+### `users` — `/api/users` (4) · clase: **FIRM_ADMIN**
+
+| Método | Ruta               | Rol        |
+| ------ | ------------------ | ---------- |
+| GET    | `/api/users`       | FIRM_ADMIN |
+| GET    | `/api/users/seats` | FIRM_ADMIN |
+| POST   | `/api/users`       | FIRM_ADMIN |
+| PATCH  | `/api/users/:id`   | FIRM_ADMIN |
+
+### `audit` — `/api/audit` (1) · clase: **FIRM_ADMIN**
+
+| Método | Ruta         | Rol        |
+| ------ | ------------ | ---------- |
+| GET    | `/api/audit` | FIRM_ADMIN |
+
+### `clients` — `/api/clients` (9) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                           | Rol                |
+| ------ | ------------------------------ | ------------------ |
+| POST   | `/api/clients`                 | FIRM_ADMIN, LAWYER |
+| GET    | `/api/clients`                 | FIRM_ADMIN, LAWYER |
+| GET    | `/api/clients/conflict-check`  | FIRM_ADMIN, LAWYER |
+| GET    | `/api/clients/:id`             | FIRM_ADMIN, LAWYER |
+| GET    | `/api/clients/:id/gdpr-export` | **FIRM_ADMIN**     |
+| POST   | `/api/clients/:id/anonymize`   | **FIRM_ADMIN**     |
+| PATCH  | `/api/clients/:id`             | FIRM_ADMIN, LAWYER |
+| DELETE | `/api/clients/:id`             | FIRM_ADMIN, LAWYER |
+| POST   | `/api/clients/:id/portal-user` | FIRM_ADMIN, LAWYER |
+
+### `matters` — `/api/matters` (7) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                      | Rol                |
+| ------ | ------------------------- | ------------------ |
+| POST   | `/api/matters`            | FIRM_ADMIN, LAWYER |
+| GET    | `/api/matters/assignees`  | **FIRM_ADMIN**     |
+| GET    | `/api/matters`            | FIRM_ADMIN, LAWYER |
+| GET    | `/api/matters/:id`        | FIRM_ADMIN, LAWYER |
+| PATCH  | `/api/matters/:id`        | FIRM_ADMIN, LAWYER |
+| PATCH  | `/api/matters/:id/lawyer` | **FIRM_ADMIN**     |
+| PATCH  | `/api/matters/:id/status` | FIRM_ADMIN, LAWYER |
+
+### `messages` — `/api/matters/:matterId/messages` (2)
+
+| Método | Ruta                              | Rol                           |
+| ------ | --------------------------------- | ----------------------------- |
+| POST   | `/api/matters/:matterId/messages` | auth (miembro del expediente) |
+| GET    | `/api/matters/:matterId/messages` | auth (miembro del expediente) |
+
+### `documents` — `/api/documents` (6) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                                          | Rol                |
+| ------ | --------------------------------------------- | ------------------ |
+| POST   | `/api/documents`                              | FIRM_ADMIN, LAWYER |
+| POST   | `/api/documents/:id/versions`                 | FIRM_ADMIN, LAWYER |
+| GET    | `/api/documents/by-matter/:matterId`          | FIRM_ADMIN, LAWYER |
+| GET    | `/api/documents/:id`                          | FIRM_ADMIN, LAWYER |
+| GET    | `/api/documents/versions/:versionId/download` | FIRM_ADMIN, LAWYER |
+| POST   | `/api/documents/versions/:versionId/review`   | FIRM_ADMIN, LAWYER |
+
+### `tasks` — `/api/tasks` (6) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                       | Rol                |
+| ------ | -------------------------- | ------------------ |
+| POST   | `/api/tasks`               | FIRM_ADMIN, LAWYER |
+| POST   | `/api/tasks/from-deadline` | FIRM_ADMIN, LAWYER |
+| GET    | `/api/tasks`               | FIRM_ADMIN, LAWYER |
+| GET    | `/api/tasks/:id`           | FIRM_ADMIN, LAWYER |
+| PATCH  | `/api/tasks/:id`           | FIRM_ADMIN, LAWYER |
+| DELETE | `/api/tasks/:id`           | FIRM_ADMIN, LAWYER |
+
+### `ledger` — `/api/ledger` (12) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                                | Rol                |
+| ------ | ----------------------------------- | ------------------ |
+| POST   | `/api/ledger/costs/propose`         | FIRM_ADMIN, LAWYER |
+| GET    | `/api/ledger/approvals`             | **FIRM_ADMIN**     |
+| POST   | `/api/ledger/approvals/:id/approve` | **FIRM_ADMIN**     |
+| POST   | `/api/ledger/approvals/:id/reject`  | **FIRM_ADMIN**     |
+| POST   | `/api/ledger/entries`               | FIRM_ADMIN, LAWYER |
+| POST   | `/api/ledger/time`                  | FIRM_ADMIN, LAWYER |
+| GET    | `/api/ledger/matter/:matterId`      | FIRM_ADMIN, LAWYER |
+| POST   | `/api/ledger/invoices/preview`      | FIRM_ADMIN, LAWYER |
+| POST   | `/api/ledger/invoices`              | FIRM_ADMIN, LAWYER |
+| GET    | `/api/ledger/invoices/:id`          | FIRM_ADMIN, LAWYER |
+| GET    | `/api/ledger/invoices/:id/pdf`      | FIRM_ADMIN, LAWYER |
+| POST   | `/api/ledger/invoices/:id/pay`      | FIRM_ADMIN, LAWYER |
+
+### `settings` — `/api/settings` (5) · clase: **FIRM_ADMIN**
+
+| Método | Ruta                           | Rol        |
+| ------ | ------------------------------ | ---------- |
+| GET    | `/api/settings`                | FIRM_ADMIN |
+| PATCH  | `/api/settings`                | FIRM_ADMIN |
+| POST   | `/api/settings/holidays`       | FIRM_ADMIN |
+| DELETE | `/api/settings/holidays/:date` | FIRM_ADMIN |
+| POST   | `/api/settings/certificate`    | FIRM_ADMIN |
+
+### `dashboard` — `/api/dashboard` (1) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                     | Rol                |
+| ------ | ------------------------ | ------------------ |
+| GET    | `/api/dashboard/summary` | FIRM_ADMIN, LAWYER |
+
+### `notifications` — `/api/notifications` (2)
+
+| Método | Ruta                          | Rol                 |
+| ------ | ----------------------------- | ------------------- |
+| GET    | `/api/notifications`          | auth (destinatario) |
+| PATCH  | `/api/notifications/:id/read` | auth (destinatario) |
+
+### `portal` — `/api/portal` (8) · clase: **CLIENT**
+
+| Método | Ruta                                | Rol    |
+| ------ | ----------------------------------- | ------ |
+| GET    | `/api/portal/me`                    | CLIENT |
+| GET    | `/api/portal/matters`               | CLIENT |
+| GET    | `/api/portal/matters/:id`           | CLIENT |
+| GET    | `/api/portal/matters/:id/documents` | CLIENT |
+| GET    | `/api/portal/matters/:id/ledger`    | CLIENT |
+| GET    | `/api/portal/matters/:id/tasks`     | CLIENT |
+| GET    | `/api/portal/invoices`              | CLIENT |
+| GET    | `/api/portal/invoices/:id/pdf`      | CLIENT |
+
+### `health` — `/api/health` (1)
+
+| Método | Ruta          | Rol     |
+| ------ | ------------- | ------- |
+| GET    | `/api/health` | público |
+
+**Recuento:** 5+4+1+9+7+2+6+6+12+5+1+2+8+1 = **69**. ✅
+
+## Discrepancias detectadas (docs previos vs código)
+
+Cruzando con `HANDOFF.md`, `PLAN.md`, `DECISIONS.md` y `RUNBOOK.md`:
+
+1. **CI = 9 jobs, no 8.** El prompt de QA hablaba de "8 jobs"; el workflow real tiene **9**: `setup`,
+   `lint-typecheck`, `unit`, `api-integration`, `web-e2e`, `security`, `migration-check`, `build`,
+   `ci-ok` (gate agregador). Ver [09](09-infrastructure-cicd.md).
+2. **RLS sobre 16 tablas, no 14.** El bucle `enable_rls` activa 14; `rls_fail_closed` añade `Tenant` e
+   `InvoiceLine` → **16**. Documentado en [03](03-multitenancy-and-rls.md).
+3. **`messages` y `notifications` sin `@Roles` de clase.** No son "solo firma": cualquier usuario
+   autenticado pasa el guard de rol; el control real es del servicio (membresía del expediente /
+   propiedad de la notificación) + RLS. Anotado arriba como "auth".
+4. **ADRs D-000..D-023 (24), no D-001..D-023.** Existe también `D-000`. Sin impacto funcional.
+
+No se detectaron discrepancias **funcionales** entre lo que los docs afirman y lo que el código hace;
+las anteriores son precisiones de recuento/redacción.

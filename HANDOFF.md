@@ -177,6 +177,10 @@ api: `pnpm --filter @legalflow/api lint && pnpm exec jest --config test/jest-e2e
 auth BFF, **D-015** gate de rol), `AI_WORKLOG.md` (bitácora), `design/*` (prototipo + handoff de
 diseño), `apps/api/scripts/seed-demo.mjs` (seed).
 
+**Arquitectura técnica completa** (derivada del código, con diagramas Mermaid): `docs/architecture/`
+— flujo de datos, auth/BFF, multi-tenancy/RLS, cifrado, compliance providers, ERD, referencia de los
+69 endpoints, frontend, CI/CD, stack, y checklist de completitud con recuentos.
+
 ## Siguiente acción recomendada en el nuevo chat
 
 1. Reconciliar el worktree a `feat/mvp-fase1` y copiar `apps/api/.env`. Levantar Postgres + API + web +
