@@ -346,3 +346,33 @@ Decisiones:
 - **Trade-offs:** un tercer rol/URL añade superficie de configuración (documentado en `.env.example` y CI).
   A cambio, el aislamiento es **a prueba de olvidos**: cualquier ruta nueva que olvide el contexto falla de
   forma ruidosa (cero filas / error), nunca filtra. Es la postura correcta para datos legales.
+
+## D-021 · Cifrado en reposo (contenido de documentos) + TLS en el borde · Aceptada
+
+- **Contexto (Tarea 3):** los datos más sensibles son el **contenido de los documentos** (binario, no
+  consultable) y la **PII de clientes** (nombre, identificador fiscal, contacto). Faltaba cifrado en
+  reposo y documentar TLS en tránsito.
+- **Decisión (empezar por lo más sensible — contenido de documentos):** cifrado **a nivel de aplicación**
+  (envelope **AES-256-GCM**) mediante un **decorador `EncryptedStorageProvider`** que envuelve cualquier
+  `StorageProvider` (local, MinIO, S3). Cifra en `put`, descifra en `get`; **transparente** para
+  `DocumentsService` y **agnóstico del backend** (respeta D-008). Formato `[MAGIC|IV|TAG|ciphertext]`: el
+  MAGIC permite **passthrough de objetos legacy en claro** (migración suave, sin reescribir lo ya subido),
+  y GCM **autentica** (manipular el blob hace fallar el descifrado). La descarga pasa por la API
+  (streaming desde `get()`), no por `getSignedUrl`, así que el cliente nunca recibe el blob cifrado.
+- **Gestión de clave:** `DATA_ENCRYPTION_KEY` (32 bytes en base64). Secreto fuerte, aparte, **nunca
+  logueado**. **Obligatoria en producción**: si falta, el arranque **lanza error** (no guardar en claro
+  por descuido — mismo principio que `SYSTEM_DATABASE_URL`/D-020); en dev/CI se permite sin clave con
+  aviso. El byte de versión en el MAGIC deja la puerta a **rotación** (re-cifrar con clave nueva, soportar
+  varias versiones) sin romper formato.
+- **PII de clientes (fase diferida, documentada):** NO se cifra a nivel de columna **todavía** porque
+  rompería búsqueda/orden/validación (p. ej. buscar cliente por nombre, unicidad de identificador fiscal).
+  Plan: para campos consultables, _blind index_ / cifrado determinista; para el resto, **cifrado de disco/
+  volumen (TDE) en la capa de infraestructura** cubre toda la BD en reposo (más simple y sin romper
+  queries). El runbook lo recoge. Se empieza por lo binario (documentos), lo más sensible y sin coste de
+  consulta.
+- **TLS en tránsito:** terminación TLS en el borde (reverse proxy / balanceador), HSTS, redirección
+  80→443, y `sslmode=require` hacia Postgres. Documentado en `RUNBOOK.md` (no se activa en esta tanda; es
+  preparación de despliegue).
+- **Probado:** e2e puros del cifrado (round-trip, passthrough legacy, autenticación/tamper, validación de
+  clave, decorador) + e2e de documentos con la clave activa (sube cifrado, descarga descifra, hash SHA-256
+  sobre el claro intacto). Cifrado **auto-mergeable** (no toca rutas sensibles de CODEOWNERS).

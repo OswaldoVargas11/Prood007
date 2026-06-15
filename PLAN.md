@@ -293,13 +293,16 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
 
 ## Transversales de seguridad / cumplimiento de datos
 
-- [ ] Cifrado en tránsito (TLS) y en reposo (campos sensibles / disco).
+- [~] Cifrado en tránsito (TLS) y en reposo (campos sensibles / disco).
+  - [x] **En reposo — contenido de documentos**: AES-256-GCM (`EncryptedStorageProvider`, decorador
+        agnóstico del backend); clave obligatoria en producción; passthrough de objetos legacy. Ver D-021.
+  - [x] **TLS en el borde** documentado en `RUNBOOK.md` (terminación, HSTS, 80→443, `sslmode=require`).
+  - [ ] **PII de clientes a nivel de columna** (fase diferida: blind index / TDE de disco; ver D-021).
 - [x] Control de acceso granular + aislamiento estricto por tenant. **Postgres RLS activa y cableada**
       como defensa en profundidad: políticas + rol de mínimo privilegio + la app fija `app.tenant_id` por
       request (interceptor + extensión Prisma). Enforcement probado por tests (ver D-013).
-  - [~] **RLS a FAIL-CLOSED** (sin contexto → cero filas; rutas de sistema vía rol `legalflow_system`
-    con BYPASSRLS, no por ausencia de contexto) — **PR `feat/rls-fail-closed` abierto, pendiente de
-    revisión del usuario** (toca RLS/auth/migraciones). 90/90 e2e en verde local. Ver D-020.
+  - [x] **RLS a FAIL-CLOSED** (sin contexto → cero filas; rutas de sistema vía rol `legalflow_system`
+        con BYPASSRLS, no por ausencia de contexto). Fusionado a main (PR #19). 90/90 e2e. Ver D-020.
 - [ ] Preparado RGPD/LOPDGDD (ES) y Ley 172-13 (RD); trazabilidad para futuro AI Act.
 
 ---
