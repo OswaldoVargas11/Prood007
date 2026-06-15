@@ -838,3 +838,10 @@ Paso 0 + gobernanza + el PR sensible de RLS. Objetivo: endurecer transversales s
 - **Docs:** PLAN (marcados items + corregida la linea stale de anonimizacion: #29 esta fusionado),
   DECISIONS D-023, HANDOFF, este worklog.
 - **Siguiente:** esperar OK para fusionar #30 (preview) y #32 (i18n). Resto cerrado.
+
+- **Cierre (mismo día):** tras la verificación del owner, #30 (preview) y #32 (i18n) fusionados a main
+  vía admin override (CI verde, enforce_admins:false). Auditado en el diff: #30 delega de verdad
+  (buildInvoiceRecord -> previewInvoice, un solo computeInvoiceTotals por provider), read-only puro
+  (sin BD/serie/ledger), autenticado + solo staff. #32 message-only (misma clase/status/condiciones),
+  login sin enumeración (email inexistente == contraseña incorrecta -> auth.invalidCredentials), pipe
+  con mismo whitelist/forbidNonWhitelisted. Los 5 ítems de la Tarea 5 quedan en main. E8 cerrado.

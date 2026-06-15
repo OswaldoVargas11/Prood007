@@ -109,14 +109,13 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
 - [x] `Message`: chat por expediente con control de acceso (staff + cliente del expediente) + emit realtime.
 - [x] Tests e2e: chat, aislamiento y recepción de notificación en tiempo real.
 
-## E8 — i18n y multimoneda (transversal) `[~]`
+## E8 — i18n y multimoneda (transversal) `[x]`
 
 - [x] Locales `es-ES` y `es-DO` operativos en web (next-intl, sin strings hardcodeados en UI).
 - [x] Moneda por tenant (EUR / DOP); ledger y facturas usan `tenant.currency`.
 - [x] Errores de cumplimiento con `messageKey` para traducir en UI.
-- [~] Catálogo i18n exhaustivo de mensajes de API: todo error sale por `messageKey` traducible con
-  catálogo COMPLETO es-ES/es-DO + gate de completitud. **PR #32 abierto, pendiente de revisión**
-  (toca `auth/` → CODEOWNERS).
+- [x] Catálogo i18n exhaustivo de mensajes de API: todo error sale por `messageKey` traducible con
+      catálogo COMPLETO es-ES/es-DO + gate de completitud. **Fusionado a main (PR #32).**
 
 ## E9 — Capa de cumplimiento (paquete base) `[x]`
 
@@ -189,9 +188,9 @@ E9 Cumplimiento    ◄── paquete base (se consume desde E2 y E5)
         (ES Verifactu: base 1000, IVA 210, IRPF 150, total 1060; cobro → PAID).
   - [x] **QR Verifactu renderizado** en el detalle (qrcode.react; contenido = URL de cotejo AEAT del
         complianceRecord; jurisdicción-aware: en RD/e-CF no aplica). Fusionado (PR #31).
-  - [~] **Preview fiscal en vivo** antes de emitir: endpoint read-only `POST /ledger/invoices/preview`
-    que reutiliza la MISMA matemática fiscal que la emisión (`previewInvoice` compartido) + UI en
-    vivo con indicador Verifactu/e-CF. **PR #30 abierto, pendiente de revisión** (toca compliance).
+  - [x] **Preview fiscal en vivo** antes de emitir: endpoint read-only `POST /ledger/invoices/preview`
+        que reutiliza la MISMA matemática fiscal que la emisión (`buildInvoiceRecord` delega en
+        `previewInvoice`) + UI en vivo con indicador Verifactu/e-CF. **Fusionado a main (PR #30).**
   - Pendiente: pantalla global de facturación (sin endpoint de listado).
 - **F5 — Tiempo real (notificaciones + chat por expediente, Socket.IO)** `[x]`
   - [x] Socket.IO cliente (autenticado con el access token; `auth` callback reevaluado en cada
