@@ -6,6 +6,7 @@ import { Command, Menu, Search } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from '@/i18n/navigation';
 import { AppSidebar, MobileSidebar } from './app-sidebar';
+import { PageTransition } from './page-transition';
 import { CommandMenu, useCommandMenu } from './command-menu';
 import { AiPanel } from './ai-panel';
 import { NotificationsBell } from './notifications-bell';
@@ -89,7 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <UserMenu />
           </div>
         </header>
-        <main className="flex-1 animate-fade-in p-6 lg:p-8">{children}</main>
+        <PageTransition className="flex-1 p-6 lg:p-8">{children}</PageTransition>
       </div>
       <CommandMenu open={open} onOpenChange={setOpen} />
     </div>
