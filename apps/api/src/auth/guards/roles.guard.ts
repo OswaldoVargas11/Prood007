@@ -2,6 +2,7 @@ import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@
 import { Reflector } from '@nestjs/core';
 import type { Role } from '@legalflow/domain';
 import { ROLES_KEY } from '../decorators/roles.decorator';
+import { apiError } from '../../common/api-messages';
 import type { RequestUser } from '../auth.types';
 
 /** Comprueba que el usuario tenga al menos uno de los roles exigidos por @Roles(). */
@@ -17,10 +18,10 @@ export class RolesGuard implements CanActivate {
     if (!required || required.length === 0) return true;
 
     const { user } = context.switchToHttp().getRequest<{ user?: RequestUser }>();
-    if (!user) throw new ForbiddenException('No autenticado.');
+    if (!user) throw new ForbiddenException(apiError('auth.notAuthenticated'));
 
     const ok = required.some((r) => user.roles.includes(r));
-    if (!ok) throw new ForbiddenException('No tienes permisos para esta acción.');
+    if (!ok) throw new ForbiddenException(apiError('auth.forbidden'));
     return true;
   }
 }

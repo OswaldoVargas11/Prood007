@@ -6,6 +6,7 @@ import { TokensService } from './tokens.service';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
 import { PERMISSION_NAMES, PERMISSIONS, ROLE_NAMES, ROLE_PERMISSIONS } from './rbac/permissions';
+import { apiError } from '../common/api-messages';
 import type { TokenPair } from './auth.types';
 
 @Injectable()
@@ -100,21 +101,19 @@ export class AuthService {
 
     if (candidates.length === 0) {
       // Mismo error que credenciales inválidas para no filtrar existencia de cuentas.
-      throw new UnauthorizedException('Credenciales inválidas.');
+      throw new UnauthorizedException(apiError('auth.invalidCredentials'));
     }
     if (candidates.length > 1) {
-      throw new BadRequestException(
-        'El email existe en varios despachos; indica el tenantId para iniciar sesión.',
-      );
+      throw new BadRequestException(apiError('auth.ambiguousTenant'));
     }
 
     const user = candidates[0]!;
     if (!user.isActive) {
-      throw new UnauthorizedException('Cuenta deshabilitada.');
+      throw new UnauthorizedException(apiError('auth.accountDisabled'));
     }
     const ok = await argon2.verify(user.passwordHash, dto.password);
     if (!ok) {
-      throw new UnauthorizedException('Credenciales inválidas.');
+      throw new UnauthorizedException(apiError('auth.invalidCredentials'));
     }
 
     const userForToken = await this.tokens.loadUserForToken(user.id);

@@ -1,9 +1,9 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { createValidationPipe } from './common/validation';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -11,14 +11,16 @@ async function bootstrap() {
   // Cabeceras de seguridad HTTP.
   app.use(helmet());
 
-  // Validación global de DTOs (class-validator).
-  app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-  );
+  // Validación global de DTOs (class-validator). Pipe compartido con los tests: el error lleva la
+  // messageKey traducible 'validation.failed' + el detalle por campo para depurar/mostrar en UI.
+  app.useGlobalPipes(createValidationPipe());
 
   // CORS restringido por configuración (lista separada por comas) o reflejo en desarrollo.
   const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((s) => s.trim());
-  app.enableCors({ origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : true, credentials: true });
+  app.enableCors({
+    origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : true,
+    credentials: true,
+  });
   // Limita el tamaño del cuerpo JSON (defensa frente a payloads abusivos).
   app.setGlobalPrefix('api');
 

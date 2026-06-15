@@ -11,6 +11,7 @@ import { AuditService } from '../audit/audit.service';
 import { CreateMatterDto } from './dto/create-matter.dto';
 import { UpdateMatterDto } from './dto/update-matter.dto';
 import { canTransition } from './matter-status';
+import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Gestión de expedientes, acotada por tenant, con máquina de estados y asignación de abogado. */
@@ -27,7 +28,7 @@ export class MattersService {
       where: { id: clientId, tenantId: user.tenantId },
       select: { id: true },
     });
-    if (!client) throw new BadRequestException('El cliente no existe en este despacho.');
+    if (!client) throw new BadRequestException(apiError('matters.clientNotInFirm'));
   }
 
   /** Comprueba que el abogado pertenece al tenant y tiene rol LAWYER o FIRM_ADMIN. */
@@ -40,7 +41,7 @@ export class MattersService {
       },
       select: { id: true },
     });
-    if (!lawyer) throw new BadRequestException('El abogado no es válido para este despacho.');
+    if (!lawyer) throw new BadRequestException(apiError('matters.invalidLawyer'));
   }
 
   private async generateReference(tenantId: string): Promise<string> {
@@ -52,7 +53,7 @@ export class MattersService {
   /** Solo el administrador del despacho asigna el letrado responsable. */
   private assertCanAssignLawyer(user: RequestUser): void {
     if (!user.roles.includes(Role.FIRM_ADMIN)) {
-      throw new ForbiddenException('Solo el administrador del despacho puede asignar el letrado.');
+      throw new ForbiddenException(apiError('matters.assignLawyerAdminOnly'));
     }
   }
 
@@ -84,7 +85,7 @@ export class MattersService {
       where: { tenantId: user.tenantId, reference },
       select: { id: true },
     });
-    if (existing) throw new BadRequestException('Ya existe un expediente con esa referencia.');
+    if (existing) throw new BadRequestException(apiError('matters.referenceExists'));
 
     const matter = await this.prisma.matter.create({
       data: {
@@ -139,7 +140,7 @@ export class MattersService {
         lawyer: { select: { id: true, fullName: true } },
       },
     });
-    if (!matter) throw new NotFoundException('Expediente no encontrado.');
+    if (!matter) throw new NotFoundException(apiError('matters.notFound'));
     return matter;
   }
 
@@ -172,7 +173,10 @@ export class MattersService {
     if (matter.status === next) return matter;
     if (!canTransition(matter.status as MatterStatus, next)) {
       throw new BadRequestException(
-        `Transición de estado no permitida: ${matter.status} → ${next}.`,
+        apiError('matters.invalidTransition', {
+          message: `Transición de estado no permitida: ${matter.status} → ${next}.`,
+          params: { from: matter.status, to: next },
+        }),
       );
     }
     await this.prisma.matter.updateMany({

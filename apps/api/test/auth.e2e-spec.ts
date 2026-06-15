@@ -1,8 +1,9 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { PrismaService, SystemPrismaService } from '../src/prisma/prisma.service';
+import { createValidationPipe } from '../src/common/validation';
 
 /**
  * E2E de autenticación multi-tenant + RBAC contra Postgres real.
@@ -20,9 +21,7 @@ describe('Auth (e2e)', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }),
-    );
+    app.useGlobalPipes(createValidationPipe());
     app.setGlobalPrefix('api');
     prisma = app.get(PrismaService);
     system = app.get(SystemPrismaService);
@@ -77,11 +76,21 @@ describe('Auth (e2e)', () => {
     expect(res.body.refreshToken).toBeDefined();
   });
 
-  it('login con contraseña incorrecta → 401', async () => {
-    await request(server())
+  it('login con contraseña incorrecta → 401 con messageKey traducible', async () => {
+    const res = await request(server())
       .post('/api/auth/login')
       .send({ email: adminEmail, password: 'incorrecta' })
       .expect(401);
+    // i18n de la API: el error sale por messageKey (no por string hardcodeado).
+    expect(res.body.messageKey).toBe('auth.invalidCredentials');
+  });
+
+  it('error de validación de DTO → 400 con messageKey validation.failed', async () => {
+    const res = await request(server())
+      .post('/api/auth/login')
+      .send({ email: 'no-es-email', password: 'x' })
+      .expect(400);
+    expect(res.body.messageKey).toBe('validation.failed');
   });
 
   it('/auth/me sin token → 401', async () => {

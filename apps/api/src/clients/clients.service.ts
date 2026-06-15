@@ -24,6 +24,7 @@ import { AuditService } from '../audit/audit.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { CreatePortalUserDto } from './dto/create-portal-user.dto';
+import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
@@ -45,9 +46,10 @@ export class ClientsService {
     const result = provider.validateTaxId(taxId);
     if (!result.valid) {
       throw new BadRequestException({
-        message: 'Identificador fiscal no válido para la jurisdicción del despacho.',
-        code: result.error?.code ?? 'INVALID_TAX_ID',
-        messageKey: result.error?.messageKey,
+        // El provider aporta una messageKey específica (p. ej. compliance.es.taxId.invalid);
+        // si falta, se usa la clave genérica del catálogo de la API.
+        ...apiError('clients.taxIdInvalid', { code: result.error?.code ?? 'INVALID_TAX_ID' }),
+        ...(result.error?.messageKey ? { messageKey: result.error.messageKey } : {}),
       });
     }
     return { normalized: result.normalized ?? taxId, kind: result.kind };
@@ -128,7 +130,7 @@ export class ClientsService {
     const client = await this.prisma.client.findFirst({
       where: { id, tenantId: user.tenantId },
     });
-    if (!client) throw new NotFoundException('Cliente no encontrado.');
+    if (!client) throw new NotFoundException(apiError('clients.notFound'));
     return client;
   }
 
@@ -184,7 +186,7 @@ export class ClientsService {
           },
         },
       });
-      if (!client) throw new NotFoundException('Cliente no encontrado.');
+      if (!client) throw new NotFoundException(apiError('clients.notFound'));
       return client;
     });
 
@@ -211,7 +213,7 @@ export class ClientsService {
   async anonymize(user: RequestUser, id: string) {
     const client = await this.findOne(user, id);
     if (client.anonymizedAt) {
-      throw new ConflictException('Este cliente ya está anonimizado.');
+      throw new ConflictException(apiError('clients.alreadyAnonymized'));
     }
     const now = new Date();
     const result = await tenantTransaction(this.prisma, async (tx) => {
@@ -323,14 +325,14 @@ export class ClientsService {
   async createPortalUser(user: RequestUser, clientId: string, dto: CreatePortalUserDto) {
     const client = await this.findOne(user, clientId);
     if (client.userId) {
-      throw new ConflictException('Este cliente ya tiene acceso al portal.');
+      throw new ConflictException(apiError('clients.portalAlreadyExists'));
     }
     const email = dto.email.toLowerCase();
     const existing = await this.prisma.user.findFirst({
       where: { tenantId: user.tenantId, email },
       select: { id: true },
     });
-    if (existing) throw new ConflictException('Ya existe un usuario con ese email en el despacho.');
+    if (existing) throw new ConflictException(apiError('users.emailExists'));
 
     const role = await this.prisma.role.findFirstOrThrow({
       where: { tenantId: user.tenantId, code: Role.CLIENT },

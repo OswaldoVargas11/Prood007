@@ -12,6 +12,7 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { PreviewInvoiceDto } from './dto/preview-invoice.dto';
 import { ProposeCostDto } from './dto/propose-cost.dto';
 import { ResolveApprovalDto } from './dto/resolve-approval.dto';
+import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
@@ -47,18 +48,18 @@ export class LedgerService {
       where: { id: matterId, tenantId: user.tenantId },
       include: { client: true, tenant: true },
     });
-    if (!matter) throw new BadRequestException('El expediente no existe en este despacho.');
+    if (!matter) throw new BadRequestException(apiError('matters.notInFirm'));
     return matter;
   }
 
   // ── Apuntes manuales ────────────────────────────────────────────────────
   async addEntry(user: RequestUser, dto: CreateLedgerEntryDto) {
     if (!MANUAL_LEDGER_TYPES.includes(dto.type as (typeof MANUAL_LEDGER_TYPES)[number])) {
-      throw new BadRequestException('Tipo de apunte no permitido manualmente.');
+      throw new BadRequestException(apiError('ledger.manualTypeNotAllowed'));
     }
     const amount = Number(dto.amount);
     if (dto.type !== LedgerEntryType.ADJUSTMENT && amount < 0) {
-      throw new BadRequestException('El importe debe ser positivo para este tipo de apunte.');
+      throw new BadRequestException(apiError('ledger.amountPositiveForType'));
     }
     const matter = await this.getMatterOrThrow(user, dto.matterId);
     const entry = await this.prisma.ledgerEntry.create({
@@ -171,9 +172,7 @@ export class LedgerService {
   async createInvoice(user: RequestUser, dto: CreateInvoiceDto) {
     const matter = await this.getMatterOrThrow(user, dto.matterId);
     if (!matter.tenant.taxId) {
-      throw new BadRequestException(
-        'El despacho no tiene identificador fiscal configurado; no se puede facturar.',
-      );
+      throw new BadRequestException(apiError('ledger.firmNoTaxId'));
     }
 
     const provider = this.compliance.forTenant({ jurisdiction: user.jurisdiction });
@@ -256,7 +255,7 @@ export class LedgerService {
       where: { id, tenantId: user.tenantId },
       include: { lines: true, client: { select: { id: true, name: true, taxId: true } } },
     });
-    if (!invoice) throw new NotFoundException('Factura no encontrada.');
+    if (!invoice) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
     return invoice;
   }
 
@@ -289,7 +288,7 @@ export class LedgerService {
   /** Un letrado (o admin) propone un coste (suplido). Nace PROPOSED: no afecta al saldo hasta aprobarse. */
   async proposeCost(user: RequestUser, dto: ProposeCostDto) {
     const amount = Number(dto.amount);
-    if (!(amount > 0)) throw new BadRequestException('El importe debe ser positivo.');
+    if (!(amount > 0)) throw new BadRequestException(apiError('ledger.amountPositive'));
     const matter = await this.getMatterOrThrow(user, dto.matterId);
 
     const entry = await this.prisma.ledgerEntry.create({
@@ -359,9 +358,9 @@ export class LedgerService {
     const entry = await this.prisma.ledgerEntry.findFirst({
       where: { id, tenantId: user.tenantId },
     });
-    if (!entry) throw new NotFoundException('Apunte no encontrado.');
+    if (!entry) throw new NotFoundException(apiError('ledger.entryNotFound'));
     if (entry.approvalStatus !== ApprovalStatus.PROPOSED) {
-      throw new BadRequestException('Este coste ya fue resuelto.');
+      throw new BadRequestException(apiError('ledger.costAlreadyResolved'));
     }
     await this.prisma.ledgerEntry.updateMany({
       where: { id, tenantId: user.tenantId },

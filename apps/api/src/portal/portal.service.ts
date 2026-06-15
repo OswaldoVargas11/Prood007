@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { assertMatterAccess } from '../messages/matter-access';
+import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
@@ -19,7 +20,7 @@ export class PortalService {
     const client = await this.prisma.client.findFirst({
       where: { tenantId: user.tenantId, userId: user.userId },
     });
-    if (!client) throw new ForbiddenException('No tienes una ficha de cliente asociada.');
+    if (!client) throw new ForbiddenException(apiError('portal.noClientProfile'));
     return client;
   }
 

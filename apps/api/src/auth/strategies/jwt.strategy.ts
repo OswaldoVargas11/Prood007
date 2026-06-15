@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
+import { apiError } from '../../common/api-messages';
 import type { AccessTokenPayload, RequestUser } from '../auth.types';
 
 /** Valida el access token (Bearer) y construye el RequestUser sin tocar la BD. */
@@ -21,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
   validate(payload: AccessTokenPayload): RequestUser {
     if (!payload?.sub || !payload?.tid) {
-      throw new UnauthorizedException('Token inválido.');
+      throw new UnauthorizedException(apiError('auth.invalidToken'));
     }
     return {
       userId: payload.sub,

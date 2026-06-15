@@ -1,6 +1,7 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
+import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
@@ -18,7 +19,7 @@ export async function assertMatterAccess(
     where: { id: matterId, tenantId: user.tenantId },
     select: { id: true, clientId: true, client: { select: { userId: true } } },
   });
-  if (!matter) throw new NotFoundException('Expediente no encontrado.');
+  if (!matter) throw new NotFoundException(apiError('matters.notFound'));
 
   const isStaff = user.roles.includes(Role.FIRM_ADMIN) || user.roles.includes(Role.LAWYER);
   if (isStaff) return { id: matter.id, clientId: matter.clientId };
@@ -26,5 +27,5 @@ export async function assertMatterAccess(
   if (matter.client?.userId && matter.client.userId === user.userId) {
     return { id: matter.id, clientId: matter.clientId };
   }
-  throw new ForbiddenException('No tienes acceso a este expediente.');
+  throw new ForbiddenException(apiError('matters.noAccess'));
 }

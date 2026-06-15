@@ -12,6 +12,7 @@ import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
+import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
 type StaffRole = Role.FIRM_ADMIN | Role.LAWYER;
@@ -99,13 +100,17 @@ export class UsersService {
       where: { tenantId: user.tenantId, email },
       select: { id: true },
     });
-    if (existing) throw new ConflictException('Ya existe un usuario con ese email en el despacho.');
+    if (existing) throw new ConflictException(apiError('users.emailExists'));
 
     const used = await this.countActive(user.tenantId, dto.role);
     const max = this.maxFor(tenant, dto.role);
     if (used >= max) {
+      const role = dto.role === Role.FIRM_ADMIN ? 'administradores' : 'letrados';
       throw new ForbiddenException(
-        `Límite de licencia alcanzado: ${max} ${dto.role === Role.FIRM_ADMIN ? 'administradores' : 'letrados'}. Amplía el plan o desactiva un usuario.`,
+        apiError('users.licenseLimitReached', {
+          message: `Límite de licencia alcanzado: ${max} ${role}. Amplía el plan o desactiva un usuario.`,
+          params: { max, role, roleCode: dto.role },
+        }),
       );
     }
 
@@ -134,11 +139,11 @@ export class UsersService {
       where: { id, tenantId: actor.tenantId },
       include: { roles: { include: { role: { select: { id: true, code: true } } } } },
     });
-    if (!target) throw new NotFoundException('Usuario no encontrado.');
+    if (!target) throw new NotFoundException(apiError('users.notFound'));
 
     const codes = target.roles.map((r) => r.role.code);
     if (!codes.some((c) => STAFF_ROLES.includes(c as StaffRole))) {
-      throw new BadRequestException('Este usuario no es del despacho (es un usuario de portal).');
+      throw new BadRequestException(apiError('users.notStaff'));
     }
     const currentRole = this.staffRoleOf(codes);
     const nextRole = dto.role ?? currentRole;
@@ -150,9 +155,7 @@ export class UsersService {
     if (losesAdmin) {
       const activeAdmins = await this.countActive(actor.tenantId, Role.FIRM_ADMIN);
       if (activeAdmins <= 1) {
-        throw new BadRequestException(
-          'No puedes dejar el despacho sin un administrador activo. Asigna otro admin primero.',
-        );
+        throw new BadRequestException(apiError('users.lastAdmin'));
       }
     }
 
@@ -163,8 +166,12 @@ export class UsersService {
     if (becomesActiveInRole) {
       const used = await this.countActive(actor.tenantId, nextRole);
       if (used >= this.maxFor(tenant, nextRole)) {
+        const role = nextRole === Role.FIRM_ADMIN ? 'administradores' : 'letrados';
         throw new ForbiddenException(
-          `Límite de licencia alcanzado: ${this.maxFor(tenant, nextRole)} ${nextRole === Role.FIRM_ADMIN ? 'administradores' : 'letrados'}.`,
+          apiError('users.licenseLimitReached', {
+            message: `Límite de licencia alcanzado: ${this.maxFor(tenant, nextRole)} ${role}.`,
+            params: { max: this.maxFor(tenant, nextRole), role, roleCode: nextRole },
+          }),
         );
       }
     }

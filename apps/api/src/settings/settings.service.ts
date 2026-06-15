@@ -7,6 +7,7 @@ import { AuditService } from '../audit/audit.service';
 import { UsersService } from '../users/users.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { AddHolidayDto } from './dto/add-holiday.dto';
+import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
 interface Holiday {
@@ -85,8 +86,9 @@ export class SettingsService {
       const result = provider.validateTaxId(dto.taxId);
       if (!result.valid) {
         throw new BadRequestException({
-          message: 'Identificador fiscal del despacho no válido para la jurisdicción.',
-          code: result.error?.code ?? 'INVALID_TAX_ID',
+          // Preserva la messageKey específica del provider (compliance.*) si la aporta.
+          ...apiError('settings.taxIdInvalid', { code: result.error?.code ?? 'INVALID_TAX_ID' }),
+          ...(result.error?.messageKey ? { messageKey: result.error.messageKey } : {}),
         });
       }
       data.taxId = result.normalized ?? dto.taxId;
@@ -102,7 +104,7 @@ export class SettingsService {
     const tenant = await this.prisma.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
     const holidays = this.holidaysOf(tenant.holidays);
     if (holidays.some((h) => h.date === dto.date)) {
-      throw new BadRequestException('Ya existe un festivo en esa fecha.');
+      throw new BadRequestException(apiError('settings.holidayExists'));
     }
     holidays.push({ date: dto.date, name: dto.name.trim() });
     await this.prisma.tenant.update({
@@ -125,7 +127,7 @@ export class SettingsService {
   }
 
   async uploadCertificate(user: RequestUser, file?: UploadedFile) {
-    if (!file) throw new BadRequestException('Falta el archivo del certificado.');
+    if (!file) throw new BadRequestException(apiError('settings.certificateMissing'));
     const key = `${user.tenantId}/certificate/${file.originalname}`;
     await this.storage.put(key, file.buffer, file.mimetype);
     await this.prisma.tenant.update({

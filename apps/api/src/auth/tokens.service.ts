@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Jurisdiction } from '@legalflow/domain';
 import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
+import { apiError } from '../common/api-messages';
 import type { AccessTokenPayload, RefreshTokenPayload, RequestUser, TokenPair } from './auth.types';
 
 interface UserForToken {
@@ -95,12 +96,12 @@ export class TokensService {
         secret: this.refreshSecret,
       });
     } catch {
-      throw new UnauthorizedException('Refresh token inválido o expirado.');
+      throw new UnauthorizedException(apiError('auth.refreshInvalid'));
     }
 
     const row = await this.prisma.refreshToken.findUnique({ where: { id: payload.jti } });
     if (!row || row.userId !== payload.sub) {
-      throw new UnauthorizedException('Refresh token desconocido.');
+      throw new UnauthorizedException(apiError('auth.refreshUnknown'));
     }
 
     const presentedHash = this.sha256(presentedToken);
@@ -110,11 +111,11 @@ export class TokensService {
         where: { userId: row.userId, revokedAt: null },
         data: { revokedAt: new Date() },
       });
-      throw new UnauthorizedException('Refresh token reutilizado; sesiones revocadas.');
+      throw new UnauthorizedException(apiError('auth.refreshReused'));
     }
 
     if (row.expiresAt.getTime() < Date.now()) {
-      throw new UnauthorizedException('Refresh token expirado.');
+      throw new UnauthorizedException(apiError('auth.refreshExpired'));
     }
 
     // Cargar datos frescos del usuario (roles/estado pueden haber cambiado).
@@ -150,7 +151,7 @@ export class TokensService {
       include: { roles: { include: { role: true } }, tenant: true },
     });
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Usuario no válido.');
+      throw new UnauthorizedException(apiError('auth.invalidUser'));
     }
     return {
       id: user.id,
