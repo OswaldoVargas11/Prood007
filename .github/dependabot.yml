@@ -7,6 +7,19 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     versioning-strategy: increase
+    ignore:
+      # React se mantiene en 18 DELIBERADAMENTE (D-019): subir a 19 arrastra una cascada de bumps
+      # mayores en Radix UI y testing-library sin beneficio para el MVP. Se ignoran los majors para que
+      # Dependabot deje de reabrir el PR (ya hubo que cerrar uno a mano). Migrar a React 19 será una
+      # decisión explícita, no un auto-merge. Quitar estas reglas cuando se decida migrar.
+      - dependency-name: react
+        update-types: ['version-update:semver-major']
+      - dependency-name: react-dom
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/react-dom'
+        update-types: ['version-update:semver-major']
     groups:
       # Agrupa parches/menores para reducir ruido; los mayores van sueltos para revisar a mano.
       minor-and-patch:
