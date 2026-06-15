@@ -21,7 +21,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   }
   const pair = data as TokenPair;
-  setSessionCookie(pair.refreshToken);
-  setScopeCookie(scopeFromAccessToken(pair.accessToken));
+  await setSessionCookie(pair.refreshToken);
+  await setScopeCookie(scopeFromAccessToken(pair.accessToken));
   return NextResponse.json({ accessToken: pair.accessToken, expiresIn: pair.expiresIn });
 }

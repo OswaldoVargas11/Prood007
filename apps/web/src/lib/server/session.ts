@@ -18,8 +18,8 @@ export function nestUrl(path: string): string {
   return `${base}/api${path}`;
 }
 
-export function setSessionCookie(refreshToken: string): void {
-  cookies().set(SESSION_COOKIE, refreshToken, {
+export async function setSessionCookie(refreshToken: string): Promise<void> {
+  (await cookies()).set(SESSION_COOKIE, refreshToken, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
@@ -28,18 +28,19 @@ export function setSessionCookie(refreshToken: string): void {
   });
 }
 
-export function clearSessionCookie(): void {
-  cookies().delete(SESSION_COOKIE);
-  cookies().delete(SCOPE_COOKIE);
+export async function clearSessionCookie(): Promise<void> {
+  const store = await cookies();
+  store.delete(SESSION_COOKIE);
+  store.delete(SCOPE_COOKIE);
 }
 
-export function getSessionToken(): string | null {
-  return cookies().get(SESSION_COOKIE)?.value ?? null;
+export async function getSessionToken(): Promise<string | null> {
+  return (await cookies()).get(SESSION_COOKIE)?.value ?? null;
 }
 
 /** Fija el ámbito (no es secreto, pero httpOnly evita manipulación trivial desde el cliente). */
-export function setScopeCookie(scope: Scope): void {
-  cookies().set(SCOPE_COOKIE, scope, {
+export async function setScopeCookie(scope: Scope): Promise<void> {
+  (await cookies()).set(SCOPE_COOKIE, scope, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',

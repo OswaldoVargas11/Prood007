@@ -271,3 +271,32 @@ Decisiones:
   a `staging` con `prisma migrate deploy`, y un job de **producción como entorno protegido con
   aprobación manual** + backup previo + rollback — **cableado pero desconectado** hasta elegir hosting.
   No se construye en esta tanda (se entrega CI verde primero).
+
+## D-019 · Remediación de los 9 advisories de producción; allowlist vacía · Aceptada
+
+- **Contexto:** D-017 aceptó **temporalmente** 9 high de producción (next ×5, multer ×3, lodash ×1) en
+  `pnpm.auditConfig.ignoreGhsas`, con remediación rastreada (migrar Next 15; overrides de multer/lodash).
+- **multer y lodash (overrides):** al reinstalar, `@nestjs/platform-express@10.4.22` ya resolvía
+  `multer@2.0.2` (no 1.x) y `minio` ya traía `lodash@4.18.1` — el riesgo real era menor que el previsto.
+  Se fijan **`pnpm.overrides`**: `multer ^2.1.1` (cierra GHSA-xf7r-hgr6-v32p / GHSA-v52c-386h-88mc /
+  GHSA-5528-5vmv-3xc2; parche en 2.1.0/2.1.1) y `lodash ^4.18.0` (cierra GHSA-r5fr-rjxr-66jc; parche en
+  4.18.0). Ambos **dentro del mismo major → sin rotura de API**; e2e de API (74) en verde, incl. subida
+  de documentos (multer).
+- **Next 14→15 (migración mayor):** los 5 advisories de next exigen **>=15.5.16**; se fija
+  **`next ^15.5.19`** (último 15.5.x) + `eslint-config-next ^15.5.19`. **Se mantiene React 18.3** (Next
+  15.5 acepta `react ^18.2.0` en peers; evita arrastrar React 19 y bumps en cascada de Radix/testing-
+  library). **next-intl 3.26.5** ya soporta Next 15 + React 18 → sin bump mayor (floor subido a `^3.26.0`).
+- **Superficie de código real (mínima):** las APIs de request asíncronas de Next 15 solo afectaban a
+  `cookies()` en `lib/server/session.ts` (4 funciones → `async` + `await cookies()`) y sus 4 route
+  handlers BFF (login/logout/refresh/register-tenant → `await`). Los layouts/páginas server ya usaban
+  `params: Promise<…>` con `await`; todas las páginas `[id]` son client components con `useParams()`
+  (no afectadas). `next.config.mjs` y `tsconfig` (ya en `moduleResolution: bundler`) sin cambios.
+- **GHSA-36qx-fr4f-26g5 (bypass middleware/i18n) y el gate de rol D-015:** el advisory es específico de
+  **Pages Router con `i18n` nativo de Next**. Esta app es 100% **App Router** y el i18n lo gestiona el
+  middleware de **next-intl** (no hay clave `i18n` en `next.config`), así que el patrón vulnerable no
+  estaba presente; el bump a 15.5.19 lo cierra igual. **Verificado E2E:** los smoke de Playwright de
+  aislamiento de rol siguen en verde (CLIENT → /portal; FIRM_ADMIN → /dashboard).
+- **Allowlist vaciada:** removidos los 9 GHSAs; `pnpm.auditConfig.ignoreGhsas: []`.
+  **`pnpm audit --prod --audit-level high` pasa con exit 0 sin excepciones** (quedan 7 moderate, bajo el
+  umbral). El gate sigue **bloqueando cualquier high/critical de prod NUEVO**. Suite completa en verde:
+  typecheck/lint/build del monorepo, web unit (Vitest, gate), API e2e (74, RLS+roles+auth), Playwright (5).
