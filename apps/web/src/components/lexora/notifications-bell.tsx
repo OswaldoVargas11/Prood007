@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { Bell } from 'lucide-react';
 import { useMarkNotificationRead, useNotifications } from '@/lib/hooks';
+import { useLocalizeNotificationText } from '@/lib/notifications';
 import { getSocket } from '@/lib/socket';
 import { formatDateTime } from '@/lib/format';
 import { Link } from '@/i18n/navigation';
@@ -25,6 +26,7 @@ export function NotificationsBell() {
   const qc = useQueryClient();
   const { data } = useNotifications();
   const markRead = useMarkNotificationRead();
+  const localize = useLocalizeNotificationText();
   const unread = data?.filter((n) => !n.readAt).length ?? 0;
 
   // Tiempo real: el servidor une el socket a la sala user:<id>; refrescamos al recibir una notificación.
@@ -67,9 +69,9 @@ export function NotificationsBell() {
             >
               <span className="flex items-center gap-2 text-sm font-medium">
                 {!n.readAt && <span className="size-2 shrink-0 rounded-full bg-[var(--brand)]" />}
-                {n.title}
+                {localize(n.title)}
               </span>
-              {n.body && <span className="text-xs text-muted-foreground">{n.body}</span>}
+              {n.body && <span className="text-xs text-muted-foreground">{localize(n.body)}</span>}
               <span className="text-[10px] text-muted-foreground">
                 {formatDateTime(n.createdAt, locale)}
               </span>
