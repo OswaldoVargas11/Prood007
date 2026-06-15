@@ -36,7 +36,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   // Al montar: intenta mintar un access desde la cookie de refresh (BFF) y cargar /me.
+  //
+  // En rutas públicas (login, onboarding) no hay sesión que restaurar, así que NO disparamos el
+  // bootstrap: evita el ruidoso `401 /api/auth/refresh` en esas páginas. Esto NO toca el refresh
+  // autenticado normal (el reintento on-401 de `api.ts`, la rotación ni la detección de reuso del
+  // BFF): un usuario con sesión sigue restaurándola y refrescando exactamente igual que antes.
   useEffect(() => {
+    const isPublicPath = /\/(login|onboarding)(\/|$)/.test(window.location.pathname);
+    if (isPublicPath) {
+      setLoading(false);
+      return;
+    }
     let active = true;
     (async () => {
       const ok = await refreshAccessToken();
