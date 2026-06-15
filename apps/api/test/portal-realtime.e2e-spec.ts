@@ -138,6 +138,46 @@ describe('Portal, chat & realtime (e2e)', () => {
       .expect(403);
   });
 
+  it('el cliente descarga el PDF de SU factura (200 application/pdf) pero no el de una ajena (404)', async () => {
+    const ownInv = await request(app.getHttpServer())
+      .post('/api/ledger/invoices')
+      .set(bearer(adminToken))
+      .send({
+        matterId,
+        lines: [
+          { description: 'Honorarios', quantity: '1', unitPrice: '100', taxCode: 'IVA_STANDARD' },
+        ],
+      })
+      .expect(201);
+    const otherInv = await request(app.getHttpServer())
+      .post('/api/ledger/invoices')
+      .set(bearer(adminToken))
+      .send({
+        matterId: otherMatterId,
+        lines: [{ description: 'Ajena', quantity: '1', unitPrice: '50', taxCode: 'IVA_STANDARD' }],
+      })
+      .expect(201);
+
+    const res = await request(app.getHttpServer())
+      .get(`/api/portal/invoices/${ownInv.body.invoice.id}/pdf`)
+      .set(bearer(clientToken))
+      .buffer(true)
+      .parse((res2, cb) => {
+        const chunks: Buffer[] = [];
+        res2.on('data', (c: Buffer) => chunks.push(Buffer.from(c)));
+        res2.on('end', () => cb(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect(res.headers['content-type']).toContain('application/pdf');
+    expect((res.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
+
+    // Aislamiento: no puede descargar la factura de otro cliente.
+    await request(app.getHttpServer())
+      .get(`/api/portal/invoices/${otherInv.body.invoice.id}/pdf`)
+      .set(bearer(clientToken))
+      .expect(404);
+  });
+
   it('un admin no puede usar el portal de cliente (403 por rol)', async () => {
     await request(app.getHttpServer())
       .get('/api/portal/matters')

@@ -1,11 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Download, Loader2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link } from '@/i18n/navigation';
-import { useInvoice, usePayInvoice } from '@/lib/hooks';
+import { downloadInvoicePdf, useInvoice, usePayInvoice } from '@/lib/hooks';
 import { invoiceStatusVariant } from '@/lib/ledger';
 import { formatMoney, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
@@ -64,12 +65,15 @@ export default function InvoiceDetailPage() {
             {t('issued')}: {formatDate(inv.issueDate, locale)}
           </p>
         </div>
-        {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
-          <Button size="sm" onClick={() => pay.mutate()} disabled={pay.isPending}>
-            {pay.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
-            {t('markPaid')}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <DownloadPdfButton id={inv.id} number={inv.number} label={t('downloadPdf')} />
+          {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
+            <Button size="sm" onClick={() => pay.mutate()} disabled={pay.isPending}>
+              {pay.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
+              {t('markPaid')}
+            </Button>
+          )}
+        </div>
       </div>
 
       {inv.client && (
@@ -190,6 +194,25 @@ export default function InvoiceDetailPage() {
         ← {t('backDashboard')}
       </Link>
     </div>
+  );
+}
+
+/** Botón "Descargar PDF" del detalle de factura, con estado de carga. */
+function DownloadPdfButton({ id, number, label }: { id: string; number: string; label: string }) {
+  const [loading, setLoading] = useState(false);
+  async function go() {
+    setLoading(true);
+    try {
+      await downloadInvoicePdf(`/ledger/invoices/${id}/pdf`, `Factura-${number}.pdf`);
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <Button size="sm" variant="outline" onClick={go} disabled={loading}>
+      {loading ? <Loader2 className="animate-spin" /> : <Download />}
+      {label}
+    </Button>
   );
 }
 

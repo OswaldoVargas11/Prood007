@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, StreamableFile } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import { LedgerService } from './ledger.service';
+import { pdfStream } from '../common/pdf-response';
 import { CreateLedgerEntryDto } from './dto/create-ledger-entry.dto';
 import { CreateTimeEntryDto } from './dto/create-time-entry.dto';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -79,6 +80,16 @@ export class LedgerController {
   @Get('invoices/:id')
   getInvoice(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.ledger.getInvoice(user, id);
+  }
+
+  /** Descarga la representación impresa (PDF) de la factura. */
+  @Get('invoices/:id/pdf')
+  async invoicePdf(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+  ): Promise<StreamableFile> {
+    const { buffer, number } = await this.ledger.invoicePdf(user, id);
+    return pdfStream(buffer, `Factura-${number}.pdf`);
   }
 
   @Post('invoices/:id/pay')

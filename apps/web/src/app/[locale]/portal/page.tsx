@@ -1,14 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { Download, Loader2 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/lib/auth';
-import { usePortalInvoices, usePortalMatters } from '@/lib/hooks';
+import { downloadInvoicePdf, usePortalInvoices, usePortalMatters } from '@/lib/hooks';
 import { jurisdictionCopy } from '@/lib/jurisdiction';
 import { invoiceStatusVariant } from '@/lib/ledger';
 import { formatDate, formatMoney } from '@/lib/format';
 import { StatusBadge } from '@/components/lexora/status-badge';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -86,6 +89,13 @@ export default function PortalHome() {
                     <td className="px-4 py-3 text-right font-medium tabular-nums">
                       {formatMoney(inv.total, inv.currency, locale)}
                     </td>
+                    <td className="px-2 py-3 text-right">
+                      <InvoicePdfButton
+                        path={`/portal/invoices/${inv.id}/pdf`}
+                        filename={`Factura-${inv.number}.pdf`}
+                        label={t('downloadInvoice')}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -94,5 +104,38 @@ export default function PortalHome() {
         )}
       </section>
     </div>
+  );
+}
+
+/** Botón de descarga del PDF de una factura, con estado de carga. */
+function InvoicePdfButton({
+  path,
+  filename,
+  label,
+}: {
+  path: string;
+  filename: string;
+  label: string;
+}) {
+  const [loading, setLoading] = useState(false);
+  async function go() {
+    setLoading(true);
+    try {
+      await downloadInvoicePdf(path, filename);
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      onClick={go}
+      disabled={loading}
+      aria-label={label}
+      title={label}
+    >
+      {loading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+    </Button>
   );
 }

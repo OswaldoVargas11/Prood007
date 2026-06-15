@@ -1,6 +1,7 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, StreamableFile } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import { PortalService } from './portal.service';
+import { pdfStream } from '../common/pdf-response';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -44,5 +45,15 @@ export class PortalController {
   @Get('invoices')
   invoices(@CurrentUser() user: RequestUser) {
     return this.portal.listInvoices(user);
+  }
+
+  /** Descarga el PDF de una factura propia del cliente. */
+  @Get('invoices/:id/pdf')
+  async invoicePdf(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+  ): Promise<StreamableFile> {
+    const { buffer, number } = await this.portal.invoicePdf(user, id);
+    return pdfStream(buffer, `Factura-${number}.pdf`);
   }
 }

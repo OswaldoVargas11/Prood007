@@ -13,6 +13,7 @@ import { PreviewInvoiceDto } from './dto/preview-invoice.dto';
 import { ProposeCostDto } from './dto/propose-cost.dto';
 import { ResolveApprovalDto } from './dto/resolve-approval.dto';
 import { apiError } from '../common/api-messages';
+import { buildInvoicePdf, invoiceRowToPdfData } from './invoice-pdf';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
@@ -257,6 +258,24 @@ export class LedgerService {
     });
     if (!invoice) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
     return invoice;
+  }
+
+  /**
+   * Genera el PDF (representación impresa) de una factura del despacho, acotado al tenant.
+   * Reutiliza los datos fiscales ya almacenados (no recalcula); jurisdicción-aware vía el builder.
+   */
+  async invoicePdf(user: RequestUser, id: string): Promise<{ buffer: Buffer; number: string }> {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id, tenantId: user.tenantId },
+      include: {
+        lines: true,
+        client: { select: { name: true, taxId: true } },
+        tenant: { select: { name: true, taxId: true } },
+      },
+    });
+    if (!invoice) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
+    const buffer = await buildInvoicePdf(invoiceRowToPdfData(invoice, user.jurisdiction));
+    return { buffer, number: invoice.number };
   }
 
   async payInvoice(user: RequestUser, id: string) {
