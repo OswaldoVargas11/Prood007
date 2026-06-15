@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { FileText, Loader2, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
@@ -9,8 +9,10 @@ import {
   useAddLedgerEntry,
   useAddTimeEntry,
   useCreateInvoice,
+  useInvoicePreview,
   useMatterLedger,
   type InvoiceLineInput,
+  type PreviewLineInput,
 } from '@/lib/hooks';
 import { BALANCE_SIGN, defaultTaxCodes, entryTypeVariant, MANUAL_ENTRY_TYPES } from '@/lib/ledger';
 import { formatMoney, formatDate } from '@/lib/format';
@@ -45,7 +47,7 @@ export function CostsTab({ matterId }: { matterId: string }) {
         <div className="flex flex-wrap gap-2">
           <EntryDialog matterId={matterId} />
           <TimeDialog matterId={matterId} />
-          <InvoiceDialog matterId={matterId} />
+          <InvoiceDialog matterId={matterId} currency={data?.currency} />
         </div>
       </div>
 
@@ -317,7 +319,7 @@ function TimeDialog({ matterId }: { matterId: string }) {
   );
 }
 
-function InvoiceDialog({ matterId }: { matterId: string }) {
+function InvoiceDialog({ matterId, currency }: { matterId: string; currency?: string }) {
   const t = useTranslations('billing');
   const { user } = useAuth();
   const router = useRouter();
@@ -329,7 +331,7 @@ function InvoiceDialog({ matterId }: { matterId: string }) {
   ]);
   const [withholding, setWithholding] = useState(Boolean(codes.withholdingTaxCode));
 
-  const base = lines.reduce((s, l) => s + Number(l.quantity || 0) * Number(l.unitPrice || 0), 0);
+  const withholdingTaxCode = withholding ? codes.withholdingTaxCode : undefined;
 
   function setLine(i: number, patch: Partial<InvoiceLineInput>) {
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -341,7 +343,7 @@ function InvoiceDialog({ matterId }: { matterId: string }) {
     create.mutate(
       {
         lines: valid,
-        withholdingTaxCode: withholding ? codes.withholdingTaxCode : undefined,
+        withholdingTaxCode,
       },
       { onSuccess: (data) => router.push(`/invoices/${data.invoice.id}`) },
     );
@@ -420,13 +422,7 @@ function InvoiceDialog({ matterId }: { matterId: string }) {
             </label>
           )}
 
-          <div className="rounded-md border border-border p-3 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <span>{t('baseHint')}</span>
-              <span className="tabular-nums">{base.toFixed(2)}</span>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">{t('taxNote')}</p>
-          </div>
+          <LivePreview lines={lines} withholdingTaxCode={withholdingTaxCode} currency={currency} />
           {create.isError && <p className="text-sm text-[var(--danger)]">{t('invoiceError')}</p>}
         </div>
         <DialogFooter>
@@ -437,5 +433,102 @@ function InvoiceDialog({ matterId }: { matterId: string }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Retrasa un valor para no llamar al pre-cálculo en cada pulsación de tecla. */
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+  return debounced;
+}
+
+/**
+ * Preview fiscal en vivo: a medida que se editan las líneas, el servidor recalcula base/IVA/IRPF
+ * (ES) o ITBIS (RD) con la MISMA matemática que la emisión real. La UI no calcula impuestos.
+ */
+function LivePreview({
+  lines,
+  withholdingTaxCode,
+  currency,
+}: {
+  lines: InvoiceLineInput[];
+  withholdingTaxCode?: string;
+  currency?: string;
+}) {
+  const t = useTranslations('billing');
+  const locale = useLocale();
+
+  // Solo cuentan las líneas con cantidad y precio numéricos; la descripción no afecta a la matemática.
+  const previewLines: PreviewLineInput[] = lines
+    .filter(
+      (l) =>
+        Number.isFinite(Number(l.quantity)) &&
+        l.unitPrice !== '' &&
+        Number.isFinite(Number(l.unitPrice)),
+    )
+    .map((l) => ({ quantity: l.quantity, unitPrice: l.unitPrice, taxCode: l.taxCode }));
+
+  const debounced = useDebouncedValue(
+    JSON.stringify({ previewLines, withholdingTaxCode: withholdingTaxCode ?? null }),
+    300,
+  );
+  const parsed = JSON.parse(debounced) as {
+    previewLines: PreviewLineInput[];
+    withholdingTaxCode: string | null;
+  };
+  const { data, isFetching, isError } = useInvoicePreview(
+    parsed.previewLines,
+    parsed.withholdingTaxCode ?? undefined,
+    parsed.previewLines.length > 0,
+  );
+
+  const money = (v: string) => (currency ? formatMoney(v, currency, locale) : v);
+  const complianceLabel = data?.format === 'ECF' ? 'e-CF · DGII' : 'Verifactu · AEAT';
+
+  return (
+    <div className="rounded-md border border-border p-3 text-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {t('livePreview')}
+          {isFetching && <Loader2 className="size-3 animate-spin" />}
+        </span>
+        {data && (
+          <Badge variant={data.format === 'ECF' ? 'violet' : 'info'}>{complianceLabel}</Badge>
+        )}
+      </div>
+
+      {parsed.previewLines.length === 0 ? (
+        <p className="text-xs text-muted-foreground">{t('previewHint')}</p>
+      ) : isError ? (
+        <p className="text-xs text-[var(--danger)]">{t('previewError')}</p>
+      ) : data ? (
+        <div className="space-y-1">
+          <PreviewRow label={t('taxableBase')} value={money(data.totals.taxableBase)} />
+          <PreviewRow label={t('taxAmount')} value={money(data.totals.taxAmount)} />
+          {Number(data.totals.withholdingAmount) > 0 && (
+            <PreviewRow
+              label={t('withholding')}
+              value={`− ${money(data.totals.withholdingAmount)}`}
+            />
+          )}
+          <PreviewRow label={t('total')} value={money(data.totals.total)} strong />
+        </div>
+      ) : (
+        <Skeleton className="h-16 w-full" />
+      )}
+    </div>
+  );
+}
+
+function PreviewRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+  return (
+    <div className="flex justify-between">
+      <span className={strong ? 'font-semibold' : 'text-muted-foreground'}>{label}</span>
+      <span className={strong ? 'font-semibold tabular-nums' : 'tabular-nums'}>{value}</span>
+    </div>
   );
 }

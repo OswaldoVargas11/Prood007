@@ -14,6 +14,8 @@ import type {
   CourtIntegration,
   FiscalReports,
   InvoiceInput,
+  InvoiceLineInput,
+  InvoicePreview,
   InvoiceRecord,
   ProceduralDeadlineParams,
   ProceduralDeadlineResult,
@@ -23,6 +25,7 @@ import type {
 
 export class DominicanComplianceProvider implements ComplianceProvider {
   readonly jurisdiction = Jurisdiction.DO;
+  readonly invoiceFormat = 'ECF';
 
   validateTaxId(id: string): TaxIdValidationResult {
     const result = validateDoTaxId(id);
@@ -42,9 +45,16 @@ export class DominicanComplianceProvider implements ComplianceProvider {
     };
   }
 
-  async buildInvoiceRecord(invoice: InvoiceInput): Promise<InvoiceRecord> {
+  previewInvoice(lines: InvoiceLineInput[], withholdingTaxCode?: string): InvoicePreview {
+    // En RD no hay retención: si llega un withholdingTaxCode, computeInvoiceTotals lo rechaza.
     const { rates } = this.getTaxRates();
-    const { totals } = computeInvoiceTotals(invoice.lines, rates);
+    const { totals } = computeInvoiceTotals(lines, rates, withholdingTaxCode);
+    return { jurisdiction: this.jurisdiction, format: this.invoiceFormat, totals };
+  }
+
+  async buildInvoiceRecord(invoice: InvoiceInput): Promise<InvoiceRecord> {
+    // Misma ruta de cálculo que el preview en vivo: fuente única de la matemática fiscal.
+    const { totals } = this.previewInvoice(invoice.lines, invoice.withholdingTaxCode);
 
     const ecfXml = [
       '<?xml version="1.0" encoding="UTF-8"?>',
@@ -74,7 +84,7 @@ export class DominicanComplianceProvider implements ComplianceProvider {
 
     return {
       jurisdiction: Jurisdiction.DO,
-      format: 'ECF',
+      format: this.invoiceFormat,
       totals,
       payload: { ecfXml },
       recordHash,

@@ -15,6 +15,7 @@ import type {
   DocumentReviewStatus,
   FirmSettings,
   Invoice,
+  InvoicePreview,
   LedgerEntryType,
   Matter,
   MatterDetail,
@@ -291,6 +292,34 @@ export function useCreateInvoice(matterId: string) {
       issueDate?: string;
     }) => api.post<{ invoice: Invoice }>('/ledger/invoices', { ...body, matterId }),
     onSuccess: () => invalidateMatterBilling(qc, matterId),
+  });
+}
+
+/** Línea mínima para el pre-cálculo fiscal (la descripción no interviene en la matemática). */
+export interface PreviewLineInput {
+  quantity: string;
+  unitPrice: string;
+  taxCode: string;
+}
+
+/**
+ * Pre-cálculo fiscal en vivo (read-only). Reutiliza la matemática fiscal real del backend: nunca se
+ * calculan impuestos en el cliente. Se habilita con `enabled` (líneas válidas) y conserva el último
+ * resultado mientras recalcula para que el preview no parpadee al teclear.
+ */
+export function useInvoicePreview(
+  lines: PreviewLineInput[],
+  withholdingTaxCode: string | undefined,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ['invoice-preview', lines, withholdingTaxCode ?? null],
+    queryFn: () =>
+      api.post<InvoicePreview>('/ledger/invoices/preview', { lines, withholdingTaxCode }),
+    enabled,
+    staleTime: 10_000,
+    placeholderData: (prev) => prev,
+    retry: false,
   });
 }
 

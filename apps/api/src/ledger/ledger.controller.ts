@@ -4,6 +4,7 @@ import { LedgerService } from './ledger.service';
 import { CreateLedgerEntryDto } from './dto/create-ledger-entry.dto';
 import { CreateTimeEntryDto } from './dto/create-time-entry.dto';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { PreviewInvoiceDto } from './dto/preview-invoice.dto';
 import { ProposeCostDto } from './dto/propose-cost.dto';
 import { ResolveApprovalDto } from './dto/resolve-approval.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -62,6 +63,12 @@ export class LedgerController {
   @Get('matter/:matterId')
   matterLedger(@CurrentUser() user: RequestUser, @Param('matterId') matterId: string) {
     return this.ledger.getMatterLedger(user, matterId);
+  }
+
+  /** Pre-cálculo fiscal en vivo (read-only): no emite factura, solo devuelve base/IVA/IRPF/ITBIS/total. */
+  @Post('invoices/preview')
+  previewInvoice(@CurrentUser() user: RequestUser, @Body() dto: PreviewInvoiceDto) {
+    return this.ledger.previewInvoice(user, dto);
   }
 
   @Post('invoices')

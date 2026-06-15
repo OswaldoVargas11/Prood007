@@ -17,6 +17,8 @@ import type {
   CourtIntegration,
   FiscalReports,
   InvoiceInput,
+  InvoiceLineInput,
+  InvoicePreview,
   InvoiceRecord,
   ProceduralDeadlineParams,
   ProceduralDeadlineResult,
@@ -26,6 +28,7 @@ import type {
 
 export class SpainComplianceProvider implements ComplianceProvider {
   readonly jurisdiction = Jurisdiction.ES;
+  readonly invoiceFormat = 'VERIFACTU';
 
   validateTaxId(id: string): TaxIdValidationResult {
     const result = validateEsTaxId(id);
@@ -59,9 +62,15 @@ export class SpainComplianceProvider implements ComplianceProvider {
     };
   }
 
-  async buildInvoiceRecord(invoice: InvoiceInput): Promise<InvoiceRecord> {
+  previewInvoice(lines: InvoiceLineInput[], withholdingTaxCode?: string): InvoicePreview {
     const { rates } = this.getTaxRates();
-    const { totals } = computeInvoiceTotals(invoice.lines, rates, invoice.withholdingTaxCode);
+    const { totals } = computeInvoiceTotals(lines, rates, withholdingTaxCode);
+    return { jurisdiction: this.jurisdiction, format: this.invoiceFormat, totals };
+  }
+
+  async buildInvoiceRecord(invoice: InvoiceInput): Promise<InvoiceRecord> {
+    // Misma ruta de cálculo que el preview en vivo: fuente única de la matemática fiscal.
+    const { totals } = this.previewInvoice(invoice.lines, invoice.withholdingTaxCode);
 
     // Encadenamiento Verifactu: huella = SHA-256 de campos canónicos + huella del registro anterior.
     const canonical = [
@@ -83,7 +92,7 @@ export class SpainComplianceProvider implements ComplianceProvider {
 
     return {
       jurisdiction: Jurisdiction.ES,
-      format: 'VERIFACTU',
+      format: this.invoiceFormat,
       totals,
       payload: {
         idFactura: invoice.invoiceNumber,
