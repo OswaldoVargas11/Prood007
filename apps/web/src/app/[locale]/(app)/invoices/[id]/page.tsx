@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { CheckCircle2, Loader2 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { Link } from '@/i18n/navigation';
 import { useInvoice, usePayInvoice } from '@/lib/hooks';
 import { invoiceStatusVariant } from '@/lib/ledger';
@@ -40,6 +41,14 @@ export default function InvoiceDetailPage() {
 
   const isVerifactu = inv.complianceFormat === 'VERIFACTU';
   const money = (v: string) => formatMoney(v, inv.currency, locale);
+
+  // URL de cotejo de la AEAT incluida en el registro Verifactu. En e-CF (RD) no existe este QR.
+  const qrUrl =
+    isVerifactu &&
+    inv.complianceRecord &&
+    typeof (inv.complianceRecord as Record<string, unknown>).qrUrl === 'string'
+      ? ((inv.complianceRecord as Record<string, unknown>).qrUrl as string)
+      : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -118,6 +127,30 @@ export default function InvoiceDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
+            {/* QR de cotejo Verifactu (ES). El contenido es la URL de validación de la AEAT que
+                genera el complianceRecord. En e-CF (RD) no aplica y no se muestra. */}
+            {qrUrl && (
+              <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+                <div className="rounded-lg bg-white p-3 shadow-sm ring-1 ring-black/5">
+                  <QRCodeSVG
+                    value={qrUrl}
+                    size={132}
+                    level="M"
+                    marginSize={0}
+                    title={t('qrTitle')}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('qrTitle')}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t('qrHint')}</p>
+                  <div className="break-all font-mono text-[11px] text-muted-foreground">
+                    {qrUrl}
+                  </div>
+                </div>
+              </div>
+            )}
             {inv.recordHash && (
               <div>
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">
