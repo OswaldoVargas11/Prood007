@@ -399,7 +399,14 @@ Decisiones:
 anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección → null, `anonymizedAt`), y si
   tenía portal, **anonimiza y desactiva** su usuario revocando sus sesiones — **PRESERVANDO** expedientes,
   facturas, ledger y AuditLog. Idempotente-seguro (rechaza re-anonimizar con 409). Deja entrada
-  `client.anonymized` en AuditLog (que **no** se borra).
+  `client.anonymized` en AuditLog (que **no** se borra). La sobrescritura es **irreversible** (valores
+  literales/null, no cifrado ni hash recuperable).
+- **Cómo describirlo a un despacho (no prometer borrado total):** la factura **congela** el nombre + NIF/
+  CIF del comprador en su registro fiscal inmutable (`complianceRecord` + `recordHash`; ES `receptor`, RD
+  `<RNCComprador>`) al emitirse, y eso se **conserva por obligación legal**. Por tanto la anonimización es
+  _"anonimizo el registro maestro del cliente + corto su acceso + conservo los documentos legales (que
+  retienen la identidad fiscal histórica)"_, **NO** "el cliente desaparece del sistema". Es la postura
+  RGPD defendible: la supresión cede ante la conservación legal.
 - **Retención configurable + residencia (migración):** `Tenant.dataRegion` (UE para ES; RD a definir) y
   `Tenant.retentionMonths`, editables por FIRM_ADMIN en Ajustes. Son **metadato/política**: la retención
   **no dispara auto-purga** (conservar prevalece sobre borrar). Residencia documentada en `RAT.md`/RUNBOOK.
