@@ -16,6 +16,7 @@ import { ProposeCostDto } from './dto/propose-cost.dto';
 import { ResolveApprovalDto } from './dto/resolve-approval.dto';
 import { apiError } from '../common/api-messages';
 import { buildInvoicePdf, invoiceRowToPdfData } from './invoice-pdf';
+import { PaymentsService } from '../payments/payments.service';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
@@ -71,6 +72,7 @@ export class LedgerService {
     private readonly compliance: ComplianceService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly payments: PaymentsService,
   ) {}
 
   private async getMatterOrThrow(user: RequestUser, matterId: string) {
@@ -370,28 +372,15 @@ export class LedgerService {
     return { buffer, number: invoice.number };
   }
 
+  /**
+   * Marca como cobrada por completo (atajo retro-compatible de `/ledger/invoices/:id/pay`). Delega en
+   * `PaymentsService`, que registra el `Payment`, mueve `amountPaid` y refleja el cobro en el ledger.
+   * Para cobros parciales o conciliación con pasarela, usar el módulo de cobros (`POST /payments`).
+   */
   async payInvoice(user: RequestUser, id: string) {
     const invoice = await this.getInvoice(user, id);
     if (invoice.status === InvoiceStatus.PAID) return invoice;
-
-    await tenantTransaction(this.prisma, async (tx) => {
-      await tx.ledgerEntry.create({
-        data: {
-          tenantId: user.tenantId,
-          matterId: invoice.matterId,
-          type: LedgerEntryType.PAYMENT,
-          description: `Cobro factura ${invoice.number}`,
-          amount: invoice.total,
-          currency: invoice.currency,
-          invoiceId: invoice.id,
-        },
-      });
-      await tx.invoice.updateMany({
-        where: { id, tenantId: user.tenantId },
-        data: { status: InvoiceStatus.PAID, paidAt: new Date(), amountPaid: invoice.total },
-      });
-    });
-    await this.audit.log(user, 'invoice.paid', 'Invoice', id);
+    await this.payments.recordManualPayment(user, { invoiceId: id });
     return this.getInvoice(user, id);
   }
 

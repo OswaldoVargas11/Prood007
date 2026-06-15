@@ -273,10 +273,12 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
   - [x] `GET /ledger/invoices` (listado real, filtros `status`/`overdue`); `overdue` derivado en lectura.
   - [x] Web: lista global con filtros (incl. **Vencidas**) + columna de vencimiento; i18n es-ES/es-DO.
   - [x] e2e ledger 15/15; typecheck/lint limpios. **Pendiente: verde en CI + OK del owner para fusionar.**
-- [ ] **PR-2 — Captura de tiempo sin fricción** (auto-mergeable): entrada rápida global, "tiempo sin
-      facturar" (`TimeEntry.billed=false`), repaso del día.
-- [ ] **PR-3 — `PaymentProvider` + modelo `Payment`** (PR-y-espera): interfaz por jurisdicción, entidad
-      `Payment` (RLS), refactor de `payInvoice` con soporte de cobro parcial. Sin red todavía.
+- [x] **PR-2 — Captura de tiempo sin fricción** (auto-mergeable): `GET /ledger/time` + página `/time`
+      (Mi día / Sin facturar) + `LogTimeDialog` global (⌘K) + i18n. **Fusionado a main (#48).**
+- [~] **PR-3 — `PaymentProvider` + modelo `Payment`** (PR-y-espera): interfaz enchufable por jurisdicción
+  (Stripe ES / stub RD) + factory; modelo `Payment` (RLS fail-closed) con cobros PARCIALES; `POST
+  /payments` (+ config/listado); `payInvoice` delega en `PaymentsService`. e2e payments 8/8 + ledger
+  15/15. **Apilado sobre #47; espera CI verde + OK del owner.**
 - [ ] **PR-4 — Stripe Connect (ES) + webhook** (PR-y-espera): enlace de pago + Checkout + webhook
       idempotente que concilia `Payment`↔`Invoice`. RD = stub.
 - [ ] Cola de Fase 1: provisión de fondos/retainer · dunning (in-app) · recurrente/planes de pago ·

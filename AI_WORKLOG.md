@@ -877,6 +877,37 @@ Pruebas:
 - **Siguiente:** PR-2 (captura de tiempo, auto-mergeable) tras OK; PR-3 (PaymentProvider+Payment) y
   PR-4 (Stripe Connect ES) después.
 
+### 2026-06-15 - Claude - Fase 1 (cobro) · PR-3 PaymentProvider + modelo Payment
+
+Objetivo:
+
+- Cimientos de cobro reales: abstracción de pasarela enchufable por jurisdicción + entidad `Payment`
+  con cobros PARCIALES. Sin red todavía (Stripe llega en PR-4). Apilado sobre #47 (depende de
+  `Invoice.amountPaid` de PR-1). PR-2 ya está en main.
+
+Acciones (PR-3):
+
+- Domain: enums `PaymentStatus` (PENDING/SUCCEEDED/FAILED) + `PaymentMethod` (MANUAL/STRIPE).
+- Schema: modelo `Payment` (amount/currency/status/method/providerRef único/metadata/paidAt) con
+  relación a Invoice/Tenant. Migración `20260615200036_payments` (creada `--create-only` + RLS
+  FAIL-CLOSED añadida a mano: ENABLE/FORCE + policy `tenant_isolation`; GRANTs vía ALTER DEFAULT
+  PRIVILEGES ya existentes). Mismo patrón que D-020.
+- `apps/api/src/payments/`: interfaz `PaymentProvider` (espejo de ComplianceProvider) + factory por
+  jurisdicción + `StripePaymentProvider` (esqueleto ES; online off sin clave) + `DominicanStubProvider`
+  (RD). `PaymentsService.reconcile` (agnóstico de pasarela): crea `Payment`, mueve `amountPaid`,
+  recalcula estado PARTIAL/PAID, refleja en ledger; idempotente por `providerRef` (listo para el webhook
+  de PR-4). `POST /payments` (cobro manual/parcial), `GET /payments/config`, `GET /payments/by-invoice/:id`.
+- `ledger.payInvoice` ahora DELEGA en `PaymentsService.recordManualPayment` (sin duplicar lógica de
+  cobro). i18n de API: claves `payments.*` (es-ES/es-DO).
+
+Pruebas:
+
+- e2e `payments` 8/8 (config por jurisdicción, parcial→PARTIAL, resto→PAID, exceso 400, ya-pagada 400,
+  listado, atajo /pay retro-compatible, aislamiento) + `ledger` 15/15. typecheck + lint API limpios.
+
+- **Sensibilidad / merge:** migración + ledger → **PR-y-espera** (el owner fusiona). Apilado sobre #47.
+- **Siguiente:** PR-4 (Stripe Connect ES: checkout + webhook idempotente sobre `reconcile`).
+
 ### 2026-06-15 - Claude - Fase 1 (cobro) · PR-2 captura de tiempo sin fricción
 
 Objetivo:

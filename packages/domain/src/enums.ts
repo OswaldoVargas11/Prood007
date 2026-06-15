@@ -94,6 +94,28 @@ export enum ApprovalStatus {
   REJECTED = 'REJECTED',
 }
 
+/**
+ * Estado de un cobro (Payment) sobre una factura.
+ * - PENDING: iniciado (p. ej. checkout creado) y a la espera de confirmación de la pasarela.
+ * - SUCCEEDED: cobrado y conciliado (mueve `amountPaid` de la factura).
+ * - FAILED: rechazado/cancelado por la pasarela.
+ */
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  SUCCEEDED = 'SUCCEEDED',
+  FAILED = 'FAILED',
+}
+
+/**
+ * Método/origen del cobro. Agnóstico de pasarela: el adaptador concreto (Stripe, Azul…) lo fija.
+ * - MANUAL: registrado a mano por el despacho (transferencia, efectivo, conciliación offline).
+ * - STRIPE: cobro online vía Stripe (ES).
+ */
+export enum PaymentMethod {
+  MANUAL = 'MANUAL',
+  STRIPE = 'STRIPE',
+}
+
 /** Tipo de identificador fiscal (validado por el provider de cumplimiento). */
 export enum TaxIdKind {
   /** España */
