@@ -10,7 +10,12 @@ import {
   useNotifications,
 } from '@/lib/hooks';
 import { getSocket } from '@/lib/socket';
-import { groupNotifications, notificationKind, type NotificationKind } from '@/lib/notifications';
+import {
+  groupNotifications,
+  notificationKind,
+  useLocalizeNotificationText,
+  type NotificationKind,
+} from '@/lib/notifications';
 import { relativeTime } from '@/lib/activity';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
@@ -34,6 +39,7 @@ export default function NotificationsPage() {
   const { data, isLoading, isError, refetch } = useNotifications();
   const markRead = useMarkNotificationRead();
   const markAll = useMarkAllNotificationsRead();
+  const localize = useLocalizeNotificationText();
 
   // Tiempo real: refrescar al llegar una notificación nueva (misma sala user:<id> que la campana).
   useEffect(() => {
@@ -126,10 +132,12 @@ export default function NotificationsPage() {
                     <Icon className="size-[15px]" />
                   </span>
                   <div className="min-w-0 flex-1 pt-px">
-                    <div className="text-[13px] font-semibold leading-snug">{n.title}</div>
+                    <div className="text-[13px] font-semibold leading-snug">
+                      {localize(n.title)}
+                    </div>
                     {n.body && (
                       <div className="mt-0.5 truncate text-[12.5px] text-muted-foreground">
-                        {n.body}
+                        {localize(n.body)}
                       </div>
                     )}
                     <div className="mt-1 text-[11px] text-[var(--text-subtle)]">

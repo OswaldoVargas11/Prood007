@@ -2,9 +2,33 @@
  * Agrupación y clasificación de notificaciones para el centro de notificaciones (Tanda A.2).
  * Ambos locales del producto son español; las etiquetas de grupo se resuelven con i18n en la página.
  */
+import { useTranslations } from 'next-intl';
 import type { Notification } from './types';
 
 export type NotificationKind = 'document' | 'task' | 'message' | 'other';
+
+/**
+ * Estados de revisión documental que el backend incrusta crudos en el título de la notificación
+ * (p. ej. `Documento "X" — APPROVED`). El resto de títulos ya van en español. Si en el futuro otro
+ * `notifications.create` filtra un enum, se añade su código aquí (y su catálogo en el map de abajo).
+ */
+const ENUM_CODES = ['PENDING', 'IN_REVIEW', 'APPROVED', 'REJECTED', 'CHANGES_REQUESTED'] as const;
+
+/**
+ * Devuelve una función que sustituye los enums crudos de un texto de notificación por su etiqueta
+ * traducida (palabra completa). Se aplica al título y al cuerpo en todos los puntos donde se pintan
+ * notificaciones (centro de notificaciones y campana).
+ */
+export function useLocalizeNotificationText(): (text: string | null) => string {
+  const tDocStatus = useTranslations('documents.status');
+  return (text) => {
+    if (!text) return '';
+    return ENUM_CODES.reduce(
+      (acc, code) => acc.replace(new RegExp(`\\b${code}\\b`, 'g'), tDocStatus(code)),
+      text,
+    );
+  };
+}
 
 /** Clasifica por el prefijo del `type` del backend (document.review, task.assigned, …). */
 export function notificationKind(type: string): NotificationKind {
