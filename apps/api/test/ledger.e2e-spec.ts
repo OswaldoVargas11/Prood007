@@ -357,4 +357,35 @@ describe('Ledger & invoicing (e2e)', () => {
     const ids = (overdue.body as { id: string }[]).map((i) => i.id);
     expect(ids).not.toContain(inv.body.invoice.id);
   });
+
+  // ── Fase 1 · captura de tiempo sin fricción ───────────────────────────────
+  it('lista el tiempo del día del usuario con honorario calculado', async () => {
+    // El setup ya fichó 60 min @ 120 el 2026-02-01.
+    const res = await request(app.getHttpServer())
+      .get('/api/ledger/time?mine=true&date=2026-02-01')
+      .set(auth(token))
+      .expect(200);
+    expect(res.body.totalMinutes).toBe(60);
+    expect(res.body.totalFee).toBe('120.00');
+    expect(res.body.entries[0].fee).toBe('120.00');
+    expect(res.body.entries[0].matter).toHaveProperty('reference');
+  });
+
+  it('lista el tiempo sin facturar del despacho', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/ledger/time?unbilled=true')
+      .set(auth(token))
+      .expect(200);
+    expect(Array.isArray(res.body.entries)).toBe(true);
+    expect(res.body.entries.length).toBeGreaterThan(0);
+    expect(res.body.entries.every((e: { billed: boolean }) => e.billed === false)).toBe(true);
+  });
+
+  it('AISLAMIENTO: el tenant B no ve el tiempo del tenant A', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/ledger/time')
+      .set(auth(tokenB))
+      .expect(200);
+    expect(res.body.entries.length).toBe(0);
+  });
 });
