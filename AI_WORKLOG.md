@@ -968,3 +968,20 @@ Pruebas:
 - **Sensibilidad / merge:** migración + dinero + webhook sin auth + secretos → **PR-y-espera**. Apilado
   sobre PR-3 (#49). **Verificación EN VIVO pendiente: el owner cablea sus claves Stripe + onboarding.**
 - **Cierre Fase 1 (rebanada fina):** PR-1→PR-4 entregados. Cola (retainer/dunning/recurrente) pendiente.
+
+#### Endurecimiento de seguridad del webhook (revisión del owner, 7 puntos)
+
+Auditados los 7 controles del endpoint público (el más sensible del proyecto). 5 ya correctos:
+metadata FIRMADA para tenant/invoice; conciliación bajo RLS del tenant (rol app + `runWithTenant`, NO
+bypass); idempotencia (unique `providerRef` + dedup); checkout autenticado/rol/tenant-scoped que usa el
+`stripeAccountId` de la factura; Checkout ALOJADO (redirección, SAQ A); secretos env-gated, no logueados.
+**Dos huecos corregidos en la PR:**
+
+- (1b) Firma inválida devolvía 500 → ahora `verifyWebhook` envuelve `constructEvent` y traduce a **400**
+  (rechazo limpio, sin procesar). El secreto sigue obligatorio para procesar (fail-closed).
+- (4) El webhook NO comparaba moneda → añadido `currency` a `reconcile`: si la moneda del evento ≠ la de
+  la factura, **rechaza** (no concilia USD contra EUR). El webhook pasa `session.currency`.
+- Tests nuevos: firma inválida → 400 sin conciliar; moneda distinta → no cobra. `payments-stripe` 8/8.
+- **Nota RD (confirmada por el owner):** Stripe **no sirve a RD** estructuralmente (solo ~46 países). El
+  stub no es "cablear Stripe luego": RD necesita Azul/CardNet o Merchant-of-Record. La abstracción
+  `PaymentProvider` lo deja añadir limpio. Memoria de decisiones de Fase 1 actualizada.

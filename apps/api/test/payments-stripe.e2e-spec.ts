@@ -1,4 +1,4 @@
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -28,8 +28,11 @@ describe('Payments · Stripe Connect (e2e, mocked)', () => {
     method: 'STRIPE',
     isOnlineEnabled: () => true,
     createCheckout: async () => ({ url: 'https://stripe.test/checkout', providerRef: 'cs_test_1' }),
-    verifyWebhook: (payload: Buffer | string) =>
-      JSON.parse(typeof payload === 'string' ? payload : payload.toString('utf8')),
+    // Simula la verificación de firma del provider real: una firma 'bad_sig' se rechaza con 400.
+    verifyWebhook: (payload: Buffer | string, signature: string) => {
+      if (signature === 'bad_sig') throw new BadRequestException('webhook inválido');
+      return JSON.parse(typeof payload === 'string' ? payload : payload.toString('utf8'));
+    },
     createAccountLink: async () => ({
       accountId: 'acct_test_1',
       url: 'https://stripe.test/onboard',
@@ -54,7 +57,7 @@ describe('Payments · Stripe Connect (e2e, mocked)', () => {
   function sessionEvent(
     invoiceId: string,
     amountCents: number,
-    opts?: { type?: string; pi?: string },
+    opts?: { type?: string; pi?: string; currency?: string },
   ) {
     return {
       id: `evt_${Math.round(amountCents)}_${opts?.pi ?? 'x'}`,
@@ -62,6 +65,7 @@ describe('Payments · Stripe Connect (e2e, mocked)', () => {
       data: {
         object: {
           id: 'cs_1',
+          currency: opts?.currency ?? 'eur',
           metadata: { invoiceId, tenantId },
           amount_total: amountCents,
           payment_intent: opts?.pi ?? 'pi_test_1',
@@ -203,6 +207,39 @@ describe('Payments · Stripe Connect (e2e, mocked)', () => {
       .set({ 'stripe-signature': 'test_sig' })
       .send(sessionEvent(inv.id, inv.total * 100, { type: 'payment_intent.created' }))
       .expect(201);
+    const payments = await request(app.getHttpServer())
+      .get(`/api/payments/by-invoice/${inv.id}`)
+      .set(auth())
+      .expect(200);
+    expect(payments.body.length).toBe(0);
+  });
+
+  it('un webhook con firma inválida se rechaza (400) y no concilia nada', async () => {
+    const inv = await issueInvoice();
+    await request(app.getHttpServer())
+      .post('/api/payments/webhook/stripe')
+      .set({ 'stripe-signature': 'bad_sig' })
+      .send(sessionEvent(inv.id, inv.total * 100, { pi: 'pi_badsig' }))
+      .expect(400);
+    const payments = await request(app.getHttpServer())
+      .get(`/api/payments/by-invoice/${inv.id}`)
+      .set(auth())
+      .expect(200);
+    expect(payments.body.length).toBe(0);
+  });
+
+  it('un webhook con moneda distinta a la factura no concilia (no cobra)', async () => {
+    const inv = await issueInvoice();
+    await request(app.getHttpServer())
+      .post('/api/payments/webhook/stripe')
+      .set({ 'stripe-signature': 'test_sig' })
+      .send(sessionEvent(inv.id, inv.total * 100, { pi: 'pi_usd', currency: 'usd' }))
+      .expect(201);
+    const got = await request(app.getHttpServer())
+      .get(`/api/ledger/invoices/${inv.id}`)
+      .set(auth())
+      .expect(200);
+    expect(got.body.status).not.toBe('PAID');
     const payments = await request(app.getHttpServer())
       .get(`/api/payments/by-invoice/${inv.id}`)
       .set(auth())

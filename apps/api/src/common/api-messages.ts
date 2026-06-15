@@ -205,6 +205,10 @@ export const API_MESSAGES = {
     'es-ES': 'Webhook inválido.',
     'es-DO': 'Webhook inválido.',
   },
+  'payments.currencyMismatch': {
+    'es-ES': 'La moneda del cobro no coincide con la de la factura.',
+    'es-DO': 'La moneda del cobro no coincide con la de la factura.',
+  },
 
   // ── Tareas ────────────────────────────────────────────────────────────────
   'tasks.assigneeNotInFirm': {

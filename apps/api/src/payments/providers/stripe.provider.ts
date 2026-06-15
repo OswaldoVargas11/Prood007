@@ -67,11 +67,19 @@ export class StripePaymentProvider implements PaymentProvider {
     return { url: session.url, providerRef: session.id };
   }
 
-  /** Verifica la firma del webhook y devuelve el evento parseado. Lanza si la firma no es válida. */
+  /**
+   * Verifica la firma del webhook (sobre el cuerpo CRUDO) y devuelve el evento parseado. Una firma
+   * inválida/ausente o un secreto sin configurar se traducen a 400 (nunca se procesa el evento).
+   */
   verifyWebhook(payload: Buffer | string, signature: string): StripeEvent {
     const secret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!secret) throw new BadRequestException(apiError('payments.onlineNotConfigured'));
-    return this.stripe.webhooks.constructEvent(payload, signature, secret);
+    try {
+      return this.stripe.webhooks.constructEvent(payload, signature, secret);
+    } catch {
+      // Firma inválida → rechazo limpio (4xx), sin procesar nada. Es el ÚNICO control del endpoint público.
+      throw new BadRequestException(apiError('payments.webhookInvalid'));
+    }
   }
 
   /**

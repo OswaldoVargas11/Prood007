@@ -25,6 +25,8 @@ type PaymentActor = { tenantId: string; userId?: string };
 interface ReconcileInput {
   invoiceId: string;
   amount?: string;
+  /** Moneda del cobro (de la pasarela). Si se indica, debe coincidir con la de la factura. */
+  currency?: string;
   method: PaymentMethod;
   status?: PaymentStatus;
   providerRef?: string;
@@ -95,6 +97,10 @@ export class PaymentsService {
     if (!invoice) throw new NotFoundException(apiError('payments.invoiceNotFound'));
     if (invoice.status === InvoiceStatus.CANCELLED) {
       throw new BadRequestException(apiError('payments.invoiceNotPayable'));
+    }
+    // La moneda del evento de la pasarela debe coincidir con la de la factura (no conciliar USD vs EUR).
+    if (input.currency && input.currency.toUpperCase() !== invoice.currency) {
+      throw new BadRequestException(apiError('payments.currencyMismatch'));
     }
 
     const total = Number(invoice.total);
@@ -239,6 +245,7 @@ export class PaymentsService {
     // Solo se usan estos campos del objeto sesión; tipado estructural para no depender del namespace.
     const session = event.data.object as {
       id: string;
+      currency?: string | null;
       metadata?: Record<string, string> | null;
       amount_total?: number | null;
       payment_intent?: string | { id: string } | null;
@@ -260,6 +267,7 @@ export class PaymentsService {
           {
             invoiceId,
             amount,
+            currency: session.currency ?? undefined,
             method: PaymentMethod.STRIPE,
             status: PaymentStatus.SUCCEEDED,
             providerRef,
