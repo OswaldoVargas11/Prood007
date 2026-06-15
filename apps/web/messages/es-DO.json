@@ -250,6 +250,8 @@
     "cancel": "Cancelar",
     "create": "Crear cliente",
     "createError": "No se pudo crear el cliente (revisa el identificador fiscal).",
+    "conflictTitle": "Posible conflicto de interés",
+    "conflictMatters": "{n, plural, one {# expediente} other {# expedientes}}",
     "client": "Cliente",
     "validated": "Validado",
     "portalActive": "Acceso al portal activo",
@@ -485,11 +487,31 @@
     "saveError": "No se pudieron guardar los cambios.",
     "firm": {
       "title": "Datos del despacho",
-      "desc": "Nombre e identificación fiscal del despacho emisor.",
+      "desc": "Nombre, identificación fiscal y serie de facturación del despacho emisor.",
       "name": "Nombre del despacho",
       "taxId": "Identificación fiscal",
       "jurisdiction": "Jurisdicción",
-      "currency": "Moneda"
+      "currency": "Moneda",
+      "series": "Serie de facturación",
+      "seriesHint": "Prefijo del número de factura (p. ej. A → A-2026-0001)."
+    },
+    "holidays": {
+      "title": "Festivos locales",
+      "desc": "Festivos propios del despacho; se suman a los nacionales al calcular plazos.",
+      "date": "Fecha",
+      "name": "Descripción",
+      "add": "Añadir",
+      "remove": "Eliminar",
+      "empty": "Aún no hay festivos locales.",
+      "error": "No se pudo guardar el festivo."
+    },
+    "cert": {
+      "title": "Certificado digital",
+      "desc": "Certificado del despacho para firmar/emitir (Verifactu · e-CF).",
+      "upload": "Subir",
+      "replace": "Reemplazar",
+      "none": "No hay certificado configurado.",
+      "error": "No se pudo subir el certificado."
     },
     "license": {
       "title": "Licencia",

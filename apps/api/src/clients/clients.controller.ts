@@ -39,17 +39,19 @@ export class ClientsController {
     return this.clients.findAll(user, page, Math.min(pageSize, 100));
   }
 
+  /** Comprobación de conflictos de interés por nombre (antes de dar de alta cliente/expediente). */
+  @Get('conflict-check')
+  conflictCheck(@CurrentUser() user: RequestUser, @Query('q') q: string) {
+    return this.clients.conflictCheck(user, q ?? '');
+  }
+
   @Get(':id')
   findOne(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.clients.findOne(user, id);
   }
 
   @Patch(':id')
-  update(
-    @CurrentUser() user: RequestUser,
-    @Param('id') id: string,
-    @Body() dto: UpdateClientDto,
-  ) {
+  update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() dto: UpdateClientDto) {
     return this.clients.update(user, id, dto);
   }
 

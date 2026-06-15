@@ -132,6 +132,28 @@ export class ClientsService {
     return client;
   }
 
+  /**
+   * Comprobación de conflictos de interés: busca clientes existentes cuyo nombre coincida (parcial,
+   * insensible a mayúsculas) con el de la parte que se va a dar de alta. Devuelve coincidencias con sus
+   * expedientes, para que el despacho valore si existe conflicto antes de crear cliente/expediente.
+   */
+  async conflictCheck(user: RequestUser, query: string) {
+    const term = (query ?? '').trim();
+    if (term.length < 2) return { query: term, matches: [] };
+    const clients = await this.prisma.client.findMany({
+      where: { tenantId: user.tenantId, name: { contains: term, mode: 'insensitive' } },
+      select: {
+        id: true,
+        name: true,
+        taxId: true,
+        taxIdKind: true,
+        matters: { select: { id: true, reference: true, title: true, status: true } },
+      },
+      take: 10,
+    });
+    return { query: term, matches: clients };
+  }
+
   async update(user: RequestUser, id: string, dto: UpdateClientDto) {
     await this.findOne(user, id); // garantiza pertenencia al tenant
 

@@ -6,6 +6,7 @@ import type {
   AuditEntry,
   Client,
   ClientsPage,
+  ConflictResult,
   CostApproval,
   DashboardSummary,
   DeadlineResult,
@@ -452,6 +453,17 @@ export function useUpdateStaff() {
   });
 }
 
+// ── Comprobación de conflictos (Tanda B) ──────────────────────────────────────
+export function useConflictCheck(query: string) {
+  const q = query.trim();
+  return useQuery({
+    queryKey: ['conflicts', q],
+    queryFn: () => api.get<ConflictResult>(`/clients/conflict-check?q=${encodeURIComponent(q)}`),
+    enabled: q.length >= 3,
+    staleTime: 30_000,
+  });
+}
+
 // ── Ajustes del despacho (Tanda B, solo admin) ────────────────────────────────
 export function useSettings() {
   return useQuery({ queryKey: ['settings'], queryFn: () => api.get<FirmSettings>('/settings') });
@@ -460,8 +472,41 @@ export function useSettings() {
 export function useUpdateSettings() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name?: string; taxId?: string; locale?: string }) =>
-      api.patch<FirmSettings>('/settings', body),
+    mutationFn: (body: {
+      name?: string;
+      taxId?: string;
+      locale?: string;
+      invoiceSeries?: string;
+    }) => api.patch<FirmSettings>('/settings', body),
+    onSuccess: (data) => qc.setQueryData(['settings'], data),
+  });
+}
+
+export function useAddHoliday() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { date: string; name: string }) =>
+      api.post<FirmSettings>('/settings/holidays', body),
+    onSuccess: (data) => qc.setQueryData(['settings'], data),
+  });
+}
+
+export function useRemoveHoliday() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (date: string) => api.del<FirmSettings>(`/settings/holidays/${date}`),
+    onSuccess: (data) => qc.setQueryData(['settings'], data),
+  });
+}
+
+export function useUploadCertificate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => {
+      const form = new FormData();
+      form.append('file', file);
+      return api.upload<FirmSettings>('/settings/certificate', form);
+    },
     onSuccess: (data) => qc.setQueryData(['settings'], data),
   });
 }

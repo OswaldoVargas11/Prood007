@@ -127,6 +127,11 @@ export interface ProceduralDeadlineParams {
   startDate: string;
   /** Días del plazo (hábiles salvo que el provider indique lo contrario). */
   days: number;
+  /**
+   * Festivos LOCALES adicionales del despacho (ISO yyyy-mm-dd), que se suman a los festivos
+   * nacionales de la jurisdicción. Permite afinar el cómputo con el calendario propio del despacho.
+   */
+  extraHolidays?: string[];
 }
 
 export interface ProceduralDeadlineResult {

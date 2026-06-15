@@ -41,10 +41,20 @@ export class SpainComplianceProvider implements ComplianceProvider {
       jurisdiction: Jurisdiction.ES,
       rates: [
         { code: 'IVA_STANDARD', labelKey: 'tax.es.iva', ratePercent: '21', withholding: false },
-        { code: 'IVA_REDUCED', labelKey: 'tax.es.ivaReduced', ratePercent: '10', withholding: false },
+        {
+          code: 'IVA_REDUCED',
+          labelKey: 'tax.es.ivaReduced',
+          ratePercent: '10',
+          withholding: false,
+        },
         // Retención IRPF profesional: 15 % régimen general, 7 % primeros años.
         { code: 'IRPF_GENERAL', labelKey: 'tax.es.irpf', ratePercent: '15', withholding: true },
-        { code: 'IRPF_REDUCED', labelKey: 'tax.es.irpfReduced', ratePercent: '7', withholding: true },
+        {
+          code: 'IRPF_REDUCED',
+          labelKey: 'tax.es.irpfReduced',
+          ratePercent: '7',
+          withholding: true,
+        },
       ],
     };
   }
@@ -95,10 +105,13 @@ export class SpainComplianceProvider implements ComplianceProvider {
   getProceduralDeadlines(params: ProceduralDeadlineParams): ProceduralDeadlineResult {
     const start = new Date(params.startDate);
     const cache = new Map<number, Set<string>>();
+    const local = new Set(params.extraHolidays ?? []);
     const isHoliday = (date: Date): boolean => {
+      const iso = date.toISOString().slice(0, 10);
+      if (local.has(iso)) return true;
       const year = date.getUTCFullYear();
       if (!cache.has(year)) cache.set(year, spanishNationalHolidays(year));
-      return cache.get(year)!.has(date.toISOString().slice(0, 10));
+      return cache.get(year)!.has(iso);
     };
     const { dueDate, holidaysApplied } = addBusinessDays(start, params.days, isHoliday);
     return {
@@ -107,8 +120,11 @@ export class SpainComplianceProvider implements ComplianceProvider {
       dueDate,
       businessDays: true,
       holidaysApplied,
-      // Solo festivos nacionales; autonómicos/locales pendientes (E9).
-      notes: ['Festivos nacionales aplicados; faltan autonómicos y locales (E9).'],
+      notes: [
+        local.size > 0
+          ? 'Festivos nacionales + festivos locales del despacho aplicados.'
+          : 'Festivos nacionales aplicados; añade festivos locales en Ajustes.',
+      ],
     };
   }
 

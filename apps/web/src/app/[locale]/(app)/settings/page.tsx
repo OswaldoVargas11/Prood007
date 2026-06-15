@@ -1,17 +1,30 @@
 'use client';
 
-import { useState } from 'react';
-import { useTranslations } from 'next-intl';
-import { Loader2, Plus, ShieldCheck, UserCog } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { useLocale, useTranslations } from 'next-intl';
+import {
+  CalendarOff,
+  FileBadge,
+  Loader2,
+  Plus,
+  ShieldCheck,
+  Trash2,
+  Upload,
+  UserCog,
+} from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
+  useAddHoliday,
   useCreateStaff,
+  useRemoveHoliday,
   useSeats,
   useSettings,
   useStaff,
   useUpdateSettings,
   useUpdateStaff,
+  useUploadCertificate,
 } from '@/lib/hooks';
+import { formatDate } from '@/lib/format';
 import { ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -50,6 +63,8 @@ export default function SettingsPage() {
       <FirmCard />
       <LicenseCard />
       <StaffCard />
+      <HolidaysCard />
+      <CertificateCard />
     </div>
   );
 }
@@ -88,20 +103,30 @@ function FirmCard() {
   const update = useUpdateSettings();
   const [name, setName] = useState<string | null>(null);
   const [taxId, setTaxId] = useState<string | null>(null);
+  const [series, setSeries] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   if (isLoading || !data) return <Skeleton className="h-44 w-full rounded-xl" />;
   const tenant = data.tenant;
   const nameVal = name ?? tenant.name;
   const taxVal = taxId ?? tenant.taxId ?? '';
-  const dirty = nameVal !== tenant.name || taxVal !== (tenant.taxId ?? '');
+  const seriesVal = series ?? tenant.invoiceSeries;
+  const dirty =
+    nameVal !== tenant.name ||
+    taxVal !== (tenant.taxId ?? '') ||
+    seriesVal !== tenant.invoiceSeries;
 
   async function save() {
     setError(null);
     try {
-      await update.mutateAsync({ name: nameVal.trim(), taxId: taxVal.trim() || undefined });
+      await update.mutateAsync({
+        name: nameVal.trim(),
+        taxId: taxVal.trim() || undefined,
+        invoiceSeries: seriesVal.trim() || undefined,
+      });
       setName(null);
       setTaxId(null);
+      setSeries(null);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('saveError'));
     }
@@ -125,6 +150,16 @@ function FirmCard() {
         </div>
         <Readonly label={t('firm.jurisdiction')} value={tenant.jurisdiction.toUpperCase()} />
         <Readonly label={t('firm.currency')} value={tenant.currency} />
+        <div className="space-y-1.5">
+          <Label>{t('firm.series')}</Label>
+          <Input
+            value={seriesVal}
+            onChange={(e) => setSeries(e.target.value)}
+            className="font-mono uppercase"
+            maxLength={10}
+          />
+          <p className="text-[11px] text-[var(--text-subtle)]">{t('firm.seriesHint')}</p>
+        </div>
       </div>
       {error && <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>}
       <div className="mt-4 flex justify-end">
@@ -373,5 +408,149 @@ function AddStaffDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function HolidaysCard() {
+  const t = useTranslations('settings');
+  const locale = useLocale();
+  const { data } = useSettings();
+  const add = useAddHoliday();
+  const remove = useRemoveHoliday();
+  const [date, setDate] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    setError(null);
+    try {
+      await add.mutateAsync({ date, name: name.trim() });
+      setDate('');
+      setName('');
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t('holidays.error'));
+    }
+  }
+
+  const holidays = data?.holidays ?? [];
+
+  return (
+    <Section
+      icon={<CalendarOff className="size-5 text-[var(--brand)]" />}
+      title={t('holidays.title')}
+      desc={t('holidays.desc')}
+    >
+      <div className="mb-3 flex flex-wrap items-end gap-2">
+        <div className="space-y-1.5">
+          <Label>{t('holidays.date')}</Label>
+          <Input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="w-40"
+          />
+        </div>
+        <div className="flex-1 space-y-1.5">
+          <Label>{t('holidays.name')}</Label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <Button
+          size="sm"
+          onClick={submit}
+          disabled={!date || name.trim().length < 2 || add.isPending}
+        >
+          {add.isPending && <Loader2 className="animate-spin" />}
+          <Plus /> {t('holidays.add')}
+        </Button>
+      </div>
+      {error && <p className="mb-2 text-sm text-[var(--danger)]">{error}</p>}
+      {holidays.length === 0 ? (
+        <p className="text-[12.5px] text-muted-foreground">{t('holidays.empty')}</p>
+      ) : (
+        <div className="divide-y rounded-lg border">
+          {holidays.map((h) => (
+            <div key={h.date} className="flex items-center gap-3 px-3 py-2 text-[13px]">
+              <span className="font-mono tabular-nums text-muted-foreground">
+                {formatDate(h.date, locale)}
+              </span>
+              <span className="flex-1">{h.name}</span>
+              <button
+                type="button"
+                onClick={() => remove.mutate(h.date)}
+                disabled={remove.isPending}
+                aria-label={t('holidays.remove')}
+                className="text-muted-foreground transition-colors hover:text-[var(--danger)]"
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </Section>
+  );
+}
+
+function CertificateCard() {
+  const t = useTranslations('settings');
+  const locale = useLocale();
+  const { data } = useSettings();
+  const upload = useUploadCertificate();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError(null);
+    try {
+      await upload.mutateAsync(file);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('cert.error'));
+    }
+  }
+
+  const cert = data?.certificate;
+
+  return (
+    <Section
+      icon={<FileBadge className="size-5 text-[var(--brand)]" />}
+      title={t('cert.title')}
+      desc={t('cert.desc')}
+      action={
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => fileRef.current?.click()}
+          disabled={upload.isPending}
+        >
+          {upload.isPending ? <Loader2 className="animate-spin" /> : <Upload />}
+          {cert ? t('cert.replace') : t('cert.upload')}
+        </Button>
+      }
+    >
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".p12,.pfx,.pem,.cer,.crt"
+        className="hidden"
+        onChange={onFile}
+      />
+      {error && <p className="mb-2 text-sm text-[var(--danger)]">{error}</p>}
+      {cert ? (
+        <div className="flex items-center gap-2 rounded-lg border bg-[var(--success-soft)] px-3 py-2.5 text-[13px]">
+          <FileBadge className="size-4 text-[var(--success)]" />
+          <span className="font-medium">{cert.name}</span>
+          {cert.uploadedAt && (
+            <span className="ml-auto text-[11.5px] text-muted-foreground">
+              {formatDate(cert.uploadedAt, locale)}
+            </span>
+          )}
+        </div>
+      ) : (
+        <p className="text-[12.5px] text-muted-foreground">{t('cert.none')}</p>
+      )}
+    </Section>
   );
 }
