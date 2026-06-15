@@ -81,11 +81,11 @@ ambos FIRM_ADMIN. Cifrado en reposo de documentos (AES-256-GCM, D-021) + RLS fai
   Facturación (tab Costes + `/invoices/[id]` con bloque Verifactu/e-CF). F5 Tiempo real (chat + campana
   de notificaciones). F6 Portal del cliente (solo lectura + chat).
 - **Clientes** (lista) + **Ficha de cliente** (tabs Expedientes/Documentos/Facturas).
-- **Pulido (Tarea 5, D-023):** QR Verifactu escaneable en el detalle de factura (PR #31), **nav
-  responsive** (sidebar → Drawer en móvil, PR #33) y **animaciones framer-motion + webfont Geist**
-  (tokens del handoff, respeta `prefers-reduced-motion`, PR #34) — **fusionados**. En revisión del
-  owner (esperan OK): **preview fiscal en vivo** (PR #30, reusa la matemática fiscal real, toca
-  compliance) y **catálogo i18n exhaustivo de la API** (PR #32, messageKey es-ES/es-DO, toca auth).
+- **Pulido (Tarea 5, D-023) — todo fusionado:** QR Verifactu escaneable (PR #31), **nav responsive**
+  (sidebar → Drawer en móvil, PR #33), **animaciones framer-motion + webfont Geist** (tokens del
+  handoff, respeta `prefers-reduced-motion`, PR #34), **preview fiscal en vivo** (PR #30, read-only
+  que reusa la matemática fiscal real: `buildInvoiceRecord` delega en `previewInvoice`) y **catálogo
+  i18n exhaustivo de la API** (PR #32, todo error por messageKey con catálogo es-ES/es-DO; **E8 cerrado**).
 - **Datos de demo sembrados** (`apps/api/scripts/seed-demo.mjs`): 7 clientes, 9 expedientes, tareas,
   facturas en 6 meses, documentos, chat, actividad. Demo: `admin@demo.test` / `Sup3rSecret!2026`;
   cliente portal: `cliente1@demo.test` / `Cli3ntPass!2026`.

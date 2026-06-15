@@ -422,7 +422,7 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
 - **Contexto:** última tanda de pulido. Dos ítems con sustancia (preview fiscal, QR) y tres cosméticos
   (i18n exhaustivo de API, nav móvil, animaciones+fuente). Un PR pequeño por ítem; CODEOWNERS decide
   auto-merge vs. revisión.
-- **Preview fiscal en vivo (PR #30, espera OK — toca compliance):** endpoint READ-ONLY
+- **Preview fiscal en vivo (PR #30, fusionado):** endpoint READ-ONLY
   `POST /ledger/invoices/preview`. Clave de confianza: NO se duplica la matemática fiscal en el cliente
   ni en un segundo cálculo. El provider expone `previewInvoice()` y `buildInvoiceRecord` **delega en él**,
   de modo que preview y factura emitida comparten una ÚNICA ruta (`getTaxRates` + `computeInvoiceTotals`)
@@ -432,7 +432,7 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
   de la `qrUrl` de cotejo AEAT que YA genera el complianceRecord — no se inventa contenido. Solo en
   formato VERIFACTU; en RD (e-CF) no aplica ese QR español → se mantiene la representación del e-CF.
   Fondo blanco fijo para que escanee también en modo oscuro.
-- **i18n exhaustivo de la API (PR #32, espera OK — toca auth):** todo error de la API sale por una
+- **i18n exhaustivo de la API (PR #32, fusionado):** todo error de la API sale por una
   `messageKey` estable con catálogo COMPLETO es-ES/es-DO (`apps/api/src/common/api-messages.ts`) + helper
   `apiError()` (messageKey + message fallback es-ES + params/code). ~56 throws refactorizados; validación
   de DTOs vía pipe compartido con `messageKey: 'validation.failed'`. Gate de test de completitud (toda
