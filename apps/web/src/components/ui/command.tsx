@@ -4,7 +4,7 @@ import * as React from 'react';
 import { Command as CommandPrimitive } from 'cmdk';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Dialog, DialogContent } from './dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from './dialog';
 
 const Command = React.forwardRef<
   React.ElementRef<typeof CommandPrimitive>,
@@ -21,10 +21,20 @@ const Command = React.forwardRef<
 ));
 Command.displayName = CommandPrimitive.displayName;
 
-function CommandDialog({ children, ...props }: React.ComponentProps<typeof Dialog>) {
+function CommandDialog({
+  children,
+  label,
+  description,
+  ...props
+}: React.ComponentProps<typeof Dialog> & { label: string; description?: string }) {
   return (
     <Dialog {...props}>
       <DialogContent className="overflow-hidden p-0 shadow-xl" hideClose>
+        {/* Título/descripción accesibles para lectores de pantalla (Radix los exige). */}
+        <DialogTitle className="sr-only">{label}</DialogTitle>
+        {description ? (
+          <DialogDescription className="sr-only">{description}</DialogDescription>
+        ) : null}
         <Command className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-input-wrapper]_svg]:size-4 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-2.5">
           {children}
         </Command>
