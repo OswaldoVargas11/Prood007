@@ -16,7 +16,9 @@ import type {
   DocumentReviewStatus,
   FirmSettings,
   Invoice,
+  InvoiceListItem,
   InvoicePreview,
+  InvoiceStatus,
   LedgerEntryType,
   Matter,
   MatterDetail,
@@ -385,6 +387,22 @@ export function useInvoice(id: string) {
     queryKey: ['invoice', id],
     queryFn: () => api.get<Invoice>(`/ledger/invoices/${id}`),
     enabled: Boolean(id),
+  });
+}
+
+/**
+ * Listado global de facturas del despacho (`GET /ledger/invoices`). Filtros opcionales por estado
+ * persistido y por vencimiento derivado (`overdue`). Reemplaza la reconstrucción cliente-side desde
+ * los apuntes INVOICE del ledger.
+ */
+export function useInvoices(filter?: { status?: InvoiceStatus; overdue?: boolean }) {
+  const params = new URLSearchParams();
+  if (filter?.status) params.set('status', filter.status);
+  if (filter?.overdue) params.set('overdue', 'true');
+  const qs = params.toString();
+  return useQuery({
+    queryKey: ['invoices', filter?.status ?? null, filter?.overdue ?? false],
+    queryFn: () => api.get<InvoiceListItem[]>(`/ledger/invoices${qs ? `?${qs}` : ''}`),
   });
 }
 

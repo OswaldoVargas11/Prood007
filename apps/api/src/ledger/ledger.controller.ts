@@ -6,6 +6,7 @@ import { CreateLedgerEntryDto } from './dto/create-ledger-entry.dto';
 import { CreateTimeEntryDto } from './dto/create-time-entry.dto';
 import { ListTimeQueryDto } from './dto/list-time.dto';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { ListInvoicesQueryDto } from './dto/list-invoices.dto';
 import { PreviewInvoiceDto } from './dto/preview-invoice.dto';
 import { ProposeCostDto } from './dto/propose-cost.dto';
 import { ResolveApprovalDto } from './dto/resolve-approval.dto';
@@ -82,6 +83,12 @@ export class LedgerController {
   @Post('invoices')
   createInvoice(@CurrentUser() user: RequestUser, @Body() dto: CreateInvoiceDto) {
     return this.ledger.createInvoice(user, dto);
+  }
+
+  /** Listado global de facturas del despacho (filtros: `status`, `overdue`). Antes de `:id`. */
+  @Get('invoices')
+  listInvoices(@CurrentUser() user: RequestUser, @Query() query: ListInvoicesQueryDto) {
+    return this.ledger.listInvoices(user, query);
   }
 
   @Get('invoices/:id')

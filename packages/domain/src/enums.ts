@@ -69,11 +69,20 @@ export enum LedgerEntryType {
   ADJUSTMENT = 'ADJUSTMENT',
 }
 
-/** Estado de la factura. */
+/**
+ * Estado de la factura.
+ * - DRAFT/ISSUED/SENT: emitida y pendiente de cobro.
+ * - PARTIAL: cobrada en parte (amountPaid > 0 y < total).
+ * - OVERDUE: vencida sin cobro completo (dueDate pasada). Lo fija el scheduler de dunning;
+ *   la vista de "vencidas" también lo deriva en lectura desde dueDate.
+ * - PAID: cobrada por completo. CANCELLED: anulada.
+ */
 export enum InvoiceStatus {
   DRAFT = 'DRAFT',
   ISSUED = 'ISSUED',
   SENT = 'SENT',
+  PARTIAL = 'PARTIAL',
+  OVERDUE = 'OVERDUE',
   PAID = 'PAID',
   CANCELLED = 'CANCELLED',
 }

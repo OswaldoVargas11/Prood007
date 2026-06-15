@@ -846,6 +846,37 @@ Paso 0 + gobernanza + el PR sensible de RLS. Objetivo: endurecer transversales s
   login sin enumeración (email inexistente == contraseña incorrecta -> auth.invalidCredentials), pipe
   con mismo whitelist/forbidNonWhitelisted. Los 5 ítems de la Tarea 5 quedan en main. E8 cerrado.
 
+### 2026-06-15 - Claude - Fase 1 (cobro) · PR-1 estados ricos + vencimiento
+
+Objetivo:
+
+- Arrancar la Fase 1 (cobro y rentabilidad). Desglose en PRs propuesto y decisiones del usuario
+  confirmadas (ver D-024): PaymentProvider por jurisdicción, Stripe Connect ES + RD stub, rebanada
+  fina (PR-1→PR-4), dunning in-app. PR-1 pone los cimientos de schema que faltaban para el cobro.
+
+Acciones (PR-1):
+
+- `packages/domain/enums.ts` + `schema.prisma`: `InvoiceStatus += PARTIAL, OVERDUE`.
+- `Invoice`: nuevos campos `dueDate`, `paidAt`, `amountPaid` (Decimal default 0) + índices
+  `(tenantId,status)` y `(tenantId,dueDate)`. Migración `20260615192441_invoice_states_due_date`
+  (generada contra la BD real; sin drift). RLS/GRANTs existentes ya cubren columnas nuevas.
+- `ledger.service`: `createInvoice` fija `dueDate` (dto.dueDate ?? issueDate + 30 días); `payInvoice`
+  fija `paidAt` + `amountPaid = total`; nuevo `listInvoices` con `overdue` DERIVADO en lectura
+  (no depende del scheduler de dunning; vencida = no liquidada y dueDate < medianoche UTC de hoy).
+- `GET /ledger/invoices` (listado real, antes inexistente; filtros `status`, `overdue`) + DTO de query.
+- Web: `useInvoices` (reemplaza la reconstrucción cliente-side desde apuntes INVOICE), página
+  `/invoices` con filtros (Todas/Vencidas/Parciales/Pagadas), columna Vencimiento (resalta vencidas)
+  y badge "Vencida" derivado. i18n es-ES/es-DO (estados PARTIAL/OVERDUE + filtros).
+
+Pruebas:
+
+- API e2e `ledger` 15/15 verde (10 previas + 5 nuevas: dueDate por defecto, amountPaid/paidAt al
+  cobrar, listado, overdue derivado, pagada-no-vencida). web typecheck + lint + api lint limpios.
+
+- **Sensibilidad / merge:** toca `prisma/` (migración) → CODEOWNERS → **PR-y-espera** (no auto-merge).
+- **Siguiente:** PR-2 (captura de tiempo, auto-mergeable) tras OK; PR-3 (PaymentProvider+Payment) y
+  PR-4 (Stripe Connect ES) después.
+
 ### 2026-06-15 - Claude - Fase 1 (cobro) · PR-2 captura de tiempo sin fricción
 
 Objetivo:

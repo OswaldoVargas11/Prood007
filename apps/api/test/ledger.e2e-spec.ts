@@ -270,6 +270,94 @@ describe('Ledger & invoicing (e2e)', () => {
       .expect(404);
   });
 
+  // ── Fase 1 · estados ricos + vencimiento ──────────────────────────────────
+  it('la factura emitida trae dueDate por defecto (issueDate + 30 días)', async () => {
+    const inv = await request(app.getHttpServer())
+      .post('/api/ledger/invoices')
+      .set(auth(token))
+      .send({
+        matterId,
+        issueDate: '2026-03-01',
+        lines: [{ description: 'V', quantity: '1', unitPrice: '100', taxCode: 'IVA_STANDARD' }],
+      })
+      .expect(201);
+    expect(String(inv.body.invoice.dueDate)).toContain('2026-03-31');
+  });
+
+  it('cobrar marca amountPaid = total y fija paidAt', async () => {
+    const inv = await request(app.getHttpServer())
+      .post('/api/ledger/invoices')
+      .set(auth(token))
+      .send({
+        matterId,
+        lines: [{ description: 'Cobro', quantity: '1', unitPrice: '400', taxCode: 'IVA_STANDARD' }],
+      })
+      .expect(201);
+    const paid = await request(app.getHttpServer())
+      .post(`/api/ledger/invoices/${inv.body.invoice.id}/pay`)
+      .set(auth(token))
+      .expect(201);
+    expect(paid.body.status).toBe('PAID');
+    expect(Number(paid.body.amountPaid)).toBe(Number(inv.body.invoice.total));
+    expect(paid.body.paidAt).toBeTruthy();
+  });
+
+  it('el listado global devuelve las facturas del despacho con overdue derivado', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/ledger/invoices')
+      .set(auth(token))
+      .expect(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+    const row = res.body[0];
+    expect(row).toHaveProperty('number');
+    expect(row).toHaveProperty('overdue');
+    expect(row).toHaveProperty('total');
+  });
+
+  it('una factura con dueDate pasada aparece como vencida (overdue=true)', async () => {
+    const inv = await request(app.getHttpServer())
+      .post('/api/ledger/invoices')
+      .set(auth(token))
+      .send({
+        matterId,
+        dueDate: '2020-01-01',
+        lines: [{ description: 'Old', quantity: '1', unitPrice: '100', taxCode: 'IVA_STANDARD' }],
+      })
+      .expect(201);
+    const overdue = await request(app.getHttpServer())
+      .get('/api/ledger/invoices?overdue=true')
+      .set(auth(token))
+      .expect(200);
+    const ids = (overdue.body as { id: string; overdue: boolean }[]).map((i) => i.id);
+    expect(ids).toContain(inv.body.invoice.id);
+    expect(overdue.body.every((i: { overdue: boolean }) => i.overdue)).toBe(true);
+  });
+
+  it('una factura pagada con dueDate pasada NO está vencida', async () => {
+    const inv = await request(app.getHttpServer())
+      .post('/api/ledger/invoices')
+      .set(auth(token))
+      .send({
+        matterId,
+        dueDate: '2020-01-01',
+        lines: [
+          { description: 'OldPaid', quantity: '1', unitPrice: '50', taxCode: 'IVA_STANDARD' },
+        ],
+      })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/ledger/invoices/${inv.body.invoice.id}/pay`)
+      .set(auth(token))
+      .expect(201);
+    const overdue = await request(app.getHttpServer())
+      .get('/api/ledger/invoices?overdue=true')
+      .set(auth(token))
+      .expect(200);
+    const ids = (overdue.body as { id: string }[]).map((i) => i.id);
+    expect(ids).not.toContain(inv.body.invoice.id);
+  });
+
   // ── Fase 1 · captura de tiempo sin fricción ───────────────────────────────
   it('lista el tiempo del día del usuario con honorario calculado', async () => {
     // El setup ya fichó 60 min @ 120 el 2026-02-01.

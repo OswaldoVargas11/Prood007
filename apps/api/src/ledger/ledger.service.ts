@@ -10,6 +10,7 @@ import { CreateLedgerEntryDto, MANUAL_LEDGER_TYPES } from './dto/create-ledger-e
 import { CreateTimeEntryDto } from './dto/create-time-entry.dto';
 import { ListTimeQueryDto } from './dto/list-time.dto';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
+import { ListInvoicesQueryDto } from './dto/list-invoices.dto';
 import { PreviewInvoiceDto } from './dto/preview-invoice.dto';
 import { ProposeCostDto } from './dto/propose-cost.dto';
 import { ResolveApprovalDto } from './dto/resolve-approval.dto';
@@ -35,6 +36,33 @@ const BALANCE_SIGN: Record<LedgerEntryType, number> = {
   [LedgerEntryType.ADJUSTMENT]: 1,
   [LedgerEntryType.INVOICE]: 0,
 };
+
+/** Plazo de pago por defecto (días) cuando la factura no trae `dueDate` explícito. */
+const DEFAULT_PAYMENT_TERM_DAYS = 30;
+
+/** Estados en los que una factura ya no puede vencer (cobrada o anulada). */
+const SETTLED_STATUSES: InvoiceStatus[] = [InvoiceStatus.PAID, InvoiceStatus.CANCELLED];
+
+/** Medianoche UTC de hoy: una factura vence cuando su `dueDate` quedó ESTRICTAMENTE en el pasado
+ *  (el propio día de vencimiento aún no cuenta como vencida). */
+function startOfTodayUtc(): Date {
+  const n = new Date();
+  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()));
+}
+
+function addDaysUtc(base: Date, days: number): Date {
+  return new Date(base.getTime() + days * 86_400_000);
+}
+
+/** Deriva si una factura está vencida en lectura, sin depender del scheduler de dunning. */
+function deriveOverdue(
+  status: InvoiceStatus,
+  dueDate: Date | null,
+  today: Date = startOfTodayUtc(),
+): boolean {
+  if (!dueDate || SETTLED_STATUSES.includes(status)) return false;
+  return dueDate.getTime() < today.getTime();
+}
 
 @Injectable()
 export class LedgerService {
@@ -239,6 +267,9 @@ export class LedgerService {
     const provider = this.compliance.forTenant({ jurisdiction: user.jurisdiction });
     const number = await this.nextInvoiceNumber(user.tenantId);
     const issueDate = dto.issueDate ?? new Date().toISOString().slice(0, 10);
+    const dueDate = dto.dueDate
+      ? new Date(dto.dueDate)
+      : addDaysUtc(new Date(issueDate), DEFAULT_PAYMENT_TERM_DAYS);
 
     // Encadenamiento: huella del último registro fiscal emitido por el tenant.
     const previous = await this.prisma.invoice.findFirst({
@@ -267,6 +298,7 @@ export class LedgerService {
           number,
           status: InvoiceStatus.ISSUED,
           issueDate: new Date(issueDate),
+          dueDate,
           currency: matter.tenant.currency,
           taxableBase: record.totals.taxableBase,
           taxAmount: record.totals.taxAmount,
@@ -356,11 +388,47 @@ export class LedgerService {
       });
       await tx.invoice.updateMany({
         where: { id, tenantId: user.tenantId },
-        data: { status: InvoiceStatus.PAID },
+        data: { status: InvoiceStatus.PAID, paidAt: new Date(), amountPaid: invoice.total },
       });
     });
     await this.audit.log(user, 'invoice.paid', 'Invoice', id);
     return this.getInvoice(user, id);
+  }
+
+  /**
+   * Listado global de facturas del despacho (acotado al tenant por RLS), para la pantalla
+   * de Facturas y la vista "Vencidas". Deriva `overdue` en lectura desde `dueDate`, sin esperar
+   * al scheduler de dunning. El filtro `status` casa el estado persistido; `overdue=true` filtra
+   * por la derivación de vencimiento.
+   */
+  async listInvoices(user: RequestUser, query: ListInvoicesQueryDto) {
+    const rows = await this.prisma.invoice.findMany({
+      where: {
+        tenantId: user.tenantId,
+        ...(query.status ? { status: query.status } : {}),
+      },
+      orderBy: [{ issueDate: 'desc' }, { number: 'desc' }],
+      include: {
+        client: { select: { id: true, name: true } },
+        matter: { select: { id: true, reference: true } },
+      },
+    });
+    const today = startOfTodayUtc();
+    const items = rows.map((r) => ({
+      id: r.id,
+      number: r.number,
+      status: r.status,
+      issueDate: r.issueDate,
+      dueDate: r.dueDate,
+      paidAt: r.paidAt,
+      currency: r.currency,
+      total: r.total.toString(),
+      amountPaid: r.amountPaid.toString(),
+      overdue: deriveOverdue(r.status as InvoiceStatus, r.dueDate, today),
+      client: r.client,
+      matter: r.matter,
+    }));
+    return query.overdue === 'true' ? items.filter((i) => i.overdue) : items;
   }
 
   // ── Aprobación de costes ─────────────────────────────────────────────────

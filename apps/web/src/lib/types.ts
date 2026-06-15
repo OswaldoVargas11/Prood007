@@ -170,7 +170,14 @@ export interface TimeSummary {
   currency: string;
 }
 
-export type InvoiceStatus = 'DRAFT' | 'ISSUED' | 'SENT' | 'PAID' | 'CANCELLED';
+export type InvoiceStatus =
+  | 'DRAFT'
+  | 'ISSUED'
+  | 'SENT'
+  | 'PARTIAL'
+  | 'OVERDUE'
+  | 'PAID'
+  | 'CANCELLED';
 
 export interface InvoiceLine {
   id: string;
@@ -186,17 +193,36 @@ export interface Invoice {
   number: string;
   status: InvoiceStatus;
   issueDate: string;
+  dueDate?: string | null;
+  paidAt?: string | null;
   currency: string;
   taxableBase: string;
   taxAmount: string;
   withholdingAmount: string;
   total: string;
+  amountPaid?: string;
   complianceFormat: 'VERIFACTU' | 'ECF' | null;
   complianceRecord: Record<string, unknown> | null;
   recordHash: string | null;
   previousRecordHash: string | null;
   lines: InvoiceLine[];
   client?: { id: string; name: string; taxId: string };
+}
+
+/** Fila del listado global de facturas (`GET /ledger/invoices`). Incluye `overdue` derivado. */
+export interface InvoiceListItem {
+  id: string;
+  number: string;
+  status: InvoiceStatus;
+  issueDate: string;
+  dueDate: string | null;
+  paidAt: string | null;
+  currency: string;
+  total: string;
+  amountPaid: string;
+  overdue: boolean;
+  client: { id: string; name: string } | null;
+  matter: { id: string; reference: string } | null;
 }
 
 /** Totales fiscales neutrales (base/impuestos/retención/total) que devuelve el cálculo del provider. */
