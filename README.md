@@ -31,6 +31,12 @@ legalflow/
   DECISIONS.md  # registro de decisiones de diseño
 ```
 
+## Documentación técnica de arquitectura
+
+Documentación exhaustiva y **derivada del código** (flujo de datos, auth/BFF, multi-tenancy y RLS,
+cifrado y secretos, proveedores de cumplimiento, ERD, referencia de la API, frontend, CI/CD y stack),
+con diagramas Mermaid: **[`docs/architecture/`](docs/architecture/README.md)**.
+
 ## Requisitos previos
 
 - **Node.js 20 LTS+**
