@@ -4,9 +4,19 @@
 > recurrente). Todo en **modo test**: claves de test, tarjeta `4242…`, Stripe CLI. **Cero dinero, cero
 > entidad, cero compromiso.** Verifica el cimiento, luego construye.
 >
-> Estado verificado con mocks (CI): firma→4xx, idempotencia por `providerRef`, importe/moneda, RLS por
-> tenant. Estado verificado en vivo SIN claves: el endpoint público es alcanzable, público y **falla
-> cerrado** (400 sin firma / con firma falsa; 401 en checkout sin token). **Lo que falta es lo de abajo.**
+> **Ya verificado EN VIVO con firma HMAC real (2026-06-15)** vía `apps/api/scripts/stripe-webhook-verify.mjs`
+> (11/11): firma válida→200 y concilia a PAID, idempotencia ante reenvío (1 solo `Payment`), firma
+> manipulada→400 sin conciliar, moneda distinta→no cobra. Ese script firma con el SDK real de Stripe
+> (mismo `constructEvent` de producción) y **no necesita navegador ni Connect** — úsalo para revalidar el
+> webhook en cualquier momento:
+>
+> ```
+> STRIPE_SECRET_KEY=sk_test_… STRIPE_WEBHOOK_SECRET=whsec_… API_PORT=4002 \
+>   node apps/api/scripts/stripe-webhook-verify.mjs
+> ```
+>
+> Lo que el script NO cubre y necesita Stripe de verdad (pasos 3-4): el **Checkout alojado** (entrada de
+> tarjeta) y los **eventos reales de cuenta conectada** (Connect). Para eso, sigue abajo.
 
 ## 0) Requisitos
 
@@ -47,6 +57,10 @@ STRIPE_WEBHOOK_SECRET="whsec_xxxx"
 Reinicia la API. Deja `stripe listen` corriendo en su terminal.
 
 ## 3) Conectar la cuenta del despacho (Connect Standard, test)
+
+> ⚠️ **Prerequisito confirmado en vivo:** Stripe rechaza crear cuentas conectadas con
+> `400 "You can only create new accounts if you've signed up for Connect"` hasta que **habilites Connect
+> una vez** en https://dashboard.stripe.com/connect (gratis, también en modo test). Hazlo antes de este paso.
 
 1. Entra como admin → **Ajustes** → tarjeta **"Cobro online (Stripe)"** → **Conectar Stripe**.
 2. Completa el onboarding de prueba de Stripe (usa los datos de test que ofrece Stripe; puedes usar el

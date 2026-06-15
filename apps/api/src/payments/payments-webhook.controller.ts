@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Headers,
+  HttpCode,
   Post,
   RawBodyRequest,
   Req,
@@ -21,6 +22,7 @@ export class PaymentsWebhookController {
   constructor(private readonly payments: PaymentsService) {}
 
   @Public()
+  @HttpCode(200)
   @Post('stripe')
   stripe(@Req() req: RawBodyRequest<Request>, @Headers('stripe-signature') signature?: string) {
     if (!req.rawBody || !signature) {
