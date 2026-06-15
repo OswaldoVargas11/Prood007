@@ -2,10 +2,28 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
-import { Check, KeyRound, Loader2, Mail, MapPin, Phone } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
+import {
+  AlertTriangle,
+  Check,
+  Download,
+  KeyRound,
+  Loader2,
+  Mail,
+  MapPin,
+  Phone,
+  ShieldOff,
+} from 'lucide-react';
 import { Link } from '@/i18n/navigation';
-import { useClient, useCreatePortalUser, useMatters } from '@/lib/hooks';
+import {
+  downloadGdprExport,
+  useAnonymizeClient,
+  useClient,
+  useCreatePortalUser,
+  useMatters,
+} from '@/lib/hooks';
+import { useAuth } from '@/lib/auth';
+import { formatDate } from '@/lib/format';
 import { ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/lexora/status-badge';
 import { Badge } from '@/components/ui/badge';
@@ -76,78 +94,84 @@ export default function ClientProfilePage() {
       </Link>
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        {/* Resumen */}
-        <Card className="h-fit lg:sticky lg:top-20">
-          <CardContent className="space-y-4 p-5">
-            <div className="flex items-center gap-3">
-              <span className="flex size-12 items-center justify-center rounded-xl bg-[var(--brand)] text-base font-semibold text-white">
-                {initials(client.name)}
-              </span>
-              <div className="min-w-0">
-                <div className="font-semibold leading-tight">{client.name}</div>
-                <div className="text-xs text-muted-foreground">
-                  {client.taxIdKind ?? t('client')}
+        {/* Columna izquierda: resumen + RGPD (solo admin). */}
+        <div className="h-fit space-y-4 lg:sticky lg:top-20">
+          {/* Resumen */}
+          <Card>
+            <CardContent className="space-y-4 p-5">
+              <div className="flex items-center gap-3">
+                <span className="flex size-12 items-center justify-center rounded-xl bg-[var(--brand)] text-base font-semibold text-white">
+                  {initials(client.name)}
+                </span>
+                <div className="min-w-0">
+                  <div className="font-semibold leading-tight">{client.name}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {client.taxIdKind ?? t('client')}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2 rounded-md border border-border bg-[var(--surface-2)] px-3 py-2">
-              <span className="font-mono text-xs text-muted-foreground">{client.taxId}</span>
-              {client.taxIdKind && (
-                <Badge variant="success" className="ml-auto gap-1 py-0">
-                  <Check className="size-3" />
-                  {t('validated')}
-                </Badge>
-              )}
-            </div>
-
-            {contact.length > 0 && (
-              <div className="space-y-2">
-                {contact.map((c, i) => {
-                  const Icon = c.icon;
-                  return (
-                    <div
-                      key={i}
-                      className="flex items-center gap-2.5 text-sm text-muted-foreground"
-                    >
-                      <Icon className="size-3.5 shrink-0" />
-                      <span className="truncate">{c.value}</span>
-                    </div>
-                  );
-                })}
+              <div className="flex items-center gap-2 rounded-md border border-border bg-[var(--surface-2)] px-3 py-2">
+                <span className="font-mono text-xs text-muted-foreground">{client.taxId}</span>
+                {client.taxIdKind && (
+                  <Badge variant="success" className="ml-auto gap-1 py-0">
+                    <Check className="size-3" />
+                    {t('validated')}
+                  </Badge>
+                )}
               </div>
-            )}
 
-            <div
-              className="rounded-lg border p-3"
-              style={{
-                background: client.userId ? 'var(--success-soft)' : 'var(--surface-2)',
-                borderColor: client.userId ? 'var(--success)' : 'var(--border)',
-              }}
-            >
+              {contact.length > 0 && (
+                <div className="space-y-2">
+                  {contact.map((c, i) => {
+                    const Icon = c.icon;
+                    return (
+                      <div
+                        key={i}
+                        className="flex items-center gap-2.5 text-sm text-muted-foreground"
+                      >
+                        <Icon className="size-3.5 shrink-0" />
+                        <span className="truncate">{c.value}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <div
-                className="flex items-center gap-2 text-xs font-semibold"
-                style={{ color: client.userId ? 'var(--success)' : 'var(--text-subtle)' }}
+                className="rounded-lg border p-3"
+                style={{
+                  background: client.userId ? 'var(--success-soft)' : 'var(--surface-2)',
+                  borderColor: client.userId ? 'var(--success)' : 'var(--border)',
+                }}
               >
-                <span
-                  className="size-1.5 rounded-full"
-                  style={{ background: client.userId ? 'var(--success)' : 'var(--text-subtle)' }}
-                />
-                {client.userId ? t('portalActive') : t('portalInactive')}
-              </div>
-              {!client.userId && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="mt-3 w-full"
-                  onClick={() => setGranting(true)}
+                <div
+                  className="flex items-center gap-2 text-xs font-semibold"
+                  style={{ color: client.userId ? 'var(--success)' : 'var(--text-subtle)' }}
                 >
-                  <KeyRound /> {t('grantPortal')}
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                  <span
+                    className="size-1.5 rounded-full"
+                    style={{ background: client.userId ? 'var(--success)' : 'var(--text-subtle)' }}
+                  />
+                  {client.userId ? t('portalActive') : t('portalInactive')}
+                </div>
+                {!client.userId && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-3 w-full"
+                    onClick={() => setGranting(true)}
+                  >
+                    <KeyRound /> {t('grantPortal')}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* RGPD: exportar / anonimizar — solo FIRM_ADMIN (el backend también lo restringe). */}
+          <GdprCard client={client} />
+        </div>
         <GrantPortalDialog client={client} open={granting} onClose={() => setGranting(false)} />
 
         {/* Tabs */}
@@ -278,6 +302,174 @@ function GrantPortalDialog({
           <Button size="sm" onClick={submit} disabled={!valid || grant.isPending}>
             {grant.isPending && <Loader2 className="animate-spin" />}
             {t('grantPortalConfirm')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Tarjeta RGPD/Ley 172-13 (solo FIRM_ADMIN): exportar los datos del titular (portabilidad) y
+ * anonimizar (supresión irreversible). Si el cliente ya está anonimizado, muestra su estado.
+ */
+function GdprCard({ client }: { client: Client }) {
+  const t = useTranslations('clients.gdpr');
+  const locale = useLocale();
+  const { hasRole } = useAuth();
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  // El backend también restringe a FIRM_ADMIN; aquí evitamos mostrar la superficie a otros roles.
+  if (!hasRole('FIRM_ADMIN')) return null;
+
+  if (client.anonymizedAt) {
+    return (
+      <Card>
+        <CardContent className="space-y-2 p-5">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <ShieldOff className="size-4 text-[var(--text-subtle)]" />
+            {t('anonymized')}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {t('anonymizedOn', { date: formatDate(client.anonymizedAt, locale) })}
+          </p>
+          <p className="text-xs text-muted-foreground">{t('anonymizedNote')}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  async function exportData() {
+    setExportError(false);
+    setExporting(true);
+    try {
+      const slug = (client.taxId || client.name || client.id).replace(/[^\w.-]+/g, '_');
+      await downloadGdprExport(client.id, `rgpd-${slug}.json`);
+    } catch {
+      setExportError(true);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-3 p-5">
+        <div>
+          <div className="text-sm font-semibold">{t('title')}</div>
+          <p className="mt-1 text-xs text-muted-foreground">{t('desc')}</p>
+        </div>
+
+        <div className="space-y-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full"
+            onClick={exportData}
+            disabled={exporting}
+          >
+            {exporting ? <Loader2 className="animate-spin" /> : <Download />}
+            {exporting ? t('exporting') : t('export')}
+          </Button>
+          <p className="text-[11px] text-[var(--text-subtle)]">{t('exportHint')}</p>
+          {exportError && <p className="text-xs text-[var(--danger)]">{t('exportError')}</p>}
+        </div>
+
+        <div className="space-y-2 border-t border-border pt-3">
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full border-[var(--danger)] text-[var(--danger)] hover:bg-[var(--danger-soft)]"
+            onClick={() => setConfirming(true)}
+          >
+            <ShieldOff /> {t('anonymize')}
+          </Button>
+          <p className="text-[11px] text-[var(--text-subtle)]">{t('anonymizeHint')}</p>
+        </div>
+      </CardContent>
+
+      <AnonymizeDialog client={client} open={confirming} onClose={() => setConfirming(false)} />
+    </Card>
+  );
+}
+
+/**
+ * Confirmación fuerte de anonimización: irreversible, exige escribir el nombre exacto del cliente.
+ * Deja explícito que la PII se borra y el portal se corta, pero expediente y facturas se conservan.
+ */
+function AnonymizeDialog({
+  client,
+  open,
+  onClose,
+}: {
+  client: Client;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const t = useTranslations('clients.gdpr');
+  const tc = useTranslations('clients');
+  const anonymize = useAnonymizeClient(client.id);
+  const [typed, setTyped] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const matches = typed.trim() === client.name.trim();
+
+  function close() {
+    setTyped('');
+    setError(null);
+    onClose();
+  }
+
+  async function submit() {
+    if (!matches) return;
+    setError(null);
+    try {
+      await anonymize.mutateAsync();
+      close();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : t('anonymizeError'));
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && close()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="size-4 text-[var(--danger)]" />
+            {t('anonymizeTitle', { name: client.name })}
+          </DialogTitle>
+          <DialogDescription>{t('anonymizeWarning')}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2">
+          <Label htmlFor="anon-confirm">{t('anonymizeConfirmLabel')}</Label>
+          <p className="font-mono text-sm font-medium">{client.name}</p>
+          <Input
+            id="anon-confirm"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            autoComplete="off"
+            autoFocus
+          />
+          {typed.trim().length > 0 && !matches && (
+            <p className="text-xs text-[var(--danger)]">{t('anonymizeMismatch')}</p>
+          )}
+          {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={close}>
+            {tc('cancel')}
+          </Button>
+          <Button
+            size="sm"
+            className="bg-[var(--danger)] text-white hover:bg-[var(--danger)]/90"
+            onClick={submit}
+            disabled={!matches || anonymize.isPending}
+          >
+            {anonymize.isPending && <Loader2 className="animate-spin" />}
+            {t('anonymizeConfirm')}
           </Button>
         </DialogFooter>
       </DialogContent>

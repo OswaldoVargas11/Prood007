@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from './api';
 import type {
+  AnonymizeResult,
   Assignee,
   AuditEntry,
   Client,
@@ -76,6 +77,21 @@ export function useClient(id: string) {
     queryKey: ['client', id],
     queryFn: () => api.get<Client>(`/clients/${id}`),
     enabled: Boolean(id),
+  });
+}
+
+/**
+ * RGPD/Ley 172-13 — anonimización del titular (solo FIRM_ADMIN en el backend). Sobrescribe la PII
+ * del registro maestro y corta el portal; el expediente y las facturas se PRESERVAN. Irreversible.
+ */
+export function useAnonymizeClient(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<AnonymizeResult>(`/clients/${id}/anonymize`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['client', id] });
+      void qc.invalidateQueries({ queryKey: ['clients'] });
+    },
   });
 }
 
@@ -628,6 +644,21 @@ export async function downloadVersion(versionId: string, filename: string): Prom
  */
 export async function downloadInvoicePdf(path: string, filename: string): Promise<void> {
   const blob = await api.download(path);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * RGPD/Ley 172-13 — descarga el export de datos del titular (`GET /clients/:id/gdpr-export`,
+ * portabilidad) como JSON. El backend ya restringe a FIRM_ADMIN.
+ */
+export async function downloadGdprExport(clientId: string, filename: string): Promise<void> {
+  const data = await api.get<unknown>(`/clients/${clientId}/gdpr-export`);
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
