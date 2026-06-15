@@ -432,6 +432,7 @@
     "total": "Total",
     "issued": "Emitida",
     "markPaid": "Marcar como pagada",
+    "downloadPdf": "Descargar PDF",
     "buyer": "Cliente",
     "compliance": "Registro fiscal",
     "qrTitle": "Código QR (cotejo AEAT)",
@@ -581,6 +582,7 @@
     "myInvoices": "Mis facturas",
     "noMatters": "Aún no tienes expedientes.",
     "noInvoices": "Aún no tienes facturas.",
+    "downloadInvoice": "Descargar factura (PDF)",
     "loadError": "No se pudo cargar la información",
     "back": "Volver"
   }

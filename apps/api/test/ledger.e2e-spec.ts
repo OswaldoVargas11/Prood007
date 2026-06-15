@@ -227,6 +227,32 @@ describe('Ledger & invoicing (e2e)', () => {
     expect(paid.body.status).toBe('PAID');
   });
 
+  it('el despacho descarga el PDF de una factura emitida (application/pdf, %PDF)', async () => {
+    const inv = await request(app.getHttpServer())
+      .post('/api/ledger/invoices')
+      .set(auth(token))
+      .send({
+        matterId,
+        lines: [
+          { description: 'Para PDF', quantity: '2', unitPrice: '150', taxCode: 'IVA_STANDARD' },
+        ],
+      })
+      .expect(201);
+    const res = await request(app.getHttpServer())
+      .get(`/api/ledger/invoices/${inv.body.invoice.id}/pdf`)
+      .set(auth(token))
+      .buffer(true)
+      .parse((res2, cb) => {
+        const chunks: Buffer[] = [];
+        res2.on('data', (c: Buffer) => chunks.push(Buffer.from(c)));
+        res2.on('end', () => cb(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect(res.headers['content-type']).toContain('application/pdf');
+    expect((res.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-');
+    expect((res.body as Buffer).length).toBeGreaterThan(800);
+  });
+
   it('AISLAMIENTO: el tenant B no ve una factura del tenant A (404)', async () => {
     const inv = await request(app.getHttpServer())
       .post('/api/ledger/invoices')

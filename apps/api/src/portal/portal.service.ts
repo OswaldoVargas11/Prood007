@@ -1,8 +1,9 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { assertMatterAccess } from '../messages/matter-access';
 import { apiError } from '../common/api-messages';
+import { buildInvoicePdf, invoiceRowToPdfData } from '../ledger/invoice-pdf';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
@@ -90,5 +91,24 @@ export class PortalService {
         withholdingAmount: true,
       },
     });
+  }
+
+  /**
+   * PDF de una factura DEL PROPIO cliente (control de propiedad por `clientId`). 404 si no es suya.
+   * Reutiliza el mismo builder que el despacho — el documento es idéntico.
+   */
+  async invoicePdf(user: RequestUser, id: string): Promise<{ buffer: Buffer; number: string }> {
+    const client = await this.myClient(user);
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id, tenantId: user.tenantId, clientId: client.id },
+      include: {
+        lines: true,
+        client: { select: { name: true, taxId: true } },
+        tenant: { select: { name: true, taxId: true } },
+      },
+    });
+    if (!invoice) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
+    const buffer = await buildInvoicePdf(invoiceRowToPdfData(invoice, user.jurisdiction));
+    return { buffer, number: invoice.number };
   }
 }
