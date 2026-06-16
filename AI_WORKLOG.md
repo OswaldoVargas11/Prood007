@@ -1389,3 +1389,23 @@ Siguiente sugerido: R5c (UI de cierre con deducción + devolución) o el ítem r
 - **fix QR Verifactu (fecha):** el parámetro `fecha` del cotejo AEAT iba en ISO (aaaa-mm-dd); la AEAT lo
   exige en **dd-mm-aaaa**. Reordenado en `spain.provider` (no afecta a la huella/encadenamiento, que usa
   `issueDate`; solo cambia la URL del QR). Test añadido. compliance 57/57.
+
+### 2026-06-16 - Claude Opus 4.8 - PR-R5c: UI de cierre fiscal (deducción + devolución)
+
+UI de las acciones de cierre del anticipo en el tab «Provisión» (apps/web; sin backend nuevo, reusa los
+endpoints R3b/R3c). Panel «Cierre del anticipo» visible solo si el expediente tiene anticipo facturado:
+
+- **Factura final (deducir anticipo)** → `useRetainerFinalInvoice` / `POST /retainer/final-invoice`:
+  editor de líneas de servicio + IRPF opcional; al éxito muestra nº de factura, neto y nº de anticipos
+  deducidos, con enlace.
+- **Devolver anticipo** → `useRetainerRefund` / `POST /retainer/refund`: selector del anticipo (nº de la
+  factura) + causa → rectificativa; al éxito muestra nº + enlace.
+- Mensajes de error reales del backend (`ApiError.message`). i18n es-ES/es-DO.
+
+Verificado **end-to-end en navegador** (preview + API local): panel con ambos botones; factura final
+FAC-2026-0017 neto 1.815 € (servicio 2500 − anticipo 1000) «1 anticipo deducido»; refund → rectificativa
+FAC-2026-0018, saldo del expediente → 0 (REFUND −968 + DEPOSIT 968). typecheck + eslint + vitest 3/3 +
+JSON i18n válido. Sin errores de consola.
+
+Nota: esta entrada se solapa en el tiempo con los fixes UX-apply (#70) y QR-Verifactu (#71).
+Siguiente: ítem recurrente / planes de pago (proponer opciones antes de implementar).

@@ -513,6 +513,40 @@ export function useRetainerApply(matterId: string) {
   });
 }
 
+/** Factura final de cierre con DEDUCCIÓN del anticipo (R3b): servicio completo − anticipos, sin doble IVA. */
+export function useRetainerFinalInvoice(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { lines: InvoiceLineInput[]; withholdingTaxCode?: string }) =>
+      api.post<{
+        invoiceId: string;
+        number: string;
+        taxableBase: string;
+        taxAmount: string;
+        total: string;
+        deducted: { invoiceNumber: string; base: string }[];
+        balance: string;
+      }>('/retainer/final-invoice', { ...body, matterId }),
+    onSuccess: () => invalidateRetainer(qc, matterId),
+  });
+}
+
+/** Devolución de un anticipo facturado (R3c): factura rectificativa por sustitución + REFUND(−). */
+export function useRetainerRefund(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { anticipoInvoiceId: string; reason: string }) =>
+      api.post<{
+        invoiceId: string;
+        number: string;
+        rectifies: string;
+        total: string;
+        balance: string;
+      }>('/retainer/refund', { ...body, matterId }),
+    onSuccess: () => invalidateRetainer(qc, matterId),
+  });
+}
+
 // ── Cobro online (Stripe Connect, PR-4) ──────────────────────────────────────
 /** Config de cobro online del tenant (online vs manual, por jurisdicción). */
 export function usePaymentConfig() {
