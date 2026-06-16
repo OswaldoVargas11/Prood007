@@ -125,6 +125,14 @@ enum RetainerMovementType {
   ADJUSTMENT
 }
 
+// Naturaleza fiscal de un DEPOSIT de provisión (ANTICIPO devenga IVA/ITBIS y exige factura — habilitado
+// en R2b; SUPLIDO fuera de base; GENERICO sin devengo). Ver D-026 y enums de @legalflow/domain.
+enum ProvisionKind {
+  ANTICIPO
+  SUPLIDO
+  GENERICO
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tenancy & Auth / RBAC
 // ─────────────────────────────────────────────────────────────────────────────
@@ -668,6 +676,9 @@ model RetainerEntry {
   tenantId  String
   accountId String
   type      RetainerMovementType
+  // Naturaleza fiscal del depósito (solo en DEPOSIT): SUPLIDO/GENERICO en R2; ANTICIPO en R2b. Null en
+  // APPLICATION/REFUND/ADJUSTMENT.
+  kind      ProvisionKind?
   amount    Decimal              @db.Decimal(18, 2)
   invoiceId String?
   paymentId String?

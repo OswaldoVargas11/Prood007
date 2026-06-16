@@ -336,9 +336,18 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
   - Restricciones que hereda R2/R3 (ver D-026): invariante `balance == Σ(entries)` con `SELECT … FOR
 UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea `PAYMENT` al ledger
     (DEPOSIT no, evita doble cómputo); REFUND con IVA → factura rectificativa.
-- [ ] **PR-R2 — Cobro de provisión (manual) + saldo** (PR-y-espera; **bloqueado por el GATE**): depósito
-      manual → `RetainerEntry DEPOSIT` + actualiza saldo (transaccional con `FOR UPDATE`, auditado); guard
-      de moneda = tenant; lectura de saldo + movimientos por expediente (y agregado por cliente, derivado).
+- [~] **PR-R2 — Motor de saldo + tipos no fiscales + lecturas** (PR-y-espera): `POST /retainer/deposit`
+  (SUPLIDO/GENERICO; **ANTICIPO bloqueado** con error claro hasta R2b) → `RetainerEntry DEPOSIT` +
+  saldo cacheado actualizado en transacción con **`SELECT … FOR UPDATE`** + guard de saldo negativo +
+  guard de moneda = tenant; `GET /retainer/matter/:id` (saldo+movimientos) y `/retainer/client/:id`
+  (agregado derivado). Migración `20260616140000_provision_kind` (enum `ProvisionKind` + `kind`). e2e
+  retainer 8/8 (incl. **concurrencia: 10 depósitos sin perder updates** + invariante `balance ==
+    Σ(entries)`) + retainer-rls 5/5. **Verificado local; espera CI + OK del owner.**
+- [ ] **PR-R2b — Emisión de factura de anticipo** (PR-y-espera, Verifactu-crítico): habilita el tipo
+      ANTICIPO → emite factura de anticipo vía `buildInvoiceRecord` (ES IVA 21% + IRPF; RD ITBIS 18% +
+      e-CF; jurisdicción por `ComplianceProvider`). **Atómico**: consumir serie fiscal + crear registro
+      Verifactu/e-CF + postear al ledger + `RetainerEntry DEPOSIT(ANTICIPO)` + saldo, todo en UNA
+      transacción (fallo parcial revierte limpio, incl. la serie). Reusa el motor de R2.
 - [ ] **PR-R3 — Aplicar provisión a factura** (PR-y-espera): `POST /retainer/apply` crea un `Payment`
       (método `RETAINER`) por la vía `reconcile` (mueve `amountPaid`, PARTIAL/PAID, apunte PAYMENT) +
       `RetainerEntry APPLICATION (−)` que baja el saldo, en una transacción. Valida saldo y moneda.
