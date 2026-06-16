@@ -148,7 +148,7 @@ diario automático llega en PR-D3 reutilizando el mismo `DunningService`.
 | POST   | `/api/dunning/run`       | FIRM_ADMIN, LAWYER | "Recordar ahora": evalúa vencidas y dispara las etapas  |
 | GET    | `/api/dunning/reminders` | FIRM_ADMIN, LAWYER | Recordatorios generados (línea de tiempo); `?invoiceId` |
 
-### `retainer` — `/api/retainer` (4) · clase: **FIRM_ADMIN, LAWYER**
+### `retainer` — `/api/retainer` (5) · clase: **FIRM_ADMIN, LAWYER**
 
 Provisión de fondos por expediente (saldo + movimientos). Todo acotado al tenant (RLS). PR-R2: cobro
 manual de tipos no fiscales + lecturas; el tipo ANTICIPO se rechaza hasta PR-R2b (exige factura).
@@ -157,6 +157,7 @@ manual de tipos no fiscales + lecturas; el tipo ANTICIPO se rechaza hasta PR-R2b
 | ------ | -------------------------- | ------------------ | ------------------------------------------------------------------------------------- |
 | POST   | `/api/retainer/deposit`    | FIRM_ADMIN, LAWYER | Cobro de provisión NO fiscal (SUPLIDO/GENERICO; ANTICIPO → 400)                       |
 | POST   | `/api/retainer/anticipo`   | FIRM_ADMIN, LAWYER | Cobro ANTICIPO: emite factura de anticipo (Verifactu/e-CF) + acredita saldo (atómico) |
+| POST   | `/api/retainer/apply`      | FIRM_ADMIN, LAWYER | Aplica saldo (SUPLIDO/GENERICO) al cobro de una factura; ANTICIPO bloqueado hasta R3b |
 | GET    | `/api/retainer/matter/:id` | FIRM_ADMIN, LAWYER | Saldo + movimientos del expediente                                                    |
 | GET    | `/api/retainer/client/:id` | FIRM_ADMIN, LAWYER | Saldo agregado del cliente (Σ de sus expedientes)                                     |
 
