@@ -508,6 +508,23 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
   D4 (UI despacho) → D5 (UI portal). Ver PLAN.md (Ítem 1) y [[fase1-cobro-decisiones]] (memoria).
 - **Sensibilidad / merge:** D1–D3 tocan migración/RLS/dinero → **PR-y-espera**. D4/D5 son solo UI de
   lectura → auto-mergeables en verde.
-- **PR-D1 (este):** tablas `DunningRule` + `DunningReminder` (RLS fail-closed, patrón D-013/D-020),
+- **PR-D1:** tablas `DunningRule` + `DunningReminder` (RLS fail-closed, patrón D-013/D-020),
   enums de dominio espejo, migración `20260616120000_dunning`. **Sin lógica de negocio** (llega en D2).
-  Schema `prisma validate` OK; domain typecheck OK. Pendiente: verde en CI + OK del owner para fusionar.
+  Verificado: e2e RLS dedicado que ejercita ambas tablas (lectura acotada, cross-tenant invisible, WITH
+  CHECK, fail-closed) verde en CI. **Fusionado a main (#56).**
+- **PR-D2 (motor) — decisiones de implementación:**
+  1. **Reglas efectivas con fallback a defaults** — si el despacho no ha configurado `DunningRule`
+     activas, el motor usa un calendario por defecto (+1 REMINDER, +7 WARNING, +15 FINAL) para que el
+     dunning funcione sin configuración previa. El CRUD de reglas en UI queda para una PR posterior.
+  2. **Idempotencia por la unicidad de D1** — un recordatorio por `(invoiceId, offsetDays)`; el motor
+     intenta crear y captura `P2002` como "ya existe" (no duplica, no 500). Doble clic en "recordar
+     ahora" es seguro. Reintento de envíos `FAILED` se difiere a Fase 2 (con EMAIL/SMS).
+  3. **Canal-agnóstico vía multi-provider `DUNNING_CHANNELS`** — `DunningChannelDispatcher` con
+     `InAppChannel` (avisa a los FIRM_ADMIN del despacho). EMAIL/SMS se añaden como nuevos dispatchers
+     sin tocar el motor; una etapa con canal sin dispatcher se marca `SKIPPED` (no se pierde).
+  4. **Sin duplicar "vencidas"** — los helpers `deriveOverdue`/`startOfTodayUtc`/`addDaysUtc` se
+     extrajeron de `ledger.service` a `ledger/overdue.util.ts` (fuente única compartida con el motor).
+  5. **Endpoint manual role-gated + tenant-scoped** — `POST /dunning/run` y `GET /dunning/reminders`
+     bajo `@Roles(FIRM_ADMIN, LAWYER)`; CLIENT → 403, sin token → 401; RLS acota por tenant.
+     Verificado local: e2e dunning 7/7 (incl. idempotencia, audit, 403/401, aislamiento) + RLS 7/7.
+     Pendiente: verde en CI + OK del owner para fusionar.
