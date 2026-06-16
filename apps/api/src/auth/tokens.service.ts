@@ -16,7 +16,8 @@ interface UserForToken {
 }
 
 const ACCESS_TTL_SECONDS = 15 * 60; // 15 min
-const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
+const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días (ventana deslizante de inactividad)
+const ABSOLUTE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 días (tope absoluto de la sesión, SEC2)
 
 @Injectable()
 export class TokensService {
@@ -41,10 +42,14 @@ export class TokensService {
     return this.config.getOrThrow<string>('JWT_REFRESH_SECRET');
   }
 
-  /** Emite un par access+refresh para el usuario, persistiendo el refresh hasheado. */
-  async issuePair(user: UserForToken): Promise<TokenPair> {
+  /**
+   * Emite un par access+refresh para el usuario, persistiendo el refresh hasheado.
+   * `absoluteExpiresAt` fija el tope absoluto de la sesión: en login/registro se omite (arranca uno
+   * nuevo a +30d); en la rotación se pasa el de la familia para ARRASTRARLO (no extenderlo). SEC2.
+   */
+  async issuePair(user: UserForToken, absoluteExpiresAt?: Date): Promise<TokenPair> {
     const accessToken = await this.signAccessToken(user);
-    const refreshToken = await this.createRefreshToken(user);
+    const refreshToken = await this.createRefreshToken(user, absoluteExpiresAt);
     return { accessToken, refreshToken, tokenType: 'Bearer', expiresIn: ACCESS_TTL_SECONDS };
   }
 
@@ -63,12 +68,13 @@ export class TokensService {
   }
 
   /** Crea una fila RefreshToken y devuelve el JWT de refresco (con jti = id de la fila). */
-  private async createRefreshToken(user: UserForToken): Promise<string> {
+  private async createRefreshToken(user: UserForToken, absoluteExpiresAt?: Date): Promise<string> {
     const row = await this.prisma.refreshToken.create({
       data: {
         userId: user.id,
         tokenHash: 'pending',
         expiresAt: new Date(Date.now() + REFRESH_TTL_MS),
+        absoluteExpiresAt: absoluteExpiresAt ?? new Date(Date.now() + ABSOLUTE_TTL_MS),
       },
     });
     const payload: RefreshTokenPayload = { sub: user.id, tid: user.tenantId, jti: row.id };
@@ -118,15 +124,25 @@ export class TokensService {
       throw new UnauthorizedException(apiError('auth.refreshExpired'));
     }
 
+    // Tope ABSOLUTO de la sesión (SEC2): aunque el refresh esté dentro de su ventana deslizante de 7d,
+    // la familia no puede vivir más allá de su tope absoluto. Al superarlo, se cierra la sesión.
+    if (row.absoluteExpiresAt && row.absoluteExpiresAt.getTime() < Date.now()) {
+      await this.prisma.refreshToken.update({
+        where: { id: row.id },
+        data: { revokedAt: new Date() },
+      });
+      throw new UnauthorizedException(apiError('auth.sessionExpired'));
+    }
+
     // Cargar datos frescos del usuario (roles/estado pueden haber cambiado).
     const user = await this.loadUserForToken(row.userId);
 
-    // Revocar el token presentado y emitir uno nuevo (rotación).
+    // Revocar el token presentado y emitir uno nuevo (rotación), ARRASTRANDO el tope absoluto.
     await this.prisma.refreshToken.update({
       where: { id: row.id },
       data: { revokedAt: new Date() },
     });
-    return this.issuePair(user);
+    return this.issuePair(user, row.absoluteExpiresAt ?? undefined);
   }
 
   /** Revoca TODAS las sesiones activas de un usuario (cambio de clave, baja, reset). Idempotente. */

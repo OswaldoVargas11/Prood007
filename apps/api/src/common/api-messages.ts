@@ -63,6 +63,10 @@ export const API_MESSAGES = {
     'es-ES': 'Refresh token expirado.',
     'es-DO': 'Refresh token expirado.',
   },
+  'auth.sessionExpired': {
+    'es-ES': 'La sesión ha alcanzado su duración máxima; vuelve a iniciar sesión.',
+    'es-DO': 'La sesión ha alcanzado su duración máxima; vuelve a iniciar sesión.',
+  },
   'auth.invalidUser': {
     'es-ES': 'Usuario no válido.',
     'es-DO': 'Usuario no válido.',
