@@ -394,6 +394,31 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
 - [ ] **PR-R4 — Cobro de provisión online (Stripe, sin factura)** (PR-y-espera, DIFERIDO): `invoiceId`
       nullable + checkout sin factura + webhook que acredita el retainer. Pieza más sensible; PR aparte.
 
+### Ítem 3 — Facturación programada: recurrente (iguala) + planes de pago `[~]` (ver D-028)
+
+> **Motor único** (RECURRING | INSTALLMENTS) decidido con el owner (2026-06-16): recurrente = 1 factura
+> por periodo; planes de pago **configurables** (a) servicio prestado → 1 factura + cuotas-cobro · (b)
+> anticipos → factura de anticipo por cuota (R2b) + deducción en la final (R3b). **Fase A** = calendario +
+> emisión fiscal con cobro Checkout/manual; **Fase B** = auto-cobro off-session (solo ES), épica aparte.
+> Invariante: toda emisión pasa por `buildInvoiceRecord` (serie + Verifactu/e-CF + QR; sin atajos).
+
+- [~] **PR-RP1 — Modelo + migración + RLS** (PR-y-espera, migración+RLS): `BillingSchedule` +
+  `BillingInstallment` + enums (`BillingScheduleType`/`FiscalMode`/`Interval`/`ScheduleStatus`/
+  `InstallmentStatus`). RLS fail-closed (mismo patrón) + **e2e billing-rls 5/5** (lectura acotada,
+  cross-tenant invisible, WITH CHECK, fail-closed, sistema BYPASSRLS). Migración
+  `20260616155957_billing_schedules`. Sin lógica.
+- [ ] **PR-RP2 — Crear/leer planes** (PR-y-espera): `POST /billing/schedules` (RECURRING o INSTALLMENTS
+      con `fiscalMode`) + validación + generación del cuadro de cuotas; lecturas por expediente. e2e.
+- [ ] **PR-RP3 — Emisión recurrente** (PR-y-espera, Verifactu-crítico): run que emite 1 factura/periodo
+      vía `emitInvoiceInTx` y avanza `nextRunAt`. e2e (factura por periodo, encadenado, atómico).
+- [ ] **PR-RP4 — Emisión planes de pago** (PR-y-espera, Verifactu-crítico): (a) 1 factura + cuotas-cobro;
+      (b) factura de anticipo por cuota (reusa R2b) + deducción en la final (R3b). e2e ambos.
+- [ ] **PR-RP5 — Cron de barrido + dunning de cuotas** (PR-y-espera): cron diario multi-tenant (patrón
+      del cron de dunning) que procesa vencimientos + recuerda cuotas vencidas.
+- [ ] **PR-RP6 — UI** (auto-mergeable): crear/gestionar planes en la ficha + lectura en el portal.
+- [ ] **Fase B — Auto-cobro off-session** (ES, épica aparte): SetupIntent (tarjeta on-file) +
+      PaymentIntents programados + manejo SCA/3DS + reintentos.
+
 ## Diferido (stubs detrás de interfaz — NO construir aún)
 
 - Envío real AEAT/DGII, LexNET en vivo, firma electrónica (Signaturit/DocuSign), SMS.

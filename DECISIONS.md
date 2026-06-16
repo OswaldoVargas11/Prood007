@@ -758,3 +758,32 @@ facturasRectificadas, causa }`. RD → `<TipoeCF>34</TipoeCF>` (nota de crédito
   ya reversado doblaría la corrección.
 - **Fuera de alcance (R3c):** refund **parcial** / rectificativa **por diferencias** (`DIFERENCIAS`
   reservado en el enum, sin implementar).
+
+## D-028 · Fase 1 (Ítem 3): facturación programada — recurrente (iguala) + planes de pago · **ACEPTADA (owner, 2026-06-16)**
+
+> Decidida con el owner tras proponer opciones e implicaciones fiscales. El owner delega el detalle de
+> arquitectura ("la más escalable") — ver memoria de autorización autónoma.
+
+- **Motor único** `BillingSchedule` (+ `BillingInstallment`) cubre `RECURRING` e `INSTALLMENTS`. Se separa
+  el _contrato_ (plan) de los _eventos_ (cuotas/periodos) por escalabilidad: recurrente abierto (cuotas en
+  rolling por el cron), estado por evento, enlace a factura+pago por cuota, reintentos/dunning por estado.
+- **Fiscalidad (clave; consistente con D-026/D-027):**
+  - **RECURRING** (iguala/cuota periódica): cada periodo es un devengo nuevo → **1 factura por periodo**
+    (IVA/ITBIS por periodo), con su serie + registro Verifactu/e-CF + QR.
+  - **INSTALLMENTS**, configurable por plan (`fiscalMode`):
+    - **SERVICE_RENDERED (a):** servicio ya prestado/contratado → **1 factura** (IVA **completo** al
+      emitir, LIVA art. 75) + cuotas como **cobros** parciales (`Payment`). Las cuotas **no** son facturas.
+    - **ADVANCE (b):** cobro por adelantado → cada cuota es un **anticipo** → **factura de anticipo por
+      cuota** (devengo al cobro, flujo R2b) + **deducción** en la factura final (R3b).
+- **Invariante:** toda emisión (recurrente o cuota-anticipo) pasa por `buildInvoiceRecord` — serie +
+  registro fiscal + QR, **sin atajos**. Reusa `emitInvoiceInTx`, el `Payment` parcial, el anticipo/
+  deducción (R2b/R3b) y el patrón del cron de dunning.
+- **Cobro (fases):** **Fase A** = calendario + emisión fiscal con cobro por **Checkout/manual** (reusa
+  D-024 + dunning; cero riesgo SCA). **Fase B** = **auto-cobro off-session** (SetupIntent tarjeta on-file
+  - PaymentIntents programados + SCA/3DS), **solo ES** (RD manual/stub, Stripe no sirve a RD). Épica aparte.
+- **Descartado:** Stripe Subscriptions/Invoicing como motor — Stripe numera/factura por su cuenta y
+  **choca con la fuente fiscal única** (nuestra serie Verifactu/e-CF). Stripe queda solo como rail de cobro.
+- **Split:** RP1 (modelo+migración+RLS — **hecho**) → RP2 (crear/leer) → RP3 (emisión recurrente) →
+  RP4 (emisión planes a/b) → RP5 (cron+dunning de cuotas) → RP6 (UI) → Fase B (off-session).
+- **Recomendación (no bloqueante):** entra en la **revisión única del fiscalista** ya recomendada en
+  D-027 (anticipo→factura→deducción→rectificativa→**recurrente**), sobre todo la parte RD.

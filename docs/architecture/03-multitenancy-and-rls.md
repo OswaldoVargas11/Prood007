@@ -79,7 +79,12 @@ flowchart TB
 
 - Las **14** primeras se activan en `20260614120000_enable_rls` (bucle `FOREACH` sobre un `text[]` de
   tablas: `ENABLE` + `FORCE ROW LEVEL SECURITY`). `Tenant` e `InvoiceLine` se añaden en
-  `20260615120000_rls_fail_closed` → **16 en total**.
+  `20260615120000_rls_fail_closed` → **16** en este bloque.
+- Las **migraciones de cada feature posterior** añaden sus propias tablas tenant-scoped con la MISMA
+  política `tenant_isolation` (`USING`/`WITH CHECK` por `app_current_tenant()`) y su e2e-RLS: `Payment`
+  (payments), `DunningRule`/`DunningReminder` (dunning), `RetainerAccount`/`RetainerEntry` (retainer) y
+  **`BillingSchedule`/`BillingInstallment`** (facturación programada, `20260616155957_billing_schedules`;
+  e2e `billing-rls`).
 - `FORCE ROW LEVEL SECURITY` hace que RLS aplique **incluso al propietario** de la tabla, cerrando la
   vía de escape por ownership.
 
