@@ -1123,3 +1123,27 @@ cargando/vacío/error; dark+light vía tokens; badges con texto (no solo color) 
 
 Sensibilidad / merge: solo UI de lectura + acción sobre endpoint existente → **auto-mergeable en verde**.
 Siguiente: PR-D5 (portal cliente: banner de recordatorio con enlace de pago).
+
+## 2026-06-16 — Claude — Ítem 1 (Dunning) PR-D5: UI portal cliente (cierra el Ítem 1)
+
+Contexto: última pieza del dunning. El cliente NO puede llamar a `/dunning/*` (staff-only), así que el
+recordatorio del portal se deriva de que SU factura esté vencida.
+
+Hecho:
+
+- API (lectura, no sensible): `portal.service.listInvoices` ahora añade `dueDate` y `overdue` derivado
+  con `deriveOverdue` (misma regla que el despacho; reusa `ledger/overdue.util`). Acotado al cliente.
+- Web: tipo `PortalInvoice` (con `overdue`/`dueDate`), `usePortalInvoices` retipado. Portal home: banner
+  de recordatorio (danger) cuando hay vencidas + badge "Vencida" en la fila; el botón "Pagar online"
+  existente cubre el enlace de pago (reusa el checkout de Stripe). i18n `portal.overdueBanner/overdueHint`
+  (plural ICU) en es-ES y es-DO.
+
+Pruebas (local): e2e `portal-dunning` 1/1 (overdue=true en vencida, false en vigente, dueDate expuesto,
+ámbito propio). API typecheck OK. web tsc + next lint + next build + vitest (20) OK.
+
+Sensibilidad / merge: UI + ampliación de lectura del portal → **auto-mergeable en verde**.
+
+**Ítem 1 (Dunning) COMPLETO**: D1 modelo+RLS (#56) · D2 motor+in-app+manual (#57) · D3 cron (#58) ·
+D4 UI despacho (#59) · D5 UI portal. Las vencidas se persiguen solas (cron diario) + a demanda
+("recordar ahora"), con aviso al despacho y recordatorio al cliente con enlace de pago. EMAIL/SMS
+quedan como punto de integración para Fase 2. Siguiente ítem de la tanda: provisión de fondos/retainer.

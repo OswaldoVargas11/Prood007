@@ -224,6 +224,18 @@ export interface Invoice {
   client?: { id: string; name: string; taxId: string };
 }
 
+/** Factura tal como la ve el cliente en su portal (`GET /portal/invoices`), con `overdue` derivado. */
+export interface PortalInvoice {
+  id: string;
+  number: string;
+  status: InvoiceStatus;
+  issueDate: string;
+  dueDate: string | null;
+  currency: string;
+  total: string;
+  overdue: boolean;
+}
+
 /** Fila del listado global de facturas (`GET /ledger/invoices`). Incluye `overdue` derivado. */
 export interface InvoiceListItem {
   id: string;

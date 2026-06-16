@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CreditCard, Download, Loader2 } from 'lucide-react';
+import { AlertTriangle, CreditCard, Download, Loader2 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/lib/auth';
 import {
@@ -30,6 +30,7 @@ export default function PortalHome() {
   const invoices = usePortalInvoices();
   const payConfig = usePortalPaymentConfig();
   const copy = user ? jurisdictionCopy(user.jurisdiction) : null;
+  const overdueCount = (invoices.data ?? []).filter((inv) => inv.overdue).length;
 
   return (
     <div className="space-y-8">
@@ -69,6 +70,17 @@ export default function PortalHome() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">{t('myInvoices')}</h2>
+        {overdueCount > 0 && (
+          <div className="flex items-start gap-3 rounded-xl border border-[var(--danger)]/20 bg-[var(--danger-soft)] p-4">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-[var(--danger)]" />
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium text-[var(--danger)]">
+                {t('overdueBanner', { n: overdueCount })}
+              </p>
+              <p className="text-[13px] text-muted-foreground">{t('overdueHint')}</p>
+            </div>
+          </div>
+        )}
         {invoices.isLoading && <Skeleton className="h-24 w-full" />}
         {invoices.isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
         {invoices.data?.length === 0 && (
@@ -82,36 +94,39 @@ export default function PortalHome() {
           <Card className="overflow-hidden">
             <table className="w-full text-sm">
               <tbody>
-                {invoices.data.map((inv) => (
-                  <tr key={inv.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3 font-mono text-xs">{inv.number}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant={invoiceStatusVariant(inv.status)}>
-                        {tInv(`invoiceStatus.${inv.status}`)}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                      {formatDate(inv.issueDate, locale)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-medium tabular-nums">
-                      {formatMoney(inv.total, inv.currency, locale)}
-                    </td>
-                    <td className="px-2 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {payConfig.data?.onlineEnabled &&
-                          inv.status !== 'PAID' &&
-                          inv.status !== 'CANCELLED' && (
-                            <PayOnlineButton invoiceId={inv.id} label={tInv('payOnline')} />
-                          )}
-                        <InvoicePdfButton
-                          path={`/portal/invoices/${inv.id}/pdf`}
-                          filename={`Factura-${inv.number}.pdf`}
-                          label={t('downloadInvoice')}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {invoices.data.map((inv) => {
+                  const displayStatus = inv.overdue ? 'OVERDUE' : inv.status;
+                  return (
+                    <tr key={inv.id} className="border-b border-border last:border-0">
+                      <td className="px-4 py-3 font-mono text-xs">{inv.number}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant={invoiceStatusVariant(displayStatus)}>
+                          {tInv(`invoiceStatus.${displayStatus}`)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                        {formatDate(inv.issueDate, locale)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-medium tabular-nums">
+                        {formatMoney(inv.total, inv.currency, locale)}
+                      </td>
+                      <td className="px-2 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {payConfig.data?.onlineEnabled &&
+                            inv.status !== 'PAID' &&
+                            inv.status !== 'CANCELLED' && (
+                              <PayOnlineButton invoiceId={inv.id} label={tInv('payOnline')} />
+                            )}
+                          <InvoicePdfButton
+                            path={`/portal/invoices/${inv.id}/pdf`}
+                            filename={`Factura-${inv.number}.pdf`}
+                            label={t('downloadInvoice')}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </Card>
