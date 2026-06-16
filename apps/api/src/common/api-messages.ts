@@ -289,6 +289,12 @@ export const API_MESSAGES = {
     'es-ES': 'La emisión de planes de pago aún no está disponible (PR-RP4).',
     'es-DO': 'La emisión de planes de pago aún no está disponible (PR-RP4).',
   },
+  'billing.advanceRunNotYet': {
+    'es-ES':
+      'La emisión de un plan de pago por anticipos se hace al cobrar cada cuota; ese flujo aún no está disponible (PR-RP4b).',
+    'es-DO':
+      'La emisión de un plan de pago por anticipos se hace al cobrar cada cuota; ese flujo aún no está disponible (PR-RP4b).',
+  },
 
   // ── Tareas ────────────────────────────────────────────────────────────────
   'tasks.assigneeNotInFirm': {

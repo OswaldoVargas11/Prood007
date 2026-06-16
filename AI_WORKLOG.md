@@ -1459,3 +1459,19 @@ Siguiente: PR-RP3 (emisión recurrente: 1 factura/periodo vía emitInvoiceInTx +
   un plan nuevo se crea con startDate ≈ hoy, así solo emite el periodo actual.
 
 Siguiente: PR-RP4 (emisión de planes de pago: a 1 factura + cuotas-cobro; b anticipo por cuota).
+
+### 2026-06-16 - Claude Opus 4.8 - PR-RP4a: emisión de plan de pago (servicio prestado)
+
+- **PR-RP4a:** `runDueEmissions` refactorizado para despachar por tipo/modo (`emitRecurringDue` +
+  `emitInstallmentsServiceRendered`). INSTALLMENTS·SERVICE_RENDERED (D-027 (a)): emite UNA factura por el
+  importe completo (IVA/ITBIS íntegro al emitir, LIVA art. 75; **sin doble imposición**, no una factura
+  por cuota) y liga TODAS las cuotas a esa factura como **calendario de cobro** (siguen SCHEDULED; el
+  cobro parcial por cuota va por Payment/Checkout en Fase A). issueDate = hoy; dueDate de la factura = la
+  última cuota. Idempotente (si ya hay factura, no duplica); `nextRunAt=null`. Guard ADVANCE → 400 (RP4b).
+- **Verificado (puntos clave fiscales):** e2e billing-installments 3/3 (1 factura con IVA completo 1000→
+  1210; cuotas ligadas SCHEDULED; idempotencia; guard ADVANCE) + billing-recurring 4/4 (actualizado el
+  guard a ADVANCE) + ledger 15/15 + billing-schedules 9/9 sin regresión. typecheck + eslint + prettier.
+- **Decisión:** (b) ADVANCE va a RP4b porque su emisión va ligada al COBRO (devengo al cobro), distinto
+  de (a); reutilizará `depositAnticipo` (R2b) + deducción en la final (R3b).
+
+Siguiente: PR-RP4b (anticipos, emisión al cobro) o PR-RP5 (cron de barrido + dunning de cuotas).

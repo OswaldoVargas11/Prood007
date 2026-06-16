@@ -419,8 +419,15 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
       genera (rolling) la siguiente cuota; avanza `nextRunAt` y cierra (COMPLETED) el plan acotado agotado.
       Guard de INSTALLMENTS (→ RP4) y de plan no-ACTIVE. e2e billing-recurring 4/4 (encadenamiento, cierre,
       rolling+idempotencia, guard, role) + ledger 15/15 sin regresión.
-- [ ] **PR-RP4 — Emisión planes de pago** (PR-y-espera, Verifactu-crítico): (a) 1 factura + cuotas-cobro;
-      (b) factura de anticipo por cuota (reusa R2b) + deducción en la final (R3b). e2e ambos.
+- [x] **PR-RP4a — Emisión plan de pago (servicio prestado)** (PR-y-espera, Verifactu-crítico): `run` de un
+      INSTALLMENTS·SERVICE_RENDERED emite **1 factura por el importe completo** (IVA/ITBIS íntegro al
+      emitir, sin doble imposición) y liga las cuotas como **calendario de cobro** (siguen SCHEDULED; el
+      cobro parcial va por `Payment`/Checkout). Idempotente; `nextRunAt=null`. Guard de ADVANCE → RP4b.
+      `runDueEmissions` refactorizado para despachar por tipo/modo. e2e billing-installments 3/3 + recurring
+      4/4 sin regresión.
+- [ ] **PR-RP4b — Emisión plan de pago (anticipos)** (PR-y-espera, Verifactu-crítico): ADVANCE → la
+      emisión de cada anticipo va ligada a su **cobro** (devengo al cobro), reutilizando el flujo R2b
+      (`depositAnticipo`) + deducción en la final (R3b). Cada cuota cobrada → factura de anticipo. e2e.
 - [ ] **PR-RP5 — Cron de barrido + dunning de cuotas** (PR-y-espera): cron diario multi-tenant (patrón
       del cron de dunning) que procesa vencimientos + recuerda cuotas vencidas.
 - [ ] **PR-RP6 — UI** (auto-mergeable): crear/gestionar planes en la ficha + lectura en el portal.
