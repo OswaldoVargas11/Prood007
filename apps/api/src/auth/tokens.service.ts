@@ -129,6 +129,14 @@ export class TokensService {
     return this.issuePair(user);
   }
 
+  /** Revoca TODAS las sesiones activas de un usuario (cambio de clave, baja, reset). Idempotente. */
+  async revokeAllForUser(userId: string): Promise<void> {
+    await this.prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
   /** Revoca un refresh token concreto (logout). No falla si ya no es válido. */
   async revoke(presentedToken: string): Promise<void> {
     try {

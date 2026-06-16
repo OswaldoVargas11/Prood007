@@ -1,9 +1,10 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { LogOut } from 'lucide-react';
+import { LogOut, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useRouter } from '@/i18n/navigation';
+import { scopeFromRoles } from '@/lib/scope';
 import { jurisdictionCopy } from '@/lib/jurisdiction';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ export function UserMenu() {
 
   if (!user) return null;
   const copy = jurisdictionCopy(user.jurisdiction);
+  const accountHref = scopeFromRoles(user.roles) === 'client' ? '/portal/account' : '/account';
 
   return (
     <DropdownMenu>
@@ -45,6 +47,10 @@ export function UserMenu() {
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => router.push(accountHref)}>
+          <ShieldCheck />
+          {t('account')}
+        </DropdownMenuItem>
         <DropdownMenuItem
           onSelect={async () => {
             await logout();

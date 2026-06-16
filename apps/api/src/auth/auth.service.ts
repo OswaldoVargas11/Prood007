@@ -2,12 +2,14 @@ import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/
 import * as argon2 from 'argon2';
 import { Currency, Jurisdiction, Role } from '@legalflow/domain';
 import { SystemPrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../audit/audit.service';
 import { TokensService } from './tokens.service';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { PERMISSION_NAMES, PERMISSIONS, ROLE_NAMES, ROLE_PERMISSIONS } from './rbac/permissions';
 import { apiError } from '../common/api-messages';
-import type { TokenPair } from './auth.types';
+import type { RequestUser, TokenPair } from './auth.types';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +18,7 @@ export class AuthService {
   constructor(
     private readonly system: SystemPrismaService,
     private readonly tokens: TokensService,
+    private readonly audit: AuditService,
   ) {}
 
   private hashPassword(plain: string): Promise<string> {
@@ -118,6 +121,42 @@ export class AuthService {
 
     const userForToken = await this.tokens.loadUserForToken(user.id);
     return this.tokens.issuePair(userForToken);
+  }
+
+  /**
+   * Cambio de contraseña self-service (cualquier usuario autenticado: staff o cliente de portal).
+   * Re-autentica con la contraseña actual, aplica la nueva, sella `passwordChangedAt`, REVOCA todas
+   * las sesiones del usuario y emite un par nuevo para el dispositivo actual. Resultado: el resto de
+   * dispositivos pierden el refresh (y el access caduca en ≤15 min). Registra auditoría.
+   */
+  async changePassword(actor: RequestUser, dto: ChangePasswordDto): Promise<TokenPair> {
+    const user = await this.system.user.findUnique({ where: { id: actor.userId } });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException(apiError('auth.invalidUser'));
+    }
+
+    const currentOk = await argon2.verify(user.passwordHash, dto.currentPassword);
+    if (!currentOk) {
+      throw new UnauthorizedException(apiError('auth.currentPasswordInvalid'));
+    }
+    // Evita el "cambio" que no cambia nada (y fuerza una rotación real de credencial).
+    if (await argon2.verify(user.passwordHash, dto.newPassword)) {
+      throw new BadRequestException(apiError('auth.passwordSameAsOld'));
+    }
+
+    const passwordHash = await this.hashPassword(dto.newPassword);
+    await this.system.user.update({
+      where: { id: user.id },
+      data: { passwordHash, passwordChangedAt: new Date() },
+    });
+
+    // Cierra el resto de sesiones; emite un par nuevo para que el dispositivo actual siga dentro.
+    await this.tokens.revokeAllForUser(user.id);
+    const userForToken = await this.tokens.loadUserForToken(user.id);
+    const tokens = await this.tokens.issuePair(userForToken);
+
+    await this.audit.log(actor, 'user.password_changed', 'User', user.id);
+    return tokens;
   }
 
   refresh(refreshToken: string): Promise<TokenPair> {

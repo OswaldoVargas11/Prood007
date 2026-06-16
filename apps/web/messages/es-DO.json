@@ -659,7 +659,28 @@
   },
   "userMenu": {
     "open": "Abrir menú de usuario",
-    "logout": "Cerrar sesión"
+    "logout": "Cerrar sesión",
+    "account": "Mi cuenta y seguridad"
+  },
+  "security": {
+    "title": "Mi cuenta",
+    "passwordTitle": "Contraseña",
+    "passwordDesc": "Cambia tu contraseña. Al hacerlo se cerrarán tus demás sesiones.",
+    "current": "Contraseña actual",
+    "new": "Nueva contraseña",
+    "confirm": "Repite la nueva contraseña",
+    "submit": "Cambiar contraseña",
+    "success": "Contraseña actualizada. Se han cerrado tus demás sesiones.",
+    "error": "No se pudo cambiar la contraseña.",
+    "mismatch": "Las contraseñas no coinciden.",
+    "tooShort": "Mínimo {min} caracteres.",
+    "strength": {
+      "0": "Muy débil",
+      "1": "Débil",
+      "2": "Aceptable",
+      "3": "Buena",
+      "4": "Fuerte"
+    }
   },
   "settings": {
     "title": "Ajustes del despacho",
