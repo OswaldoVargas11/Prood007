@@ -497,6 +497,7 @@
     "anticipoIssued": "Factura de anticipo {number} emitida",
     "viewInvoice": "Ver factura",
     "applyHint": "Si dejas el importe vacío, se aplica el menor entre el pendiente de la factura y el saldo disponible.",
+    "applyAnticipoBlocked": "Este expediente tiene saldo de anticipo (ya facturado con IVA). No se aplica como cobro a una factura: se realiza emitiendo la factura final con deducción del anticipo. Aquí solo se aplican fondos de suplido o genéricos.",
     "hint": "Los anticipos de honorarios se facturan al cobro; los suplidos y las provisiones genéricas no devengan impuesto hasta aplicarse.",
     "empty": "Aún no hay movimientos de provisión en este expediente.",
     "loadError": "No se pudo cargar la provisión de fondos.",
