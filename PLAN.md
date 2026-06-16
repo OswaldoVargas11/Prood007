@@ -354,14 +354,25 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
   `reconcile`) + `RetainerEntry APPLICATION(−)` con `postMovement` (FOR UPDATE), en una tx. **Bloqueo
   por construcción**: si el expediente tiene fondos de ANTICIPO → 400 (evita doble IVA hasta R3b).
   `PaymentMethod.RETAINER` (sin migración). e2e retainer-apply 6/6. **Verificado local; espera CI + OK.**
-- [ ] **PR-R3b — Deducción del anticipo en la factura final + rectificativa del refund** (PR-y-espera,
-      Verifactu-crítico; **D-027 RATIFICADA**): (b) factura final por el servicio completo con **líneas
-      negativas** que referencian las facturas de anticipo (IVA acumulado = IVA del total; anticipos
-      inmutables, la final los neutraliza por deducción) — reusa `buildInvoiceRecord` con bloque de
-      deducción, encadenada. (c) **REFUND** de anticipo facturado = **factura rectificativa** (registro
-      nuevo encadenado, por sustitución o diferencias, con condición/causa/factura rectificada) +
-      `RetainerEntry REFUND(−)`, atómico. RD: nota de crédito e-CF / deducción en e-CF final, vía
-      `ComplianceProvider`. **Ya diseñable** (ver D-027). Quita el bloqueo de aplicar ANTICIPO de R3a.
+- [~] **PR-R3b — Deducción del anticipo en la factura final** (PR-y-espera, Verifactu-crítico; **D-027
+  RATIFICADA**): `POST /retainer/final-invoice` emite la factura final por el **servicio completo**
+  con una **línea negativa por cada factura de anticipo** que neutraliza su base+impuesto (IVA
+  acumulado = IVA del total, **sin doble imposición**; anticipos **inmutables**). Reusa
+  `buildInvoiceRecord` vía `emitInvoiceInTx` con bloque `deductedAdvances` (trazabilidad
+  Verifactu/e-CF), encadenada; tras emitir, **realiza** el anticipo con `APPLICATION(−)` sin Payment
+  (drawdown). **Sin migración.** Guards: sin anticipo / doble cierre / deducción > servicio (→ R3c).
+  El `/apply` genérico **sigue** rechazando ANTICIPO (aplicarlo como cobro duplicaría IVA o
+  infrapagaría la final); el anticipo se realiza SOLO por esta vía. Compliance: `InvoiceInput`
+  gana `deductedAdvances` (ES `anticiposDeducidos` / RD `<AnticiposDeducidos>` en el e-CF). e2e
+  retainer-deduction 6/6 (sin doble IVA, encadenado, RD e-CF, atomicidad, guards, role) +
+  compliance 53/53 + red de no-regresión (apply 6/6, anticipo 4/4, ledger 15/15). **Verificado
+  local; espera CI + OK del owner.**
+- [ ] **PR-R3c — Rectificativa del refund** (PR-y-espera, migración + Verifactu-crítico): **REFUND** de
+      anticipo facturado = **factura rectificativa** (registro nuevo encadenado, **por sustitución**
+      primero; diferencias documentado como extensión) con condición/causa/factura rectificada +
+      `RetainerEntry REFUND(−)`, atómico. Migración `Invoice`: `documentType` + `rectifiesInvoiceId` +
+      causa/modo (columnas sobre tabla existente → sin e2e-RLS nuevo). RD: **nota de crédito e-CF**.
+      Reusa `buildInvoiceRecord` con tipo rectificativa.
 - [ ] **PR-R5 — UI** (auto-mergeable): saldo + movimientos en la ficha de cliente, "cobrar provisión"
       y "aplicar a factura"; portal: el cliente ve su saldo (lectura). Estados/i18n/AA.
 - [ ] **PR-R4 — Cobro de provisión online (Stripe, sin factura)** (PR-y-espera, DIFERIDO): `invoiceId`

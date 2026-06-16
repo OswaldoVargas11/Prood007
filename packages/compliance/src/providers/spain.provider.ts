@@ -103,6 +103,17 @@ export class SpainComplianceProvider implements ComplianceProvider {
         tipoHuella: '01', // SHA-256
         huella: recordHash,
         encadenamiento: { huellaAnterior: invoice.previousRecordHash ?? null },
+        // Anticipos deducidos en la factura final (D-027 (b)): NO es una rectificativa; las facturas de
+        // anticipo quedan inmutables y la final las neutraliza por deducción (líneas negativas). El IVA
+        // acumulado = IVA del total. Las facturas referenciadas dan la trazabilidad documental.
+        anticiposDeducidos:
+          invoice.deductedAdvances && invoice.deductedAdvances.length > 0
+            ? invoice.deductedAdvances.map((a) => ({
+                numFactura: a.invoiceNumber,
+                baseDeducida: a.base,
+                impuesto: a.taxCode,
+              }))
+            : undefined,
         qrUrl,
         // Firma con certificado real → fase de integración (fuera de MVP).
       },

@@ -4,6 +4,7 @@ import { RetainerService } from './retainer.service';
 import { RecordDepositDto } from './dto/record-deposit.dto';
 import { RecordAnticipoDto } from './dto/record-anticipo.dto';
 import { ApplyRetainerDto } from './dto/apply-retainer.dto';
+import { FinalInvoiceDto } from './dto/final-invoice.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -34,6 +35,15 @@ export class RetainerController {
   @Post('apply')
   apply(@CurrentUser() user: RequestUser, @Body() dto: ApplyRetainerDto) {
     return this.retainer.applyToInvoice(user, dto);
+  }
+
+  /**
+   * Factura FINAL de cierre con deducción del anticipo (D-027 (b)): servicio completo + líneas negativas
+   * que neutralizan los anticipos ya facturados (sin doble IVA), encadenada, y realiza el anticipo.
+   */
+  @Post('final-invoice')
+  finalInvoice(@CurrentUser() user: RequestUser, @Body() dto: FinalInvoiceDto) {
+    return this.retainer.invoiceFinalWithDeduction(user, dto);
   }
 
   /** Saldo + movimientos de la provisión de un expediente. */

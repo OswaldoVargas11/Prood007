@@ -56,6 +56,24 @@ export class DominicanComplianceProvider implements ComplianceProvider {
     // Misma ruta de cálculo que el preview en vivo: fuente única de la matemática fiscal.
     const { totals } = this.previewInvoice(invoice.lines, invoice.withholdingTaxCode);
 
+    // Anticipos deducidos en el e-CF final (D-027 (b)): deducción de las facturas de anticipo ya
+    // emitidas (NO una nota de crédito). El ITBIS acumulado = ITBIS del total, sin doble imposición; las
+    // facturas de anticipo quedan inmutables. Conservador: la deducción en el e-CF final está menos
+    // cerrada en las fuentes RD que la nota de crédito; un contador dominicano lo afinaría (D-027).
+    const anticiposBlock =
+      invoice.deductedAdvances && invoice.deductedAdvances.length > 0
+        ? [
+            '    <AnticiposDeducidos>',
+            ...invoice.deductedAdvances.flatMap((a) => [
+              '      <Anticipo>',
+              `        <eNCFAnticipo>${a.invoiceNumber}</eNCFAnticipo>`,
+              `        <MontoGravadoDeducido>${a.base}</MontoGravadoDeducido>`,
+              '      </Anticipo>',
+            ]),
+            '    </AnticiposDeducidos>',
+          ]
+        : [];
+
     const ecfXml = [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<ECF>',
@@ -75,6 +93,7 @@ export class DominicanComplianceProvider implements ComplianceProvider {
       `      <TotalITBIS>${totals.taxAmount}</TotalITBIS>`,
       `      <MontoTotal>${totals.total}</MontoTotal>`,
       '    </Totales>',
+      ...anticiposBlock,
       '  </Encabezado>',
       '  <!-- Digital certificate signature is outside the MVP integration scope. -->',
       '</ECF>',

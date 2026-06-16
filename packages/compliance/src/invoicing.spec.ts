@@ -81,6 +81,88 @@ describe('República Dominicana — buildInvoiceRecord (e-CF)', () => {
   });
 });
 
+describe('Deducción de anticipos en la factura final (D-027 (b)) — sin doble imposición', () => {
+  const es = new SpainComplianceProvider();
+  const dom = new DominicanComplianceProvider();
+
+  it('ES: la final neutraliza base+IVA del anticipo (IVA acumulado = IVA del total)', async () => {
+    // Servicio completo 3000 (IVA 630). Anticipo previo de 1000 (IVA 210) ya facturado.
+    const final = await es.buildInvoiceRecord(
+      baseInvoice({
+        invoiceNumber: 'FAC-2026-0002',
+        lines: [
+          {
+            description: 'Honorarios (servicio completo)',
+            quantity: '1',
+            unitPrice: '3000',
+            taxCode: 'IVA_STANDARD',
+          },
+          {
+            description: 'Deducción anticipo FAC-2026-0001',
+            quantity: '1',
+            unitPrice: '-1000',
+            taxCode: 'IVA_STANDARD',
+          },
+        ],
+        deductedAdvances: [
+          { invoiceNumber: 'FAC-2026-0001', base: '1000.00', taxCode: 'IVA_STANDARD' },
+        ],
+      }),
+    );
+    // Neto en la final: base 2000, IVA 420, total 2420.
+    expect(final.totals.taxableBase).toBe('2000.00');
+    expect(final.totals.taxAmount).toBe('420.00');
+    expect(final.totals.total).toBe('2420.00');
+    // IVA acumulado = 210 (anticipo) + 420 (final) = 630 = IVA sobre los 3000 del servicio. Sin doble IVA.
+    expect(round2(210 + Number(final.totals.taxAmount))).toBe(630);
+    // Trazabilidad: el registro referencia la factura de anticipo deducida.
+    const block = (final.payload as { anticiposDeducidos?: { numFactura: string }[] })
+      .anticiposDeducidos;
+    expect(block).toEqual([
+      { numFactura: 'FAC-2026-0001', baseDeducida: '1000.00', impuesto: 'IVA_STANDARD' },
+    ]);
+  });
+
+  it('ES: sin anticipos deducidos el bloque de trazabilidad no aparece', async () => {
+    const rec = await es.buildInvoiceRecord(baseInvoice());
+    expect((rec.payload as { anticiposDeducidos?: unknown }).anticiposDeducidos).toBeUndefined();
+  });
+
+  it('RD: el e-CF final incluye el bloque de anticipos deducidos', async () => {
+    const final = await dom.buildInvoiceRecord(
+      baseInvoice({
+        currency: 'DOP',
+        invoiceNumber: 'E310000000002',
+        seller: { name: 'Despacho', taxId: '101010101' },
+        buyer: { name: 'Cliente', taxId: '130000000' },
+        lines: [
+          {
+            description: 'Servicio completo',
+            quantity: '1',
+            unitPrice: '3000',
+            taxCode: 'ITBIS_STANDARD',
+          },
+          {
+            description: 'Deducción anticipo E310000000001',
+            quantity: '1',
+            unitPrice: '-1000',
+            taxCode: 'ITBIS_STANDARD',
+          },
+        ],
+        deductedAdvances: [
+          { invoiceNumber: 'E310000000001', base: '1000.00', taxCode: 'ITBIS_STANDARD' },
+        ],
+      }),
+    );
+    // Neto: base 2000, ITBIS 360, total 2360. ITBIS acumulado = 180 + 360 = 540 = 18% de 3000.
+    expect(final.totals.taxAmount).toBe('360.00');
+    const xml = String((final.payload as { ecfXml: string }).ecfXml);
+    expect(xml).toContain('<AnticiposDeducidos>');
+    expect(xml).toContain('<eNCFAnticipo>E310000000001</eNCFAnticipo>');
+    expect(xml).toContain('<MontoGravadoDeducido>1000.00</MontoGravadoDeducido>');
+  });
+});
+
 describe('previewInvoice — pre-cálculo read-only sin divergencia con la emisión real', () => {
   const es = new SpainComplianceProvider();
   const dom = new DominicanComplianceProvider();
