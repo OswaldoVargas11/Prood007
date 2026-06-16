@@ -3,7 +3,13 @@
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import { usePortalDocuments, usePortalLedger, usePortalMatter, usePortalTasks } from '@/lib/hooks';
+import {
+  usePortalDocuments,
+  usePortalLedger,
+  usePortalMatter,
+  usePortalRetainer,
+  usePortalTasks,
+} from '@/lib/hooks';
 import { docStatusVariant } from '@/lib/doc-status';
 import { taskStatusVariant } from '@/lib/task-status';
 import { BALANCE_SIGN, entryTypeVariant } from '@/lib/ledger';
@@ -60,6 +66,7 @@ export default function PortalMatterPage() {
         <TabsList className="w-full overflow-x-auto">
           <TabsTrigger value="documents">{t('tabs.documents')}</TabsTrigger>
           <TabsTrigger value="costs">{t('tabs.costs')}</TabsTrigger>
+          <TabsTrigger value="provision">{t('tabs.provision')}</TabsTrigger>
           <TabsTrigger value="tasks">{t('tabs.tasks')}</TabsTrigger>
           <TabsTrigger value="chat">{t('tabs.chat')}</TabsTrigger>
         </TabsList>
@@ -68,6 +75,9 @@ export default function PortalMatterPage() {
         </TabsContent>
         <TabsContent value="costs">
           <PortalLedger matterId={id} />
+        </TabsContent>
+        <TabsContent value="provision">
+          <PortalRetainer matterId={id} />
         </TabsContent>
         <TabsContent value="tasks">
           <PortalTasks matterId={id} />
@@ -152,6 +162,63 @@ function PortalLedger({ matterId }: { matterId: string }) {
                     >
                       {sign < 0 ? '−' : sign > 0 ? '+' : ''}
                       {formatMoney(e.amount, e.currency, locale)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/** Saldo de provisión de fondos del expediente (solo lectura para el cliente). */
+function PortalRetainer({ matterId }: { matterId: string }) {
+  const t = useTranslations('retainer');
+  const locale = useLocale();
+  const { data, isLoading } = usePortalRetainer(matterId);
+  if (isLoading) return <Skeleton className="h-40 w-full" />;
+  if (!data) return <Empty>{t('empty')}</Empty>;
+  return (
+    <div className="space-y-3">
+      <Card>
+        <CardContent className="flex items-center justify-between p-5">
+          <span className="text-sm text-muted-foreground">{t('balance')}</span>
+          <span className="text-2xl font-semibold tabular-nums text-[var(--success)]">
+            {formatMoney(data.balance, data.currency ?? 'EUR', locale)}
+          </span>
+        </CardContent>
+      </Card>
+      {data.entries.length === 0 ? (
+        <Empty>{t('empty')}</Empty>
+      ) : (
+        <Card className="overflow-hidden">
+          <table className="w-full text-sm">
+            <tbody>
+              {data.entries.map((e) => {
+                const negative = Number(e.amount) < 0;
+                return (
+                  <tr key={e.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-2">
+                      <Badge variant={e.type === 'DEPOSIT' ? 'success' : 'info'}>
+                        {t(`movement.${e.type}`)}
+                      </Badge>
+                      {e.kind && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {t(`kind.${e.kind}`)}
+                        </span>
+                      )}
+                    </td>
+                    <td
+                      className={cn(
+                        'px-4 py-2 text-right tabular-nums',
+                        negative ? 'text-[var(--danger)]' : 'text-[var(--success)]',
+                      )}
+                    >
+                      {negative ? '−' : '+'}
+                      {formatMoney(Math.abs(Number(e.amount)), data.currency ?? 'EUR', locale)}
                     </td>
                   </tr>
                 );

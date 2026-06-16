@@ -628,6 +628,14 @@ export function usePortalTasks(id: string) {
     enabled: Boolean(id),
   });
 }
+/** Saldo de provisión de fondos del expediente propio del cliente (solo lectura, `GET …/retainer`). */
+export function usePortalRetainer(id: string) {
+  return useQuery({
+    queryKey: ['portal', 'retainer', id],
+    queryFn: () => api.get<RetainerAccount>(`/portal/matters/${id}/retainer`),
+    enabled: Boolean(id),
+  });
+}
 export function usePortalInvoices() {
   return useQuery({
     queryKey: ['portal', 'invoices'],

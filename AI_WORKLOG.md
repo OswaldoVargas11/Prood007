@@ -1360,3 +1360,22 @@ local corriendo → prisma generate da EPERM; requiere autorización del owner p
 
 Sensibilidad / merge: migración + Verifactu/dinero → **PR-y-espera**. Bloqueante actual: autorización
 para parar el API local (PID 45832) y aplicar la migración + generate + e2e.
+
+### 2026-06-16 - Claude Opus 4.8 - Merge R3b+R3c, PR-R5 (UI) y PR-R5b (portal)
+
+- **Merges (autorizados por el owner):** R3b (#66) y R3c (#67) a main, CI verde real. Orden de PR apilada:
+  retarget R3c→main, merge R3b, rebase R3c sobre el nuevo main (sin conflictos), auto-merge en verde.
+- **PR-R5 (#68, UI, auto-merge en verde):** tab «Provisión» en la ficha de expediente (saldo +
+  movimientos; cobrar provisión SUPLIDO/GENERICO, cobrar anticipo→factura, aplicar a factura) + saldo
+  agregado en la ficha de cliente. Hooks + tipos + i18n es-ES/es-DO. Sin tocar backend. typecheck +
+  eslint + vitest 20/20.
+- **PR-R5b (portal, PR-y-espera):** `GET /portal/matters/:id/retainer` (read-only, `assertMatterAccess`
+  - reutiliza `RetainerService.getMatterAccount`; PortalModule importa RetainerModule) + tab «Provisión»
+    solo lectura en el portal del cliente. e2e portal-retainer 3/3 (saldo propio, aislamiento cross-cliente
+    403, role-gating staff 403) + portal regresión verde. typecheck API+web + eslint limpios. Sin migración.
+
+Operativo: el API local que bloqueaba prisma generate era `node dist/main.js` (PID 48120), no el web
+(`next start`, PID 45832). Parado/reiniciado para R3c; ahora en :4000 (`/api/health` 200).
+
+Siguiente sugerido: R5c (UI de cierre con deducción + devolución) o el ítem recurrente/planes de pago
+(el más compliance-pesado; proponer opciones de cobro recurrente antes de implementar).

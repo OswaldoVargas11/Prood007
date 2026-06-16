@@ -378,8 +378,13 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
   `InformacionReferencia`. Guards: no-anticipo / doble refund / ya deducido. **Interacción R3b:** la
   deducción de la final ya excluye anticipos devueltos. Diferencias/parcial → extensión futura. e2e
   retainer-refund 7/7. **Retargetear a main al fusionar R3b** (gotcha PR apilado + squash).
-- [ ] **PR-R5 — UI** (auto-mergeable): saldo + movimientos en la ficha de cliente, "cobrar provisión"
-      y "aplicar a factura"; portal: el cliente ve su saldo (lectura). Estados/i18n/AA.
+- [x] **PR-R5 — UI** (auto-mergeable, #68): tab «Provisión» en la ficha de expediente (saldo +
+      movimientos; cobrar provisión SUPLIDO/GENERICO, cobrar anticipo→factura, aplicar a factura) +
+      saldo agregado en la ficha de cliente. Estados cargando/vacío/error, dark+light, i18n es-ES/es-DO.
+      UI/lectura, sin tocar backend.
+- [~] **PR-R5b — Portal: ver saldo** (PR-y-espera, backend read-only): `GET /portal/matters/:id/retainer`
+  (acotado al expediente propio vía `assertMatterAccess`, reutiliza `RetainerService.getMatterAccount`) + tab «Provisión» (solo lectura) en el portal del cliente. e2e portal-retainer 3/3 (saldo propio,
+  aislamiento cross-cliente 403, role-gating staff 403). Columnas no nuevas → sin migración.
 - [ ] **PR-R4 — Cobro de provisión online (Stripe, sin factura)** (PR-y-espera, DIFERIDO): `invoiceId`
       nullable + checkout sin factura + webhook que acredita el retainer. Pieza más sensible; PR aparte.
 

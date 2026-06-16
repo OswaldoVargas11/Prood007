@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
+import { RetainerService } from '../retainer/retainer.service';
 import { PaymentsService } from '../payments/payments.service';
 import { assertMatterAccess } from '../messages/matter-access';
 import { apiError } from '../common/api-messages';
@@ -18,6 +19,7 @@ export class PortalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledger: LedgerService,
+    private readonly retainer: RetainerService,
     private readonly payments: PaymentsService,
   ) {}
 
@@ -68,6 +70,16 @@ export class PortalService {
       ...ledger,
       entries: ledger.entries.filter((e) => e.approvalStatus === 'APPROVED'),
     };
+  }
+
+  /**
+   * Saldo de provisión de fondos del expediente (solo lectura), acotado al expediente propio del
+   * cliente vía `assertMatterAccess`. Reutiliza `RetainerService.getMatterAccount` (misma fuente que el
+   * despacho): saldo + movimientos. El cliente ve sus propios fondos; no puede operar (sin acciones).
+   */
+  async retainerView(user: RequestUser, matterId: string) {
+    await assertMatterAccess(this.prisma, user, matterId);
+    return this.retainer.getMatterAccount(user, matterId);
   }
 
   async listTasks(user: RequestUser, matterId: string) {

@@ -1,6 +1,6 @@
 # 07 · Referencia de la API (mapa de responsabilidades)
 
-> **Los 71 endpoints**, ninguno fuera. Prefijo global `api`. Cadena de guards global:
+> **Los 72 endpoints**, ninguno fuera. Prefijo global `api`. Cadena de guards global:
 > `ThrottlerGuard → JwtAuthGuard (@Public exime) → RolesGuard`. El **rol efectivo** combina el
 > `@Roles` de clase con el de método (el más restrictivo gana). RLS aísla por tenant aunque el rol
 > pase. Derivado de `apps/api/src/**/*.controller.ts`.
@@ -29,14 +29,14 @@ flowchart LR
         n1["notifications · 2"]
         da1["dashboard · 1"]
         h1["health · 1"]
-        p1["portal · 8"]
+        p1["portal · 9"]
     end
     auth_d --> core_d --> fin_d
     cross_d -.-> core_d
     p1 -. "solo CLIENT · vista de su propio expediente" .-> core_d
 ```
 
-## Tabla exhaustiva (71 / 71)
+## Tabla exhaustiva (72 / 72)
 
 Rol = el más restrictivo aplicable. "auth" = autenticado sin `@Roles` (cualquier rol; el servicio +
 RLS acotan el acceso). "público" = `@Public`.
@@ -187,7 +187,7 @@ anticipo (R3b); el refund de un anticipo emite rectificativa (R3c).
 | GET    | `/api/notifications`          | auth (destinatario) |
 | PATCH  | `/api/notifications/:id/read` | auth (destinatario) |
 
-### `portal` — `/api/portal` (8) · clase: **CLIENT**
+### `portal` — `/api/portal` (9) · clase: **CLIENT**
 
 | Método | Ruta                                | Rol    |
 | ------ | ----------------------------------- | ------ |
@@ -197,6 +197,7 @@ anticipo (R3b); el refund de un anticipo emite rectificativa (R3c).
 | GET    | `/api/portal/matters/:id/documents` | CLIENT |
 | GET    | `/api/portal/matters/:id/ledger`    | CLIENT |
 | GET    | `/api/portal/matters/:id/tasks`     | CLIENT |
+| GET    | `/api/portal/matters/:id/retainer`  | CLIENT |
 | GET    | `/api/portal/invoices`              | CLIENT |
 | GET    | `/api/portal/invoices/:id/pdf`      | CLIENT |
 
