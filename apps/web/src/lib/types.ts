@@ -240,6 +240,33 @@ export interface InvoiceListItem {
   matter: { id: string; reference: string } | null;
 }
 
+// ── Dunning (recordatorios de cobro) ─────────────────────────────────────────
+export type DunningSeverity = 'REMINDER' | 'WARNING' | 'FINAL';
+export type DunningReminderStatus = 'SCHEDULED' | 'SENT' | 'SKIPPED' | 'FAILED';
+export type DunningChannel = 'IN_APP' | 'EMAIL' | 'SMS';
+
+/** Recordatorio de cobro generado para una factura en una etapa del calendario de dunning. */
+export interface DunningReminder {
+  id: string;
+  invoiceId: string;
+  offsetDays: number;
+  severity: DunningSeverity;
+  channel: DunningChannel;
+  status: DunningReminderStatus;
+  scheduledFor: string;
+  sentAt: string | null;
+  createdAt: string;
+}
+
+/** Resumen de una corrida de "recordar ahora" (`POST /dunning/run`). */
+export interface DunningRunSummary {
+  evaluated: number;
+  created: number;
+  delivered: number;
+  skipped: number;
+  failed: number;
+}
+
 /** Totales fiscales neutrales (base/impuestos/retención/total) que devuelve el cálculo del provider. */
 export interface InvoiceTotals {
   taxableBase: string;

@@ -7,6 +7,7 @@ import { CheckCircle2, Download, Loader2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link } from '@/i18n/navigation';
 import { downloadInvoicePdf, useInvoice, usePayInvoice } from '@/lib/hooks';
+import { DunningTimeline } from '@/components/lexora/dunning';
 import { invoiceStatusVariant } from '@/lib/ledger';
 import { formatMoney, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
@@ -200,6 +201,9 @@ export default function InvoiceDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Línea de tiempo de recordatorios de cobro (dunning). No aplica a borradores. */}
+      {inv.status !== 'DRAFT' && <DunningTimeline invoiceId={inv.id} />}
 
       <Link
         href="/dashboard"

@@ -357,6 +357,33 @@
       "paid": "Pagadas"
     }
   },
+  "dunning": {
+    "remindOverdue": "Recordar vencidas",
+    "reminding": "Recordando…",
+    "runResult": "{delivered, plural, =0 {Sin recordatorios nuevos} one {# recordatorio enviado} other {# recordatorios enviados}} · {evaluated, plural, =0 {0 vencidas} one {# vencida} other {# vencidas}}",
+    "runError": "No se pudieron enviar los recordatorios.",
+    "timelineTitle": "Recordatorios de cobro",
+    "timelineEmpty": "Aún no se ha enviado ningún recordatorio para esta factura.",
+    "timelineHint": "Se envían automáticamente a los días del vencimiento; también puedes lanzarlos con «Recordar vencidas».",
+    "loadError": "No se pudieron cargar los recordatorios.",
+    "offsetDays": "{n, plural, one {+# día tras el vencimiento} other {+# días tras el vencimiento}}",
+    "severity": {
+      "REMINDER": "Recordatorio",
+      "WARNING": "Aviso",
+      "FINAL": "Aviso final"
+    },
+    "status": {
+      "SCHEDULED": "Programado",
+      "SENT": "Enviado",
+      "SKIPPED": "Omitido",
+      "FAILED": "Fallido"
+    },
+    "channel": {
+      "IN_APP": "En la app",
+      "EMAIL": "Email",
+      "SMS": "SMS"
+    }
+  },
   "messagesOverview": {
     "title": "Mensajes",
     "subtitle": "Conversaciones del despacho, una por expediente.",

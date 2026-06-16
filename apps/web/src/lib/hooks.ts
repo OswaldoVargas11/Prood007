@@ -12,6 +12,8 @@ import type {
   CostApproval,
   DashboardSummary,
   DeadlineResult,
+  DunningReminder,
+  DunningRunSummary,
   DocumentDetail,
   DocumentReviewStatus,
   FirmSettings,
@@ -415,6 +417,29 @@ export function usePayInvoice(id: string) {
     onSuccess: (data) => {
       qc.setQueryData(['invoice', id], data);
       void qc.invalidateQueries({ queryKey: ['ledger'] });
+    },
+  });
+}
+
+// ── Dunning (recordatorios de cobro, D4) ─────────────────────────────────────
+/** Recordatorios de cobro del despacho (línea de tiempo); opcionalmente de una factura. */
+export function useDunningReminders(invoiceId?: string) {
+  return useQuery({
+    queryKey: ['dunning-reminders', invoiceId ?? null],
+    queryFn: () =>
+      api.get<DunningReminder[]>(`/dunning/reminders${invoiceId ? `?invoiceId=${invoiceId}` : ''}`),
+    enabled: invoiceId === undefined || Boolean(invoiceId),
+  });
+}
+
+/** "Recordar ahora": persigue las vencidas del despacho y dispara los recordatorios debidos. */
+export function useDunningRun() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<DunningRunSummary>('/dunning/run'),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['dunning-reminders'] });
+      void qc.invalidateQueries({ queryKey: ['invoices'] });
     },
   });
 }
