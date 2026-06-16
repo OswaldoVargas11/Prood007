@@ -1277,3 +1277,28 @@ eslint limpios.
 
 Sensibilidad / merge: emisión fiscal + dinero → **PR-y-espera**. No toca migración. Siguiente: PR-R3
 (aplicar provisión a factura final, deduciendo el anticipo) + R5 (UI). R4 (Stripe) diferido.
+
+## 2026-06-16 — Claude — Ítem 2 (Retainer) PR-R3a: aplicar saldo + ADR D-027 (deducción/rectificativa)
+
+Al diseñar R3 surgió un riesgo de **doble IVA**: aplicar saldo de un ANTICIPO ya facturado a la factura
+final, sin deducir el anticipo, cobra el IVA dos veces. El owner decidió SPLIT: R3a (mecánica) ahora;
+R3b (deducción) + R3c (rectificativa) = emisión fiscal → ADR D-027 a ratificar antes de codificar.
+
+Hecho (R3a):
+
+- Dominio: `PaymentMethod.RETAINER` (Payment.method es String → sin migración).
+- `RetainerService.applyToInvoice` (`POST /retainer/apply`): en UNA tx crea `Payment` RETAINER + actualiza
+  factura (amountPaid, PARTIAL/PAID) + apunte PAYMENT (espejo de `reconcile`) + `RetainerEntry
+APPLICATION(−)` con `postMovement` (FOR UPDATE). Valida factura del mismo expediente, cobrable, importe
+  ≤ pendiente y ≤ saldo. **Bloqueo por construcción**: si el expediente tiene algún DEPOSIT ANTICIPO →
+  `retainer.anticipoApplyBlocked` (400) hasta R3b. i18n es-ES/es-DO.
+- D-027 redactada como **PROPUESTA pendiente de ratificación**: problema del doble IVA, opciones de
+  deducción (factura por remanente vs línea negativa), rectificativa de REFUND, todo vía
+  `ComplianceProvider`. R3b/R3c **no se implementan** hasta ratificar.
+
+Pruebas (LOCAL): e2e **retainer-apply 6/6** (parcial→PAID, saldo insuficiente, **bloqueo ANTICIPO**,
+factura ajena, role-gating, invariante `balance == Σ(entries)`) + ledger 15/15 (sin regresión) +
+retainer 8/8 + retainer-anticipo 4/4 + retainer-rls 5/5. typecheck + eslint limpios.
+
+Sensibilidad / merge: dinero (cobro contra saldo) → **PR-y-espera**. No toca migración. Siguiente: tras
+fusionar R3a, **R5 (UI)** de lo ya hecho; R3b/R3c esperan la ratificación de D-027.

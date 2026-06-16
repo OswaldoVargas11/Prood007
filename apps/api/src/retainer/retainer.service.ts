@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import {
   Jurisdiction,
@@ -17,6 +17,7 @@ import { LedgerService } from '../ledger/ledger.service';
 import { apiError } from '../common/api-messages';
 import { RecordDepositDto } from './dto/record-deposit.dto';
 import { RecordAnticipoDto } from './dto/record-anticipo.dto';
+import { ApplyRetainerDto } from './dto/apply-retainer.dto';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Tolerancia de redondeo al comparar saldos (céntimos). */
@@ -245,6 +246,122 @@ export class RetainerService {
         currency: a.currency,
         balance: a.balance.toFixed(2),
       })),
+    };
+  }
+
+  /**
+   * Aplica saldo de provisión al cobro de una factura del MISMO expediente: crea un `Payment` método
+   * RETAINER (mueve `amountPaid`, PARTIAL/PAID, apunte PAYMENT — espejo de `reconcile`) y baja el saldo
+   * con `RetainerEntry APPLICATION(−)`, todo en una transacción.
+   *
+   * BLOQUEO POR CONSTRUCCIÓN (D-026): si el expediente tiene fondos de ANTICIPO (ya facturados con IVA),
+   * aplicarlos a una factura requiere la DEDUCCIÓN fiscal del anticipo (R3b, pendiente de ratificación)
+   * para no cobrar el IVA dos veces → se rechaza. Solo se aplican fondos SUPLIDO/GENERICO por ahora.
+   */
+  async applyToInvoice(user: RequestUser, dto: ApplyRetainerDto) {
+    await this.getMatterOrThrow(user, dto.matterId);
+    const account = await this.prisma.retainerAccount.findFirst({
+      where: { matterId: dto.matterId, tenantId: user.tenantId },
+    });
+    if (!account || Number(account.balance) <= 0) {
+      throw new BadRequestException(apiError('retainer.insufficientBalance'));
+    }
+    const anticipoCount = await this.prisma.retainerEntry.count({
+      where: { tenantId: user.tenantId, accountId: account.id, kind: ProvisionKind.ANTICIPO },
+    });
+    if (anticipoCount > 0) {
+      throw new BadRequestException(apiError('retainer.anticipoApplyBlocked'));
+    }
+
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: dto.invoiceId, tenantId: user.tenantId },
+      select: {
+        id: true,
+        matterId: true,
+        number: true,
+        currency: true,
+        status: true,
+        total: true,
+        amountPaid: true,
+      },
+    });
+    if (!invoice) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
+    if (invoice.matterId !== dto.matterId) {
+      throw new BadRequestException(apiError('retainer.invoiceNotInMatter'));
+    }
+    if (invoice.status === InvoiceStatus.CANCELLED) {
+      throw new BadRequestException(apiError('payments.invoiceNotPayable'));
+    }
+    const outstanding = round2(Number(invoice.total) - Number(invoice.amountPaid));
+    if (outstanding <= 0) throw new BadRequestException(apiError('payments.alreadyPaid'));
+
+    const balance = Number(account.balance);
+    const amount =
+      dto.amount != null ? round2(Number(dto.amount)) : round2(Math.min(outstanding, balance));
+    if (!(amount > 0)) throw new BadRequestException(apiError('payments.amountPositive'));
+    if (amount > outstanding + EPSILON) {
+      throw new BadRequestException(apiError('payments.amountExceedsOutstanding'));
+    }
+    if (amount > balance + EPSILON) {
+      throw new BadRequestException(apiError('retainer.insufficientBalance'));
+    }
+
+    const now = new Date();
+    const out = await tenantTransaction(this.prisma, async (tx) => {
+      // Cobro de la factura con cargo al retainer (espejo de reconcile).
+      const payment = await tx.payment.create({
+        data: {
+          tenantId: user.tenantId,
+          invoiceId: invoice.id,
+          amount: amount.toFixed(2),
+          currency: invoice.currency,
+          status: PaymentStatus.SUCCEEDED,
+          method: PaymentMethod.RETAINER,
+          note: 'Aplicación de provisión',
+          paidAt: now,
+        },
+      });
+      const newPaid = round2(Number(invoice.amountPaid) + amount);
+      const fullyPaid = newPaid + EPSILON >= Number(invoice.total);
+      await tx.invoice.updateMany({
+        where: { id: invoice.id, tenantId: user.tenantId },
+        data: {
+          amountPaid: newPaid.toFixed(2),
+          status: fullyPaid ? InvoiceStatus.PAID : InvoiceStatus.PARTIAL,
+          paidAt: fullyPaid ? now : null,
+        },
+      });
+      await tx.ledgerEntry.create({
+        data: {
+          tenantId: user.tenantId,
+          matterId: invoice.matterId,
+          type: LedgerEntryType.PAYMENT,
+          description: `Cobro factura ${invoice.number} (provisión)`,
+          amount: amount.toFixed(2),
+          currency: invoice.currency,
+          invoiceId: invoice.id,
+        },
+      });
+      // Baja el saldo del retainer (APPLICATION −), ligada a la factura y al cobro.
+      const mv = await this.postMovement(tx, user.tenantId, account.id, {
+        type: RetainerMovementType.APPLICATION,
+        amount: (-amount).toFixed(2),
+        invoiceId: invoice.id,
+        paymentId: payment.id,
+      });
+      return { applied: amount.toFixed(2), balance: mv.balance, fullyPaid };
+    });
+
+    await this.audit.log(user, 'retainer.applied', 'Invoice', invoice.id, {
+      matterId: dto.matterId,
+      invoiceId: invoice.id,
+      amount: out.applied,
+    });
+    return {
+      invoiceId: invoice.id,
+      applied: out.applied,
+      invoiceStatus: out.fullyPaid ? 'PAID' : 'PARTIAL',
+      balance: out.balance,
     };
   }
 

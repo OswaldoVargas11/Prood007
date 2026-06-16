@@ -3,6 +3,7 @@ import { Role } from '@legalflow/domain';
 import { RetainerService } from './retainer.service';
 import { RecordDepositDto } from './dto/record-deposit.dto';
 import { RecordAnticipoDto } from './dto/record-anticipo.dto';
+import { ApplyRetainerDto } from './dto/apply-retainer.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -27,6 +28,12 @@ export class RetainerController {
   @Post('anticipo')
   anticipo(@CurrentUser() user: RequestUser, @Body() dto: RecordAnticipoDto) {
     return this.retainer.depositAnticipo(user, dto);
+  }
+
+  /** Aplica saldo de provisión (SUPLIDO/GENERICO) al cobro de una factura del expediente. */
+  @Post('apply')
+  apply(@CurrentUser() user: RequestUser, @Body() dto: ApplyRetainerDto) {
+    return this.retainer.applyToInvoice(user, dto);
   }
 
   /** Saldo + movimientos de la provisión de un expediente. */

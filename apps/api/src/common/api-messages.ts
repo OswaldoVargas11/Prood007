@@ -229,6 +229,16 @@ export const API_MESSAGES = {
     'es-ES': 'Saldo de provisión insuficiente para esta operación.',
     'es-DO': 'Saldo de provisión insuficiente para esta operación.',
   },
+  'retainer.anticipoApplyBlocked': {
+    'es-ES':
+      'Este expediente tiene provisión de anticipo (ya facturada); aplicarla a una factura requiere la deducción fiscal del anticipo (PR-R3b), aún no disponible.',
+    'es-DO':
+      'Este expediente tiene provisión de anticipo (ya facturada); aplicarla a una factura requiere la deducción fiscal del anticipo (PR-R3b), aún no disponible.',
+  },
+  'retainer.invoiceNotInMatter': {
+    'es-ES': 'La factura no pertenece al expediente de esta provisión.',
+    'es-DO': 'La factura no pertenece al expediente de esta provisión.',
+  },
 
   // ── Tareas ────────────────────────────────────────────────────────────────
   'tasks.assigneeNotInFirm': {

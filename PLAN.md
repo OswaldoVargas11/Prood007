@@ -342,16 +342,23 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
   guard de moneda = tenant; `GET /retainer/matter/:id` (saldo+movimientos) y `/retainer/client/:id`
   (agregado derivado). Migración `20260616140000_provision_kind` (enum `ProvisionKind` + `kind`). e2e
   retainer 8/8 (incl. **concurrencia: 10 depósitos sin perder updates** + invariante `balance ==
-  Σ(entries)`) + retainer-rls 5/5. **Verificado local; espera CI + OK del owner.**
+Σ(entries)`) + retainer-rls 5/5. **Verificado local; espera CI + OK del owner.**
 - [~] **PR-R2b — Emisión de factura de anticipo** (PR-y-espera, Verifactu-crítico): `POST
-    /retainer/anticipo` (amount = base) → emite factura de anticipo vía `buildInvoiceRecord` (ES IVA
+  /retainer/anticipo` (amount = base) → emite factura de anticipo vía `buildInvoiceRecord` (ES IVA
   21% + IRPF; RD ITBIS 18% + e-CF; jurisdicción por `ComplianceProvider`), factura **PAID** + Payment + apuntes ledger, y acredita el retainer por el **total**. **Atómico**: serie (count dentro de la
   tx) + registro fiscal + ledger + `RetainerEntry DEPOSIT(ANTICIPO)` + saldo en UNA transacción.
   Reutiliza el núcleo extraído `LedgerService.emitInvoiceInTx` (sin duplicar; ledger e2e 15/15 intacto)
   y el motor `postMovement` de R2. e2e retainer-anticipo 4/4. **Verificado local; espera CI + OK.**
-- [ ] **PR-R3 — Aplicar provisión a factura** (PR-y-espera): `POST /retainer/apply` crea un `Payment`
-      (método `RETAINER`) por la vía `reconcile` (mueve `amountPaid`, PARTIAL/PAID, apunte PAYMENT) +
-      `RetainerEntry APPLICATION (−)` que baja el saldo, en una transacción. Valida saldo y moneda.
+- [~] **PR-R3a — Aplicar provisión a factura (mecánica)** (PR-y-espera): `POST /retainer/apply` crea un
+  `Payment` método `RETAINER` (mueve `amountPaid`, PARTIAL/PAID, apunte PAYMENT — espejo de
+  `reconcile`) + `RetainerEntry APPLICATION(−)` con `postMovement` (FOR UPDATE), en una tx. **Bloqueo
+  por construcción**: si el expediente tiene fondos de ANTICIPO → 400 (evita doble IVA hasta R3b).
+  `PaymentMethod.RETAINER` (sin migración). e2e retainer-apply 6/6. **Verificado local; espera CI + OK.**
+- [ ] **PR-R3b — Deducción del anticipo en la factura final** (PR-y-espera, Verifactu-crítico; **gate:
+      ratificar D-027**): la factura final deduce la base ya anticipada (sin doble IVA). No codificar
+      hasta ratificación del asesor.
+- [ ] **PR-R3c — REFUND → factura rectificativa** (PR-y-espera, Verifactu-crítico; **gate: D-027**):
+      devolver un anticipo ya facturado emite rectificativa + `RetainerEntry REFUND(−)`, atómico.
 - [ ] **PR-R5 — UI** (auto-mergeable): saldo + movimientos en la ficha de cliente, "cobrar provisión"
       y "aplicar a factura"; portal: el cliente ve su saldo (lectura). Estados/i18n/AA.
 - [ ] **PR-R4 — Cobro de provisión online (Stripe, sin factura)** (PR-y-espera, DIFERIDO): `invoiceId`

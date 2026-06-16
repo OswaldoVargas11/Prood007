@@ -114,6 +114,8 @@ export enum PaymentStatus {
 export enum PaymentMethod {
   MANUAL = 'MANUAL',
   STRIPE = 'STRIPE',
+  /** Cobro de una factura aplicando saldo de provisión de fondos (retainer). Ver D-026. */
+  RETAINER = 'RETAINER',
 }
 
 /**
