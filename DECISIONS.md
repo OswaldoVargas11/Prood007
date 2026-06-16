@@ -527,4 +527,15 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
   5. **Endpoint manual role-gated + tenant-scoped** — `POST /dunning/run` y `GET /dunning/reminders`
      bajo `@Roles(FIRM_ADMIN, LAWYER)`; CLIENT → 403, sin token → 401; RLS acota por tenant.
      Verificado local: e2e dunning 7/7 (incl. idempotencia, audit, 403/401, aislamiento) + RLS 7/7.
-     Pendiente: verde en CI + OK del owner para fusionar.
+     **Fusionado a main (#57).**
+- **PR-D3 (cron) — decisiones de implementación:**
+  1. **`@nestjs/schedule` + `ScheduleModule.forRoot()`** (dependencia nueva) con `DunningCron` diario
+     (6:00). El cron solo orquesta; la lógica vive en `DunningService` de D2 (sin duplicar).
+  2. **Barrido sin contexto de request, seguro frente a RLS** — el cron lista los tenants con el
+     cliente de SISTEMA (BYPASSRLS; la tabla `Tenant` también tiene RLS) y evalúa cada uno dentro de
+     `runWithTenant(tenantId)`, de modo que Prisma fija `app.tenant_id` y las queries del motor quedan
+     acotadas por RLS a ese tenant (sin fugas cross-tenant). Mismo patrón que el cierre del fail-open de
+     WebSocket (D-013).
+  3. **Aislamiento de fallos** — un error en un tenant se registra y NO detiene el barrido del resto.
+     Verificado local: e2e cron 2/2 (barrido multi-tenant bajo RLS + idempotencia). Pendiente: verde en
+     CI + OK del owner para fusionar.

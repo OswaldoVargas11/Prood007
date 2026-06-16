@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { TenantContextInterceptor } from './prisma/tenant-context.interceptor';
 import { ComplianceModule } from './compliance/compliance.module';
@@ -29,6 +30,8 @@ import { HealthController } from './health.controller';
     ConfigModule.forRoot({ isGlobal: true }),
     // Rate limiting global (in-memory; para multi-instancia usar almacenamiento Redis).
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
+    // Tareas programadas (cron). Descubre los @Cron de los providers (p. ej. el dunning diario).
+    ScheduleModule.forRoot(),
     PrismaModule,
     ComplianceModule,
     AuditModule,

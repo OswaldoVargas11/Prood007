@@ -305,8 +305,10 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
   ("recordar ahora") + `GET /dunning/reminders`. Email/SMS solo como interface (Fase 2). Helpers de
   vencimiento extraídos a `ledger/overdue.util.ts` (fuente única, sin duplicar). e2e 7/7 + RLS 7/7
   local. **Espera CI verde + OK del owner.**
-- [ ] **PR-D3 — Scheduler (cron diario)** (PR-y-espera): `@nestjs/schedule` + cron multi-tenant sobre
-      el `DunningService` de D2.
+- [~] **PR-D3 — Scheduler (cron diario)** (PR-y-espera): `@nestjs/schedule` (`ScheduleModule.forRoot()`) + `DunningCron` diario (6:00) que **barre todos los tenants** reutilizando `DunningService.evaluateTenant`
+  (actor=sistema). Sin contexto de request: lista tenants con el rol de SISTEMA y evalúa cada uno bajo
+  `runWithTenant` (acotado por RLS). e2e cron 2/2 (barrido multi-tenant bajo RLS + idempotencia).
+  **Espera CI verde + OK del owner.**
 - [ ] **PR-D4 — UI despacho** (auto-mergeable): surfacing de vencidas a recordar + "recordar ahora" +
       timeline de dunning en el detalle de factura. Estados cargando/vacío/error, dark+light, AA, i18n.
 - [ ] **PR-D5 — UI portal cliente** (auto-mergeable): banner de recordatorio en factura vencida con
