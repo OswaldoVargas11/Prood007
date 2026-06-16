@@ -165,11 +165,12 @@ describe('Facturación programada · emisión recurrente (e2e)', () => {
     expect(again.body.emitted).toHaveLength(0);
   });
 
-  it('guard: un plan de pago (INSTALLMENTS) no se emite por esta vía todavía (400)', async () => {
+  it('guard: un plan de pago por ANTICIPOS (ADVANCE) no se emite por esta vía (va al cobro, RP4b) (400)', async () => {
+    // SERVICE_RENDERED ya se emite (RP4a); el que sigue guardado es ADVANCE (devengo al cobro, RP4b).
     const sch = await create(adminToken, {
       matterId,
       type: 'INSTALLMENTS',
-      fiscalMode: 'SERVICE_RENDERED',
+      fiscalMode: 'ADVANCE',
       intervalUnit: 'MONTHLY',
       installmentCount: 3,
       startDate: '2026-01-01',

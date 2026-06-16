@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, type Currency } from '@prisma/client';
 import {
   BillingFiscalMode,
   BillingInterval,
@@ -23,6 +23,14 @@ interface ScheduleLine {
   quantity: string;
   unitPrice: string;
   taxCode: string;
+}
+
+/** Datos del expediente que `LedgerService.emitInvoiceInTx` necesita para emitir. */
+interface EmitMatterArg {
+  id: string;
+  clientId: string;
+  tenant: { name: string; taxId: string; currency: Currency };
+  client: { name: string; taxId: string };
 }
 
 /**
@@ -194,12 +202,15 @@ export class BillingService {
       where: { id: scheduleId, tenantId: user.tenantId },
     });
     if (!schedule) throw new NotFoundException(apiError('billing.scheduleNotFound'));
-    if (schedule.type !== BillingScheduleType.RECURRING) {
-      // La emisión de planes de pago (INSTALLMENTS) llega en RP4.
-      throw new BadRequestException(apiError('billing.installmentsRunNotYet'));
-    }
     if (schedule.status !== BillingScheduleStatus.ACTIVE) {
       throw new BadRequestException(apiError('billing.scheduleNotActive'));
+    }
+    // (b) ADVANCE: la emisión de cada anticipo va ligada a su COBRO (devengo al cobro) → RP4b.
+    if (
+      schedule.type === BillingScheduleType.INSTALLMENTS &&
+      schedule.fiscalMode === BillingFiscalMode.ADVANCE
+    ) {
+      throw new BadRequestException(apiError('billing.advanceRunNotYet'));
     }
 
     const matter = await this.getMatterForEmission(user.tenantId, schedule.matterId);
@@ -224,11 +235,51 @@ export class BillingService {
       client: { name: matter.client.name, taxId: matter.client.taxId as string },
     };
 
+    const result =
+      schedule.type === BillingScheduleType.RECURRING
+        ? await this.emitRecurringDue(user, schedule, matterArg, lines, withholdingTaxCode)
+        : await this.emitInstallmentsServiceRendered(
+            user,
+            schedule,
+            matterArg,
+            lines,
+            withholdingTaxCode,
+          );
+
+    if (result.emitted.length > 0) {
+      await this.audit.log(user, 'billing.emitted', 'BillingSchedule', schedule.id, {
+        matterId: schedule.matterId,
+        emitted: result.emitted.length,
+        invoices: result.emitted.map((e) => e.number),
+      });
+    }
+    return { scheduleId: schedule.id, ...result };
+  }
+
+  /**
+   * RECURRING: emite 1 factura por periodo VENCIDO (`dueDate ≤ ahora`), atómico por periodo; en planes
+   * abiertos hace catch-up + rolling de la siguiente cuota; avanza `nextRunAt` y cierra (COMPLETED) el
+   * acotado agotado.
+   */
+  private async emitRecurringDue(
+    user: RequestUser,
+    schedule: {
+      id: string;
+      startDate: Date;
+      intervalUnit: string | null;
+      intervalCount: number;
+      occurrences: number | null;
+      status: string;
+    },
+    matterArg: EmitMatterArg,
+    lines: ScheduleLine[],
+    withholdingTaxCode: string | undefined,
+  ) {
     const now = new Date();
     const emitted: { invoiceId: string; number: string; sequence: number }[] = [];
 
     // Bucle: emite cada periodo vencido en su propia transacción (atómico por factura).
-    // Cota de seguridad: el nº de cuotas vivas del plan (evita un bucle infinito por datos corruptos).
+    // Cota de seguridad (evita un bucle infinito por datos corruptos).
     for (let guard = 0; guard < 1000; guard++) {
       const next = await this.prisma.billingInstallment.findFirst({
         where: {
@@ -291,7 +342,6 @@ export class BillingService {
       emitted.push({ invoiceId: out.id, number: out.number, sequence: next.sequence });
     }
 
-    // Recalcula nextRunAt (próxima cuota SCHEDULED) o cierra el plan acotado agotado.
     const upcoming = await this.prisma.billingInstallment.findFirst({
       where: {
         tenantId: user.tenantId,
@@ -306,18 +356,73 @@ export class BillingService {
       where: { id: schedule.id, tenantId: user.tenantId },
       data: {
         nextRunAt: upcoming?.dueDate ?? null,
-        status: completed ? BillingScheduleStatus.COMPLETED : schedule.status,
+        status: completed ? BillingScheduleStatus.COMPLETED : BillingScheduleStatus.ACTIVE,
       },
     });
+    return { emitted, completed };
+  }
 
-    if (emitted.length > 0) {
-      await this.audit.log(user, 'billing.emitted', 'BillingSchedule', schedule.id, {
-        matterId: schedule.matterId,
-        emitted: emitted.length,
-        invoices: emitted.map((e) => e.number),
-      });
+  /**
+   * INSTALLMENTS · SERVICE_RENDERED (D-027 (a)): el servicio ya se prestó → se emite UNA factura por el
+   * importe completo (IVA/ITBIS íntegro al emitir, LIVA art. 75) y las cuotas pasan a ser un CALENDARIO DE
+   * COBRO (cada una se cobra después por Checkout/manual como `Payment` parcial; no son facturas nuevas).
+   * Idempotente: si ya se emitió la factura, no la duplica. No hay más emisiones → `nextRunAt = null`.
+   */
+  private async emitInstallmentsServiceRendered(
+    user: RequestUser,
+    schedule: { id: string },
+    matterArg: EmitMatterArg,
+    lines: ScheduleLine[],
+    withholdingTaxCode: string | undefined,
+  ) {
+    const existing = await this.prisma.billingInstallment.findFirst({
+      where: { tenantId: user.tenantId, scheduleId: schedule.id, invoiceId: { not: null } },
+      select: { invoiceId: true },
+    });
+    if (existing) {
+      // Ya emitida: nada que hacer (la factura del servicio es única).
+      return {
+        emitted: [] as { invoiceId: string; number: string; sequence: number }[],
+        completed: false,
+      };
     }
-    return { scheduleId: schedule.id, emitted, completed };
+
+    const now = new Date();
+    const issueDate = now.toISOString().slice(0, 10);
+    // La factura del servicio vence cuando vence la ÚLTIMA cuota (plazo final del fraccionamiento).
+    const lastDue = await this.prisma.billingInstallment.findFirst({
+      where: { tenantId: user.tenantId, scheduleId: schedule.id },
+      orderBy: { dueDate: 'desc' },
+      select: { dueDate: true },
+    });
+    const dueDate = lastDue?.dueDate ?? addDaysUtc(new Date(issueDate), DEFAULT_PAYMENT_TERM_DAYS);
+
+    const out = await tenantTransaction(this.prisma, async (tx) => {
+      const { invoice } = await this.ledger.emitInvoiceInTx(tx, user, {
+        matter: matterArg,
+        lines,
+        withholdingTaxCode,
+        issueDate,
+        dueDate,
+      });
+      // Todas las cuotas (calendario de cobro) quedan ligadas a la factura única; siguen SCHEDULED
+      // (pendientes de cobro). El cobro parcial por cuota va por el flujo de Payment (Checkout/manual).
+      await tx.billingInstallment.updateMany({
+        where: { tenantId: user.tenantId, scheduleId: schedule.id },
+        data: { invoiceId: invoice.id, emittedAt: now },
+      });
+      return invoice;
+    });
+
+    // Emitida la factura única, ya no hay más emisiones (el cobro es manual/Checkout).
+    await this.prisma.billingSchedule.updateMany({
+      where: { id: schedule.id, tenantId: user.tenantId },
+      data: { nextRunAt: null },
+    });
+    return {
+      emitted: [{ invoiceId: out.id, number: out.number, sequence: 0 }],
+      completed: false,
+    };
   }
 
   /** Planes de facturación de un expediente (con su nº de cuotas), acotado al tenant. */
