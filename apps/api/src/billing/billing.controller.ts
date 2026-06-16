@@ -33,4 +33,14 @@ export class BillingController {
   get(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.billing.getSchedule(user, id);
   }
+
+  /**
+   * Emite las facturas de los periodos VENCIDOS del plan (RECURRING): 1 factura por periodo vía el núcleo
+   * fiscal (serie + Verifactu/e-CF + QR), atómico por periodo. El cron de barrido (RP5) hará lo mismo en
+   * automático para todos los planes vencidos.
+   */
+  @Post('schedules/:id/run')
+  run(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.billing.runDueEmissions(user, id);
+  }
 }
