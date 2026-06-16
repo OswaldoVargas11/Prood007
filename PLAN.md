@@ -385,6 +385,12 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
 - [~] **PR-R5b — Portal: ver saldo** (PR-y-espera, backend read-only): `GET /portal/matters/:id/retainer`
   (acotado al expediente propio vía `assertMatterAccess`, reutiliza `RetainerService.getMatterAccount`) + tab «Provisión» (solo lectura) en el portal del cliente. e2e portal-retainer 3/3 (saldo propio,
   aislamiento cross-cliente 403, role-gating staff 403). Columnas no nuevas → sin migración.
+- [x] **PR-R5c — UI de cierre fiscal** (auto-mergeable): en el tab «Provisión», cuando el expediente
+      tiene anticipo, panel «Cierre del anticipo» con **«Factura final (deducir anticipo)»**
+      (`POST /retainer/final-invoice`, editor de líneas + neto/anticipos deducidos al éxito) y **«Devolver
+      anticipo»** (`POST /retainer/refund`, selector de anticipo + causa → rectificativa). Hooks
+      `useRetainerFinalInvoice`/`useRetainerRefund`. i18n es-ES/es-DO. Verificado end-to-end en navegador
+      (final FAC neto correcto; refund → rectificativa + saldo 0). UI/lectura, sin backend nuevo.
 - [ ] **PR-R4 — Cobro de provisión online (Stripe, sin factura)** (PR-y-espera, DIFERIDO): `invoiceId`
       nullable + checkout sin factura + webhook que acredita el retainer. Pieza más sensible; PR aparte.
 
