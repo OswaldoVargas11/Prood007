@@ -42,6 +42,12 @@ export class PortalController {
     return this.portal.listTasks(user, id);
   }
 
+  /** Saldo de provisión de fondos del expediente propio del cliente (solo lectura). */
+  @Get('matters/:id/retainer')
+  retainer(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.portal.retainerView(user, id);
+  }
+
   @Get('invoices')
   invoices(@CurrentUser() user: RequestUser) {
     return this.portal.listInvoices(user);
