@@ -116,6 +116,43 @@ export enum PaymentMethod {
   STRIPE = 'STRIPE',
 }
 
+/**
+ * Canal por el que se entrega un recordatorio de cobro (dunning). Agnóstico: hoy solo IN_APP está
+ * implementado; EMAIL/SMS quedan reservados como punto de integración para Fase 2 (cuando exista el
+ * canal, el motor de dunning se engancha sin tocar el modelo).
+ */
+export enum DunningChannel {
+  IN_APP = 'IN_APP',
+  EMAIL = 'EMAIL',
+  SMS = 'SMS',
+}
+
+/**
+ * Severidad/escalado de un recordatorio de cobro. Ordena el tono del aviso conforme crece el retraso.
+ * - REMINDER: recordatorio amable (primer aviso).
+ * - WARNING: aviso de mora.
+ * - FINAL: aviso final previo a acciones de recobro.
+ */
+export enum DunningSeverity {
+  REMINDER = 'REMINDER',
+  WARNING = 'WARNING',
+  FINAL = 'FINAL',
+}
+
+/**
+ * Estado de un recordatorio de cobro concreto sobre una factura.
+ * - SCHEDULED: generado/planificado, aún sin entregar por el canal.
+ * - SENT: entregado por el canal correspondiente.
+ * - SKIPPED: omitido (p. ej. la factura se cobró antes de disparar la etapa).
+ * - FAILED: el canal falló al entregar (relevante con EMAIL/SMS en Fase 2).
+ */
+export enum DunningReminderStatus {
+  SCHEDULED = 'SCHEDULED',
+  SENT = 'SENT',
+  SKIPPED = 'SKIPPED',
+  FAILED = 'FAILED',
+}
+
 /** Tipo de identificador fiscal (validado por el provider de cumplimiento). */
 export enum TaxIdKind {
   /** España */

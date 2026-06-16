@@ -1012,3 +1012,36 @@ Endurecimiento que destapó la corrida (aplicado):
 - **Sensibilidad / merge:** toca `src/payments/` (fuera de CODEOWNERS) + test/docs/script → auto-mergeable.
 - **Pendiente del owner:** habilitar Connect + completar onboarding → flujo de Checkout con tarjeta real.
   **Rotar las claves de test** (estuvieron en el chat). Luego: cola de Fase 1 (retainer/dunning/recurrente).
+
+## 2026-06-16 — Claude — Ítem 1 (Dunning) PR-D1: modelo + migración + RLS
+
+Objetivo:
+
+- Arrancar el dunning (Ítem 1 de la cola de Fase 1). Desglose acordado con el owner en 5 PRs pequeños
+  (D1 modelo → D2 motor+in-app+manual → D3 cron → D4 UI despacho → D5 UI portal). Decisiones fijadas:
+  reglas en **tabla `DunningRule`** (no JSON), disparo **manual primero + cron en D3**. Ver D-025.
+
+Hecho (PR-D1, solo cimientos, sin lógica):
+
+- `packages/domain/src/enums.ts`: enums agnósticos `DunningChannel { IN_APP, EMAIL, SMS }` (solo IN_APP
+  se implementará en D2; EMAIL/SMS = integración Fase 2), `DunningSeverity { REMINDER, WARNING, FINAL }`
+  (escalado), `DunningReminderStatus { SCHEDULED, SENT, SKIPPED, FAILED }`.
+- `apps/api/prisma/schema.prisma`: modelos `DunningRule` (reglas por tenant; `@@unique([tenantId,
+offsetDays])`) y `DunningReminder` (ancla de idempotencia `@@unique([tenantId, invoiceId,
+offsetDays])`; FK `ruleId` ON DELETE SET NULL; instantánea de etapa). Relaciones inversas en
+  `Tenant`/`Invoice`. Enums Prisma espejo.
+- `apps/api/prisma/migrations/20260616120000_dunning/migration.sql`: tablas + índices + FKs + **RLS
+  fail-closed** en ambas (ENABLE+FORCE+policy `tenant_isolation`, mismo patrón que Payment/D-020).
+
+Pruebas:
+
+- `prisma validate` → schema válido; `prisma format` aplicado. `packages/domain` typecheck limpio.
+- `prisma generate` LOCAL bloqueado por `EPERM` (el API en marcha, PID `dist/main.js`, retiene el DLL
+  del query engine en Windows). No es problema de schema; CI regenera en Linux. No maté el proceso del
+  owner.
+
+Sensibilidad / merge:
+
+- Toca `prisma/` (migración) + RLS → **PR-y-espera** (no auto-merge). Sin código de negocio todavía.
+- **Siguiente:** PR-D2 (DunningService + canal in-app + endpoint manual). Pendiente: verde en CI + OK
+  del owner para fusionar D1.

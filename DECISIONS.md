@@ -483,3 +483,31 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
 - **Probado (PR-1, local como `legalflow_app`):** e2e `ledger` **15/15** (5 nuevos: dueDate por
   defecto, amountPaid/paidAt al cobrar, listado, overdue derivado, pagada-no-vencida). web typecheck +
   lint + api lint limpios. Migración generada contra la BD real (sin drift). Pendiente: verde en CI real.
+
+## D-025 · Dunning (Ítem 1 Fase 1): reglas en tabla + recordatorios idempotentes + canal-agnóstico · Aceptada
+
+- **Contexto:** con los estados ricos (D-024) y `overdue` derivado en su sitio, las facturas vencidas
+  deben **perseguirse solas**. Arranca el Ítem 1 (dunning) de la cola de Fase 1.
+- **Decisiones de diseño (confirmadas por el usuario, 2026-06-16):**
+  1. **Reglas en tabla dedicada `DunningRule`** (no JSON en Tenant) — una fila por etapa
+     (`offsetDays` único por tenant) con `severity` (escalado REMINDER→WARNING→FINAL) y `channel`. Más
+     flexible y auditable que un blob JSON; el coste es una segunda tabla con su RLS.
+  2. **`DunningReminder` como ancla de idempotencia** — `@@unique([tenantId, invoiceId, offsetDays])`:
+     el motor (D2) no re-genera una etapa ya disparada. Guarda instantánea de `offsetDays`/`severity`
+     (estable aunque la regla cambie/desaparezca: FK `ruleId` con `ON DELETE SET NULL`). La auditoría
+     inmutable sigue en `AuditLog`; este modelo es el **estado operativo**, no el registro legal.
+  3. **Canal-agnóstico** — enum `DunningChannel { IN_APP, EMAIL, SMS }`; hoy solo `IN_APP` se
+     implementa (D2, vía `NotificationsService`). EMAIL/SMS quedan como **punto de integración para
+     Fase 2**: cuando exista el canal, el motor se engancha sin tocar modelo ni migración.
+  4. **Disparo manual primero, cron después** — D2 expone un endpoint manual ("recordar ahora"); el
+     cron diario (`@nestjs/schedule`, dependencia nueva) llega aislado en D3, para revisar la
+     automatización del cobro por separado.
+- **Jurisdicción-aware:** los defaults de reglas y el tono/idioma de los avisos salen del tenant
+  (`jurisdiction`/`locale`, es-ES vs es-DO); ningún país hardcodeado, igual que el resto del núcleo.
+- **Desglose en PRs:** D1 (modelo+migración+RLS) → D2 (motor+in-app+endpoint manual) → D3 (cron) →
+  D4 (UI despacho) → D5 (UI portal). Ver PLAN.md (Ítem 1) y [[fase1-cobro-decisiones]] (memoria).
+- **Sensibilidad / merge:** D1–D3 tocan migración/RLS/dinero → **PR-y-espera**. D4/D5 son solo UI de
+  lectura → auto-mergeables en verde.
+- **PR-D1 (este):** tablas `DunningRule` + `DunningReminder` (RLS fail-closed, patrón D-013/D-020),
+  enums de dominio espejo, migración `20260616120000_dunning`. **Sin lógica de negocio** (llega en D2).
+  Schema `prisma validate` OK; domain typecheck OK. Pendiente: verde en CI + OK del owner para fusionar.
