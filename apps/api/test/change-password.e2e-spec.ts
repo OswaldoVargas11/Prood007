@@ -101,7 +101,15 @@ describe('Change password (e2e)', () => {
     expect(res.body.accessToken).toBeDefined();
     expect(res.body.refreshToken).toBeDefined();
 
-    // La sesión B (otro dispositivo) queda revocada: su refresh ya no rota.
+    // El par nuevo devuelto SÍ es válido. Se comprueba PRIMERO: presentar un refresh ya revocado
+    // (abajo) dispara la mitigación de reuso, que revoca TODAS las sesiones activas del usuario
+    // (incluida esta) — comportamiento correcto, pero invalidaría esta comprobación si fuese después.
+    await request(server())
+      .post('/api/auth/refresh')
+      .send({ refreshToken: res.body.refreshToken })
+      .expect(200);
+
+    // La sesión B (otro dispositivo) quedó cerrada por el cambio: su refresh ya no rota.
     await request(server())
       .post('/api/auth/refresh')
       .send({ refreshToken: sessionB.refreshToken })
@@ -112,12 +120,6 @@ describe('Change password (e2e)', () => {
       .post('/api/auth/refresh')
       .send({ refreshToken: sessionA.refreshToken })
       .expect(401);
-
-    // El par nuevo devuelto SÍ es válido.
-    await request(server())
-      .post('/api/auth/refresh')
-      .send({ refreshToken: res.body.refreshToken })
-      .expect(200);
   });
 
   it('tras el cambio: la contraseña antigua falla y la nueva funciona', async () => {
