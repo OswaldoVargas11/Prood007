@@ -14,6 +14,7 @@ import {
 } from '@/lib/hooks';
 import { defaultTaxCodes } from '@/lib/ledger';
 import { formatMoney, formatDate } from '@/lib/format';
+import { ApiError } from '@/lib/api';
 import type { BadgeProps } from '@/components/ui/badge';
 import type { ProvisionKind, RetainerMovementType } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
@@ -38,12 +39,21 @@ const MOVEMENT_VARIANT: Record<RetainerMovementType, NonNullable<BadgeProps['var
   ADJUSTMENT: 'secondary',
 };
 
+/** Mensaje de error legible: el del backend (i18n, p. ej. el bloqueo de anticipo) o un texto genérico. */
+function errText(error: unknown, fallback: string): string {
+  return error instanceof ApiError ? error.message : fallback;
+}
+
 /** Provisión de fondos del expediente: saldo + movimientos + cobrar provisión/anticipo + aplicar. */
 export function RetainerTab({ matterId }: { matterId: string }) {
   const t = useTranslations('retainer');
   const locale = useLocale();
   const { data, isLoading, isError, refetch } = useMatterRetainer(matterId);
-  const currency = data?.currency ?? undefined;
+  // El saldo de anticipo (ya facturado) NO se aplica como cobro (devengaría doble IVA): se realiza por
+  // la factura final con deducción. Si el expediente tiene anticipo, «Aplicar a factura» queda bloqueado.
+  const hasAnticipo = (data?.entries ?? []).some(
+    (e) => e.type === 'DEPOSIT' && e.kind === 'ANTICIPO',
+  );
 
   return (
     <div className="space-y-4">
@@ -52,7 +62,7 @@ export function RetainerTab({ matterId }: { matterId: string }) {
         <div className="flex flex-wrap gap-2">
           <DepositDialog matterId={matterId} />
           <AnticipoDialog matterId={matterId} />
-          <ApplyDialog matterId={matterId} currency={currency} />
+          <ApplyDialog matterId={matterId} hasAnticipo={hasAnticipo} />
         </div>
       </div>
 
@@ -212,7 +222,11 @@ function DepositDialog({ matterId }: { matterId: string }) {
             <Label htmlFor="dep-note">{t('noteOptional')}</Label>
             <Input id="dep-note" value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
-          {deposit.isError && <p className="text-sm text-[var(--danger)]">{t('depositError')}</p>}
+          {deposit.error && (
+            <p className="text-sm text-[var(--danger)]">
+              {errText(deposit.error, t('depositError'))}
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button onClick={submit} disabled={deposit.isPending || !amount}>
@@ -307,7 +321,11 @@ function AnticipoDialog({ matterId }: { matterId: string }) {
               <span className="tabular-nums text-muted-foreground">{t('viewInvoice')} →</span>
             </button>
           )}
-          {anticipo.isError && <p className="text-sm text-[var(--danger)]">{t('anticipoError')}</p>}
+          {anticipo.error && (
+            <p className="text-sm text-[var(--danger)]">
+              {errText(anticipo.error, t('anticipoError'))}
+            </p>
+          )}
         </div>
         <DialogFooter>
           <Button onClick={submit} disabled={anticipo.isPending || !amount}>
@@ -320,8 +338,12 @@ function AnticipoDialog({ matterId }: { matterId: string }) {
   );
 }
 
-/** Aplica saldo de provisión (SUPLIDO/GENERICO) al cobro de una factura pendiente del expediente. */
-function ApplyDialog({ matterId, currency }: { matterId: string; currency?: string }) {
+/**
+ * Aplica saldo de provisión (SUPLIDO/GENERICO) al cobro de una factura pendiente. Si el expediente tiene
+ * saldo de ANTICIPO (ya facturado), aplicarlo como cobro lo bloquea el backend (evita doble IVA): el
+ * anticipo se realiza por la factura final con deducción. Se avisa y se deshabilita la acción.
+ */
+function ApplyDialog({ matterId, hasAnticipo }: { matterId: string; hasAnticipo: boolean }) {
   const t = useTranslations('retainer');
   const locale = useLocale();
   const apply = useRetainerApply(matterId);
@@ -364,7 +386,11 @@ function ApplyDialog({ matterId, currency }: { matterId: string; currency?: stri
           <DialogTitle>{t('applyTitle')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          {payable.length === 0 ? (
+          {hasAnticipo ? (
+            <p className="rounded-md border border-[var(--warning)]/40 bg-[var(--warning)]/5 px-3 py-2 text-sm text-muted-foreground">
+              {t('applyAnticipoBlocked')}
+            </p>
+          ) : payable.length === 0 ? (
             <p className="py-4 text-center text-sm text-muted-foreground">{t('noInvoices')}</p>
           ) : (
             <>
@@ -398,12 +424,19 @@ function ApplyDialog({ matterId, currency }: { matterId: string; currency?: stri
                 />
               </div>
               <p className="text-[11px] text-muted-foreground">{t('applyHint')}</p>
-              {apply.isError && <p className="text-sm text-[var(--danger)]">{t('applyError')}</p>}
+              {apply.error && (
+                <p className="text-sm text-[var(--danger)]">
+                  {errText(apply.error, t('applyError'))}
+                </p>
+              )}
             </>
           )}
         </div>
         <DialogFooter>
-          <Button onClick={submit} disabled={apply.isPending || !invoiceId || payable.length === 0}>
+          <Button
+            onClick={submit}
+            disabled={apply.isPending || !invoiceId || payable.length === 0 || hasAnticipo}
+          >
             {apply.isPending && <Loader2 className="animate-spin" />}
             {t('applyAction')}
           </Button>
