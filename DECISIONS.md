@@ -717,12 +717,13 @@ Mecánicas adoptadas al codificar la deducción (a revisar en la PR; PR-y-espera
   deducción. No se emiten facturas negativas por esta vía.
 - **D5 — IRPF (ES):** la retención de la final se calcula sobre la base **neta** (ya descontado el
   anticipo) vía `computeInvoiceTotals` — correcto, el anticipo ya retuvo su parte.
-- **D6 — El guard `anticipoApplyBlocked` NO se elimina, se RE-ENFOCA.** Aplicar el saldo de anticipo
-  como **cobro** a cualquier factura es incorrecto: a una factura normal duplicaría el IVA; a la propia
-  final de deducción la **infrapagaría** (la deducción ya lo realiza). Por eso el `/apply` genérico
-  sigue rechazando ANTICIPO y el anticipo se realiza SOLO por `invoiceFinalWithDeduction`. (Difiere de
-  la lectura literal "quita el guard" de la tarea; se deja así por conformidad fiscal — el owner
-  confirma en la PR.)
+- **D6 — El guard `anticipoApplyBlocked` NO se elimina, se RE-ENFOCA. RATIFICADO por el owner
+  (2026-06-16).** Aplicar el saldo de anticipo como **cobro** a cualquier factura es incorrecto: a una
+  factura normal duplicaría el IVA; a la propia final de deducción la **infrapagaría** (la deducción ya
+  lo realiza). Por eso el `/apply` genérico sigue rechazando ANTICIPO y el anticipo se realiza SOLO por
+  sus vías propias: `invoiceFinalWithDeduction` (deducción, R3b) o `refundAnticipo` (rectificativa, R3c).
+  (Difería de la lectura literal "quita el guard" de la tarea; el owner confirma mantenerlo así por
+  conformidad fiscal — evita el doble IVA.)
 - **Doble cierre:** se detecta de forma **estructural** — el drawdown de cierre es la única
   `APPLICATION` **sin `paymentId`** (el `/apply` genérico siempre lleva `paymentId`). Un segundo cierre
   → 400 (`retainer.anticipoAlreadyDeducted`).
