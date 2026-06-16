@@ -2,11 +2,13 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import {
   Jurisdiction,
+  InvoiceDocumentType,
   InvoiceStatus,
   LedgerEntryType,
   PaymentMethod,
   PaymentStatus,
   ProvisionKind,
+  RectificationMode,
   RetainerMovementType,
 } from '@legalflow/domain';
 import { round2 } from '@legalflow/compliance';
@@ -20,6 +22,7 @@ import { RecordDepositDto } from './dto/record-deposit.dto';
 import { RecordAnticipoDto } from './dto/record-anticipo.dto';
 import { ApplyRetainerDto } from './dto/apply-retainer.dto';
 import { FinalInvoiceDto } from './dto/final-invoice.dto';
+import { RefundAnticipoDto } from './dto/refund-anticipo.dto';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Tolerancia de redondeo al comparar saldos (céntimos). */
@@ -426,8 +429,27 @@ export class RetainerService {
     const anticipoInvoiceIds = anticipoEntries
       .map((e) => e.invoiceId)
       .filter((id): id is string => Boolean(id));
+    // Excluir anticipos ya DEVUELTOS (rectificados, R3c): una rectificativa ya reversó su IVA, así que
+    // no se deducen en la final (deducirlos doblaría la corrección). El saldo de un anticipo devuelto ya
+    // bajó con su REFUND(−), de modo que no entra en el drawdown.
+    const refunded = await this.prisma.invoice.findMany({
+      where: {
+        tenantId: user.tenantId,
+        documentType: InvoiceDocumentType.RECTIFICATIVA,
+        rectifiesInvoiceId: { in: anticipoInvoiceIds },
+      },
+      select: { rectifiesInvoiceId: true },
+    });
+    const refundedIds = new Set(refunded.map((r) => r.rectifiesInvoiceId));
+    const activeEntries = anticipoEntries.filter((e) => !refundedIds.has(e.invoiceId));
+    if (activeEntries.length === 0) {
+      throw new BadRequestException(apiError('retainer.noAnticipoToDeduct'));
+    }
+    const activeInvoiceIds = activeEntries
+      .map((e) => e.invoiceId)
+      .filter((id): id is string => Boolean(id));
     const anticipoInvoices = await this.prisma.invoice.findMany({
-      where: { id: { in: anticipoInvoiceIds }, tenantId: user.tenantId },
+      where: { id: { in: activeInvoiceIds }, tenantId: user.tenantId },
       include: { lines: { take: 1 } },
     });
     const fallbackTaxCode =
@@ -456,8 +478,9 @@ export class RetainerService {
       throw new BadRequestException(apiError('retainer.deductionExceedsService'));
     }
 
-    // Total a realizar = suma de lo acreditado por los anticipos (= saldo atribuible a anticipo).
-    const anticipoTotal = round2(anticipoEntries.reduce((s, e) => s + Number(e.amount), 0));
+    // Total a realizar = suma de lo acreditado por los anticipos ACTIVOS (= saldo atribuible a anticipo
+    // no devuelto).
+    const anticipoTotal = round2(activeEntries.reduce((s, e) => s + Number(e.amount), 0));
 
     const issueDate = dto.issueDate ?? new Date().toISOString().slice(0, 10);
     const dueDate = dto.dueDate
@@ -514,6 +537,137 @@ export class RetainerService {
       withholdingAmount: out.record.totals.withholdingAmount,
       total: out.record.totals.total,
       deducted: deductedAdvances,
+      balance: out.balance,
+      compliance: out.record,
+    };
+  }
+
+  /**
+   * Devolución (REFUND) de un anticipo ya facturado (D-027 (c)). NO resta saldo sin más: emite una
+   * **factura rectificativa por SUSTITUCIÓN** que reversa el anticipo (espejo en negativo de sus líneas,
+   * misma retención), como **registro nuevo encadenado** (Verifactu R1/S · e-CF nota de crédito tipo 34)
+   * que referencia la factura rectificada y su causa. La factura de anticipo queda **inmutable**. Tras
+   * emitir, registra `RetainerEntry REFUND(−)` por el total devuelto. TODO ATÓMICO.
+   *
+   * Guards: la factura debe ser un anticipo del expediente, no devuelto ya, no deducido en una factura
+   * final (drawdown de cierre presente), y el saldo debe cubrir la devolución. El refund parcial / por
+   * diferencias queda fuera de R3c.
+   */
+  async refundAnticipo(user: RequestUser, dto: RefundAnticipoDto) {
+    const matter = await this.getMatterOrThrow(user, dto.matterId);
+    if (!matter.tenant.taxId) throw new BadRequestException(apiError('ledger.firmNoTaxId'));
+    if (!matter.client.taxId) throw new BadRequestException(apiError('clients.taxIdInvalid'));
+    const tenantCurrency = matter.tenant.currency;
+
+    const account = await this.prisma.retainerAccount.findFirst({
+      where: { matterId: dto.matterId, tenantId: user.tenantId },
+    });
+    if (!account) throw new BadRequestException(apiError('retainer.notAnAnticipoInvoice'));
+
+    // La factura debe ser un ANTICIPO de este expediente (ligada a un DEPOSIT ANTICIPO de su cuenta).
+    const anticipoEntry = await this.prisma.retainerEntry.findFirst({
+      where: {
+        tenantId: user.tenantId,
+        accountId: account.id,
+        type: RetainerMovementType.DEPOSIT,
+        kind: ProvisionKind.ANTICIPO,
+        invoiceId: dto.anticipoInvoiceId,
+      },
+    });
+    if (!anticipoEntry) {
+      throw new BadRequestException(apiError('retainer.notAnAnticipoInvoice'));
+    }
+    const anticipo = await this.prisma.invoice.findFirst({
+      where: { id: dto.anticipoInvoiceId, tenantId: user.tenantId },
+      include: { lines: true },
+    });
+    if (!anticipo) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
+
+    // No devolver dos veces: ya existe una rectificativa que corrige esta factura.
+    const alreadyRefunded = await this.prisma.invoice.count({
+      where: {
+        tenantId: user.tenantId,
+        documentType: InvoiceDocumentType.RECTIFICATIVA,
+        rectifiesInvoiceId: anticipo.id,
+      },
+    });
+    if (alreadyRefunded > 0) {
+      throw new BadRequestException(apiError('retainer.anticipoAlreadyRefunded'));
+    }
+    // No devolver un anticipo ya deducido en una factura final (drawdown de cierre = APPLICATION sin
+    // paymentId): ese anticipo ya se realizó, su corrección sería otra operación.
+    const closed = await this.prisma.retainerEntry.count({
+      where: {
+        tenantId: user.tenantId,
+        accountId: account.id,
+        type: RetainerMovementType.APPLICATION,
+        paymentId: null,
+      },
+    });
+    if (closed > 0) {
+      throw new BadRequestException(apiError('retainer.anticipoAlreadyDeducted'));
+    }
+
+    const refundTotal = round2(Number(anticipo.total));
+    if (Number(account.balance) + EPSILON < refundTotal) {
+      throw new BadRequestException(apiError('retainer.insufficientBalance'));
+    }
+
+    const issueDate = new Date().toISOString().slice(0, 10);
+    // Reversa el anticipo: espejo en negativo de cada línea (base y, vía withholdingTaxCode, la retención).
+    const reversalLines = anticipo.lines.map((l) => ({
+      description: `Devolución anticipo ${anticipo.number}: ${l.description}`,
+      quantity: l.quantity.toString(),
+      unitPrice: (-Number(l.unitPrice)).toFixed(2),
+      taxCode: l.taxCode,
+    }));
+
+    const out = await tenantTransaction(this.prisma, async (tx) => {
+      const { invoice, record } = await this.ledger.emitInvoiceInTx(tx, user, {
+        matter: {
+          id: matter.id,
+          clientId: matter.clientId,
+          tenant: {
+            name: matter.tenant.name,
+            taxId: matter.tenant.taxId,
+            currency: tenantCurrency,
+          },
+          client: { name: matter.client.name, taxId: matter.client.taxId as string },
+        },
+        lines: reversalLines,
+        withholdingTaxCode: anticipo.withholdingTaxCode ?? undefined,
+        rectification: {
+          rectifiedInvoiceId: anticipo.id,
+          rectifiedNumber: anticipo.number,
+          rectifiedIssueDate: anticipo.issueDate.toISOString().slice(0, 10),
+          reason: dto.reason,
+          mode: RectificationMode.SUSTITUCION,
+        },
+        issueDate,
+        dueDate: new Date(issueDate),
+      });
+      // Devolución del saldo: REFUND(−), ligada a la rectificativa.
+      const mv = await this.postMovement(tx, user.tenantId, account.id, {
+        type: RetainerMovementType.REFUND,
+        amount: (-refundTotal).toFixed(2),
+        invoiceId: invoice.id,
+        note: `Devolución de anticipo ${anticipo.number} (rectificativa ${invoice.number})`,
+      });
+      return { invoice, record, balance: mv.balance };
+    });
+
+    await this.audit.log(user, 'retainer.refund', 'Invoice', out.invoice.id, {
+      matterId: matter.id,
+      number: out.invoice.number,
+      rectifies: anticipo.number,
+      total: out.record.totals.total,
+      format: out.record.format,
+    });
+    return {
+      invoiceId: out.invoice.id,
+      number: out.invoice.number,
+      rectifies: anticipo.number,
+      total: out.record.totals.total,
       balance: out.balance,
       compliance: out.record,
     };

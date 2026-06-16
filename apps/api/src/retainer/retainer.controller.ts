@@ -5,6 +5,7 @@ import { RecordDepositDto } from './dto/record-deposit.dto';
 import { RecordAnticipoDto } from './dto/record-anticipo.dto';
 import { ApplyRetainerDto } from './dto/apply-retainer.dto';
 import { FinalInvoiceDto } from './dto/final-invoice.dto';
+import { RefundAnticipoDto } from './dto/refund-anticipo.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -44,6 +45,15 @@ export class RetainerController {
   @Post('final-invoice')
   finalInvoice(@CurrentUser() user: RequestUser, @Body() dto: FinalInvoiceDto) {
     return this.retainer.invoiceFinalWithDeduction(user, dto);
+  }
+
+  /**
+   * Devolución de un anticipo ya facturado (D-027 (c)): emite **factura rectificativa** por sustitución
+   * (Verifactu/e-CF) que reversa el anticipo + `RetainerEntry REFUND(−)`, atómico. NO resta saldo sin más.
+   */
+  @Post('refund')
+  refund(@CurrentUser() user: RequestUser, @Body() dto: RefundAnticipoDto) {
+    return this.retainer.refundAnticipo(user, dto);
   }
 
   /** Saldo + movimientos de la provisión de un expediente. */

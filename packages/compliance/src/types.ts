@@ -6,7 +6,12 @@
  * estructuras que NO interpreta semánticamente (p. ej. el JSON del registro Verifactu o el XML
  * e-CF). Así, añadir un país nuevo no obliga a tocar el núcleo.
  */
-import type { Jurisdiction, TaxIdKind } from '@legalflow/domain';
+import type {
+  InvoiceDocumentType,
+  Jurisdiction,
+  RectificationMode,
+  TaxIdKind,
+} from '@legalflow/domain';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // validateTaxId
@@ -75,6 +80,22 @@ export interface DeductedAdvance {
   taxCode: string;
 }
 
+/**
+ * Referencia a la factura rectificada (D-027 (c)). Una rectificativa es un registro NUEVO encadenado que
+ * corrige una factura ya emitida (p. ej. devolución de un anticipo), indicando su causa y su método
+ * (sustitución/diferencias). La factura rectificada queda inmutable.
+ */
+export interface RectifiedInvoiceRef {
+  /** Número de la factura que se rectifica. */
+  invoiceNumber: string;
+  /** Fecha de emisión de la factura rectificada (ISO 8601), si se conoce. */
+  issueDate?: string;
+  /** Causa de la rectificación (texto libre; se registra en el documento fiscal). */
+  reason: string;
+  /** Método: SUSTITUCION (errónea en negativo + rectificativa) | DIFERENCIAS (solo el delta). */
+  mode: RectificationMode;
+}
+
 /** Datos neutrales de una factura que el núcleo entrega al provider. */
 export interface InvoiceInput {
   invoiceNumber: string;
@@ -83,6 +104,10 @@ export interface InvoiceInput {
   seller: PartyInput;
   buyer: PartyInput;
   lines: InvoiceLineInput[];
+  /** Tipo de documento; por defecto NORMAL. RECTIFICATIVA exige `rectifies` (D-027 (c)). */
+  documentType?: InvoiceDocumentType;
+  /** Factura rectificada (solo cuando `documentType` = RECTIFICATIVA). */
+  rectifies?: RectifiedInvoiceRef;
   /**
    * Código de retención a aplicar sobre la base imponible total (p. ej. "IRPF_GENERAL" en ES).
    * No aplica en RD. Si se omite, no hay retención.

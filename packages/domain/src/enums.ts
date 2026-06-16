@@ -186,6 +186,27 @@ export enum ProvisionKind {
   GENERICO = 'GENERICO',
 }
 
+/**
+ * Tipo de documento de factura (Verifactu / e-CF). NORMAL es el caso general; RECTIFICATIVA corrige una
+ * factura ya emitida (p. ej. devolución de un anticipo facturado, D-027 (c)). Bajo Verifactu las facturas
+ * no se modifican/borran: la rectificativa es un REGISTRO NUEVO encadenado que referencia la rectificada.
+ */
+export enum InvoiceDocumentType {
+  NORMAL = 'NORMAL',
+  RECTIFICATIVA = 'RECTIFICATIVA',
+}
+
+/**
+ * Método de la factura rectificativa (D-027 (c)):
+ * - SUSTITUCION: la rectificativa sustituye a la rectificada (la errónea en negativo + la rectificativa).
+ *   Es el método de R3c para la devolución total de un anticipo.
+ * - DIFERENCIAS: la rectificativa recoge solo el delta (refund parcial). Reservado; no implementado en R3c.
+ */
+export enum RectificationMode {
+  SUSTITUCION = 'SUSTITUCION',
+  DIFERENCIAS = 'DIFERENCIAS',
+}
+
 /** Tipo de identificador fiscal (validado por el provider de cumplimiento). */
 export enum TaxIdKind {
   /** España */

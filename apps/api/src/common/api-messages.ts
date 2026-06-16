@@ -251,6 +251,14 @@ export const API_MESSAGES = {
     'es-DO':
       'Los anticipos superan el importe del servicio facturado; una devolución requiere nota de crédito (e-CF), no deducción.',
   },
+  'retainer.notAnAnticipoInvoice': {
+    'es-ES': 'La factura indicada no es un anticipo de este expediente.',
+    'es-DO': 'La factura indicada no es un anticipo de este expediente.',
+  },
+  'retainer.anticipoAlreadyRefunded': {
+    'es-ES': 'Este anticipo ya fue devuelto con una factura rectificativa.',
+    'es-DO': 'Este anticipo ya fue devuelto con una nota de crédito.',
+  },
   'retainer.invoiceNotInMatter': {
     'es-ES': 'La factura no pertenece al expediente de esta provisión.',
     'es-DO': 'La factura no pertenece al expediente de esta provisión.',

@@ -84,7 +84,22 @@ del registro fiscal (no interviene en los totales, que ya salen de las líneas):
 
 La orquestación (emisión + drawdown del saldo de anticipo, atómica) vive en
 `RetainerService.invoiceFinalWithDeduction` (`POST /retainer/final-invoice`); ver D-027 · Notas de
-implementación PR-R3b en `DECISIONS.md`. El **refund** de un anticipo (rectificativa) es R3c.
+implementación PR-R3b en `DECISIONS.md`.
+
+## Factura rectificativa del refund (D-027 (c))
+
+Devolver un anticipo ya facturado **no es restar saldo**: es una **factura rectificativa** (registro
+NUEVO encadenado; la factura de anticipo queda inmutable). `InvoiceInput` incorpora `documentType`
+(`NORMAL` | `RECTIFICATIVA`) y `rectifies?: { invoiceNumber, issueDate?, reason, mode }`:
+
+- **ES (Verifactu):** bloque `rectificativa { tipoFactura: 'R1', tipoRectificativa: 'S'|'I',
+facturasRectificadas, causa }` (S = sustitución, I = por diferencias).
+- **RD (e-CF):** `<TipoeCF>34</TipoeCF>` (nota de crédito) + `<InformacionReferencia>` con
+  `<NCFModificado>` / `<RazonModificacion>`. Una factura normal es `TipoeCF 31` sin referencia.
+
+La orquestación (rectificativa por sustitución que reversa el anticipo + `RetainerEntry REFUND(−)`,
+atómica) vive en `RetainerService.refundAnticipo` (`POST /retainer/refund`); ver D-027 · Notas de
+implementación PR-R3c. El modo `DIFERENCIAS` (refund parcial) queda reservado, sin implementar.
 
 ## Qué está cableado y qué no
 

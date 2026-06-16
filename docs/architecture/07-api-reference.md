@@ -1,6 +1,6 @@
 # 07 · Referencia de la API (mapa de responsabilidades)
 
-> **Los 70 endpoints**, ninguno fuera. Prefijo global `api`. Cadena de guards global:
+> **Los 71 endpoints**, ninguno fuera. Prefijo global `api`. Cadena de guards global:
 > `ThrottlerGuard → JwtAuthGuard (@Public exime) → RolesGuard`. El **rol efectivo** combina el
 > `@Roles` de clase con el de método (el más restrictivo gana). RLS aísla por tenant aunque el rol
 > pase. Derivado de `apps/api/src/**/*.controller.ts`.
@@ -36,7 +36,7 @@ flowchart LR
     p1 -. "solo CLIENT · vista de su propio expediente" .-> core_d
 ```
 
-## Tabla exhaustiva (70 / 70)
+## Tabla exhaustiva (71 / 71)
 
 Rol = el más restrictivo aplicable. "auth" = autenticado sin `@Roles` (cualquier rol; el servicio +
 RLS acotan el acceso). "público" = `@Public`.
@@ -148,11 +148,11 @@ diario automático llega en PR-D3 reutilizando el mismo `DunningService`.
 | POST   | `/api/dunning/run`       | FIRM_ADMIN, LAWYER | "Recordar ahora": evalúa vencidas y dispara las etapas  |
 | GET    | `/api/dunning/reminders` | FIRM_ADMIN, LAWYER | Recordatorios generados (línea de tiempo); `?invoiceId` |
 
-### `retainer` — `/api/retainer` (6) · clase: **FIRM_ADMIN, LAWYER**
+### `retainer` — `/api/retainer` (7) · clase: **FIRM_ADMIN, LAWYER**
 
 Provisión de fondos por expediente (saldo + movimientos). Todo acotado al tenant (RLS). PR-R2: cobro
 manual de tipos no fiscales + lecturas; ANTICIPO emite factura (R2b); la factura final deduce el
-anticipo (R3b).
+anticipo (R3b); el refund de un anticipo emite rectificativa (R3c).
 
 | Método | Ruta                          | Rol                | Nota                                                                                           |
 | ------ | ----------------------------- | ------------------ | ---------------------------------------------------------------------------------------------- |
@@ -160,6 +160,7 @@ anticipo (R3b).
 | POST   | `/api/retainer/anticipo`      | FIRM_ADMIN, LAWYER | Cobro ANTICIPO: emite factura de anticipo (Verifactu/e-CF) + acredita saldo (atómico)          |
 | POST   | `/api/retainer/apply`         | FIRM_ADMIN, LAWYER | Aplica saldo (SUPLIDO/GENERICO) al cobro de una factura; ANTICIPO se realiza vía final-invoice |
 | POST   | `/api/retainer/final-invoice` | FIRM_ADMIN, LAWYER | Factura final de cierre con **deducción del anticipo** (sin doble IVA), encadenada (atómico)   |
+| POST   | `/api/retainer/refund`        | FIRM_ADMIN, LAWYER | Devolución de un anticipo facturado = **factura rectificativa** por sustitución (atómico)      |
 | GET    | `/api/retainer/matter/:id`    | FIRM_ADMIN, LAWYER | Saldo + movimientos del expediente                                                             |
 | GET    | `/api/retainer/client/:id`    | FIRM_ADMIN, LAWYER | Saldo agregado del cliente (Σ de sus expedientes)                                              |
 

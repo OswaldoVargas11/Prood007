@@ -729,3 +729,31 @@ Mecánicas adoptadas al codificar la deducción (a revisar en la PR; PR-y-espera
 - **Trazabilidad:** `InvoiceInput.deductedAdvances` → ES bloque `anticiposDeducidos` en el registro
   Verifactu; RD `<AnticiposDeducidos><Anticipo><eNCFAnticipo>…` en el e-CF final.
 - **Fuera de alcance (R3b):** refund parcial / rectificativa **por diferencias** → R3c.
+
+#### Notas de implementación · PR-R3c (rectificativa del refund) — `refundAnticipo`
+
+Mecánicas adoptadas (a revisar en la PR; PR-y-espera; **apilada sobre R3b**):
+
+- **Modelo:** `Invoice` gana `documentType` (NORMAL|RECTIFICATIVA), `rectifiesInvoiceId` (self-FK),
+  `rectificationReason`, `rectificationMode` (SUSTITUCION|DIFERENCIAS) y `withholdingTaxCode` (para
+  reversar el IRPF del anticipo de forma exacta). Enums nuevos en dominio + Prisma. Columnas sobre la
+  tabla `Invoice` existente → **no es tabla nueva**, no exige e2e-RLS nuevo (pero la migración la fusiona
+  el owner).
+- **Refund = rectificativa por sustitución:** `refundAnticipo` emite una factura con las líneas del
+  anticipo **espejadas en negativo** (misma cantidad, `unitPrice` negativo, mismo `taxCode`) + el mismo
+  `withholdingTaxCode` → reversa base, impuesto y retención exactos. `documentType = RECTIFICATIVA`,
+  `rectifiesInvoiceId` = anticipo, causa, `mode = SUSTITUCION`. Encadenada como cualquier registro
+  (huella previa = última factura del tenant). La factura de anticipo queda **inmutable**.
+- **Saldo:** `RetainerEntry REFUND(−)` por el total del anticipo, ligado a la rectificativa. NO es "solo
+  restar saldo": exige la rectificativa (D-027). Guard de saldo suficiente.
+- **Providers:** ES Verifactu → bloque `rectificativa { tipoFactura:'R1', tipoRectificativa:'S'|'I',
+facturasRectificadas, causa }`. RD → `<TipoeCF>34</TipoeCF>` (nota de crédito) + `<InformacionReferencia>`
+  con `<NCFModificado>`. `InvoiceInput.documentType` + `rectifies` (ausentes → factura normal, TipoeCF 31).
+- **Guards:** la factura debe ser un anticipo del expediente (`notAnAnticipoInvoice`); no devolver dos
+  veces (`anticipoAlreadyRefunded`, detectado por una rectificativa que ya la corrige); no devolver un
+  anticipo ya deducido en una final (`anticipoAlreadyDeducted`, drawdown de cierre presente).
+- **Interacción con R3b:** `invoiceFinalWithDeduction` **excluye los anticipos devueltos** (los que
+  tienen una rectificativa que los corrige) del bloque de deducción y del drawdown — deducir un anticipo
+  ya reversado doblaría la corrección.
+- **Fuera de alcance (R3c):** refund **parcial** / rectificativa **por diferencias** (`DIFERENCIAS`
+  reservado en el enum, sin implementar).

@@ -367,12 +367,17 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
   retainer-deduction 6/6 (sin doble IVA, encadenado, RD e-CF, atomicidad, guards, role) +
   compliance 53/53 + red de no-regresión (apply 6/6, anticipo 4/4, ledger 15/15). **Verificado
   local; espera CI + OK del owner.**
-- [ ] **PR-R3c — Rectificativa del refund** (PR-y-espera, migración + Verifactu-crítico): **REFUND** de
-      anticipo facturado = **factura rectificativa** (registro nuevo encadenado, **por sustitución**
-      primero; diferencias documentado como extensión) con condición/causa/factura rectificada +
-      `RetainerEntry REFUND(−)`, atómico. Migración `Invoice`: `documentType` + `rectifiesInvoiceId` +
-      causa/modo (columnas sobre tabla existente → sin e2e-RLS nuevo). RD: **nota de crédito e-CF**.
-      Reusa `buildInvoiceRecord` con tipo rectificativa.
+- [~] **PR-R3c — Rectificativa del refund** (PR-y-espera, migración + Verifactu-crítico; **apilada sobre
+  R3b**): `POST /retainer/refund` → **REFUND** de anticipo facturado = **factura rectificativa por
+  SUSTITUCIÓN** (registro nuevo encadenado, espejo en negativo del anticipo, misma retención) que
+  referencia la rectificada + causa + `RetainerEntry REFUND(−)`, atómico. La factura de anticipo
+  queda **inmutable**. Migración `Invoice`: enums `InvoiceDocumentType`/`RectificationMode` +
+  `documentType`/`rectifiesInvoiceId` (self-FK)/`rectificationReason`/`rectificationMode` +
+  `withholdingTaxCode` (para reversar el IRPF exacto). Columnas sobre tabla existente → **sin
+  e2e-RLS nuevo**. ES: Verifactu R1 + TipoRectificativa S; RD: **nota de crédito e-CF (tipo 34)** con
+  `InformacionReferencia`. Guards: no-anticipo / doble refund / ya deducido. **Interacción R3b:** la
+  deducción de la final ya excluye anticipos devueltos. Diferencias/parcial → extensión futura. e2e
+  retainer-refund 7/7. **Retargetear a main al fusionar R3b** (gotcha PR apilado + squash).
 - [ ] **PR-R5 — UI** (auto-mergeable): saldo + movimientos en la ficha de cliente, "cobrar provisión"
       y "aplicar a factura"; portal: el cliente ve su saldo (lectura). Estados/i18n/AA.
 - [ ] **PR-R4 — Cobro de provisión online (Stripe, sin factura)** (PR-y-espera, DIFERIDO): `invoiceId`

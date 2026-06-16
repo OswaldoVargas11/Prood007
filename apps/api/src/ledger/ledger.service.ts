@@ -1,6 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type Currency } from '@prisma/client';
-import { ApprovalStatus, InvoiceStatus, LedgerEntryType } from '@legalflow/domain';
+import {
+  ApprovalStatus,
+  InvoiceDocumentType,
+  InvoiceStatus,
+  LedgerEntryType,
+  RectificationMode,
+} from '@legalflow/domain';
 import { InvoiceRecord, round2 } from '@legalflow/compliance';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
@@ -281,6 +287,18 @@ export class LedgerService {
        * documentos de anticipo para la trazabilidad del registro fiscal (Verifactu/e-CF).
        */
       deductedAdvances?: { invoiceNumber: string; base: string; taxCode: string }[];
+      /**
+       * Marca esta emisión como FACTURA RECTIFICATIVA (D-027 (c)) que corrige una factura ya emitida.
+       * `rectifiedInvoiceId` enlaza la rectificada (FK); el resto alimenta el registro fiscal
+       * (Verifactu R1/S·I · e-CF nota de crédito). Ausente → factura NORMAL.
+       */
+      rectification?: {
+        rectifiedInvoiceId: string;
+        rectifiedNumber: string;
+        rectifiedIssueDate?: string;
+        reason: string;
+        mode: RectificationMode;
+      };
       issueDate: string;
       dueDate: Date;
     },
@@ -311,6 +329,17 @@ export class LedgerService {
       lines: p.lines,
       withholdingTaxCode: p.withholdingTaxCode,
       deductedAdvances: p.deductedAdvances,
+      documentType: p.rectification
+        ? InvoiceDocumentType.RECTIFICATIVA
+        : InvoiceDocumentType.NORMAL,
+      rectifies: p.rectification
+        ? {
+            invoiceNumber: p.rectification.rectifiedNumber,
+            issueDate: p.rectification.rectifiedIssueDate,
+            reason: p.rectification.reason,
+            mode: p.rectification.mode,
+          }
+        : undefined,
       previousRecordHash: previous?.recordHash ?? undefined,
     });
     const invoice = await tx.invoice.create({
@@ -326,11 +355,18 @@ export class LedgerService {
         taxableBase: record.totals.taxableBase,
         taxAmount: record.totals.taxAmount,
         withholdingAmount: record.totals.withholdingAmount,
+        withholdingTaxCode: p.withholdingTaxCode ?? null,
         total: record.totals.total,
         complianceFormat: record.format,
         complianceRecord: record.payload as object,
         recordHash: record.recordHash,
         previousRecordHash: previous?.recordHash ?? null,
+        documentType: p.rectification
+          ? InvoiceDocumentType.RECTIFICATIVA
+          : InvoiceDocumentType.NORMAL,
+        rectifiesInvoiceId: p.rectification?.rectifiedInvoiceId ?? null,
+        rectificationReason: p.rectification?.reason ?? null,
+        rectificationMode: p.rectification?.mode ?? null,
         lines: {
           create: p.lines.map((l) => ({
             description: l.description,
