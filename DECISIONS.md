@@ -542,28 +542,70 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
   (#60). Las vencidas se persiguen solas (cron diario) y a demanda; aviso al despacho + recordatorio al
   cliente con enlace de pago. EMAIL/SMS = integración Fase 2.
 
-## D-026 · Fase 1 (Ítem 2): provisión de fondos / retainer — saldo por cliente, cobro a cuenta no fiscal · Aceptada
+## D-026 · Fase 1 (Ítem 2): provisión de fondos / retainer — tratamiento fiscal · **PROPUESTA, PENDIENTE DE RATIFICACIÓN POR ASESOR FISCAL**
 
-- **Contexto:** segundo ítem de la cola de cobro. Modelo estándar en ES: cobrar por adelantado y
-  trabajar contra saldo. Construye sobre el ledger/`Payment`. El ledger es por expediente y no había
-  saldo a nivel de cliente.
-- **Decisiones (confirmadas por el usuario, 2026-06-16):**
-  1. **Tratamiento fiscal = cobro a cuenta NO fiscal** — el depósito de provisión es un movimiento de
-     saldo del cliente, sin IVA ni registro fiscal al cobrar. El IVA se devenga al **emitir la factura**
-     (ya vía `buildInvoiceRecord`); aplicar la provisión es liquidación. El anticipo-IVA (art. 75.2
-     LIVA, factura de anticipo) queda como **mejora posterior a confirmar** (no en esta tanda).
-  2. **Saldo = `RetainerAccount` (cacheado) + `RetainerEntry` (movimientos)** — 1 cuenta por cliente, en
-     la moneda del tenant; el saldo se actualiza transaccionalmente con cada movimiento auditado.
-  3. **Manual primero, Stripe después** — esta tanda: R1 (modelo) → R2 (cobro manual + saldo) → R3
-     (aplicar a factura) → R5 (UI). El cobro online del retainer (R4: `Payment.invoiceId` nullable +
-     checkout sin factura + webhook) se **difiere** a un PR posterior (la pieza más sensible).
-- **Reutiliza, no duplica:** `reconcile`/`Payment` (aplicar provisión crea un `Payment` método
-  `RETAINER` y postea su apunte `PAYMENT` al ledger del expediente), el `PROVISION` a nivel de
-  expediente se queda como está (el retainer es el pool a nivel de cliente), `AuditService`, RLS
-  `runWithTenant`. Jurisdicción-aware vía moneda/locale del tenant; ningún país hardcodeado.
-- **Sensibilidad / merge:** R1–R4 tocan migración/dinero/Stripe → **PR-y-espera**. R5 (UI lectura +
-  acciones sobre endpoints) → auto-mergeable.
-- **PR-R1 (este):** tablas `RetainerAccount` + `RetainerEntry` (RLS fail-closed, patrón D-013/D-020),
-  enum de dominio `RetainerMovementType`, migración `20260616130000_retainer`. **Sin lógica** (llega en
-  R2/R3). Verificado: e2e retainer-rls 5/5 (lectura acotada, cross-tenant invisible, WITH CHECK,
-  fail-closed) local; schema válido; typecheck + lint limpios. Pendiente: verde en CI + OK del owner.
+> ⚠️ **Estado: PROPUESTA.** Esta ADR fija el modelo de datos (ratificado por el owner, ver "Esquema") y
+> PROPONE el tratamiento fiscal del cobro de la provisión para que el owner lo lleve a un asesor fiscal.
+> **La lógica fiscal (R2) NO se implementa hasta la ratificación.** Reemplaza el borrador anterior, cuyo
+> default (provisión = cobro a cuenta no fiscal) iba al revés del caso típico.
+
+- **Contexto:** segundo ítem de la cola de cobro (modelo estándar ES: cobrar por adelantado y trabajar
+  contra saldo). Construye sobre el ledger/`Payment`.
+
+### Tratamiento fiscal (propuesto, a ratificar)
+
+- **Default CONFORME = anticipo de honorarios devenga IVA al cobro.** Una provisión que es anticipo de
+  servicios identificados **devenga IVA en el momento del cobro** (art. 75.Dos LIVA) → **factura
+  inmediata** (consume serie fiscal / Verifactu). Este es el **comportamiento por defecto** (el borrador
+  anterior lo tenía invertido).
+- **El tratamiento es un atributo POR provisión** que fija el usuario al cobrar, con el default conforme.
+  Ramas de excepción explícitas:
+  1. **Provisión genérica no delimitada** (sin servicio identificado) → **sin devengo** hasta identificar
+     el servicio (doctrina TJUE C-419/02 _BUPA_).
+  2. **Suplido** (art. 78.Tres.3º LIVA) → **sin IVA**, factura a nombre del cliente (gasto por cuenta y
+     en nombre del cliente).
+- **Jurisdicción vía `ComplianceProvider`, NO asumir ES.** La regla de devengo y la emisión cuelgan del
+  provider del tenant: **ES** = LIVA / Verifactu; **RD** = ITBIS 18% / e-CF-DGII. Ningún país hardcodeado.
+- **Implicación REFUND:** si el depósito devengó IVA al cobrarse, devolverlo exige **factura
+  rectificativa** (Verifactu / e-CF), no solo restar saldo (ver Parte C).
+
+### Esquema (ratificado por el owner, 2026-06-16 — implementado en PR-R1)
+
+1. **Granularidad POR EXPEDIENTE/ASUNTO**, no por cliente — `RetainerAccount.matterId @unique` (1-1 con
+   `Matter`). En la práctica ES la provisión se segrega por asunto. El **"saldo por cliente" se DERIVA**
+   sumando las cuentas de sus asuntos (vista/cálculo, no una tabla nueva). Posible extensión futura (NO
+   ahora): un retainer general no ligado a asunto.
+2. **Mono-moneda por tenant (explícito)** — `RetainerAccount.currency` = moneda del tenant, fijada al
+   crear; el `RetainerEntry` NO lleva `currency`. Un **guard** (R2/R3) rechaza un cobro/movimiento cuya
+   moneda no sea la del tenant. Multi-moneda (añadir `currency` al `RetainerEntry`) = futuro, no ahora.
+3. **Saldo = `RetainerAccount` (cacheado) + `RetainerEntry` (movimientos auditados)** con signo
+   (DEPOSIT +, APPLICATION/REFUND −, ADJUSTMENT ±).
+4. **Manual primero, Stripe después** — tanda: R1 (modelo) → R2 (cobro manual + saldo) → R3 (aplicar a
+   factura) → R5 (UI). R4 (Stripe sin factura: `Payment.invoiceId` nullable + checkout sin factura +
+   webhook) **diferido**.
+
+### Restricciones que heredan R2/R3 (registradas ahora; se implementan en R2/R3)
+
+- **Invariante de saldo `balance == Σ(entries)`** garantizado por: (a) un **test de reconciliación**, y
+  (b) actualización del saldo + inserción del movimiento en **una sola transacción con `SELECT … FOR
+UPDATE`** sobre la cuenta (para que un DEPOSIT y una APPLICATION concurrentes no se pisen). **Guard
+  contra saldo negativo** al aplicar.
+- **Relación con el ledger del expediente (decidida):** la **APPLICATION** de provisión a una factura
+  postea su apunte `PAYMENT` al ledger del expediente vía `reconcile` (el ledger sigue siendo la foto
+  financiera única de cobros/facturas). El **DEPOSIT NO** postea un apunte `PROVISION` al ledger del
+  expediente (evita doble cómputo con el `PAYMENT` posterior): el depósito vive en el sub-ledger del
+  retainer (`RetainerEntry` + saldo cacheado), que **reconcilia** con el ledger por la vía de la
+  aplicación. El `PROVISION` manual del ledger (existente) se mantiene como está. (Sujeto a ajuste según
+  el modelo fiscal ratificado; no es un mini-ledger paralelo sin definir.)
+- **REFUND → rectificativa:** ver implicación fiscal arriba; R2/R3 debe emitir la rectificativa cuando el
+  depósito devengó IVA, no solo restar saldo.
+
+### Sensibilidad / merge
+
+- R1–R4 tocan migración/dinero/Stripe → **PR-y-espera**. R5 (UI) → auto-mergeable.
+- **PR-R1 (enmendado):** tablas `RetainerAccount` (por `matterId`) + `RetainerEntry` (sin `currency`),
+  enum `RetainerMovementType`, migración `20260616130000_retainer`, RLS fail-closed. **Sin lógica.**
+  Verificado: e2e retainer-rls 5/5 (lectura acotada, cross-tenant invisible, WITH CHECK, fail-closed)
+  local + CI; schema válido; typecheck + lint limpios.
+- **GATE:** no se arranca R2 hasta que (a) #61 enmendado esté fusionado y (b) esta ADR esté **ratificada
+  por el asesor fiscal** del owner.

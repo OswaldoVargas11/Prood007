@@ -1173,3 +1173,33 @@ validate` OK; api typecheck + eslint limpios. (Paré/reinicié el API local para
 
 Sensibilidad / merge: migración + RLS → **PR-y-espera**. Sin código de negocio (llega en R2/R3).
 Siguiente: PR-R2 (cobro de provisión manual + lectura de saldo/movimientos).
+
+## 2026-06-16 — Claude — Ítem 2 (Retainer) PR-R1 ENMENDADO + D-026 reescrita (revisión del owner)
+
+El owner pidió cerrar dos decisiones de esquema en #61 (barato ahora) y reescribir la decisión fiscal
+antes de avanzar. **GATE: no arrancar R2 hasta (a) #61 enmendado fusionado y (b) D-026 ratificada por
+asesor fiscal.**
+
+Parte A — esquema enmendado en #61 (sigue PR-y-espera):
+
+- **Granularidad POR EXPEDIENTE**: `RetainerAccount` pasa de `clientId @unique` a `matterId @unique`
+  (1-1 con `Matter`). El "saldo por cliente" se DERIVA sumando las cuentas de sus asuntos (no tabla
+  nueva). Relaciones inversas: quitada `Client.retainerAccount`, añadida `Matter.retainerAccount`.
+- **Mono-moneda por tenant explícita**: quitado `currency` de `RetainerEntry` (la moneda es la de la
+  cuenta = tenant); documentado; el guard de moneda (rechazar ≠ tenant) se implementa en R2/R3.
+- Migración `20260616130000_retainer` **reescrita en sitio** (no fusionada aún): `matterId` + FK a
+  `Matter` + `RetainerAccount_matterId_key`; `RetainerEntry` sin `currency`. e2e RLS actualizado
+  (siembra con expediente). Local: dropeé quirúrgicamente las tablas viejas del retainer + su registro
+  en `_prisma_migrations` (sin `migrate reset`, preservando datos demo) y re-apliqué la enmendada.
+- Re-verificado local: `prisma validate` OK, typecheck + eslint limpios, **e2e retainer-rls 5/5**.
+
+Parte B — D-026 reescrita como ADR **PROPUESTA, pendiente de ratificación**: default CONFORME = anticipo
+de honorarios devenga IVA al cobro (art. 75.Dos LIVA) → factura inmediata; tratamiento por provisión con
+ramas (genérica no delimitada sin devengo, TJUE C-419/02 BUPA; suplido sin IVA, art. 78.Tres.3º); regla
+vía `ComplianceProvider` (ES LIVA/Verifactu · RD ITBIS/e-CF). NO se implementa lógica fiscal hasta ratificar.
+
+Parte C — restricciones registradas para R2/R3 (en D-026 y PLAN): invariante `balance == Σ(entries)` con
+`SELECT … FOR UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea `PAYMENT` al
+ledger (DEPOSIT no → evita doble cómputo); REFUND con IVA → factura rectificativa.
+
+Siguiente: avisar al owner para (1) fusionar #61 enmendado y (2) ratificar D-026. **R2 en pausa.**

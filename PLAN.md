@@ -321,15 +321,24 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
 ### Ítem 2 — Provisión de fondos / retainer `[~]` (ver D-026)
 
 > Cobrar por adelantado y trabajar contra saldo (estándar ES). Construye sobre el ledger/Payment.
-> Decisiones (2026-06-16): cobro de provisión = **cobro a cuenta NO fiscal** (IVA al emitir factura) ·
-> saldo en **cuenta cacheada + movimientos** · **manual primero, Stripe del retainer después** (R4).
+> Esquema (ratificado): retainer **por expediente** (saldo por cliente = Σ asuntos, derivado) ·
+> **mono-moneda** por tenant · cuenta cacheada + movimientos · manual primero, Stripe después (R4).
+> Fiscal (D-026, **PROPUESTA pendiente de ratificación por asesor**): default CONFORME = anticipo de
+> honorarios **devenga IVA al cobro** → factura inmediata; ramas: genérica no delimitada (sin devengo),
+> suplido (sin IVA); regla vía `ComplianceProvider` (ES LIVA/Verifactu · RD ITBIS/e-CF).
+> **GATE: no arrancar R2 hasta (a) #61 enmendado fusionado y (b) D-026 ratificada.**
 
-- [~] **PR-R1 — Modelo + migración + RLS** (PR-y-espera, migración+RLS): `RetainerAccount` (1 por
-  cliente, saldo cacheado, moneda del tenant) + `RetainerEntry` (movimientos DEPOSIT/APPLICATION/
-  REFUND/ADJUSTMENT con signo; `invoiceId`/`paymentId`). Enum de dominio `RetainerMovementType`.
-  RLS fail-closed en ambas. Migración `20260616130000_retainer`. e2e retainer-rls 5/5. Sin lógica.
-- [ ] **PR-R2 — Cobro de provisión (manual) + saldo** (PR-y-espera): depósito manual → `RetainerEntry
-    DEPOSIT` + actualiza saldo (transaccional, auditado); lectura de saldo + movimientos del cliente.
+- [~] **PR-R1 — Modelo + migración + RLS** (PR-y-espera, migración+RLS): `RetainerAccount` (**por
+  expediente**, `matterId @unique`; saldo cacheado; moneda del tenant) + `RetainerEntry` (movimientos
+  DEPOSIT/APPLICATION/REFUND/ADJUSTMENT con signo, **sin `currency`** — mono-moneda; `invoiceId`/
+  `paymentId`). Enum `RetainerMovementType`. RLS fail-closed. Migración `20260616130000_retainer`. e2e
+  retainer-rls 5/5. Sin lógica. **Enmendado tras revisión del owner (granularidad por asunto + moneda).**
+  - Restricciones que hereda R2/R3 (ver D-026): invariante `balance == Σ(entries)` con `SELECT … FOR
+UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea `PAYMENT` al ledger
+    (DEPOSIT no, evita doble cómputo); REFUND con IVA → factura rectificativa.
+- [ ] **PR-R2 — Cobro de provisión (manual) + saldo** (PR-y-espera; **bloqueado por el GATE**): depósito
+      manual → `RetainerEntry DEPOSIT` + actualiza saldo (transaccional con `FOR UPDATE`, auditado); guard
+      de moneda = tenant; lectura de saldo + movimientos por expediente (y agregado por cliente, derivado).
 - [ ] **PR-R3 — Aplicar provisión a factura** (PR-y-espera): `POST /retainer/apply` crea un `Payment`
       (método `RETAINER`) por la vía `reconcile` (mueve `amountPaid`, PARTIAL/PAID, apunte PAYMENT) +
       `RetainerEntry APPLICATION (−)` que baja el saldo, en una transacción. Valida saldo y moneda.

@@ -5,7 +5,7 @@ CREATE TYPE "RetainerMovementType" AS ENUM ('DEPOSIT', 'APPLICATION', 'REFUND', 
 CREATE TABLE "RetainerAccount" (
     "id" TEXT NOT NULL,
     "tenantId" TEXT NOT NULL,
-    "clientId" TEXT NOT NULL,
+    "matterId" TEXT NOT NULL,
     "currency" "Currency" NOT NULL,
     "balance" DECIMAL(18,2) NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -21,7 +21,6 @@ CREATE TABLE "RetainerEntry" (
     "accountId" TEXT NOT NULL,
     "type" "RetainerMovementType" NOT NULL,
     "amount" DECIMAL(18,2) NOT NULL,
-    "currency" "Currency" NOT NULL,
     "invoiceId" TEXT,
     "paymentId" TEXT,
     "note" TEXT,
@@ -31,7 +30,7 @@ CREATE TABLE "RetainerEntry" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "RetainerAccount_clientId_key" ON "RetainerAccount"("clientId");
+CREATE UNIQUE INDEX "RetainerAccount_matterId_key" ON "RetainerAccount"("matterId");
 
 -- CreateIndex
 CREATE INDEX "RetainerAccount_tenantId_idx" ON "RetainerAccount"("tenantId");
@@ -46,7 +45,7 @@ CREATE INDEX "RetainerEntry_tenantId_createdAt_idx" ON "RetainerEntry"("tenantId
 ALTER TABLE "RetainerAccount" ADD CONSTRAINT "RetainerAccount_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RetainerAccount" ADD CONSTRAINT "RetainerAccount_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "Client"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "RetainerAccount" ADD CONSTRAINT "RetainerAccount_matterId_fkey" FOREIGN KEY ("matterId") REFERENCES "Matter"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "RetainerEntry" ADD CONSTRAINT "RetainerEntry_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "Tenant"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -33,17 +33,21 @@ describe('RLS retainer a nivel de BD (e2e)', () => {
     const client = await system.client.create({
       data: { tenantId: tenant.id, name: `Cli-${name}`, taxId: `${name}-${unique}` },
     });
-    const account = await system.retainerAccount.create({
-      data: { tenantId: tenant.id, clientId: client.id, currency, balance: 100 },
-    });
-    const entry = await system.retainerEntry.create({
+    const matter = await system.matter.create({
       data: {
         tenantId: tenant.id,
-        accountId: account.id,
-        type: 'DEPOSIT',
-        amount: 100,
-        currency,
+        reference: `M-${name}-${unique}`,
+        title: 'Asunto',
+        type: 'civil',
+        clientId: client.id,
       },
+    });
+    // Retainer POR EXPEDIENTE (matterId @unique). Moneda = la del tenant (mono-moneda).
+    const account = await system.retainerAccount.create({
+      data: { tenantId: tenant.id, matterId: matter.id, currency, balance: 100 },
+    });
+    const entry = await system.retainerEntry.create({
+      data: { tenantId: tenant.id, accountId: account.id, type: 'DEPOSIT', amount: 100 },
     });
     return { tenantId: tenant.id, accountId: account.id, entryId: entry.id };
   };
@@ -101,7 +105,6 @@ describe('RLS retainer a nivel de BD (e2e)', () => {
             accountId: accountBId,
             type: 'ADJUSTMENT',
             amount: 1,
-            currency: 'DOP',
           },
         });
       }),

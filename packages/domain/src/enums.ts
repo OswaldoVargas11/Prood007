@@ -154,7 +154,7 @@ export enum DunningReminderStatus {
 }
 
 /**
- * Movimiento del saldo de provisión de fondos (retainer) de un cliente. Convención de signo:
+ * Movimiento del saldo de provisión de fondos (retainer) de un expediente. Convención de signo:
  * - DEPOSIT (+): anticipo cobrado al cliente (manual o, en Fase posterior, online).
  * - APPLICATION (−): provisión aplicada a una factura (liquida saldo pendiente de la factura).
  * - REFUND (−): devolución de provisión al cliente.

@@ -53,7 +53,7 @@ erDiagram
     Tenant ||--o{ DunningRule : "reglas dunning"
     Tenant ||--o{ DunningReminder : "recordatorios"
     DunningRule ||--o{ DunningReminder : "genera"
-    Client |o--o| RetainerAccount : "provisión (1-1)"
+    Matter |o--o| RetainerAccount : "provisión por asunto (1-1)"
     RetainerAccount ||--o{ RetainerEntry : "movimientos"
     Invoice ||--o{ RetainerEntry : "aplicaciones"
 ```
@@ -81,8 +81,8 @@ erDiagram
 | **InvoiceLine**     | `id`, `invoiceId`, `description`, `quantity`, `unitPrice`, `taxCode`                                                                                       | —                                                                                      |
 | **DunningRule**     | `id`, `tenantId`, `offsetDays`, `severity` (DunningSeverity), `channel` (DunningChannel), `active`                                                         | reglas de recordatorio por tenant (`@@unique tenantId,offsetDays`)                     |
 | **DunningReminder** | `id`, `tenantId`, `invoiceId`, `ruleId?`, `offsetDays`, `severity`, `channel`, `status` (DunningReminderStatus), `scheduledFor`, `sentAt?`                 | recordatorio por factura/etapa; idempotente (`@@unique tenantId,invoiceId,offsetDays`) |
-| **RetainerAccount** | `id`, `tenantId`, `clientId` (único, 1-1), `currency`, `balance` (cacheado)                                                                                | provisión de fondos por cliente; movimientos                                           |
-| **RetainerEntry**   | `id`, `tenantId`, `accountId`, `type` (RetainerMovementType), `amount` (con signo), `currency`, `invoiceId?`, `paymentId?`                                 | movimiento auditado del saldo de provisión                                             |
+| **RetainerAccount** | `id`, `tenantId`, `matterId` (único, 1-1), `currency` (= moneda del tenant), `balance` (cacheado)                                                          | provisión por expediente; saldo por cliente = Σ de sus asuntos (derivado)              |
+| **RetainerEntry**   | `id`, `tenantId`, `accountId`, `type` (RetainerMovementType), `amount` (con signo, mono-moneda), `invoiceId?`, `paymentId?`                                | movimiento auditado del saldo de provisión                                             |
 | **Notification**    | `id`, `tenantId`, `userId`, `type`, `title`, `body?`, `data?`, `readAt?`                                                                                   | destinatario                                                                           |
 | **Message**         | `id`, `tenantId`, `matterId`, `authorId`, `body`                                                                                                           | chat por expediente                                                                    |
 | **AuditLog**        | `id`, `tenantId`, `actorId?`, `action`, `entity`, `entityId`, `createdAt`                                                                                  | append-only                                                                            |
