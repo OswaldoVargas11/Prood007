@@ -257,6 +257,8 @@ model User {
   passwordHash String
   fullName     String
   isActive     Boolean  @default(true)
+  // Momento del último cambio de contraseña (auditoría + base para invalidación futura de tokens).
+  passwordChangedAt DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

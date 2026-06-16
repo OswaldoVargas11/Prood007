@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from './api';
+import { api, ApiError, getAccessToken, setAccessToken } from './api';
 import type {
   AnonymizeResult,
   Assignee,
@@ -828,6 +828,33 @@ export function useUpdateStaff() {
       void qc.invalidateQueries({ queryKey: ['staff'] });
       void qc.invalidateQueries({ queryKey: ['seats'] });
       void qc.invalidateQueries({ queryKey: ['settings'] });
+    },
+  });
+}
+
+/**
+ * Cambio de contraseña self-service (staff y cliente de portal). Va por el BFF (no por `api`) para
+ * que reescriba la cookie httpOnly del refresh; al terminar, actualiza el access token en memoria.
+ */
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: async (body: { currentPassword: string; newPassword: string }) => {
+      const token = getAccessToken();
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => undefined);
+      if (!res.ok) {
+        const raw = (data as { message?: string | string[] } | undefined)?.message;
+        const message = Array.isArray(raw) ? raw.join(', ') : (raw ?? `Error ${res.status}`);
+        throw new ApiError(res.status, message, data);
+      }
+      setAccessToken((data as { accessToken: string }).accessToken);
     },
   });
 }

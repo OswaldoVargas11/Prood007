@@ -67,6 +67,14 @@ export const API_MESSAGES = {
     'es-ES': 'Usuario no válido.',
     'es-DO': 'Usuario no válido.',
   },
+  'auth.currentPasswordInvalid': {
+    'es-ES': 'La contraseña actual no es correcta.',
+    'es-DO': 'La contraseña actual no es correcta.',
+  },
+  'auth.passwordSameAsOld': {
+    'es-ES': 'La nueva contraseña debe ser distinta de la actual.',
+    'es-DO': 'La nueva contraseña debe ser distinta de la actual.',
+  },
 
   // ── Clientes ──────────────────────────────────────────────────────────────
   'clients.taxIdInvalid': {
