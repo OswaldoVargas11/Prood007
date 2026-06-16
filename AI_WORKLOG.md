@@ -1409,3 +1409,21 @@ JSON i18n válido. Sin errores de consola.
 
 Nota: esta entrada se solapa en el tiempo con los fixes UX-apply (#70) y QR-Verifactu (#71).
 Siguiente: ítem recurrente / planes de pago (proponer opciones antes de implementar).
+
+### 2026-06-16 - Claude Opus 4.8 - Ítem 3 (recurrente/planes): propuesta + PR-RP1 (modelo+RLS)
+
+- **Propuesta + decisión (D-028):** se ofrecieron opciones (recurrente vs plan de pago y su fiscalidad;
+  Stripe Subscriptions vs calendario propio off-session vs Checkout/manual). El owner eligió: motor
+  ÚNICO (RECURRING|INSTALLMENTS), planes CONFIGURABLES a/b, Fase A Checkout/manual. Además delegó
+  arquitectura + merges autónomos (ver memoria) con verificación de puntos clave por PR.
+- **PR-RP1 (modelo + migración + RLS):** dominio + Prisma `BillingSchedule` + `BillingInstallment` + 5
+  enums. Migración `20260616155957_billing_schedules` con bloque RLS fail-closed a mano (mismo patrón
+  retainer/dunning/payments: `tenant_isolation` USING+WITH CHECK por `app_current_tenant()`). Back-refs
+  en Tenant/Matter/Client/Invoice/Payment. Sin lógica.
+- **Verificado (puntos clave):** e2e billing-rls 5/5 (lectura acotada · cross-tenant invisible · WITH
+  CHECK · fail-closed · sistema BYPASSRLS) + suite RLS completa 30/30 (incl. rls-wiring) + typecheck +
+  eslint + prisma format. Migración aplicada local (paré/reinicié el API por EPERM de prisma generate).
+- **Arquitectura:** dos tablas (plan + cuotas) en vez de una, por escalabilidad. Merge autónomo en
+  verde (PR-y-espera por migración+RLS).
+
+Siguiente: PR-RP2 (crear/leer planes + generación del cuadro de cuotas).

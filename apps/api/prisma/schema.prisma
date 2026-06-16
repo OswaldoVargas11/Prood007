@@ -148,6 +148,50 @@ enum ProvisionKind {
   GENERICO
 }
 
+// Facturación programada (recurrente / planes de pago). Un único motor cubre ambos casos.
+// - RECURRING: servicio continuado (iguala) → 1 factura por periodo (devengo en cada periodo).
+// - INSTALLMENTS: un importe fraccionado; el tratamiento fiscal depende de `BillingFiscalMode`.
+enum BillingScheduleType {
+  RECURRING
+  INSTALLMENTS
+}
+
+// Tratamiento fiscal del fraccionamiento (solo INSTALLMENTS; ver D-026/D-027):
+// - SERVICE_RENDERED: el servicio ya se prestó/contrató → 1 factura (IVA completo al emitir) + cuotas
+//   como COBROS parciales (Payment); las cuotas NO son facturas nuevas.
+// - ADVANCE: se cobra por adelantado → cada cuota es un ANTICIPO → factura de anticipo por cuota
+//   (devengo al cobro, flujo R2b); la factura final deduce los anticipos (R3b).
+enum BillingFiscalMode {
+  SERVICE_RENDERED
+  ADVANCE
+}
+
+// Cadencia de un plan recurrente (cada `intervalCount` × `intervalUnit`).
+enum BillingInterval {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+// Estado del plan de facturación.
+enum BillingScheduleStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+// Estado de una cuota/periodo concreto del plan. SCHEDULED → EMITTED (factura emitida) → PAID;
+// SKIPPED (omitida) / FAILED (cobro o emisión fallida, a reintentar/avisar).
+enum BillingInstallmentStatus {
+  SCHEDULED
+  EMITTED
+  PAID
+  SKIPPED
+  FAILED
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tenancy & Auth / RBAC
 // ─────────────────────────────────────────────────────────────────────────────
@@ -185,23 +229,25 @@ model Tenant {
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
-  users            User[]
-  roles            Role[]
-  clients          Client[]
-  matters          Matter[]
-  documents        Document[]
-  tasks            Task[]
-  timeEntries      TimeEntry[]
-  ledgerEntries    LedgerEntry[]
-  invoices         Invoice[]
-  payments         Payment[]
-  dunningRules     DunningRule[]
-  dunningReminders DunningReminder[]
-  retainerAccounts RetainerAccount[]
-  retainerEntries  RetainerEntry[]
-  notifications    Notification[]
-  messages         Message[]
-  auditLogs        AuditLog[]
+  users               User[]
+  roles               Role[]
+  clients             Client[]
+  matters             Matter[]
+  documents           Document[]
+  tasks               Task[]
+  timeEntries         TimeEntry[]
+  ledgerEntries       LedgerEntry[]
+  invoices            Invoice[]
+  payments            Payment[]
+  dunningRules        DunningRule[]
+  dunningReminders    DunningReminder[]
+  retainerAccounts    RetainerAccount[]
+  retainerEntries     RetainerEntry[]
+  billingSchedules    BillingSchedule[]
+  billingInstallments BillingInstallment[]
+  notifications       Notification[]
+  messages            Message[]
+  auditLogs           AuditLog[]
 }
 
 model User {
@@ -313,10 +359,11 @@ model Client {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user     User?     @relation("ClientUser", fields: [userId], references: [id])
-  matters  Matter[]
-  invoices Invoice[]
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user             User?             @relation("ClientUser", fields: [userId], references: [id])
+  matters          Matter[]
+  invoices         Invoice[]
+  billingSchedules BillingSchedule[]
 
   @@index([tenantId])
   @@index([tenantId, taxId])
@@ -336,16 +383,17 @@ model Matter {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client          Client           @relation(fields: [clientId], references: [id])
-  lawyer          User?            @relation("MatterLawyer", fields: [lawyerId], references: [id])
-  documents       Document[]
-  tasks           Task[]
-  timeEntries     TimeEntry[]
-  ledgerEntries   LedgerEntry[]
-  invoices        Invoice[]
-  messages        Message[]
-  retainerAccount RetainerAccount?
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client           Client            @relation(fields: [clientId], references: [id])
+  lawyer           User?             @relation("MatterLawyer", fields: [lawyerId], references: [id])
+  documents        Document[]
+  tasks            Task[]
+  timeEntries      TimeEntry[]
+  ledgerEntries    LedgerEntry[]
+  invoices         Invoice[]
+  messages         Message[]
+  retainerAccount  RetainerAccount?
+  billingSchedules BillingSchedule[]
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -516,15 +564,15 @@ model Invoice {
   currency  Currency
 
   // Totales neutrales calculados por el provider (Decimal, no float).
-  taxableBase       Decimal @db.Decimal(18, 2)
-  taxAmount         Decimal @db.Decimal(18, 2)
-  withholdingAmount Decimal @default(0) @db.Decimal(18, 2)
+  taxableBase        Decimal @db.Decimal(18, 2)
+  taxAmount          Decimal @db.Decimal(18, 2)
+  withholdingAmount  Decimal @default(0) @db.Decimal(18, 2)
   // Código de retención aplicado (p. ej. "IRPF_GENERAL" en ES), si lo hubo. Se persiste para poder
   // EMITIR una rectificativa que reverse el anticipo de forma exacta (misma retención). Null = sin retención.
   withholdingTaxCode String?
-  total             Decimal @db.Decimal(18, 2)
+  total              Decimal @db.Decimal(18, 2)
   // Importe cobrado acumulado (soporta cobros parciales). 0 hasta el primer cobro.
-  amountPaid        Decimal @default(0) @db.Decimal(18, 2)
+  amountPaid         Decimal @default(0) @db.Decimal(18, 2)
 
   // Registro fiscal específico del país (Verifactu / e-CF) como JSON OPACO al núcleo.
   complianceRecord   Json?
@@ -546,18 +594,19 @@ model Invoice {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  matter           Matter            @relation(fields: [matterId], references: [id])
-  client           Client            @relation(fields: [clientId], references: [id])
-  lines            InvoiceLine[]
-  ledger           LedgerEntry[]
-  payments         Payment[]
-  dunningReminders DunningReminder[]
-  retainerEntries  RetainerEntry[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter              Matter               @relation(fields: [matterId], references: [id])
+  client              Client               @relation(fields: [clientId], references: [id])
+  lines               InvoiceLine[]
+  ledger              LedgerEntry[]
+  payments            Payment[]
+  dunningReminders    DunningReminder[]
+  retainerEntries     RetainerEntry[]
+  billingInstallments BillingInstallment[]
   // Auto-relación: la factura rectificada y las rectificativas que la corrigen (Verifactu: cadena de
   // sustitución). `rectifies` apunta a la factura original; `rectifiedBy` son sus rectificativas.
-  rectifies        Invoice?          @relation("InvoiceRectification", fields: [rectifiesInvoiceId], references: [id])
-  rectifiedBy      Invoice[]         @relation("InvoiceRectification")
+  rectifies           Invoice?             @relation("InvoiceRectification", fields: [rectifiesInvoiceId], references: [id])
+  rectifiedBy         Invoice[]            @relation("InvoiceRectification")
 
   @@unique([tenantId, number])
   @@index([tenantId])
@@ -586,9 +635,10 @@ model Payment {
   paidAt      DateTime?
   createdAt   DateTime      @default(now())
 
-  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  invoice         Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  retainerEntries RetainerEntry[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice             Invoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  retainerEntries     RetainerEntry[]
+  billingInstallments BillingInstallment[]
 
   @@unique([providerRef])
   @@index([tenantId])
@@ -722,6 +772,83 @@ model RetainerEntry {
 
   @@index([tenantId, accountId])
   @@index([tenantId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Facturación programada: recurrente (iguala) + planes de pago (fraccionamiento)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Plan de facturación programada de un expediente. Un único motor cubre RECURRING (1 factura por
+// periodo) e INSTALLMENTS (fraccionar un importe; fiscalidad por `fiscalMode`). El cron procesa los
+// vencimientos (`nextRunAt`) y, en cada emisión, pasa por `buildInvoiceRecord` (serie + Verifactu/e-CF +
+// QR; sin atajos). RLS fail-closed. Ver PLAN (Ítem recurrente) y D-026/D-027.
+model BillingSchedule {
+  id                 String                @id @default(cuid())
+  tenantId           String
+  matterId           String
+  clientId           String
+  currency           Currency
+  type               BillingScheduleType
+  // Solo relevante en INSTALLMENTS; en RECURRING cada periodo es un servicio prestado (factura normal).
+  fiscalMode         BillingFiscalMode     @default(SERVICE_RENDERED)
+  status             BillingScheduleStatus @default(ACTIVE)
+  // Plantilla de líneas (concepto/cantidad/precio/taxCode) como JSON neutral. El provider fiscal calcula
+  // impuestos al emitir; el núcleo no calcula IVA/ITBIS en cliente. Mono-moneda = `currency`.
+  lines              Json
+  // Retención (p. ej. IRPF_GENERAL en ES) aplicable a cada emisión, si procede.
+  withholdingTaxCode String?
+  // RECURRING: cadencia = cada `intervalCount` × `intervalUnit`; `occurrences` = nº de emisiones
+  // (null = abierto, hasta pausar/cancelar).
+  intervalUnit       BillingInterval?
+  intervalCount      Int                   @default(1)
+  occurrences        Int?
+  // INSTALLMENTS: nº de cuotas del fraccionamiento.
+  installmentCount   Int?
+  startDate          DateTime
+  // Próximo vencimiento a procesar por el cron; null cuando COMPLETED/CANCELLED.
+  nextRunAt          DateTime?
+  note               String?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  tenant       Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter       Matter               @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  client       Client               @relation(fields: [clientId], references: [id])
+  installments BillingInstallment[]
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+  @@index([tenantId, status, nextRunAt])
+}
+
+// Cuota/periodo concreto de un plan. En RECURRING cada fila es un periodo (su factura propia); en
+// INSTALLMENTS es una cuota (cobro contra la factura única en SERVICE_RENDERED, o su factura de anticipo
+// en ADVANCE). `invoiceId`/`paymentId` enlazan el documento fiscal y el cobro. RLS fail-closed.
+model BillingInstallment {
+  id         String                   @id @default(cuid())
+  tenantId   String
+  scheduleId String
+  // Orden dentro del plan (1..N). Único por plan.
+  sequence   Int
+  dueDate    DateTime
+  // Importe BASE planificado de la cuota/periodo (mono-moneda del plan); los impuestos los calcula el
+  // provider al emitir.
+  amount     Decimal                  @db.Decimal(18, 2)
+  status     BillingInstallmentStatus @default(SCHEDULED)
+  invoiceId  String?
+  paymentId  String?
+  emittedAt  DateTime?
+  paidAt     DateTime?
+  createdAt  DateTime                 @default(now())
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  schedule BillingSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  invoice  Invoice?        @relation(fields: [invoiceId], references: [id])
+  payment  Payment?        @relation(fields: [paymentId], references: [id])
+
+  @@unique([scheduleId, sequence])
+  @@index([tenantId, scheduleId])
+  @@index([tenantId, status, dueDate])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

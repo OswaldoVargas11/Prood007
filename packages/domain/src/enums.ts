@@ -187,6 +187,52 @@ export enum ProvisionKind {
 }
 
 /**
+ * Facturación programada (un único motor cubre ambos):
+ * - RECURRING: servicio continuado (iguala) → 1 factura por periodo (devengo cada periodo).
+ * - INSTALLMENTS: fraccionar un importe; el tratamiento fiscal lo fija `BillingFiscalMode`.
+ */
+export enum BillingScheduleType {
+  RECURRING = 'RECURRING',
+  INSTALLMENTS = 'INSTALLMENTS',
+}
+
+/**
+ * Tratamiento fiscal del fraccionamiento (solo INSTALLMENTS; ver D-026/D-027):
+ * - SERVICE_RENDERED: servicio ya prestado → 1 factura (IVA completo al emitir) + cuotas como cobros.
+ * - ADVANCE: cobro por adelantado → factura de anticipo por cuota (devengo al cobro, R2b) + deducción
+ *   en la final (R3b).
+ */
+export enum BillingFiscalMode {
+  SERVICE_RENDERED = 'SERVICE_RENDERED',
+  ADVANCE = 'ADVANCE',
+}
+
+/** Cadencia de un plan recurrente (cada `intervalCount` × `intervalUnit`). */
+export enum BillingInterval {
+  WEEKLY = 'WEEKLY',
+  MONTHLY = 'MONTHLY',
+  QUARTERLY = 'QUARTERLY',
+  YEARLY = 'YEARLY',
+}
+
+/** Estado del plan de facturación programada. */
+export enum BillingScheduleStatus {
+  ACTIVE = 'ACTIVE',
+  PAUSED = 'PAUSED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
+}
+
+/** Estado de una cuota/periodo del plan. */
+export enum BillingInstallmentStatus {
+  SCHEDULED = 'SCHEDULED',
+  EMITTED = 'EMITTED',
+  PAID = 'PAID',
+  SKIPPED = 'SKIPPED',
+  FAILED = 'FAILED',
+}
+
+/**
  * Tipo de documento de factura (Verifactu / e-CF). NORMAL es el caso general; RECTIFICATIVA corrige una
  * factura ya emitida (p. ej. devolución de un anticipo facturado, D-027 (c)). Bajo Verifactu las facturas
  * no se modifican/borran: la rectificativa es un REGISTRO NUEVO encadenado que referencia la rectificada.
