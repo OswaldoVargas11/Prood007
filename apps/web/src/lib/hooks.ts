@@ -9,6 +9,7 @@ import type {
   Client,
   ClientsPage,
   ConflictResult,
+  ClientRetainer,
   CostApproval,
   DashboardSummary,
   DeadlineResult,
@@ -32,6 +33,8 @@ import type {
   Paginated,
   PaymentConfig,
   PortalInvoice,
+  ProvisionKind,
+  RetainerAccount,
   StripeConnectStatus,
   SeatUsage,
   StaffRole,
@@ -442,6 +445,71 @@ export function useDunningRun() {
       void qc.invalidateQueries({ queryKey: ['dunning-reminders'] });
       void qc.invalidateQueries({ queryKey: ['invoices'] });
     },
+  });
+}
+
+// ── Provisión de fondos / retainer (R5) ──────────────────────────────────────
+/** Cuenta de provisión de un expediente: saldo + movimientos (`GET /retainer/matter/:id`). */
+export function useMatterRetainer(matterId: string) {
+  return useQuery({
+    queryKey: ['retainer', 'matter', matterId],
+    queryFn: () => api.get<RetainerAccount>(`/retainer/matter/${matterId}`),
+    enabled: Boolean(matterId),
+  });
+}
+
+/** Saldo agregado de provisión de un cliente (Σ de sus expedientes, `GET /retainer/client/:id`). */
+export function useClientRetainer(clientId: string) {
+  return useQuery({
+    queryKey: ['retainer', 'client', clientId],
+    queryFn: () => api.get<ClientRetainer>(`/retainer/client/${clientId}`),
+    enabled: Boolean(clientId),
+  });
+}
+
+/** Tras una operación de retainer, refresca el saldo y lo que depende de él (ledger, facturas). */
+function invalidateRetainer(qc: ReturnType<typeof useQueryClient>, matterId: string) {
+  void qc.invalidateQueries({ queryKey: ['retainer'] });
+  void qc.invalidateQueries({ queryKey: ['ledger', matterId] });
+  void qc.invalidateQueries({ queryKey: ['invoices'] });
+}
+
+/** Cobro de provisión NO fiscal (SUPLIDO/GENERICO) → suma al saldo. ANTICIPO va por `useRetainerAnticipo`. */
+export function useRetainerDeposit(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      amount: string;
+      kind: Exclude<ProvisionKind, 'ANTICIPO'>;
+      note?: string;
+    }) => api.post<{ balance: string }>('/retainer/deposit', { ...body, matterId }),
+    onSuccess: () => invalidateRetainer(qc, matterId),
+  });
+}
+
+/** Cobro de ANTICIPO de honorarios: emite la factura de anticipo (Verifactu/e-CF) y acredita el saldo. */
+export function useRetainerAnticipo(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { amount: string; withholdingTaxCode?: string; description?: string }) =>
+      api.post<{ invoiceId: string; number: string; total: string; balance: string }>(
+        '/retainer/anticipo',
+        { ...body, matterId },
+      ),
+    onSuccess: () => invalidateRetainer(qc, matterId),
+  });
+}
+
+/** Aplica saldo de provisión (SUPLIDO/GENERICO) al cobro de una factura del expediente. */
+export function useRetainerApply(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { invoiceId: string; amount?: string }) =>
+      api.post<{ invoiceId: string; applied: string; invoiceStatus: string; balance: string }>(
+        '/retainer/apply',
+        { ...body, matterId },
+      ),
+    onSuccess: () => invalidateRetainer(qc, matterId),
   });
 }
 

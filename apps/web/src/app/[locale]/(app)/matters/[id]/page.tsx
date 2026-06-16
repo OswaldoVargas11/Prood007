@@ -15,6 +15,7 @@ import { MatterRail } from '@/components/lexora/matter-rail';
 import { DocumentsTab } from '@/components/lexora/documents-tab';
 import { TasksPanel } from '@/components/lexora/tasks-panel';
 import { CostsTab } from '@/components/lexora/costs-tab';
+import { RetainerTab } from '@/components/lexora/retainer';
 import { ChatTab } from '@/components/lexora/chat-tab';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,7 +36,7 @@ export default function MatterDetailPage() {
   const { data: matter, isLoading, isError, refetch } = useMatter(id);
   const changeStatus = useChangeMatterStatus(id);
   const searchParams = useSearchParams();
-  const validTabs = ['overview', 'documents', 'tasks', 'costs', 'chat', 'activity'];
+  const validTabs = ['overview', 'documents', 'tasks', 'costs', 'provision', 'chat', 'activity'];
   const initialTab = searchParams.get('tab');
   const [tab, setTab] = useState(
     initialTab && validTabs.includes(initialTab) ? initialTab : 'overview',
@@ -114,6 +115,7 @@ export default function MatterDetailPage() {
           <TabsTrigger value="documents">{t('tabs.documents')}</TabsTrigger>
           <TabsTrigger value="tasks">{t('tabs.tasks')}</TabsTrigger>
           <TabsTrigger value="costs">{t('tabs.costs')}</TabsTrigger>
+          <TabsTrigger value="provision">{t('tabs.provision')}</TabsTrigger>
           <TabsTrigger value="chat">{t('tabs.chat')}</TabsTrigger>
           <TabsTrigger value="activity">{t('tabs.activity')}</TabsTrigger>
         </TabsList>
@@ -158,6 +160,10 @@ export default function MatterDetailPage() {
 
         <TabsContent value="costs">
           <CostsTab matterId={id} />
+        </TabsContent>
+
+        <TabsContent value="provision">
+          <RetainerTab matterId={id} />
         </TabsContent>
 
         <TabsContent value="chat">
