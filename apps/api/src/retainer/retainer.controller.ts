@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import { RetainerService } from './retainer.service';
 import { RecordDepositDto } from './dto/record-deposit.dto';
+import { RecordAnticipoDto } from './dto/record-anticipo.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -16,10 +17,16 @@ import type { RequestUser } from '../auth/auth.types';
 export class RetainerController {
   constructor(private readonly retainer: RetainerService) {}
 
-  /** Registra un cobro de provisión (depósito) en el expediente. */
+  /** Registra un cobro de provisión NO fiscal (SUPLIDO/GENERICO) en el expediente. */
   @Post('deposit')
   deposit(@CurrentUser() user: RequestUser, @Body() dto: RecordDepositDto) {
     return this.retainer.deposit(user, dto);
+  }
+
+  /** Cobro de provisión ANTICIPO: emite factura de anticipo (Verifactu/e-CF) y acredita el saldo. */
+  @Post('anticipo')
+  anticipo(@CurrentUser() user: RequestUser, @Body() dto: RecordAnticipoDto) {
+    return this.retainer.depositAnticipo(user, dto);
   }
 
   /** Saldo + movimientos de la provisión de un expediente. */

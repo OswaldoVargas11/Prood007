@@ -648,3 +648,12 @@ UPDATE`** sobre la cuenta (para que un DEPOSIT y una APPLICATION concurrentes no
   migración `20260616140000_provision_kind`). e2e retainer 8/8 (ANTICIPO→400, guard moneda, role-gating,
   aislamiento, **concurrencia 10× sin perder updates**, invariante `balance == Σ(entries)`) + retainer-rls
   5/5. Formato de saldo con `Decimal.toFixed(2)` (evita que `.toString()` elimine los ceros). PR-y-espera.
+- **PR-R2b (implementado):** `POST /retainer/anticipo` (amount = BASE). Núcleo de emisión extraído a
+  `LedgerService.emitInvoiceInTx` (serie con `count` DENTRO de la tx + encadenamiento + `buildInvoiceRecord`
+  - factura ISSUED + apunte INVOICE), reutilizado por la emisión normal (sin duplicar; ledger e2e 15/15
+    intacto). `RetainerService.depositAnticipo` lo envuelve en UNA `tenantTransaction`: emite la factura,
+    la marca **PAID** (Payment MANUAL + apunte PAYMENT, espejo de `reconcile`) y acredita el retainer por
+    el **total** (`DEPOSIT(ANTICIPO)` ligado a factura+payment) con `postMovement` (FOR UPDATE). Atómico:
+    un fallo revierte serie+registro+ledger+saldo. Jurisdicción por `ComplianceProvider` (taxCode estándar
+    ES `IVA_STANDARD` / RD `ITBIS_STANDARD`; IRPF por `withholdingTaxCode`). e2e retainer-anticipo 4/4
+    (ES IVA21%+IRPF15%→1060 PAID, saldo 1060, encadenamiento, atomicidad en rechazo, role-gating).
