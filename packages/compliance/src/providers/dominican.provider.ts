@@ -5,7 +5,7 @@
  * "not available" court integration because LexNET does not apply in this jurisdiction.
  */
 import { createHash } from 'node:crypto';
-import { Jurisdiction } from '@legalflow/domain';
+import { Jurisdiction, InvoiceDocumentType } from '@legalflow/domain';
 import { addBusinessDays } from '../deadlines';
 import { computeInvoiceTotals } from '../tax-math';
 import { validateDoTaxId } from '../taxid';
@@ -60,6 +60,25 @@ export class DominicanComplianceProvider implements ComplianceProvider {
     // emitidas (NO una nota de crédito). El ITBIS acumulado = ITBIS del total, sin doble imposición; las
     // facturas de anticipo quedan inmutables. Conservador: la deducción en el e-CF final está menos
     // cerrada en las fuentes RD que la nota de crédito; un contador dominicano lo afinaría (D-027).
+    // Nota de crédito e-CF (D-027 (c)): la devolución de un anticipo facturado se documenta como NOTA DE
+    // CRÉDITO (tipo e-CF 34), que referencia el e-CF modificado en <InformacionReferencia>. Conservador:
+    // el detalle exacto del estándar DGII lo afinaría un contador dominicano.
+    const isNotaCredito =
+      invoice.documentType === InvoiceDocumentType.RECTIFICATIVA && Boolean(invoice.rectifies);
+    const referenciaBlock =
+      isNotaCredito && invoice.rectifies
+        ? [
+            '    <InformacionReferencia>',
+            `      <NCFModificado>${invoice.rectifies.invoiceNumber}</NCFModificado>`,
+            ...(invoice.rectifies.issueDate
+              ? [`      <FechaNCFModificado>${invoice.rectifies.issueDate}</FechaNCFModificado>`]
+              : []),
+            '      <CodigoModificacion>1</CodigoModificacion>',
+            `      <RazonModificacion>${invoice.rectifies.reason}</RazonModificacion>`,
+            '    </InformacionReferencia>',
+          ]
+        : [];
+
     const anticiposBlock =
       invoice.deductedAdvances && invoice.deductedAdvances.length > 0
         ? [
@@ -79,6 +98,8 @@ export class DominicanComplianceProvider implements ComplianceProvider {
       '<ECF>',
       '  <Encabezado>',
       '    <IdDoc>',
+      // TipoeCF: 34 = Nota de Crédito Electrónica; 31 = Factura de Crédito Fiscal Electrónica.
+      `      <TipoeCF>${isNotaCredito ? '34' : '31'}</TipoeCF>`,
       `      <eNCF>${invoice.invoiceNumber}</eNCF>`,
       `      <FechaEmision>${invoice.issueDate}</FechaEmision>`,
       '    </IdDoc>',
@@ -94,6 +115,7 @@ export class DominicanComplianceProvider implements ComplianceProvider {
       `      <MontoTotal>${totals.total}</MontoTotal>`,
       '    </Totales>',
       ...anticiposBlock,
+      ...referenciaBlock,
       '  </Encabezado>',
       '  <!-- Digital certificate signature is outside the MVP integration scope. -->',
       '</ECF>',

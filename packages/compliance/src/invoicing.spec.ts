@@ -1,3 +1,4 @@
+import { InvoiceDocumentType, RectificationMode } from '@legalflow/domain';
 import type { InvoiceInput } from './types';
 import { SpainComplianceProvider } from './providers/spain.provider';
 import { DominicanComplianceProvider } from './providers/dominican.provider';
@@ -160,6 +161,105 @@ describe('Deducción de anticipos en la factura final (D-027 (b)) — sin doble 
     expect(xml).toContain('<AnticiposDeducidos>');
     expect(xml).toContain('<eNCFAnticipo>E310000000001</eNCFAnticipo>');
     expect(xml).toContain('<MontoGravadoDeducido>1000.00</MontoGravadoDeducido>');
+  });
+});
+
+describe('Rectificativa del refund (D-027 (c)) — registro nuevo encadenado, factura rectificada inmutable', () => {
+  const es = new SpainComplianceProvider();
+  const dom = new DominicanComplianceProvider();
+
+  it('ES: la rectificativa por sustitución marca R1/S y referencia la factura rectificada', async () => {
+    // Devolución total de un anticipo de 1000 (IVA 210): la rectificativa lo reversa (líneas negativas).
+    const rec = await es.buildInvoiceRecord(
+      baseInvoice({
+        invoiceNumber: 'FAC-2026-0009',
+        lines: [
+          {
+            description: 'Anulación anticipo FAC-2026-0001',
+            quantity: '1',
+            unitPrice: '-1000',
+            taxCode: 'IVA_STANDARD',
+          },
+        ],
+        documentType: InvoiceDocumentType.RECTIFICATIVA,
+        rectifies: {
+          invoiceNumber: 'FAC-2026-0001',
+          issueDate: '2026-01-15',
+          reason: 'Devolución del anticipo',
+          mode: RectificationMode.SUSTITUCION,
+        },
+      }),
+    );
+    // Importes en negativo (reversa el anticipo): base −1000, IVA −210, total −1210.
+    expect(rec.totals.taxableBase).toBe('-1000.00');
+    expect(rec.totals.taxAmount).toBe('-210.00');
+    expect(rec.totals.total).toBe('-1210.00');
+    const block = rec.payload.rectificativa as {
+      tipoFactura: string;
+      tipoRectificativa: string;
+      facturasRectificadas: { numFactura: string; fechaExpedicion: string | null }[];
+      causa: string;
+    };
+    expect(block.tipoFactura).toBe('R1');
+    expect(block.tipoRectificativa).toBe('S'); // sustitución
+    expect(block.facturasRectificadas).toEqual([
+      { numFactura: 'FAC-2026-0001', fechaExpedicion: '2026-01-15' },
+    ]);
+    expect(block.causa).toBe('Devolución del anticipo');
+    // Encadenada como cualquier registro Verifactu.
+    expect(rec.recordHash).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('ES: una factura normal no lleva bloque de rectificativa', async () => {
+    const rec = await es.buildInvoiceRecord(baseInvoice());
+    expect((rec.payload as { rectificativa?: unknown }).rectificativa).toBeUndefined();
+  });
+
+  it('RD: la nota de crédito e-CF (tipo 34) referencia el e-CF modificado', async () => {
+    const rec = await dom.buildInvoiceRecord(
+      baseInvoice({
+        currency: 'DOP',
+        invoiceNumber: 'E340000000001',
+        seller: { name: 'Despacho', taxId: '101010101' },
+        buyer: { name: 'Cliente', taxId: '130000000' },
+        lines: [
+          {
+            description: 'Anulación anticipo',
+            quantity: '1',
+            unitPrice: '-1000',
+            taxCode: 'ITBIS_STANDARD',
+          },
+        ],
+        documentType: InvoiceDocumentType.RECTIFICATIVA,
+        rectifies: {
+          invoiceNumber: 'E310000000001',
+          issueDate: '2026-01-15',
+          reason: 'Devolución del anticipo',
+          mode: RectificationMode.SUSTITUCION,
+        },
+      }),
+    );
+    const xml = String((rec.payload as { ecfXml: string }).ecfXml);
+    expect(xml).toContain('<TipoeCF>34</TipoeCF>'); // nota de crédito
+    expect(xml).toContain('<InformacionReferencia>');
+    expect(xml).toContain('<NCFModificado>E310000000001</NCFModificado>');
+    expect(xml).toContain('<RazonModificacion>Devolución del anticipo</RazonModificacion>');
+  });
+
+  it('RD: una factura normal es TipoeCF 31 sin información de referencia', async () => {
+    const rec = await dom.buildInvoiceRecord(
+      baseInvoice({
+        currency: 'DOP',
+        seller: { name: 'Despacho', taxId: '101010101' },
+        buyer: { name: 'Cliente', taxId: '130000000' },
+        lines: [
+          { description: 'Servicio', quantity: '1', unitPrice: '1000', taxCode: 'ITBIS_STANDARD' },
+        ],
+      }),
+    );
+    const xml = String((rec.payload as { ecfXml: string }).ecfXml);
+    expect(xml).toContain('<TipoeCF>31</TipoeCF>');
+    expect(xml).not.toContain('<InformacionReferencia>');
   });
 });
 

@@ -1330,3 +1330,33 @@ retainer-rls 5/5. typecheck + eslint + prettier limpios.
 Sensibilidad / merge: Verifactu/dinero → **PR-y-espera** (no toca migración). Siguiente: **R3c**
 (rectificativa del refund, con migración `Invoice`) o **R5 (UI)** del retainer. Pendiente: OK del owner
 sobre el re-enfoque del guard (D6) y, no bloqueante, revisión de fiscalista del motor completo.
+
+### 2026-06-16 - Claude Opus 4.8 - PR-R3c: rectificativa del refund (apilada sobre R3b)
+
+Objetivo: D-027 (c) devolución de un anticipo facturado = factura rectificativa (NO restar saldo).
+**Apilada sobre R3b** (mismos ficheros: compliance, retainer, docs) para evitar conflictos; **retargetear
+a main al fusionar R3b**. R3b CI: **todo verde** (#66). Rectificativa = **por sustitución** (acordado).
+
+Hecho (R3c):
+
+- Dominio + Prisma: enums `InvoiceDocumentType` (NORMAL|RECTIFICATIVA) + `RectificationMode`
+  (SUSTITUCION|DIFERENCIAS). `Invoice` gana `documentType`, `rectifiesInvoiceId` (self-FK),
+  `rectificationReason`, `rectificationMode`, `withholdingTaxCode` (reversar IRPF exacto). Migración
+  pendiente (necesita parar el API local por EPERM de prisma generate).
+- `packages/compliance`: `InvoiceInput.documentType` + `rectifies { invoiceNumber, issueDate?, reason,
+mode }`. ES Verifactu → bloque `rectificativa` (R1 + tipoRectificativa S/I + facturasRectificadas +
+  causa). RD → e-CF `<TipoeCF>34</TipoeCF>` (nota de crédito) + `<InformacionReferencia><NCFModificado>`.
+  Normal → TipoeCF 31 sin referencia. Unit tests compliance 57/57 (+4).
+- `apps/api`: `emitInvoiceInTx` acepta `rectification` (FK + datos fiscales) y persiste los campos +
+  `withholdingTaxCode`. Nuevo `RetainerService.refundAnticipo` (`POST /retainer/refund`,
+  `RefundAnticipoDto`): rectificativa por sustitución (espejo en negativo del anticipo, misma retención)
+  - `RetainerEntry REFUND(−)`, atómico. Guards: notAnAnticipoInvoice / anticipoAlreadyRefunded /
+    anticipoAlreadyDeducted. **Interacción R3b:** `invoiceFinalWithDeduction` excluye anticipos devueltos.
+- e2e retainer-refund.e2e-spec.ts (7): rectificativa R1/S encadenada + inmutabilidad, reversa con IRPF,
+  doble refund, no-anticipo, interacción refund→deducción, RD nota de crédito tipo 34, role-gating.
+
+Pruebas: compliance **57/57** OK (local). e2e del API y typecheck **pendientes de la migración** (API
+local corriendo → prisma generate da EPERM; requiere autorización del owner para parar/reiniciar).
+
+Sensibilidad / merge: migración + Verifactu/dinero → **PR-y-espera**. Bloqueante actual: autorización
+para parar el API local (PID 45832) y aplicar la migración + generate + e2e.

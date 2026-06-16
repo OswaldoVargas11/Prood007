@@ -8,7 +8,7 @@
  * lógica real pendiente (E9). El envío a AEAT va STUBBEADO.
  */
 import { createHash } from 'node:crypto';
-import { Jurisdiction } from '@legalflow/domain';
+import { Jurisdiction, InvoiceDocumentType, RectificationMode } from '@legalflow/domain';
 import { addBusinessDays, spanishNationalHolidays } from '../deadlines';
 import { computeInvoiceTotals } from '../tax-math';
 import { validateEsTaxId } from '../taxid';
@@ -72,6 +72,26 @@ export class SpainComplianceProvider implements ComplianceProvider {
     // Misma ruta de cálculo que el preview en vivo: fuente única de la matemática fiscal.
     const { totals } = this.previewInvoice(invoice.lines, invoice.withholdingTaxCode);
 
+    // Factura rectificativa (D-027 (c)): registro NUEVO encadenado que corrige una factura ya emitida.
+    // Verifactu: TipoFactura R1 + bloque de factura(s) rectificada(s) + TipoRectificativa (S sustitución
+    // / I por diferencias). La rectificada queda inmutable; esta neutraliza/ajusta el IVA declarado.
+    const isRectificativa =
+      invoice.documentType === InvoiceDocumentType.RECTIFICATIVA && Boolean(invoice.rectifies);
+    const rectificativa =
+      isRectificativa && invoice.rectifies
+        ? {
+            tipoFactura: 'R1',
+            tipoRectificativa: invoice.rectifies.mode === RectificationMode.SUSTITUCION ? 'S' : 'I',
+            facturasRectificadas: [
+              {
+                numFactura: invoice.rectifies.invoiceNumber,
+                fechaExpedicion: invoice.rectifies.issueDate ?? null,
+              },
+            ],
+            causa: invoice.rectifies.reason,
+          }
+        : undefined;
+
     // Encadenamiento Verifactu: huella = SHA-256 de campos canónicos + huella del registro anterior.
     const canonical = [
       invoice.seller.taxId,
@@ -103,6 +123,8 @@ export class SpainComplianceProvider implements ComplianceProvider {
         tipoHuella: '01', // SHA-256
         huella: recordHash,
         encadenamiento: { huellaAnterior: invoice.previousRecordHash ?? null },
+        // Bloque de rectificativa (solo si documentType = RECTIFICATIVA); ausente en facturas normales.
+        rectificativa,
         // Anticipos deducidos en la factura final (D-027 (b)): NO es una rectificativa; las facturas de
         // anticipo quedan inmutables y la final las neutraliza por deducción (líneas negativas). El IVA
         // acumulado = IVA del total. Las facturas referenciadas dan la trazabilidad documental.

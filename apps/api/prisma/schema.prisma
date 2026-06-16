@@ -77,6 +77,21 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+// Tipo de documento de factura. NORMAL = caso general; RECTIFICATIVA corrige una factura ya emitida
+// (devolución de un anticipo facturado, D-027 (c)). Bajo Verifactu/e-CF la rectificativa es un registro
+// NUEVO encadenado que referencia la rectificada (las facturas no se modifican/borran).
+enum InvoiceDocumentType {
+  NORMAL
+  RECTIFICATIVA
+}
+
+// Método de la rectificativa (D-027 (c)): SUSTITUCION (la errónea en negativo + la rectificativa; método
+// de R3c para devolución total) | DIFERENCIAS (solo el delta; reservado para refund parcial, no en R3c).
+enum RectificationMode {
+  SUSTITUCION
+  DIFERENCIAS
+}
+
 // Estado de aprobación de un apunte del ledger (flujo de aprobación de costes).
 // Por defecto APPROVED (los apuntes normales no requieren aprobación); un coste propuesto por un
 // letrado nace PROPOSED y el admin lo aprueba o rechaza.
@@ -504,6 +519,9 @@ model Invoice {
   taxableBase       Decimal @db.Decimal(18, 2)
   taxAmount         Decimal @db.Decimal(18, 2)
   withholdingAmount Decimal @default(0) @db.Decimal(18, 2)
+  // Código de retención aplicado (p. ej. "IRPF_GENERAL" en ES), si lo hubo. Se persiste para poder
+  // EMITIR una rectificativa que reverse el anticipo de forma exacta (misma retención). Null = sin retención.
+  withholdingTaxCode String?
   total             Decimal @db.Decimal(18, 2)
   // Importe cobrado acumulado (soporta cobros parciales). 0 hasta el primer cobro.
   amountPaid        Decimal @default(0) @db.Decimal(18, 2)
@@ -517,6 +535,14 @@ model Invoice {
   // Hash del registro inmediatamente anterior (cadena inalterable).
   previousRecordHash String?
 
+  // Tipo de documento: NORMAL | RECTIFICATIVA (D-027 (c)). Una rectificativa referencia la factura que
+  // corrige (`rectifiesInvoiceId`), su causa y su método (sustitución/diferencias). Las facturas de
+  // anticipo quedan inmutables; la rectificativa es un registro nuevo encadenado.
+  documentType        InvoiceDocumentType @default(NORMAL)
+  rectifiesInvoiceId  String?
+  rectificationReason String?
+  rectificationMode   RectificationMode?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -528,6 +554,10 @@ model Invoice {
   payments         Payment[]
   dunningReminders DunningReminder[]
   retainerEntries  RetainerEntry[]
+  // Auto-relación: la factura rectificada y las rectificativas que la corrigen (Verifactu: cadena de
+  // sustitución). `rectifies` apunta a la factura original; `rectifiedBy` son sus rectificativas.
+  rectifies        Invoice?          @relation("InvoiceRectification", fields: [rectifiesInvoiceId], references: [id])
+  rectifiedBy      Invoice[]         @relation("InvoiceRectification")
 
   @@unique([tenantId, number])
   @@index([tenantId])
