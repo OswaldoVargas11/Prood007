@@ -407,8 +407,12 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
   `InstallmentStatus`). RLS fail-closed (mismo patrón) + **e2e billing-rls 5/5** (lectura acotada,
   cross-tenant invisible, WITH CHECK, fail-closed, sistema BYPASSRLS). Migración
   `20260616155957_billing_schedules`. Sin lógica.
-- [ ] **PR-RP2 — Crear/leer planes** (PR-y-espera): `POST /billing/schedules` (RECURRING o INSTALLMENTS
-      con `fiscalMode`) + validación + generación del cuadro de cuotas; lecturas por expediente. e2e.
+- [x] **PR-RP2 — Crear/leer planes** (auto-mergeable; sin migración): `POST /billing/schedules` (RECURRING
+      o INSTALLMENTS con `fiscalMode`) + validación por tipo + **generación del cuadro de cuotas**
+      (recurrente acotado/abierto; fraccionamiento con reparto y redondeo en la última cuota);
+      `GET /billing/schedules?matterId` + `GET /billing/schedules/:id` con cuotas. `BillingModule`
+      (service+controller, exporta el service para RP3/RP4). e2e billing-schedules 9/9 (generación,
+      validaciones, lecturas, role-gating, aislamiento). Sin emisión todavía.
 - [ ] **PR-RP3 — Emisión recurrente** (PR-y-espera, Verifactu-crítico): run que emite 1 factura/periodo
       vía `emitInvoiceInTx` y avanza `nextRunAt`. e2e (factura por periodo, encadenado, atómico).
 - [ ] **PR-RP4 — Emisión planes de pago** (PR-y-espera, Verifactu-crítico): (a) 1 factura + cuotas-cobro;

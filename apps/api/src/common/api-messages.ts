@@ -264,6 +264,24 @@ export const API_MESSAGES = {
     'es-DO': 'La factura no pertenece al expediente de esta provisión.',
   },
 
+  // ── Facturación programada (recurrente / planes de pago) ──────────────────
+  'billing.amountPositive': {
+    'es-ES': 'El importe del plan (suma de las líneas) debe ser positivo.',
+    'es-DO': 'El monto del plan (suma de las líneas) debe ser positivo.',
+  },
+  'billing.recurringNoInstallmentCount': {
+    'es-ES': 'Un plan recurrente no lleva número de cuotas; usa periodos (occurrences).',
+    'es-DO': 'Un plan recurrente no lleva número de cuotas; usa periodos (occurrences).',
+  },
+  'billing.installmentCountRequired': {
+    'es-ES': 'Un plan de pago requiere un número de cuotas de al menos 2.',
+    'es-DO': 'Un plan de pago requiere un número de cuotas de al menos 2.',
+  },
+  'billing.scheduleNotFound': {
+    'es-ES': 'Plan de facturación no encontrado.',
+    'es-DO': 'Plan de facturación no encontrado.',
+  },
+
   // ── Tareas ────────────────────────────────────────────────────────────────
   'tasks.assigneeNotInFirm': {
     'es-ES': 'El usuario asignado no pertenece al despacho.',
