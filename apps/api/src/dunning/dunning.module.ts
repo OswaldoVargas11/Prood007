@@ -1,17 +1,20 @@
 import { Module } from '@nestjs/common';
 import { DunningService } from './dunning.service';
 import { DunningController } from './dunning.controller';
+import { DunningCron } from './dunning.cron';
 import { InAppChannel } from './channels/in-app.channel';
 import { DUNNING_CHANNELS } from './channels/dunning-channel';
 
 /**
  * Motor de dunning. Los canales de entrega se registran en el multi-provider `DUNNING_CHANNELS`; hoy
- * solo IN_APP. EMAIL/SMS (Fase 2) se añaden aquí como nuevos dispatchers sin tocar el motor.
+ * solo IN_APP. EMAIL/SMS (Fase 2) se añaden aquí como nuevos dispatchers sin tocar el motor. El cron
+ * diario (`DunningCron`) lo descubre `ScheduleModule.forRoot()` declarado en `app.module`.
  */
 @Module({
   controllers: [DunningController],
   providers: [
     DunningService,
+    DunningCron,
     InAppChannel,
     {
       provide: DUNNING_CHANNELS,

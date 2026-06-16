@@ -1074,3 +1074,29 @@ Pruebas (LOCAL, contra Postgres real como `legalflow_app`; migración aplicada c
 
 Sensibilidad / merge: lógica de dunning (dinero-adyacente) → **PR-y-espera**. No toca migración.
 Siguiente: PR-D3 (cron diario con `@nestjs/schedule` reutilizando `DunningService`).
+
+## 2026-06-16 — Claude — Ítem 1 (Dunning) PR-D3: cron diario / barrido multi-tenant
+
+Contexto: D2 fusionado a main (#57, CI verde, OK del owner). D3 cierra la automatización: las vencidas
+se persiguen solas a diario.
+
+Hecho:
+
+- Dependencia nueva `@nestjs/schedule@^6.1.3` (compatible con Nest 10). `ScheduleModule.forRoot()` en
+  `app.module` (descubre los `@Cron`).
+- `apps/api/src/dunning/dunning.cron.ts`: `DunningCron` con `@Cron(EVERY_DAY_AT_6AM, name:'dunning-daily')`
+  → `sweep()`, que **barre todos los tenants** reutilizando `DunningService.evaluateTenant` (actor=sistema).
+  Clave RLS: el cron NO tiene contexto de request, así que lista tenants con el cliente de SISTEMA
+  (BYPASSRLS) y evalúa cada uno dentro de `runWithTenant(tenantId)` → la extensión de Prisma fija
+  `app.tenant_id` y las queries del motor quedan acotadas por RLS (sin fugas). Un fallo por tenant se
+  registra y no detiene el barrido. Registrado en `DunningModule`.
+- Docs: PLAN (D3 [~]), DECISIONS (D-025 ampliada con D3), este worklog.
+
+Pruebas (LOCAL, Postgres real como `legalflow_app`):
+
+- `apps/api/test/dunning-cron.e2e-spec.ts` 2/2: el barrido (llamado vía `app.get(DunningCron).sweep()`,
+  sin request) genera los 3 recordatorios SENT correctos POR TENANT bajo RLS (A solo A, B solo B), y un
+  segundo barrido es idempotente. Suite dunning completa 3/3 · 16 tests. typecheck + eslint limpios.
+
+Sensibilidad / merge: automatización del cobro + dependencia nueva → **PR-y-espera**. No toca migración
+ni RLS (reusa el patrón existente). Siguiente: PR-D4 (UI despacho: surfacing + "recordar ahora" + timeline).
