@@ -283,6 +283,103 @@ export interface ClientRetainer {
   accounts: { matterId: string; currency: string; balance: string }[];
 }
 
+// ── Facturación programada (D-028, RP1-RP6) ──────────────────────────────────
+export type BillingScheduleType = 'RECURRING' | 'INSTALLMENTS';
+export type BillingFiscalMode = 'SERVICE_RENDERED' | 'ADVANCE';
+export type BillingInterval = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+export type BillingScheduleStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+export type BillingInstallmentStatus = 'SCHEDULED' | 'EMITTED' | 'PAID' | 'SKIPPED' | 'FAILED';
+
+/** Línea de la plantilla del plan (igual forma que la línea de factura). */
+export interface BillingScheduleLine {
+  description: string;
+  quantity: string;
+  unitPrice: string;
+  taxCode: string;
+}
+
+/** Cuota/periodo del cuadro de un plan (`GET /billing/schedules/:id`). */
+export interface BillingInstallment {
+  id: string;
+  sequence: number;
+  dueDate: string;
+  amount: string;
+  status: BillingInstallmentStatus;
+  invoiceId: string | null;
+  paymentId: string | null;
+}
+
+/** Fila del listado de planes de un expediente (`GET /billing/schedules?matterId=`). */
+export interface BillingScheduleListItem {
+  id: string;
+  type: BillingScheduleType;
+  fiscalMode: BillingFiscalMode;
+  status: BillingScheduleStatus;
+  currency: string;
+  intervalUnit: BillingInterval | null;
+  intervalCount: number;
+  occurrences: number | null;
+  installmentCount: number | null;
+  startDate: string;
+  nextRunAt: string | null;
+  installments: number;
+  createdAt: string;
+}
+
+/** Un plan con su cuadro de cuotas completo (`GET /billing/schedules/:id`). */
+export interface BillingSchedule {
+  id: string;
+  matterId: string;
+  clientId: string;
+  currency: string;
+  type: BillingScheduleType;
+  fiscalMode: BillingFiscalMode;
+  status: BillingScheduleStatus;
+  lines: BillingScheduleLine[];
+  withholdingTaxCode: string | null;
+  intervalUnit: BillingInterval | null;
+  intervalCount: number;
+  occurrences: number | null;
+  installmentCount: number | null;
+  startDate: string;
+  nextRunAt: string | null;
+  note: string | null;
+  createdAt: string;
+  installments: BillingInstallment[];
+}
+
+/** Cuerpo para crear un plan (`POST /billing/schedules`). */
+export interface CreateBillingScheduleBody {
+  matterId: string;
+  type: BillingScheduleType;
+  fiscalMode?: BillingFiscalMode;
+  intervalUnit: BillingInterval;
+  intervalCount?: number;
+  occurrences?: number;
+  installmentCount?: number;
+  startDate: string;
+  withholdingTaxCode?: string;
+  note?: string;
+  lines: BillingScheduleLine[];
+}
+
+/** Resultado de emitir los periodos vencidos (`POST /billing/schedules/:id/run`). */
+export interface BillingRunResult {
+  scheduleId: string;
+  emitted: { invoiceId: string; number: string; sequence: number }[];
+  completed: boolean;
+}
+
+/** Resultado de cobrar una cuota de anticipo (`POST /billing/installments/:id/collect`). */
+export interface BillingCollectResult {
+  installmentId: string;
+  invoiceId: string;
+  number: string;
+  total: string;
+  balance: string;
+  completed: boolean;
+}
+
 // ── Dunning (recordatorios de cobro) ─────────────────────────────────────────
 export type DunningSeverity = 'REMINDER' | 'WARNING' | 'FINAL';
 export type DunningReminderStatus = 'SCHEDULED' | 'SENT' | 'SKIPPED' | 'FAILED';
