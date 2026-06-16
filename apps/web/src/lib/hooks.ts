@@ -541,6 +541,22 @@ export function usePortalInvoices() {
   });
 }
 
+/** ¿Puede el cliente pagar online? (el despacho tiene pasarela + cuenta conectada). */
+export function usePortalPaymentConfig() {
+  return useQuery({
+    queryKey: ['portal', 'payments', 'config'],
+    queryFn: () => api.get<{ onlineEnabled: boolean }>('/portal/payments/config'),
+    staleTime: 60_000,
+  });
+}
+
+/** El cliente paga SU factura online: crea el checkout y redirige a Stripe. */
+export function usePortalCheckout(invoiceId: string) {
+  return useMutation({
+    mutationFn: () => api.post<{ url: string }>(`/portal/invoices/${invoiceId}/checkout`),
+  });
+}
+
 // ── Alta de cliente / expediente / acceso al portal (Tanda B) ─────────────────
 export function useCreateClient() {
   const qc = useQueryClient();

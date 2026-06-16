@@ -2,10 +2,16 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Download, Loader2 } from 'lucide-react';
+import { CreditCard, Download, Loader2 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/lib/auth';
-import { downloadInvoicePdf, usePortalInvoices, usePortalMatters } from '@/lib/hooks';
+import {
+  downloadInvoicePdf,
+  usePortalCheckout,
+  usePortalInvoices,
+  usePortalMatters,
+  usePortalPaymentConfig,
+} from '@/lib/hooks';
 import { jurisdictionCopy } from '@/lib/jurisdiction';
 import { invoiceStatusVariant } from '@/lib/ledger';
 import { formatDate, formatMoney } from '@/lib/format';
@@ -22,6 +28,7 @@ export default function PortalHome() {
   const { user } = useAuth();
   const matters = usePortalMatters();
   const invoices = usePortalInvoices();
+  const payConfig = usePortalPaymentConfig();
   const copy = user ? jurisdictionCopy(user.jurisdiction) : null;
 
   return (
@@ -90,11 +97,18 @@ export default function PortalHome() {
                       {formatMoney(inv.total, inv.currency, locale)}
                     </td>
                     <td className="px-2 py-3 text-right">
-                      <InvoicePdfButton
-                        path={`/portal/invoices/${inv.id}/pdf`}
-                        filename={`Factura-${inv.number}.pdf`}
-                        label={t('downloadInvoice')}
-                      />
+                      <div className="flex items-center justify-end gap-1">
+                        {payConfig.data?.onlineEnabled &&
+                          inv.status !== 'PAID' &&
+                          inv.status !== 'CANCELLED' && (
+                            <PayOnlineButton invoiceId={inv.id} label={tInv('payOnline')} />
+                          )}
+                        <InvoicePdfButton
+                          path={`/portal/invoices/${inv.id}/pdf`}
+                          filename={`Factura-${inv.number}.pdf`}
+                          label={t('downloadInvoice')}
+                        />
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -104,6 +118,31 @@ export default function PortalHome() {
         )}
       </section>
     </div>
+  );
+}
+
+/** Botón "Pagar online": el cliente paga su factura por Stripe Checkout (redirección). */
+function PayOnlineButton({ invoiceId, label }: { invoiceId: string; label: string }) {
+  const checkout = usePortalCheckout(invoiceId);
+  return (
+    <Button
+      size="sm"
+      onClick={() =>
+        checkout.mutate(undefined, {
+          onSuccess: ({ url }) => {
+            window.location.href = url;
+          },
+        })
+      }
+      disabled={checkout.isPending}
+    >
+      {checkout.isPending ? (
+        <Loader2 className="size-4 animate-spin" />
+      ) : (
+        <CreditCard className="size-4" />
+      )}
+      {label}
+    </Button>
   );
 }
 

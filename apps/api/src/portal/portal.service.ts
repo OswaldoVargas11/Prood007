@@ -1,6 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
+import { PaymentsService } from '../payments/payments.service';
 import { assertMatterAccess } from '../messages/matter-access';
 import { apiError } from '../common/api-messages';
 import { buildInvoicePdf, invoiceRowToPdfData } from '../ledger/invoice-pdf';
@@ -15,6 +16,7 @@ export class PortalService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledger: LedgerService,
+    private readonly payments: PaymentsService,
   ) {}
 
   private async myClient(user: RequestUser) {
@@ -110,5 +112,30 @@ export class PortalService {
     if (!invoice) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
     const buffer = await buildInvoicePdf(invoiceRowToPdfData(invoice, user.jurisdiction));
     return { buffer, number: invoice.number };
+  }
+
+  // ── Cobro online por el cliente ───────────────────────────────────────────
+  /** ¿Puede el cliente pagar online? (pasarela del despacho configurada + cuenta conectada). */
+  paymentConfig(user: RequestUser) {
+    return this.payments.canPayOnline(user).then((onlineEnabled) => ({ onlineEnabled }));
+  }
+
+  /**
+   * El CLIENTE paga SU PROPIA factura: genera el enlace de Stripe Checkout. El cargo va a la cuenta
+   * conectada del despacho. Control de propiedad por `clientId` (404 si la factura no es suya). El
+   * cliente vuelve a su portal tras pagar; el webhook concilia la factura a PAID.
+   */
+  async payInvoice(user: RequestUser, id: string) {
+    const client = await this.myClient(user);
+    const owned = await this.prisma.invoice.findFirst({
+      where: { id, tenantId: user.tenantId, clientId: client.id },
+      select: { id: true },
+    });
+    if (!owned) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
+    const base = process.env.APP_PUBLIC_URL ?? 'http://localhost:3000';
+    return this.payments.createCheckout(user, id, {
+      successUrl: `${base}/portal?paid=1`,
+      cancelUrl: `${base}/portal`,
+    });
   }
 }
