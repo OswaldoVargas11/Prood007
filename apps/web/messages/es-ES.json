@@ -77,7 +77,8 @@
     "invalidEmail": "Introduce un correo válido",
     "required": "Este campo es obligatorio",
     "noAccount": "¿Aún no tienes un despacho?",
-    "createFirm": "Crea uno nuevo"
+    "createFirm": "Crea uno nuevo",
+    "forgotPassword": "¿Olvidaste tu contraseña?"
   },
   "onboarding": {
     "setup": "Configuración",
@@ -318,7 +319,8 @@
       "anonymized": "Cliente anonimizado",
       "anonymizedOn": "Anonimizado el {date}",
       "anonymizedNote": "Los datos personales se han borrado y el portal está cortado. El expediente y las facturas se conservan por obligación legal."
-    }
+    },
+    "resetPortalPassword": "Restablecer contraseña del portal"
   },
   "documentsOverview": {
     "title": "Documentos",
@@ -680,6 +682,38 @@
       "2": "Aceptable",
       "3": "Buena",
       "4": "Fuerte"
+    },
+    "adminReset": {
+      "action": "Restablecer",
+      "title": "Restablecer contraseña",
+      "desc": "Genera un enlace de un solo uso para que el usuario fije una nueva contraseña. Cópialo y entrégaselo de forma segura.",
+      "generating": "Generando enlace…",
+      "copy": "Copiar enlace",
+      "close": "Cerrar",
+      "oneTimeHint": "El enlace caduca en 24 horas y solo puede usarse una vez. No se mostrará de nuevo.",
+      "error": "No se pudo generar el enlace."
+    },
+    "forgot": {
+      "title": "Recuperar contraseña",
+      "subtitle": "Te enviaremos un enlace para restablecerla.",
+      "email": "Correo electrónico",
+      "submit": "Enviar enlace",
+      "sent": "Si existe una cuenta con ese correo, recibirás un enlace para restablecer la contraseña.",
+      "backToLogin": "Volver a iniciar sesión"
+    },
+    "reset": {
+      "title": "Nueva contraseña",
+      "subtitle": "Elige una contraseña nueva para tu cuenta.",
+      "new": "Nueva contraseña",
+      "confirm": "Repite la nueva contraseña",
+      "submit": "Restablecer contraseña",
+      "success": "Contraseña restablecida. Te llevamos al inicio de sesión…",
+      "goToLogin": "Ir a iniciar sesión",
+      "error": "No se pudo restablecer la contraseña.",
+      "noToken": "Falta el enlace de restablecimiento o no es válido.",
+      "requestNew": "Solicitar uno nuevo",
+      "tooShort": "Mínimo {min} caracteres.",
+      "mismatch": "Las contraseñas no coinciden."
     }
   },
   "settings": {

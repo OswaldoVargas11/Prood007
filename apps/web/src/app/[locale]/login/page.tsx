@@ -105,6 +105,14 @@ export default function LoginPage() {
               {isSubmitting ? t('signingIn') : t('signIn')}
             </Button>
           </form>
+          <p className="mt-3 text-center text-xs">
+            <Link
+              href="/forgot-password"
+              className="font-medium text-muted-foreground hover:text-[var(--brand)] hover:underline"
+            >
+              {t('forgotPassword')}
+            </Link>
+          </p>
           <p className="mt-4 text-center text-xs text-muted-foreground">
             {t('noAccount')}{' '}
             <Link href="/onboarding" className="font-medium text-[var(--brand)] hover:underline">

@@ -859,6 +859,59 @@ export function useChangePassword() {
   });
 }
 
+/** Resultado de emitir un enlace de restablecimiento (reset por admin). */
+export interface AdminResetResult {
+  token: string;
+  resetLink: string;
+  expiresAt: string;
+  email: string;
+}
+
+/** Reset por admin: emite un enlace de un solo uso para un usuario del despacho (staff o cliente). */
+export function useAdminResetPassword() {
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api.post<AdminResetResult>(`/auth/admin/reset-password/${userId}`),
+  });
+}
+
+function publicApiUrl(path: string): string {
+  const base = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+  return `${base}/api${path}`;
+}
+
+/** Autoservicio "olvidé mi contraseña" (público). Siempre resuelve (respuesta genérica del servidor). */
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: async (email: string) => {
+      await fetch(publicApiUrl('/auth/forgot-password'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+    },
+  });
+}
+
+/** Aplica un token de restablecimiento con una nueva contraseña (público). */
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: async (body: { token: string; newPassword: string }) => {
+      const res = await fetch(publicApiUrl('/auth/reset-password'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => undefined);
+      if (!res.ok) {
+        const raw = (data as { message?: string | string[] } | undefined)?.message;
+        const message = Array.isArray(raw) ? raw.join(', ') : (raw ?? `Error ${res.status}`);
+        throw new ApiError(res.status, message, data);
+      }
+    },
+  });
+}
+
 // ── Comprobación de conflictos (Tanda B) ──────────────────────────────────────
 export function useConflictCheck(query: string) {
   const q = query.trim();

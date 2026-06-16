@@ -43,6 +43,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import { AdminResetPasswordButton } from '@/components/lexora/admin-reset-password';
 import type { StaffRole, StaffUser } from '@/lib/types';
 
 export default function SettingsPage() {
@@ -350,6 +351,7 @@ function StaffCard() {
                 <option value="FIRM_ADMIN">{roleLabel('FIRM_ADMIN')}</option>
                 <option value="LAWYER">{roleLabel('LAWYER')}</option>
               </select>
+              <AdminResetPasswordButton userId={u.id} variant="ghost" />
               <Button
                 size="sm"
                 variant="outline"
