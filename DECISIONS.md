@@ -634,5 +634,17 @@ UPDATE`** sobre la cuenta (para que un DEPOSIT y una APPLICATION concurrentes no
   enum `RetainerMovementType`, migración `20260616130000_retainer`, RLS fail-closed. **Sin lógica.**
   Verificado: e2e retainer-rls 5/5 (lectura acotada, cross-tenant invisible, WITH CHECK, fail-closed)
   local + CI; schema válido; typecheck + lint limpios.
-- **GATE:** (b) ADR **RATIFICADA** por el owner (2026-06-16) ✅. Queda **(a): fusionar #61 enmendado**
-  (lo hace el owner). R2 arranca en cuanto (a) se cumpla.
+- **GATE:** (b) ADR **RATIFICADA** por el owner (2026-06-16) ✅ + (a) #61 **fusionado** (#61) ✅ →
+  R2 desbloqueado.
+- **Split R2 / R2b (decisión del owner):** la emisión fiscal es Verifactu-crítica, así que se aísla.
+  **R2** = motor de saldo (`SELECT … FOR UPDATE`, invariante, guards de negativo y moneda, test de
+  reconciliación) + tipos NO fiscales (SUPLIDO, GENERICO) + lecturas, con el tipo **ANTICIPO bloqueado**
+  (error claro `retainer.anticipoRequiresInvoice`; un anticipo nunca se registra como saldo sin su
+  factura — innegociable). **R2b** = el tipo ANTICIPO conectado a `buildInvoiceRecord`, **atómico**:
+  serie fiscal + registro Verifactu/e-CF + ledger + `RetainerEntry` + saldo en UNA transacción (fallo
+  parcial revierte limpio, incl. la serie). El envío real AEAT/DGII sigue diferido (registro local).
+- **PR-R2 (implementado):** módulo `retainer` (`RetainerService` motor + `deposit` SUPLIDO/GENERICO +
+  lecturas matter/cliente), `ProvisionKind` (dominio + enum Prisma + columna `kind` en `RetainerEntry`,
+  migración `20260616140000_provision_kind`). e2e retainer 8/8 (ANTICIPO→400, guard moneda, role-gating,
+  aislamiento, **concurrencia 10× sin perder updates**, invariante `balance == Σ(entries)`) + retainer-rls
+  5/5. Formato de saldo con `Decimal.toFixed(2)` (evita que `.toString()` elimine los ceros). PR-y-espera.

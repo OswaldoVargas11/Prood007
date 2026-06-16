@@ -1224,3 +1224,30 @@ Actualizado D-026 → **RATIFICADA** con la mecánica confirmada y la cadena que
 descuenta → rectificativa en devolución). PLAN/D-026 GATE: queda solo **(a) fusionar #61**.
 
 Estado del gate: (b) ✅ ratificada · (a) ⛔ #61 OPEN (lo fusiona el owner). **R2 sigue en pausa hasta (a).**
+
+## 2026-06-16 — Claude — Ítem 2 (Retainer) PR-R2: motor de saldo + tipos no fiscales + lecturas
+
+Gate despejado (#61 fusionado + D-026 ratificada). El owner pidió SPLIT: R2 = motor + no-fiscales +
+lecturas (ANTICIPO bloqueado); R2b = emisión de anticipo (Verifactu-crítica, atómica). Hecho R2:
+
+- Dominio: enum `ProvisionKind { ANTICIPO, SUPLIDO, GENERICO }`. Prisma: enum + columna `kind` nullable
+  en `RetainerEntry` (migración `20260616140000_provision_kind`, solo ALTER, sin RLS nueva).
+- `apps/api/src/retainer/`: `RetainerService` con el **motor** `postMovement` (bloquea la cuenta con
+  `SELECT … FOR UPDATE`, guard de saldo negativo, inserta movimiento + actualiza saldo cacheado en la
+  misma tx; invariante `balance == Σ(entries)`; reutilizable por R3); `deposit` (SUPLIDO/GENERICO;
+  **ANTICIPO → 400** `retainer.anticipoRequiresInvoice`, nunca saldo sin factura); guard de moneda =
+  tenant; lecturas `getMatterAccount` y `getClientAggregate` (saldo por cliente = Σ asuntos, derivado).
+  Controller `@Roles(FIRM_ADMIN, LAWYER)` + módulo registrado en `app.module`.
+- La **creación de la cuenta** se hace en operaciones autocommit FUERA de la tx del movimiento (evita el
+  _first-create race_: el INSERT perdedor bloquea en el índice único, cae en P2002 y re-lee la fila ya
+  confirmada). Bug encontrado y corregido por el test de concurrencia.
+- Formato de saldo con `Decimal.toFixed(2)` (no `.toString()`, que elimina ceros finales).
+- i18n de error: `retainer.*` en es-ES/es-DO.
+
+Pruebas (LOCAL, Postgres real como `legalflow_app`; migración aplicada): e2e **retainer 8/8** (ANTICIPO
+→400, SUPLIDO/GENERICO suman, guard moneda, importe no positivo, role-gating CLIENT→403, aislamiento,
+**concurrencia 10 depósitos sin perder updates** + invariante a nivel BD) + **retainer-rls 5/5**.
+typecheck + eslint limpios.
+
+Sensibilidad / merge: lógica de dinero + migración (columna `kind`) → **PR-y-espera**. Siguiente: PR-R2b
+(emisión de factura de anticipo, atómica con serie+ledger+saldo).

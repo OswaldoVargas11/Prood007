@@ -167,6 +167,23 @@ export enum RetainerMovementType {
   ADJUSTMENT = 'ADJUSTMENT',
 }
 
+/**
+ * Naturaleza fiscal de un depósito de provisión de fondos (la fija el despacho al cobrar). Determina el
+ * tratamiento fiscal (ver D-026, ratificada):
+ * - ANTICIPO: anticipo de honorarios por servicios identificados → devenga IVA/ITBIS al cobro y EXIGE
+ *   emisión de factura de anticipo (vía ComplianceProvider). El camino ANTICIPO se habilita en R2b; en
+ *   R2 está bloqueado (un anticipo nunca puede registrarse como saldo sin su factura).
+ * - SUPLIDO: gasto pagado en nombre y por cuenta del cliente (art. 78.Tres.3º LIVA) → fuera de base, sin
+ *   IVA, justificante a nombre del cliente.
+ * - GENERICO: provisión genérica no delimitada (sin servicio identificado) → sin devengo hasta
+ *   identificar el servicio (doctrina TJUE C-419/02 BUPA). Caso raro en abogacía.
+ */
+export enum ProvisionKind {
+  ANTICIPO = 'ANTICIPO',
+  SUPLIDO = 'SUPLIDO',
+  GENERICO = 'GENERICO',
+}
+
 /** Tipo de identificador fiscal (validado por el provider de cumplimiento). */
 export enum TaxIdKind {
   /** España */

@@ -18,6 +18,7 @@ import { TasksModule } from './tasks/tasks.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { PaymentsModule } from './payments/payments.module';
 import { DunningModule } from './dunning/dunning.module';
+import { RetainerModule } from './retainer/retainer.module';
 import { MessagesModule } from './messages/messages.module';
 import { PortalModule } from './portal/portal.module';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -46,6 +47,7 @@ import { HealthController } from './health.controller';
     LedgerModule,
     PaymentsModule,
     DunningModule,
+    RetainerModule,
     MessagesModule,
     PortalModule,
     DashboardModule,

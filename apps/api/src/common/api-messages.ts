@@ -210,6 +210,26 @@ export const API_MESSAGES = {
     'es-DO': 'La moneda del cobro no coincide con la de la factura.',
   },
 
+  // ── Provisión de fondos / retainer ────────────────────────────────────────
+  'retainer.amountPositive': {
+    'es-ES': 'El importe de la provisión debe ser positivo.',
+    'es-DO': 'El importe de la provisión debe ser positivo.',
+  },
+  'retainer.currencyMismatch': {
+    'es-ES': 'La moneda de la provisión no coincide con la del despacho.',
+    'es-DO': 'La moneda de la provisión no coincide con la del despacho.',
+  },
+  'retainer.anticipoRequiresInvoice': {
+    'es-ES':
+      'Un anticipo de honorarios devenga IVA al cobro y exige emitir factura de anticipo; ese flujo aún no está disponible (PR-R2b).',
+    'es-DO':
+      'Un anticipo de honorarios devenga ITBIS al emitir el e-CF y exige emitir factura de anticipo; ese flujo aún no está disponible (PR-R2b).',
+  },
+  'retainer.insufficientBalance': {
+    'es-ES': 'Saldo de provisión insuficiente para esta operación.',
+    'es-DO': 'Saldo de provisión insuficiente para esta operación.',
+  },
+
   // ── Tareas ────────────────────────────────────────────────────────────────
   'tasks.assigneeNotInFirm': {
     'es-ES': 'El usuario asignado no pertenece al despacho.',
