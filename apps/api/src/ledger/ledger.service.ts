@@ -275,6 +275,12 @@ export class LedgerService {
       };
       lines: { description: string; quantity: string; unitPrice: string; taxCode: string }[];
       withholdingTaxCode?: string;
+      /**
+       * Facturas de anticipo deducidas en esta factura (solo la factura final de cierre, D-027 (b)).
+       * Las líneas negativas que neutralizan base+impuesto van en `lines`; este bloque referencia los
+       * documentos de anticipo para la trazabilidad del registro fiscal (Verifactu/e-CF).
+       */
+      deductedAdvances?: { invoiceNumber: string; base: string; taxCode: string }[];
       issueDate: string;
       dueDate: Date;
     },
@@ -304,6 +310,7 @@ export class LedgerService {
       buyer: { name: p.matter.client.name, taxId: p.matter.client.taxId },
       lines: p.lines,
       withholdingTaxCode: p.withholdingTaxCode,
+      deductedAdvances: p.deductedAdvances,
       previousRecordHash: previous?.recordHash ?? undefined,
     });
     const invoice = await tx.invoice.create({

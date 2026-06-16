@@ -231,9 +231,25 @@ export const API_MESSAGES = {
   },
   'retainer.anticipoApplyBlocked': {
     'es-ES':
-      'Este expediente tiene provisión de anticipo (ya facturada); aplicarla a una factura requiere la deducción fiscal del anticipo (PR-R3b), aún no disponible.',
+      'El saldo de anticipo (ya facturado con IVA) no se aplica como cobro: se realiza emitiendo la factura final con deducción del anticipo (factura final). Aquí solo se aplican fondos de suplido o genéricos.',
     'es-DO':
-      'Este expediente tiene provisión de anticipo (ya facturada); aplicarla a una factura requiere la deducción fiscal del anticipo (PR-R3b), aún no disponible.',
+      'El saldo de anticipo (ya facturado con ITBIS) no se aplica como cobro: se realiza emitiendo la factura final con deducción del anticipo (factura final). Aquí solo se aplican fondos de suplido o genéricos.',
+  },
+  'retainer.noAnticipoToDeduct': {
+    'es-ES':
+      'El expediente no tiene anticipos que deducir. Para una factura sin deducción usa la facturación normal.',
+    'es-DO':
+      'El expediente no tiene anticipos que deducir. Para una factura sin deducción usa la facturación normal.',
+  },
+  'retainer.anticipoAlreadyDeducted': {
+    'es-ES': 'Los anticipos de este expediente ya se dedujeron en una factura final.',
+    'es-DO': 'Los anticipos de este expediente ya se dedujeron en una factura final.',
+  },
+  'retainer.deductionExceedsService': {
+    'es-ES':
+      'Los anticipos superan el importe del servicio facturado; una devolución requiere factura rectificativa, no deducción.',
+    'es-DO':
+      'Los anticipos superan el importe del servicio facturado; una devolución requiere nota de crédito (e-CF), no deducción.',
   },
   'retainer.invoiceNotInMatter': {
     'es-ES': 'La factura no pertenece al expediente de esta provisión.',

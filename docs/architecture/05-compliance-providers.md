@@ -66,6 +66,26 @@ sequenceDiagram
     SVC-->>UI: factura emitida (estado ISSUED) + registro Verifactu/e-CF
 ```
 
+## Deducción de anticipos en la factura final (D-027 (b))
+
+Al cerrar un asunto con anticipos ya facturados (R2b), la **factura final** factura el servicio completo
+y **deduce** los anticipos con **líneas negativas** (espejo de la base+impuesto de cada anticipo). Así el
+**impuesto acumulado** (anticipo + final) = impuesto del total, **sin doble imposición**; las facturas de
+anticipo quedan **inmutables** (no es una rectificativa). `computeInvoiceTotals` ya opera con signo, así
+que la matemática no cambia.
+
+`InvoiceInput` incorpora `deductedAdvances?: { invoiceNumber, base, taxCode }[]` para la **trazabilidad**
+del registro fiscal (no interviene en los totales, que ya salen de las líneas):
+
+- **ES (Verifactu):** bloque `anticiposDeducidos` en el payload con `{ numFactura, baseDeducida, impuesto }`.
+- **RD (e-CF):** bloque `<AnticiposDeducidos><Anticipo><eNCFAnticipo>…<MontoGravadoDeducido>…` en el XML
+  del e-CF final (conservador; la deducción en el e-CF final está menos cerrada en las fuentes RD que la
+  nota de crédito → afinable por un contador dominicano).
+
+La orquestación (emisión + drawdown del saldo de anticipo, atómica) vive en
+`RetainerService.invoiceFinalWithDeduction` (`POST /retainer/final-invoice`); ver D-027 · Notas de
+implementación PR-R3b en `DECISIONS.md`. El **refund** de un anticipo (rectificativa) es R3c.
+
 ## Qué está cableado y qué no
 
 | Aspecto                                                                              | Estado                                  |

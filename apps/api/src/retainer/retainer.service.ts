@@ -15,9 +15,11 @@ import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { apiError } from '../common/api-messages';
+import { DEFAULT_PAYMENT_TERM_DAYS, addDaysUtc } from '../ledger/overdue.util';
 import { RecordDepositDto } from './dto/record-deposit.dto';
 import { RecordAnticipoDto } from './dto/record-anticipo.dto';
 import { ApplyRetainerDto } from './dto/apply-retainer.dto';
+import { FinalInvoiceDto } from './dto/final-invoice.dto';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Tolerancia de redondeo al comparar saldos (céntimos). */
@@ -254,9 +256,11 @@ export class RetainerService {
    * RETAINER (mueve `amountPaid`, PARTIAL/PAID, apunte PAYMENT — espejo de `reconcile`) y baja el saldo
    * con `RetainerEntry APPLICATION(−)`, todo en una transacción.
    *
-   * BLOQUEO POR CONSTRUCCIÓN (D-026): si el expediente tiene fondos de ANTICIPO (ya facturados con IVA),
-   * aplicarlos a una factura requiere la DEDUCCIÓN fiscal del anticipo (R3b, pendiente de ratificación)
-   * para no cobrar el IVA dos veces → se rechaza. Solo se aplican fondos SUPLIDO/GENERICO por ahora.
+   * BLOQUEO POR CONSTRUCCIÓN (D-026/D-027): el saldo de ANTICIPO (ya facturado con IVA) NO se aplica como
+   * cobro a ninguna factura. Aplicarlo a una factura normal duplicaría el IVA; aplicarlo a la final de
+   * deducción la infrapagaría (la deducción ya lo realiza). El anticipo se REALIZA por su vía propia:
+   * `invoiceFinalWithDeduction` (factura final con líneas negativas + drawdown interno). Aquí solo se
+   * aplican fondos SUPLIDO/GENERICO.
    */
   async applyToInvoice(user: RequestUser, dto: ApplyRetainerDto) {
     await this.getMatterOrThrow(user, dto.matterId);
@@ -362,6 +366,156 @@ export class RetainerService {
       applied: out.applied,
       invoiceStatus: out.fullyPaid ? 'PAID' : 'PARTIAL',
       balance: out.balance,
+    };
+  }
+
+  /**
+   * Emite la FACTURA FINAL de cierre con DEDUCCIÓN del anticipo (D-027 (b)). NO es una rectificativa:
+   * factura el servicio completo (líneas del caller, positivas) y añade una LÍNEA NEGATIVA por cada
+   * factura de anticipo del expediente, espejo de su base+impuesto. Así el IVA acumulado (anticipo +
+   * final) = IVA del total, sin doble imposición; los anticipos quedan inmutables y la final los
+   * neutraliza. Reutiliza `buildInvoiceRecord` vía `emitInvoiceInTx` con el bloque `deductedAdvances`
+   * (trazabilidad Verifactu/e-CF), encadenada. Tras emitir, REALIZA el anticipo con un `APPLICATION(−)`
+   * por el total acreditado, SIN Payment ni mover `amountPaid` (la deducción en la factura es lo que
+   * realiza el anticipo; no es un cobro nuevo). TODO ATÓMICO: serie + registro fiscal + ledger + saldo.
+   *
+   * Guards: exige al menos un anticipo (si no, usar facturación normal); rechaza un segundo cierre
+   * (estructural: el drawdown es la única `APPLICATION` sin `paymentId`); rechaza si la base deducida
+   * supera la del servicio (sería una devolución → rectificativa, R3c). El refund por diferencias/parcial
+   * queda fuera de este PR (R3c).
+   */
+  async invoiceFinalWithDeduction(user: RequestUser, dto: FinalInvoiceDto) {
+    const matter = await this.getMatterOrThrow(user, dto.matterId);
+    if (!matter.tenant.taxId) throw new BadRequestException(apiError('ledger.firmNoTaxId'));
+    if (!matter.client.taxId) throw new BadRequestException(apiError('clients.taxIdInvalid'));
+    const tenantCurrency = matter.tenant.currency;
+
+    const account = await this.prisma.retainerAccount.findFirst({
+      where: { matterId: dto.matterId, tenantId: user.tenantId },
+    });
+    if (!account) throw new BadRequestException(apiError('retainer.noAnticipoToDeduct'));
+
+    // Anticipos del expediente (DEPOSIT kind=ANTICIPO, cada uno con su factura emitida en R2b).
+    const anticipoEntries = await this.prisma.retainerEntry.findMany({
+      where: {
+        tenantId: user.tenantId,
+        accountId: account.id,
+        type: RetainerMovementType.DEPOSIT,
+        kind: ProvisionKind.ANTICIPO,
+        invoiceId: { not: null },
+      },
+    });
+    if (anticipoEntries.length === 0) {
+      throw new BadRequestException(apiError('retainer.noAnticipoToDeduct'));
+    }
+    // Estructural: el drawdown de cierre es la ÚNICA `APPLICATION` sin `paymentId` (el apply genérico
+    // siempre lleva paymentId). Si ya existe, el expediente ya se cerró con deducción → no repetir.
+    const priorClose = await this.prisma.retainerEntry.count({
+      where: {
+        tenantId: user.tenantId,
+        accountId: account.id,
+        type: RetainerMovementType.APPLICATION,
+        paymentId: null,
+      },
+    });
+    if (priorClose > 0) {
+      throw new BadRequestException(apiError('retainer.anticipoAlreadyDeducted'));
+    }
+
+    // Facturas de anticipo: base + taxCode de cada una para construir su línea de deducción.
+    const anticipoInvoiceIds = anticipoEntries
+      .map((e) => e.invoiceId)
+      .filter((id): id is string => Boolean(id));
+    const anticipoInvoices = await this.prisma.invoice.findMany({
+      where: { id: { in: anticipoInvoiceIds }, tenantId: user.tenantId },
+      include: { lines: { take: 1 } },
+    });
+    const fallbackTaxCode =
+      user.jurisdiction === Jurisdiction.DO ? 'ITBIS_STANDARD' : 'IVA_STANDARD';
+    const deductionLines = anticipoInvoices.map((inv) => ({
+      description: `Deducción anticipo ${inv.number}`,
+      quantity: '1',
+      unitPrice: (-Number(inv.taxableBase)).toFixed(2),
+      taxCode: inv.lines[0]?.taxCode ?? fallbackTaxCode,
+    }));
+    const deductedAdvances = anticipoInvoices.map((inv) => ({
+      invoiceNumber: inv.number,
+      base: Number(inv.taxableBase).toFixed(2),
+      taxCode: inv.lines[0]?.taxCode ?? fallbackTaxCode,
+    }));
+
+    // Guard D-027 (b): la base del servicio debe cubrir la base deducida; si no, es una devolución
+    // (factura rectificativa, R3c), no una deducción.
+    const serviceBase = round2(
+      dto.lines.reduce((s, l) => s + Number(l.quantity) * Number(l.unitPrice), 0),
+    );
+    const deductedBase = round2(
+      anticipoInvoices.reduce((s, inv) => s + Number(inv.taxableBase), 0),
+    );
+    if (deductedBase > serviceBase + EPSILON) {
+      throw new BadRequestException(apiError('retainer.deductionExceedsService'));
+    }
+
+    // Total a realizar = suma de lo acreditado por los anticipos (= saldo atribuible a anticipo).
+    const anticipoTotal = round2(anticipoEntries.reduce((s, e) => s + Number(e.amount), 0));
+
+    const issueDate = dto.issueDate ?? new Date().toISOString().slice(0, 10);
+    const dueDate = dto.dueDate
+      ? new Date(dto.dueDate)
+      : addDaysUtc(new Date(issueDate), DEFAULT_PAYMENT_TERM_DAYS);
+    const serviceLines = dto.lines.map((l) => ({
+      description: l.description,
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      taxCode: l.taxCode,
+    }));
+
+    const out = await tenantTransaction(this.prisma, async (tx) => {
+      const { invoice, record } = await this.ledger.emitInvoiceInTx(tx, user, {
+        matter: {
+          id: matter.id,
+          clientId: matter.clientId,
+          tenant: {
+            name: matter.tenant.name,
+            taxId: matter.tenant.taxId,
+            currency: tenantCurrency,
+          },
+          client: { name: matter.client.name, taxId: matter.client.taxId as string },
+        },
+        lines: [...serviceLines, ...deductionLines],
+        withholdingTaxCode: dto.withholdingTaxCode,
+        deductedAdvances,
+        issueDate,
+        dueDate,
+      });
+      // Realiza el anticipo: APPLICATION(−) por el total acreditado, ligada a la final, SIN paymentId
+      // (la deducción en la factura ya lo realiza; no mueve `amountPaid` ni crea Payment).
+      const mv = await this.postMovement(tx, user.tenantId, account.id, {
+        type: RetainerMovementType.APPLICATION,
+        amount: (-anticipoTotal).toFixed(2),
+        invoiceId: invoice.id,
+        note: `Deducción de anticipos en factura final ${invoice.number}`,
+      });
+      return { invoice, record, balance: mv.balance };
+    });
+
+    await this.audit.log(user, 'retainer.finalInvoice', 'Invoice', out.invoice.id, {
+      matterId: matter.id,
+      number: out.invoice.number,
+      deducted: deductedAdvances.map((a) => a.invoiceNumber),
+      total: out.record.totals.total,
+      format: out.record.format,
+    });
+    return {
+      invoiceId: out.invoice.id,
+      number: out.invoice.number,
+      taxableBase: out.record.totals.taxableBase,
+      taxAmount: out.record.totals.taxAmount,
+      withholdingAmount: out.record.totals.withholdingAmount,
+      total: out.record.totals.total,
+      deducted: deductedAdvances,
+      balance: out.balance,
+      compliance: out.record,
     };
   }
 

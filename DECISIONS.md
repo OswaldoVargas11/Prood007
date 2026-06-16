@@ -699,3 +699,33 @@ UPDATE`** sobre la cuenta (para que un DEPOSIT y una APPLICATION concurrentes no
   en final → rectificativa → (pronto) recurrente, todo bajo Verifactu y la responsabilidad de fabricante
   del owner. Una **revisión única de un fiscalista sobre el motor entero** (no decisión a decisión; sobre
   todo RD y el encadenamiento de rectificativas) es seguro barato. El owner decide.
+
+#### Notas de implementación · PR-R3b (deducción) — `invoiceFinalWithDeduction`
+
+Mecánicas adoptadas al codificar la deducción (a revisar en la PR; PR-y-espera):
+
+- **D1 — Líneas de deducción:** una línea negativa por cada factura de anticipo del expediente, espejo
+  de su base + `taxCode`. `computeInvoiceTotals` ya cuadra con signo → IVA neto de la final = IVA sobre
+  (servicio − anticipos). Sin tocar la matemática fiscal.
+- **D2 — Estado:** la final nace **ISSUED**; total neto = servicio − anticipos = lo que el cliente aún
+  debe en dinero nuevo (el anticipo ya lo pagó en su factura PAID).
+- **D3 — Drawdown del retainer:** tras emitir, `APPLICATION(−)` por el **total acreditado de los
+  anticipos**, ligada a la final, **sin Payment ni mover `amountPaid`**. La deducción en la propia
+  factura es lo que realiza el anticipo; no es un cobro nuevo. Mantiene `balance == Σ(entries)`.
+- **D4 — Guard de devolución:** si la base deducida > base del servicio (neto < 0) → 400
+  (`retainer.deductionExceedsService`); ese caso es una **devolución → rectificativa (R3c)**, no una
+  deducción. No se emiten facturas negativas por esta vía.
+- **D5 — IRPF (ES):** la retención de la final se calcula sobre la base **neta** (ya descontado el
+  anticipo) vía `computeInvoiceTotals` — correcto, el anticipo ya retuvo su parte.
+- **D6 — El guard `anticipoApplyBlocked` NO se elimina, se RE-ENFOCA.** Aplicar el saldo de anticipo
+  como **cobro** a cualquier factura es incorrecto: a una factura normal duplicaría el IVA; a la propia
+  final de deducción la **infrapagaría** (la deducción ya lo realiza). Por eso el `/apply` genérico
+  sigue rechazando ANTICIPO y el anticipo se realiza SOLO por `invoiceFinalWithDeduction`. (Difiere de
+  la lectura literal "quita el guard" de la tarea; se deja así por conformidad fiscal — el owner
+  confirma en la PR.)
+- **Doble cierre:** se detecta de forma **estructural** — el drawdown de cierre es la única
+  `APPLICATION` **sin `paymentId`** (el `/apply` genérico siempre lleva `paymentId`). Un segundo cierre
+  → 400 (`retainer.anticipoAlreadyDeducted`).
+- **Trazabilidad:** `InvoiceInput.deductedAdvances` → ES bloque `anticiposDeducidos` en el registro
+  Verifactu; RD `<AnticiposDeducidos><Anticipo><eNCFAnticipo>…` en el e-CF final.
+- **Fuera de alcance (R3b):** refund parcial / rectificativa **por diferencias** → R3c.

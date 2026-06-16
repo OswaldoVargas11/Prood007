@@ -52,9 +52,26 @@ export interface InvoiceLineInput {
   description: string;
   /** Cantidad (horas, unidades…) como string decimal. */
   quantity: string;
-  /** Precio unitario como string decimal, sin impuestos. */
+  /** Precio unitario como string decimal, sin impuestos. Puede ser NEGATIVO en líneas de deducción
+   * (p. ej. la deducción de un anticipo ya facturado en la factura final — D-027). */
   unitPrice: string;
   /** Código de impuesto a aplicar (de getTaxRates), p. ej. "IVA_STANDARD". */
+  taxCode: string;
+}
+
+/**
+ * Factura de anticipo deducida en la factura final (D-027 (b)). El núcleo añade, además de las líneas
+ * negativas que neutralizan la base+impuesto del anticipo (las que mueven la matemática fiscal), este
+ * bloque de TRAZABILIDAD: el registro fiscal de la final debe referenciar las facturas de anticipo que
+ * deduce (Verifactu / e-CF), de modo que el IVA acumulado = IVA del total sin doble imposición y la
+ * cadena documental quede explícita. NO es una rectificativa: los anticipos quedan inmutables.
+ */
+export interface DeductedAdvance {
+  /** Número de la factura de anticipo deducida. */
+  invoiceNumber: string;
+  /** Base imponible del anticipo que se deduce (string decimal, positivo). */
+  base: string;
+  /** Código de impuesto del anticipo deducido (espejo del de su factura), p. ej. "IVA_STANDARD". */
   taxCode: string;
 }
 
@@ -71,6 +88,12 @@ export interface InvoiceInput {
    * No aplica en RD. Si se omite, no hay retención.
    */
   withholdingTaxCode?: string;
+  /**
+   * Facturas de anticipo deducidas en esta factura (solo en la factura final de cierre, D-027 (b)).
+   * Las líneas negativas que neutralizan base+impuesto ya van en `lines`; este bloque referencia los
+   * documentos de anticipo para la trazabilidad del registro fiscal. Si se omite, no hay deducción.
+   */
+  deductedAdvances?: DeductedAdvance[];
   /** Hash del registro fiscal inmediatamente anterior (encadenamiento Verifactu). */
   previousRecordHash?: string;
 }

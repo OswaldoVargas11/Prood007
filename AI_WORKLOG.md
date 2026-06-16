@@ -1302,3 +1302,31 @@ retainer 8/8 + retainer-anticipo 4/4 + retainer-rls 5/5. typecheck + eslint limp
 
 Sensibilidad / merge: dinero (cobro contra saldo) → **PR-y-espera**. No toca migración. Siguiente: tras
 fusionar R3a, **R5 (UI)** de lo ya hecho; R3b/R3c esperan la ratificación de D-027.
+
+### 2026-06-16 - Claude Opus 4.8 - PR-R3b: deducción del anticipo en la factura final
+
+Objetivo: D-027 (b) deducción del anticipo en la factura final (NO rectificativa). Tras confirmar estado
+(R3a + D-027 en main) se acordó **dividir** el R3b monolítico del PLAN en **R3b (deducción, esta PR, sin
+migración)** y **R3c (rectificativa, con migración)**; rectificativa = **por sustitución** primero.
+
+Hecho (R3b):
+
+- `packages/compliance`: `InvoiceInput.deductedAdvances?` + tipo `DeductedAdvance`; `unitPrice` admite
+  negativo (líneas de deducción). ES: bloque `anticiposDeducidos` en el payload Verifactu. RD:
+  `<AnticiposDeducidos>` en el e-CF final. `computeInvoiceTotals` intacto (ya cuadra con signo).
+- `apps/api`: `LedgerService.emitInvoiceInTx` reenvía `deductedAdvances` a `buildInvoiceRecord`. Nuevo
+  `RetainerService.invoiceFinalWithDeduction` (`POST /retainer/final-invoice`, `FinalInvoiceDto`): emite
+  la final = líneas de servicio (+) + 1 línea negativa por anticipo (−) + `deductedAdvances`, encadenada
+  (ISSUED), y **realiza** el anticipo con `APPLICATION(−)` sin Payment (drawdown). Guards: sin anticipo
+  (`retainer.noAnticipoToDeduct`), doble cierre (`retainer.anticipoAlreadyDeducted`, detectado por
+  APPLICATION sin paymentId), deducción > servicio (`retainer.deductionExceedsService` → R3c).
+- **Guard `anticipoApplyBlocked` RE-ENFOCADO, no eliminado** (D6 en D-027): aplicar anticipo como cobro
+  duplicaría IVA / infrapagaría la final; el `/apply` genérico sigue rechazándolo. Marcado para el owner.
+
+Pruebas (LOCAL): e2e **retainer-deduction 6/6** (sin doble IVA, encadenado, RD e-CF, atomicidad/guards,
+role) + compliance **53/53** + red de no-regresión: apply 6/6, anticipo 4/4, ledger 15/15, retainer 8/8,
+retainer-rls 5/5. typecheck + eslint + prettier limpios.
+
+Sensibilidad / merge: Verifactu/dinero → **PR-y-espera** (no toca migración). Siguiente: **R3c**
+(rectificativa del refund, con migración `Invoice`) o **R5 (UI)** del retainer. Pendiente: OK del owner
+sobre el re-enfoque del guard (D6) y, no bloqueante, revisión de fiscalista del motor completo.

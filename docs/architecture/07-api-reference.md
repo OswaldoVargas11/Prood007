@@ -153,13 +153,14 @@ diario automático llega en PR-D3 reutilizando el mismo `DunningService`.
 Provisión de fondos por expediente (saldo + movimientos). Todo acotado al tenant (RLS). PR-R2: cobro
 manual de tipos no fiscales + lecturas; el tipo ANTICIPO se rechaza hasta PR-R2b (exige factura).
 
-| Método | Ruta                       | Rol                | Nota                                                                                  |
-| ------ | -------------------------- | ------------------ | ------------------------------------------------------------------------------------- |
-| POST   | `/api/retainer/deposit`    | FIRM_ADMIN, LAWYER | Cobro de provisión NO fiscal (SUPLIDO/GENERICO; ANTICIPO → 400)                       |
-| POST   | `/api/retainer/anticipo`   | FIRM_ADMIN, LAWYER | Cobro ANTICIPO: emite factura de anticipo (Verifactu/e-CF) + acredita saldo (atómico) |
-| POST   | `/api/retainer/apply`      | FIRM_ADMIN, LAWYER | Aplica saldo (SUPLIDO/GENERICO) al cobro de una factura; ANTICIPO bloqueado hasta R3b |
-| GET    | `/api/retainer/matter/:id` | FIRM_ADMIN, LAWYER | Saldo + movimientos del expediente                                                    |
-| GET    | `/api/retainer/client/:id` | FIRM_ADMIN, LAWYER | Saldo agregado del cliente (Σ de sus expedientes)                                     |
+| Método | Ruta                          | Rol                | Nota                                                                                           |
+| ------ | ----------------------------- | ------------------ | ---------------------------------------------------------------------------------------------- |
+| POST   | `/api/retainer/deposit`       | FIRM_ADMIN, LAWYER | Cobro de provisión NO fiscal (SUPLIDO/GENERICO; ANTICIPO → 400)                                |
+| POST   | `/api/retainer/anticipo`      | FIRM_ADMIN, LAWYER | Cobro ANTICIPO: emite factura de anticipo (Verifactu/e-CF) + acredita saldo (atómico)          |
+| POST   | `/api/retainer/apply`         | FIRM_ADMIN, LAWYER | Aplica saldo (SUPLIDO/GENERICO) al cobro de una factura; ANTICIPO se realiza vía final-invoice |
+| POST   | `/api/retainer/final-invoice` | FIRM_ADMIN, LAWYER | Factura final de cierre con **deducción del anticipo** (sin doble IVA), encadenada (atómico)   |
+| GET    | `/api/retainer/matter/:id`    | FIRM_ADMIN, LAWYER | Saldo + movimientos del expediente                                                             |
+| GET    | `/api/retainer/client/:id`    | FIRM_ADMIN, LAWYER | Saldo agregado del cliente (Σ de sus expedientes)                                              |
 
 ### `settings` — `/api/settings` (5) · clase: **FIRM_ADMIN**
 
