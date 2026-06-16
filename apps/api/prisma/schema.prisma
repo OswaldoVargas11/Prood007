@@ -330,6 +330,10 @@ model RefreshToken {
   // Hash del refresh token (nunca se guarda en claro). Rotación + revocación.
   tokenHash String
   expiresAt DateTime
+  // Tope ABSOLUTO de la familia de sesión: la rotación arrastra este valor (no lo extiende), así una
+  // sesión activa deja de "deslizar" indefinidamente. Nullable por compatibilidad con sesiones previas
+  // (se tratan como legacy y caducan por `expiresAt`). Ver SEC2.
+  absoluteExpiresAt DateTime?
   revokedAt DateTime?
   createdAt DateTime  @default(now())
 
