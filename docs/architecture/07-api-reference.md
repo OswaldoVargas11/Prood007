@@ -1,6 +1,6 @@
 # 07 · Referencia de la API (mapa de responsabilidades)
 
-> **Los 76 endpoints**, ninguno fuera. Prefijo global `api`. Cadena de guards global:
+> **Los 77 endpoints**, ninguno fuera. Prefijo global `api`. Cadena de guards global:
 > `ThrottlerGuard → JwtAuthGuard (@Public exime) → RolesGuard`. El **rol efectivo** combina el
 > `@Roles` de clase con el de método (el más restrictivo gana). RLS aísla por tenant aunque el rol
 > pase. Derivado de `apps/api/src/**/*.controller.ts`.
@@ -36,7 +36,7 @@ flowchart LR
     p1 -. "solo CLIENT · vista de su propio expediente" .-> core_d
 ```
 
-## Tabla exhaustiva (76 / 76)
+## Tabla exhaustiva (77 / 77)
 
 Rol = el más restrictivo aplicable. "auth" = autenticado sin `@Roles` (cualquier rol; el servicio +
 RLS acotan el acceso). "público" = `@Public`.
@@ -164,18 +164,20 @@ anticipo (R3b); el refund de un anticipo emite rectificativa (R3c).
 | GET    | `/api/retainer/matter/:id`    | FIRM_ADMIN, LAWYER | Saldo + movimientos del expediente                                                             |
 | GET    | `/api/retainer/client/:id`    | FIRM_ADMIN, LAWYER | Saldo agregado del cliente (Σ de sus expedientes)                                              |
 
-### `billing` — `/api/billing` (4) · clase: **FIRM_ADMIN, LAWYER**
+### `billing` — `/api/billing` (5) · clase: **FIRM_ADMIN, LAWYER**
 
-Facturación programada (recurrente / planes de pago, D-028). Crear/leer planes + generar el cuadro de
-cuotas (RP2); **emisión recurrente** (RP3: 1 factura/periodo vía el núcleo fiscal). Todo acotado al tenant
-(RLS). La emisión de planes de pago (INSTALLMENTS) y el cron de barrido llegan en RP4/RP5.
+Facturación programada (recurrente / planes de pago, D-028). Crear/leer planes + cuadro de cuotas (RP2);
+**emisión recurrente** (RP3: 1 factura/periodo); **plan de pago servicio prestado** (RP4a: 1 factura) y
+**por anticipos** (RP4b: factura de anticipo al cobrar cada cuota). Todo acotado al tenant (RLS). El cron
+de barrido llega en RP5.
 
-| Método | Ruta                             | Rol                | Nota                                                               |
-| ------ | -------------------------------- | ------------------ | ------------------------------------------------------------------ |
-| POST   | `/api/billing/schedules`         | FIRM_ADMIN, LAWYER | Crea un plan (RECURRING/INSTALLMENTS) + genera su cuadro de cuotas |
-| GET    | `/api/billing/schedules`         | FIRM_ADMIN, LAWYER | Planes de un expediente (`?matterId=`)                             |
-| GET    | `/api/billing/schedules/:id`     | FIRM_ADMIN, LAWYER | Un plan con su cuadro de cuotas                                    |
-| POST   | `/api/billing/schedules/:id/run` | FIRM_ADMIN, LAWYER | Emite las facturas de los periodos vencidos (RECURRING; 1/periodo) |
+| Método | Ruta                                    | Rol                | Nota                                                               |
+| ------ | --------------------------------------- | ------------------ | ------------------------------------------------------------------ |
+| POST   | `/api/billing/schedules`                | FIRM_ADMIN, LAWYER | Crea un plan (RECURRING/INSTALLMENTS) + genera su cuadro de cuotas |
+| GET    | `/api/billing/schedules`                | FIRM_ADMIN, LAWYER | Planes de un expediente (`?matterId=`)                             |
+| GET    | `/api/billing/schedules/:id`            | FIRM_ADMIN, LAWYER | Un plan con su cuadro de cuotas                                    |
+| POST   | `/api/billing/schedules/:id/run`        | FIRM_ADMIN, LAWYER | Emite las facturas de los periodos vencidos (RECURRING/servicio)   |
+| POST   | `/api/billing/installments/:id/collect` | FIRM_ADMIN, LAWYER | Cobra una cuota ADVANCE → emite su factura de anticipo             |
 
 ### `settings` — `/api/settings` (5) · clase: **FIRM_ADMIN**
 

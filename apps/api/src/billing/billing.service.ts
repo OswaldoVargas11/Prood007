@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { LedgerService } from '../ledger/ledger.service';
+import { RetainerService } from '../retainer/retainer.service';
 import { DEFAULT_PAYMENT_TERM_DAYS, addDaysUtc } from '../ledger/overdue.util';
 import { apiError } from '../common/api-messages';
 import { CreateBillingScheduleDto } from './dto/create-billing-schedule.dto';
@@ -45,6 +46,7 @@ export class BillingService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly ledger: LedgerService,
+    private readonly retainer: RetainerService,
   ) {}
 
   private async getMatterOrThrow(user: RequestUser, matterId: string) {
@@ -422,6 +424,109 @@ export class BillingService {
     return {
       emitted: [{ invoiceId: out.id, number: out.number, sequence: 0 }],
       completed: false,
+    };
+  }
+
+  /**
+   * Cobra una cuota de un plan de pago por ANTICIPOS (INSTALLMENTS · ADVANCE, D-027/D-028 (b)): al cobrar,
+   * emite la **factura de anticipo** de esa cuota (devengo al cobro) reutilizando `RetainerService.depositAnticipo`
+   * (factura de anticipo + Payment + apuntes + crédito al retainer, atómico). La deducción de los anticipos
+   * en la factura final ya existe (R3b). **Claim-first** (reserva SCHEDULED→EMITTED de forma atómica antes
+   * de emitir): fail-safe contra doble emisión bajo reintento/concurrencia. Avanza el plan; lo cierra
+   * (COMPLETED) cuando no quedan cuotas por cobrar.
+   */
+  async collectAnticipoInstallment(user: RequestUser, installmentId: string) {
+    const installment = await this.prisma.billingInstallment.findFirst({
+      where: { id: installmentId, tenantId: user.tenantId },
+      include: { schedule: true },
+    });
+    if (!installment) throw new NotFoundException(apiError('billing.installmentNotFound'));
+    const schedule = installment.schedule;
+    if (
+      schedule.type !== BillingScheduleType.INSTALLMENTS ||
+      schedule.fiscalMode !== BillingFiscalMode.ADVANCE
+    ) {
+      throw new BadRequestException(apiError('billing.installmentNotAdvance'));
+    }
+    if (schedule.status !== BillingScheduleStatus.ACTIVE) {
+      throw new BadRequestException(apiError('billing.scheduleNotActive'));
+    }
+
+    // Claim-first: solo UN cobro reclama la cuota (SCHEDULED→EMITTED) de forma atómica; evita que un
+    // reintento o una llamada concurrente emitan un segundo anticipo de la misma cuota.
+    const claim = await this.prisma.billingInstallment.updateMany({
+      where: {
+        id: installment.id,
+        tenantId: user.tenantId,
+        status: BillingInstallmentStatus.SCHEDULED,
+      },
+      data: { status: BillingInstallmentStatus.EMITTED },
+    });
+    if (claim.count !== 1) {
+      throw new BadRequestException(apiError('billing.installmentNotScheduled'));
+    }
+
+    let anticipo: { invoiceId: string; number: string; total: string; balance: string };
+    try {
+      anticipo = await this.retainer.depositAnticipo(user, {
+        matterId: schedule.matterId,
+        amount: installment.amount.toFixed(2),
+        withholdingTaxCode: schedule.withholdingTaxCode ?? undefined,
+        description: `Anticipo cuota ${installment.sequence} (plan de pago)`,
+      });
+    } catch (err) {
+      // Falló ANTES de emitir (validación, etc.) → libera la reserva para poder reintentar.
+      await this.prisma.billingInstallment.updateMany({
+        where: { id: installment.id, tenantId: user.tenantId },
+        data: { status: BillingInstallmentStatus.SCHEDULED },
+      });
+      throw err;
+    }
+
+    // Emitido el anticipo: liga su factura y marca la cuota COBRADA. Si este update fallara, la cuota
+    // queda EMITTED con la factura ya existente (recuperable); NUNCA se re-emite (evita doble anticipo).
+    const now = new Date();
+    await this.prisma.billingInstallment.updateMany({
+      where: { id: installment.id, tenantId: user.tenantId },
+      data: {
+        status: BillingInstallmentStatus.PAID,
+        invoiceId: anticipo.invoiceId,
+        emittedAt: now,
+        paidAt: now,
+      },
+    });
+
+    // Avanza el plan: próxima cuota pendiente o cierre si no quedan.
+    const upcoming = await this.prisma.billingInstallment.findFirst({
+      where: {
+        tenantId: user.tenantId,
+        scheduleId: schedule.id,
+        status: BillingInstallmentStatus.SCHEDULED,
+      },
+      orderBy: { dueDate: 'asc' },
+      select: { dueDate: true },
+    });
+    const completed = !upcoming;
+    await this.prisma.billingSchedule.updateMany({
+      where: { id: schedule.id, tenantId: user.tenantId },
+      data: {
+        nextRunAt: upcoming?.dueDate ?? null,
+        status: completed ? BillingScheduleStatus.COMPLETED : BillingScheduleStatus.ACTIVE,
+      },
+    });
+
+    await this.audit.log(user, 'billing.anticipo_collected', 'BillingInstallment', installment.id, {
+      scheduleId: schedule.id,
+      sequence: installment.sequence,
+      number: anticipo.number,
+    });
+    return {
+      installmentId: installment.id,
+      invoiceId: anticipo.invoiceId,
+      number: anticipo.number,
+      total: anticipo.total,
+      balance: anticipo.balance,
+      completed,
     };
   }
 

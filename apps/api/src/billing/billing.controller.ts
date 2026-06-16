@@ -43,4 +43,13 @@ export class BillingController {
   run(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.billing.runDueEmissions(user, id);
   }
+
+  /**
+   * Cobra una cuota de un plan de pago por ANTICIPOS (ADVANCE): emite su factura de anticipo (devengo al
+   * cobro) y acredita el retainer. La deducción de los anticipos en la factura final ya existe (R3b).
+   */
+  @Post('installments/:id/collect')
+  collect(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.billing.collectAnticipoInstallment(user, id);
+  }
 }

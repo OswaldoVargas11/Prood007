@@ -291,9 +291,21 @@ export const API_MESSAGES = {
   },
   'billing.advanceRunNotYet': {
     'es-ES':
-      'La emisión de un plan de pago por anticipos se hace al cobrar cada cuota; ese flujo aún no está disponible (PR-RP4b).',
+      'La emisión de un plan de pago por anticipos se hace al cobrar cada cuota (POST /billing/installments/:id/collect).',
     'es-DO':
-      'La emisión de un plan de pago por anticipos se hace al cobrar cada cuota; ese flujo aún no está disponible (PR-RP4b).',
+      'La emisión de un plan de pago por anticipos se hace al cobrar cada cuota (POST /billing/installments/:id/collect).',
+  },
+  'billing.installmentNotFound': {
+    'es-ES': 'Cuota de facturación no encontrada.',
+    'es-DO': 'Cuota de facturación no encontrada.',
+  },
+  'billing.installmentNotAdvance': {
+    'es-ES': 'Esta cuota no pertenece a un plan de pago por anticipos.',
+    'es-DO': 'Esta cuota no pertenece a un plan de pago por anticipos.',
+  },
+  'billing.installmentNotScheduled': {
+    'es-ES': 'La cuota ya fue cobrada o no está pendiente.',
+    'es-DO': 'La cuota ya fue cobrada o no está pendiente.',
   },
 
   // ── Tareas ────────────────────────────────────────────────────────────────
