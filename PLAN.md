@@ -426,7 +426,7 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
       `runDueEmissions` refactorizado para despachar por tipo/modo. e2e billing-installments 3/3 + recurring
       4/4 sin regresión.
 - [x] **PR-RP4b — Emisión plan de pago (anticipos)** (PR-y-espera, Verifactu-crítico): `POST
-  /billing/installments/:id/collect` cobra una cuota de un plan ADVANCE → emite su **factura de
+/billing/installments/:id/collect` cobra una cuota de un plan ADVANCE → emite su **factura de
       anticipo** (devengo al cobro) + acredita el retainer, reutilizando `RetainerService.depositAnticipo`
       (sin duplicar). **Claim-first** (reserva SCHEDULED→EMITTED atómica): fail-safe contra doble anticipo
       bajo reintento/concurrencia. La deducción de los anticipos en la final ya existe (R3b). Cierra el
@@ -438,7 +438,15 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
       (tenant+jurisdicción) para emitir sin request (auditoría con actorId nulo = sistema). e2e billing-cron
       2/2 (multi-tenant, tipos, aislamiento, idempotencia) + ledger 15/15 sin regresión. (Dunning de las
       cuotas: las facturas de periodo emitidas ya las cubre el dunning existente.)
-- [ ] **PR-RP6 — UI** (auto-mergeable): crear/gestionar planes en la ficha + lectura en el portal.
+- [x] **PR-RP6 — UI del despacho** (auto-mergeable): pestaña «Facturación» en la ficha de expediente
+      (`components/lexora/billing-plans.tsx`): crear plan RECURRING (iguala: cadencia + nº periodos
+      opcional) o INSTALLMENTS (fraccionar: nº cuotas + fiscalMode SERVICE_RENDERED/ADVANCE) con líneas
+      y retención opcional (ES); listar planes + su cuadro de cuotas (estados, fechas, importes, factura
+      ligada); acciones «Emitir periodos vencidos» (RECURRING/SERVICE_RENDERED) y «Cobrar cuota»
+      (ADVANCE) con enlace a la factura. Hooks en `lib/hooks.ts` + tipos en `lib/types.ts`; namespace
+      i18n `billingPlans` (es-ES/es-DO, paridad de claves). typecheck+lint verdes; verificado en
+      navegador (crear/emitir/cobrar, dark+light, móvil, ambos locales). Lectura en el portal: pendiente.
+- [ ] **PR-RP6b — UI del portal (lectura)**: mostrar al cliente sus planes y cuadro de cuotas (solo lectura).
 - [ ] **Fase B — Auto-cobro off-session** (ES, épica aparte): SetupIntent (tarjeta on-file) +
       PaymentIntents programados + manejo SCA/3DS + reintentos.
 

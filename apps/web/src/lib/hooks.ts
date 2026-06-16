@@ -6,11 +6,16 @@ import type {
   AnonymizeResult,
   Assignee,
   AuditEntry,
+  BillingCollectResult,
+  BillingRunResult,
+  BillingSchedule,
+  BillingScheduleListItem,
   Client,
   ClientsPage,
   ConflictResult,
   ClientRetainer,
   CostApproval,
+  CreateBillingScheduleBody,
   DashboardSummary,
   DeadlineResult,
   DunningReminder,
@@ -544,6 +549,66 @@ export function useRetainerRefund(matterId: string) {
         balance: string;
       }>('/retainer/refund', { ...body, matterId }),
     onSuccess: () => invalidateRetainer(qc, matterId),
+  });
+}
+
+// ── Facturación programada (D-028, RP6) ──────────────────────────────────────
+/** Planes de facturación de un expediente + nº de cuotas (`GET /billing/schedules?matterId=`). */
+export function useMatterBillingSchedules(matterId: string) {
+  return useQuery({
+    queryKey: ['billing', 'schedules', matterId],
+    queryFn: () =>
+      api.get<BillingScheduleListItem[]>(
+        `/billing/schedules?matterId=${encodeURIComponent(matterId)}`,
+      ),
+    enabled: Boolean(matterId),
+  });
+}
+
+/** Un plan con su cuadro de cuotas (`GET /billing/schedules/:id`). Se habilita con `enabled`. */
+export function useBillingSchedule(id: string, enabled = true) {
+  return useQuery({
+    queryKey: ['billing', 'schedule', id],
+    queryFn: () => api.get<BillingSchedule>(`/billing/schedules/${id}`),
+    enabled: enabled && Boolean(id),
+  });
+}
+
+/** Tras crear/emitir/cobrar en un plan, refresca los planes del expediente, el ledger y las facturas. */
+function invalidateBilling(qc: ReturnType<typeof useQueryClient>, matterId: string) {
+  void qc.invalidateQueries({ queryKey: ['billing'] });
+  void qc.invalidateQueries({ queryKey: ['ledger', matterId] });
+  void qc.invalidateQueries({ queryKey: ['retainer'] });
+  void qc.invalidateQueries({ queryKey: ['invoices'] });
+}
+
+/** Crea un plan (RECURRING/INSTALLMENTS) + genera su cuadro de cuotas (`POST /billing/schedules`). */
+export function useCreateBillingSchedule(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Omit<CreateBillingScheduleBody, 'matterId'>) =>
+      api.post<BillingSchedule>('/billing/schedules', { ...body, matterId }),
+    onSuccess: () => invalidateBilling(qc, matterId),
+  });
+}
+
+/** Emite las facturas de los periodos vencidos (`POST /billing/schedules/:id/run`). */
+export function useRunBillingSchedule(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (scheduleId: string) =>
+      api.post<BillingRunResult>(`/billing/schedules/${scheduleId}/run`),
+    onSuccess: () => invalidateBilling(qc, matterId),
+  });
+}
+
+/** Cobra una cuota de un plan de pago por anticipos (`POST /billing/installments/:id/collect`). */
+export function useCollectBillingInstallment(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (installmentId: string) =>
+      api.post<BillingCollectResult>(`/billing/installments/${installmentId}/collect`),
+    onSuccess: () => invalidateBilling(qc, matterId),
   });
 }
 

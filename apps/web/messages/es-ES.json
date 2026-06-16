@@ -223,7 +223,8 @@
       "provision": "Provisión",
       "chat": "Chat",
       "activity": "Actividad",
-      "soon": "Esta sección llega en un próximo slice."
+      "soon": "Esta sección llega en un próximo slice.",
+      "billing": "Facturación"
     },
     "openDocuments": "Abrir vista de documentos",
     "rail": {
@@ -567,7 +568,12 @@
     "minutes": "Minutos",
     "hourlyRate": "Tarifa/hora",
     "workedAt": "Fecha",
-    "col": { "type": "Tipo", "description": "Concepto", "amount": "Importe", "date": "Fecha" },
+    "col": {
+      "type": "Tipo",
+      "description": "Concepto",
+      "amount": "Importe",
+      "date": "Fecha"
+    },
     "type": {
       "PROVISION": "Provisión",
       "DISBURSEMENT": "Suplido",
@@ -764,5 +770,87 @@
     "downloadInvoice": "Descargar factura (PDF)",
     "loadError": "No se pudo cargar la información",
     "back": "Volver"
+  },
+  "billingPlans": {
+    "subtitle": "Planes de facturación del expediente: emisión recurrente y planes de pago fraccionados.",
+    "hint": "La emisión recurrente y los planes de servicio prestado emiten 1 factura por periodo vencido; los planes por anticipos emiten la factura de cada cuota al cobrarla.",
+    "createPlan": "Nuevo plan",
+    "createTitle": "Nuevo plan de facturación",
+    "empty": "Este expediente aún no tiene planes de facturación.",
+    "loadError": "No se pudieron cargar los planes de facturación.",
+    "retry": "Reintentar",
+    "typeLabel": "Tipo de plan",
+    "type": {
+      "RECURRING": "Recurrente",
+      "INSTALLMENTS": "Plan de pago"
+    },
+    "typeHint": {
+      "RECURRING": "Iguala: emite una factura por periodo según la cadencia (cuota fija, p. ej. una iguala mensual).",
+      "INSTALLMENTS": "Fracciona un importe en varias cuotas con vencimientos escalonados."
+    },
+    "fiscalModeLabel": "Tratamiento fiscal",
+    "fiscalMode": {
+      "SERVICE_RENDERED": "Servicio prestado",
+      "ADVANCE": "Por anticipos"
+    },
+    "fiscalModeHint": {
+      "SERVICE_RENDERED": "El servicio ya se prestó: se emite una única factura por el total (IVA íntegro) y las cuotas son su calendario de cobro.",
+      "ADVANCE": "Cada cuota se factura como anticipo al cobrarla (devengo al cobro); la factura final deduce los anticipos."
+    },
+    "intervalUnitLabel": "Cadencia",
+    "interval": {
+      "WEEKLY": "Semanal",
+      "MONTHLY": "Mensual",
+      "QUARTERLY": "Trimestral",
+      "YEARLY": "Anual"
+    },
+    "intervalCount": "Cada",
+    "occurrences": "Nº de periodos",
+    "occurrencesHint": "Deja los periodos en blanco para un plan abierto (el barrido añade el siguiente en cada corrida).",
+    "installmentCount": "Nº de cuotas",
+    "installmentCountHint": "El importe de las líneas se reparte a partes iguales entre las cuotas (la última absorbe el redondeo).",
+    "startDate": "Fecha de inicio",
+    "linesLabel": "Líneas de la plantilla",
+    "lineDescription": "Concepto",
+    "qty": "Cant.",
+    "unitPrice": "Precio",
+    "addLine": "Añadir línea",
+    "applyWithholding": "Aplicar retención de IRPF",
+    "noteOptional": "Nota (opcional)",
+    "create": "Crear plan",
+    "createError": "No se pudo crear el plan de facturación.",
+    "status": {
+      "ACTIVE": "Activo",
+      "PAUSED": "Pausado",
+      "COMPLETED": "Completado",
+      "CANCELLED": "Cancelado"
+    },
+    "installmentStatus": {
+      "SCHEDULED": "Programada",
+      "EMITTED": "Emitida",
+      "PAID": "Cobrada",
+      "SKIPPED": "Omitida",
+      "FAILED": "Fallida"
+    },
+    "openEnded": "Abierto",
+    "periods": "{count, plural, one {# periodo} other {# periodos}}",
+    "installments": "{count, plural, one {# cuota} other {# cuotas}}",
+    "nextRun": "Próxima emisión",
+    "viewSchedule": "Ver cuadro de cuotas ({count})",
+    "hideSchedule": "Ocultar cuadro de cuotas",
+    "runDue": "Emitir periodos vencidos",
+    "runEmitted": "{count, plural, one {# factura emitida} other {# facturas emitidas}}",
+    "runNone": "No había periodos vencidos por emitir.",
+    "runError": "No se pudieron emitir los periodos vencidos.",
+    "collect": "Cobrar cuota",
+    "collectError": "No se pudo cobrar la cuota.",
+    "viewInvoice": "Ver factura",
+    "col": {
+      "sequence": "#",
+      "dueDate": "Vencimiento",
+      "amount": "Importe",
+      "status": "Estado",
+      "action": "Acción"
+    }
   }
 }

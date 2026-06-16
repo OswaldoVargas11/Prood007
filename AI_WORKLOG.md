@@ -1513,3 +1513,46 @@ PR-RP5 (cron de barrido multi-tenant + dunning de cuotas) y PR-RP6 (UI).
 
 Con RP5, el motor de facturación programada está completo en backend (modelo, planes, emisión recurrente
 y de planes de pago a/b, y cron de barrido). Siguiente: PR-RP6 (UI) + Fase B (auto-cobro off-session, ES).
+
+### 2026-06-16 - Claude Opus 4.8 - PR-RP6: UI de facturación programada (despacho)
+
+Objetivo:
+
+- UI en `apps/web` para operar la facturación programada (D-028) desde la ficha de expediente, reusando
+  el patrón del retainer (`components/lexora/retainer.tsx` + `lib/hooks.ts` + `messages/*.json`).
+
+Acciones:
+
+- **Componente** `apps/web/src/components/lexora/billing-plans.tsx` (`BillingPlansTab`): nueva pestaña
+  «Facturación» en la ficha (`app/[locale]/(app)/matters/[id]/page.tsx`, `tab=billing`).
+  - Crear plan: RECURRING (iguala — cadencia `intervalUnit`×`intervalCount` + nº periodos opcional =
+    abierto) o INSTALLMENTS (fraccionar — nº cuotas ≥2 + fiscalMode SERVICE_RENDERED/ADVANCE), con líneas
+    (concepto/cant./precio, taxCode por jurisdicción) y retención opcional (solo ES).
+  - Listar planes del expediente como tarjetas (tipo + fiscalMode + estado + cadencia/alcance + próxima
+    emisión) con cuadro de cuotas desplegable (carga perezosa vía `useBillingSchedule`): #, vencimiento,
+    importe, estado, factura ligada.
+  - Acciones: «Emitir periodos vencidos» (`POST /billing/schedules/:id/run`) para RECURRING y
+    INSTALLMENTS·SERVICE_RENDERED; «Cobrar cuota» por fila SCHEDULED (`POST /billing/installments/:id/collect`)
+    para ADVANCE; ambas con enlace a la factura emitida. Botón «Emitir» oculto en ADVANCE (van al cobro).
+  - Estados cargando/vacío/error con reintento; dark+light; AA.
+- **Hooks** (`lib/hooks.ts`): `useMatterBillingSchedules`, `useBillingSchedule`, `useCreateBillingSchedule`,
+  `useRunBillingSchedule`, `useCollectBillingInstallment` (invalidan billing+ledger+retainer+invoices).
+- **Tipos** (`lib/types.ts`): `BillingSchedule(ListItem)`, `BillingInstallment`, `CreateBillingScheduleBody`,
+  `BillingRunResult`, `BillingCollectResult` + enums espejo del dominio.
+- **i18n**: namespace nuevo `billingPlans` en `messages/es-ES.json` y `es-DO.json` (ITBIS/ISR en RD) +
+  `matters.tabs.billing`. Paridad de claves verificada: 714/714, sin claves huérfanas.
+
+Pruebas/comprobaciones:
+
+- `pnpm --filter web typecheck`: OK. `pnpm --filter web lint`: OK (sin warnings).
+- **Verificado en navegador** (preview `web` :3000 + API :4000, login demo): estado vacío → crear plan
+  RECURRING (3 periodos, inicio pasado) → «Emitir periodos vencidos» emite 3 facturas y el plan pasa a
+  COMPLETED, cuadro con 3 cuotas EMITTED + «Ver factura»; crear plan INSTALLMENTS·ADVANCE (2 cuotas, sin
+  botón «Emitir») → «Cobrar cuota» #1 → cuota COBRADA + «Ver factura», #2 sigue programada. Dark + light +
+  móvil (375px) + locales es-ES/es-DO (terminología ITBIS) sin errores de consola.
+
+Nota de entorno: el API de :4000 estaba en un build previo al módulo billing (404 en `/api/billing/*`);
+parado, `prisma generate` + `nest build` + relanzado (`node dist/main.js`) → rutas billing OK. Sin cambios
+de backend en este PR (solo `apps/web`).
+
+Siguiente: PR-RP6b (lectura de planes en el portal del cliente) + Fase B (auto-cobro off-session, ES).
