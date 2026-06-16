@@ -318,6 +318,26 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
   con el botón "Pagar online" existente (reusa el checkout de Stripe). i18n es-ES/es-DO. e2e
   portal-dunning 1/1 (overdue derivado + ámbito propio); web tsc/lint/build/vitest OK.
 
+### Ítem 2 — Provisión de fondos / retainer `[~]` (ver D-026)
+
+> Cobrar por adelantado y trabajar contra saldo (estándar ES). Construye sobre el ledger/Payment.
+> Decisiones (2026-06-16): cobro de provisión = **cobro a cuenta NO fiscal** (IVA al emitir factura) ·
+> saldo en **cuenta cacheada + movimientos** · **manual primero, Stripe del retainer después** (R4).
+
+- [~] **PR-R1 — Modelo + migración + RLS** (PR-y-espera, migración+RLS): `RetainerAccount` (1 por
+  cliente, saldo cacheado, moneda del tenant) + `RetainerEntry` (movimientos DEPOSIT/APPLICATION/
+  REFUND/ADJUSTMENT con signo; `invoiceId`/`paymentId`). Enum de dominio `RetainerMovementType`.
+  RLS fail-closed en ambas. Migración `20260616130000_retainer`. e2e retainer-rls 5/5. Sin lógica.
+- [ ] **PR-R2 — Cobro de provisión (manual) + saldo** (PR-y-espera): depósito manual → `RetainerEntry
+    DEPOSIT` + actualiza saldo (transaccional, auditado); lectura de saldo + movimientos del cliente.
+- [ ] **PR-R3 — Aplicar provisión a factura** (PR-y-espera): `POST /retainer/apply` crea un `Payment`
+      (método `RETAINER`) por la vía `reconcile` (mueve `amountPaid`, PARTIAL/PAID, apunte PAYMENT) +
+      `RetainerEntry APPLICATION (−)` que baja el saldo, en una transacción. Valida saldo y moneda.
+- [ ] **PR-R5 — UI** (auto-mergeable): saldo + movimientos en la ficha de cliente, "cobrar provisión"
+      y "aplicar a factura"; portal: el cliente ve su saldo (lectura). Estados/i18n/AA.
+- [ ] **PR-R4 — Cobro de provisión online (Stripe, sin factura)** (PR-y-espera, DIFERIDO): `invoiceId`
+      nullable + checkout sin factura + webhook que acredita el retainer. Pieza más sensible; PR aparte.
+
 ## Diferido (stubs detrás de interfaz — NO construir aún)
 
 - Envío real AEAT/DGII, LexNET en vivo, firma electrónica (Signaturit/DocuSign), SMS.

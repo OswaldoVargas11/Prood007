@@ -537,5 +537,33 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
      acotadas por RLS a ese tenant (sin fugas cross-tenant). Mismo patrón que el cierre del fail-open de
      WebSocket (D-013).
   3. **Aislamiento de fallos** — un error en un tenant se registra y NO detiene el barrido del resto.
-     Verificado local: e2e cron 2/2 (barrido multi-tenant bajo RLS + idempotencia). Pendiente: verde en
-     CI + OK del owner para fusionar.
+     Verificado: e2e cron 2/2 (barrido multi-tenant bajo RLS + idempotencia). **Fusionado a main (#58).**
+- **Ítem 1 (Dunning) COMPLETO:** D1 (#56) · D2 (#57) · D3 (#58) · D4 UI despacho (#59) · D5 UI portal
+  (#60). Las vencidas se persiguen solas (cron diario) y a demanda; aviso al despacho + recordatorio al
+  cliente con enlace de pago. EMAIL/SMS = integración Fase 2.
+
+## D-026 · Fase 1 (Ítem 2): provisión de fondos / retainer — saldo por cliente, cobro a cuenta no fiscal · Aceptada
+
+- **Contexto:** segundo ítem de la cola de cobro. Modelo estándar en ES: cobrar por adelantado y
+  trabajar contra saldo. Construye sobre el ledger/`Payment`. El ledger es por expediente y no había
+  saldo a nivel de cliente.
+- **Decisiones (confirmadas por el usuario, 2026-06-16):**
+  1. **Tratamiento fiscal = cobro a cuenta NO fiscal** — el depósito de provisión es un movimiento de
+     saldo del cliente, sin IVA ni registro fiscal al cobrar. El IVA se devenga al **emitir la factura**
+     (ya vía `buildInvoiceRecord`); aplicar la provisión es liquidación. El anticipo-IVA (art. 75.2
+     LIVA, factura de anticipo) queda como **mejora posterior a confirmar** (no en esta tanda).
+  2. **Saldo = `RetainerAccount` (cacheado) + `RetainerEntry` (movimientos)** — 1 cuenta por cliente, en
+     la moneda del tenant; el saldo se actualiza transaccionalmente con cada movimiento auditado.
+  3. **Manual primero, Stripe después** — esta tanda: R1 (modelo) → R2 (cobro manual + saldo) → R3
+     (aplicar a factura) → R5 (UI). El cobro online del retainer (R4: `Payment.invoiceId` nullable +
+     checkout sin factura + webhook) se **difiere** a un PR posterior (la pieza más sensible).
+- **Reutiliza, no duplica:** `reconcile`/`Payment` (aplicar provisión crea un `Payment` método
+  `RETAINER` y postea su apunte `PAYMENT` al ledger del expediente), el `PROVISION` a nivel de
+  expediente se queda como está (el retainer es el pool a nivel de cliente), `AuditService`, RLS
+  `runWithTenant`. Jurisdicción-aware vía moneda/locale del tenant; ningún país hardcodeado.
+- **Sensibilidad / merge:** R1–R4 tocan migración/dinero/Stripe → **PR-y-espera**. R5 (UI lectura +
+  acciones sobre endpoints) → auto-mergeable.
+- **PR-R1 (este):** tablas `RetainerAccount` + `RetainerEntry` (RLS fail-closed, patrón D-013/D-020),
+  enum de dominio `RetainerMovementType`, migración `20260616130000_retainer`. **Sin lógica** (llega en
+  R2/R3). Verificado: e2e retainer-rls 5/5 (lectura acotada, cross-tenant invisible, WITH CHECK,
+  fail-closed) local; schema válido; typecheck + lint limpios. Pendiente: verde en CI + OK del owner.

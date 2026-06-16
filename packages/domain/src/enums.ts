@@ -153,6 +153,20 @@ export enum DunningReminderStatus {
   FAILED = 'FAILED',
 }
 
+/**
+ * Movimiento del saldo de provisión de fondos (retainer) de un cliente. Convención de signo:
+ * - DEPOSIT (+): anticipo cobrado al cliente (manual o, en Fase posterior, online).
+ * - APPLICATION (−): provisión aplicada a una factura (liquida saldo pendiente de la factura).
+ * - REFUND (−): devolución de provisión al cliente.
+ * - ADJUSTMENT (±): ajuste manual (el importe lleva su propio signo).
+ */
+export enum RetainerMovementType {
+  DEPOSIT = 'DEPOSIT',
+  APPLICATION = 'APPLICATION',
+  REFUND = 'REFUND',
+  ADJUSTMENT = 'ADJUSTMENT',
+}
+
 /** Tipo de identificador fiscal (validado por el provider de cumplimiento). */
 export enum TaxIdKind {
   /** España */

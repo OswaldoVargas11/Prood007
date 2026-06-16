@@ -116,6 +116,15 @@ enum DunningReminderStatus {
   FAILED
 }
 
+// Movimiento del saldo de provisión de fondos (retainer) de un cliente. Signo: DEPOSIT +,
+// APPLICATION −, REFUND −, ADJUSTMENT ± (el importe lleva su signo). Ver enums de @legalflow/domain.
+enum RetainerMovementType {
+  DEPOSIT
+  APPLICATION
+  REFUND
+  ADJUSTMENT
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tenancy & Auth / RBAC
 // ─────────────────────────────────────────────────────────────────────────────
@@ -165,6 +174,8 @@ model Tenant {
   payments         Payment[]
   dunningRules     DunningRule[]
   dunningReminders DunningReminder[]
+  retainerAccounts RetainerAccount[]
+  retainerEntries  RetainerEntry[]
   notifications    Notification[]
   messages         Message[]
   auditLogs        AuditLog[]
@@ -279,10 +290,11 @@ model Client {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user     User?     @relation("ClientUser", fields: [userId], references: [id])
-  matters  Matter[]
-  invoices Invoice[]
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User?            @relation("ClientUser", fields: [userId], references: [id])
+  matters         Matter[]
+  invoices        Invoice[]
+  retainerAccount RetainerAccount?
 
   @@index([tenantId])
   @@index([tenantId, taxId])
@@ -507,6 +519,7 @@ model Invoice {
   ledger           LedgerEntry[]
   payments         Payment[]
   dunningReminders DunningReminder[]
+  retainerEntries  RetainerEntry[]
 
   @@unique([tenantId, number])
   @@index([tenantId])
@@ -535,8 +548,9 @@ model Payment {
   paidAt      DateTime?
   createdAt   DateTime      @default(now())
 
-  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice         Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  retainerEntries RetainerEntry[]
 
   @@unique([providerRef])
   @@index([tenantId])
@@ -611,6 +625,57 @@ model DunningReminder {
   @@unique([tenantId, invoiceId, offsetDays])
   @@index([tenantId, invoiceId])
   @@index([tenantId, status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Provisión de fondos / retainer (anticipos cobrados, saldo por cliente)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Saldo de provisión de fondos POR CLIENTE (modelo estándar en ES: cobrar por adelantado y trabajar
+// contra saldo). En la moneda del tenant. `balance` es un saldo CACHEADO que se actualiza de forma
+// transaccional con cada `RetainerEntry`; los movimientos son la fuente auditada. El cobro del depósito
+// es un "cobro a cuenta" NO fiscal: el IVA se devenga al emitir la factura (buildInvoiceRecord), no al
+// recibir el anticipo. Aplicar la provisión a una factura es liquidación (crea un Payment). Ver D-026.
+model RetainerAccount {
+  id        String   @id @default(cuid())
+  tenantId  String
+  // Un retainer por cliente (relación 1-1). `clientId` único satisface el 1-1; el tenant se mantiene
+  // para el aislamiento RLS.
+  clientId  String   @unique
+  currency  Currency
+  balance   Decimal  @default(0) @db.Decimal(18, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client  Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  entries RetainerEntry[]
+
+  @@index([tenantId])
+}
+
+// Movimiento auditado del saldo de provisión. `amount` lleva su signo (DEPOSIT +, APPLICATION −,
+// REFUND −, ADJUSTMENT ±). `invoiceId` en APPLICATION; `paymentId` enlaza el Payment que originó el
+// movimiento (depósito cobrado / aplicación a factura).
+model RetainerEntry {
+  id        String               @id @default(cuid())
+  tenantId  String
+  accountId String
+  type      RetainerMovementType
+  amount    Decimal              @db.Decimal(18, 2)
+  currency  Currency
+  invoiceId String?
+  paymentId String?
+  note      String?
+  createdAt DateTime             @default(now())
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  account RetainerAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  invoice Invoice?        @relation(fields: [invoiceId], references: [id])
+  payment Payment?        @relation(fields: [paymentId], references: [id])
+
+  @@index([tenantId, accountId])
+  @@index([tenantId, createdAt])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
