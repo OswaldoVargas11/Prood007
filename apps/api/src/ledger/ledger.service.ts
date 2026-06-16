@@ -270,8 +270,10 @@ export class LedgerService {
    * retainer (R2b), de modo que serie + registro + ledger queden en la MISMA transacción que el saldo.
    */
   async emitInvoiceInTx(
+    // Actor mínimo: el núcleo de emisión solo necesita tenant + jurisdicción (resuelve el provider). Así
+    // lo pueden invocar tanto las rutas con `RequestUser` como procesos sin request (cron de facturación).
     tx: Prisma.TransactionClient,
-    user: RequestUser,
+    user: { tenantId: string; jurisdiction: RequestUser['jurisdiction'] },
     p: {
       matter: {
         id: string;

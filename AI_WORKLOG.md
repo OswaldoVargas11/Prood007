@@ -1494,3 +1494,22 @@ Siguiente: PR-RP4b (anticipos, emisión al cobro) o PR-RP5 (cron de barrido + du
 
 Con RP4b, el motor de facturación programada cubre recurrente + ambos modos de plan de pago. Siguiente:
 PR-RP5 (cron de barrido multi-tenant + dunning de cuotas) y PR-RP6 (UI).
+
+### 2026-06-16 - Claude Opus 4.8 - PR-RP5: cron de barrido de facturación programada
+
+- **PR-RP5:** `BillingCron` (`@Cron` diario 6AM, mismo patrón que el cron de dunning) → barre todos los
+  tenants: lista con el rol de SISTEMA (BYPASSRLS) y procesa cada uno dentro de `runWithTenant(tenantId)`
+  (RLS acotada). `BillingService.sweepTenant` emite los planes ACTIVE con `nextRunAt ≤ ahora` que NO sean
+  INSTALLMENTS·ADVANCE (RECURRING + SERVICE_RENDERED), reusando `runDueEmissions`. Un fallo por tenant/plan
+  no detiene el barrido.
+- **Ensanche del núcleo:** `LedgerService.emitInvoiceInTx` ahora acepta un actor mínimo
+  `{ tenantId, jurisdiction }` (RequestUser lo satisface) para poder emitir SIN request (cron); la
+  auditoría acepta ese actor (actorId nulo = sistema). `runDueEmissions`/`emit*` y `sweepTenant` usan
+  `BillingEmitActor`.
+- **Verificado (puntos clave):** e2e billing-cron 2/2 (barrido multi-tenant emite RECURRING+SERVICE_RENDERED,
+  NO toca ADVANCE, aislamiento por tenant, idempotencia) + **ledger 15/15 + retainer-anticipo 4/4 +
+  billing recurring/installments/advance sin regresión** (ensanche de emitInvoiceInTx seguro). typecheck +
+  eslint + prettier. Sin endpoints nuevos (cron interno) → api-reference sin cambio.
+
+Con RP5, el motor de facturación programada está completo en backend (modelo, planes, emisión recurrente
+y de planes de pago a/b, y cron de barrido). Siguiente: PR-RP6 (UI) + Fase B (auto-cobro off-session, ES).
