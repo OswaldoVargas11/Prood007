@@ -425,9 +425,12 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
       cobro parcial va por `Payment`/Checkout). Idempotente; `nextRunAt=null`. Guard de ADVANCE → RP4b.
       `runDueEmissions` refactorizado para despachar por tipo/modo. e2e billing-installments 3/3 + recurring
       4/4 sin regresión.
-- [ ] **PR-RP4b — Emisión plan de pago (anticipos)** (PR-y-espera, Verifactu-crítico): ADVANCE → la
-      emisión de cada anticipo va ligada a su **cobro** (devengo al cobro), reutilizando el flujo R2b
-      (`depositAnticipo`) + deducción en la final (R3b). Cada cuota cobrada → factura de anticipo. e2e.
+- [x] **PR-RP4b — Emisión plan de pago (anticipos)** (PR-y-espera, Verifactu-crítico): `POST
+    /billing/installments/:id/collect` cobra una cuota de un plan ADVANCE → emite su **factura de
+      anticipo** (devengo al cobro) + acredita el retainer, reutilizando `RetainerService.depositAnticipo`
+      (sin duplicar). **Claim-first** (reserva SCHEDULED→EMITTED atómica): fail-safe contra doble anticipo
+      bajo reintento/concurrencia. La deducción de los anticipos en la final ya existe (R3b). Cierra el
+      plan al cobrar la última. e2e billing-advance 5/5 + retainer-anticipo 4/4 sin regresión.
 - [ ] **PR-RP5 — Cron de barrido + dunning de cuotas** (PR-y-espera): cron diario multi-tenant (patrón
       del cron de dunning) que procesa vencimientos + recuerda cuotas vencidas.
 - [ ] **PR-RP6 — UI** (auto-mergeable): crear/gestionar planes en la ficha + lectura en el portal.

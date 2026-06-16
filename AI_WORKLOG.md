@@ -1475,3 +1475,22 @@ Siguiente: PR-RP4 (emisión de planes de pago: a 1 factura + cuotas-cobro; b ant
   de (a); reutilizará `depositAnticipo` (R2b) + deducción en la final (R3b).
 
 Siguiente: PR-RP4b (anticipos, emisión al cobro) o PR-RP5 (cron de barrido + dunning de cuotas).
+
+### 2026-06-16 - Claude Opus 4.8 - PR-RP4b: emisión de plan de pago por anticipos
+
+- **PR-RP4b:** `POST /billing/installments/:id/collect` (`BillingService.collectAnticipoInstallment`).
+  Plan ADVANCE (devengo al cobro): cobrar una cuota emite su factura de anticipo + acredita el retainer
+  REUTILIZANDO `RetainerService.depositAnticipo` (sin duplicar el flujo R2b). La deducción de los anticipos
+  en la factura final ya existe (R3b). **Claim-first**: reserva atómica SCHEDULED→EMITTED antes de emitir
+  → fail-safe contra doble anticipo en reintento/concurrencia; si depositAnticipo falla antes de emitir,
+  libera la reserva. Cierra el plan (COMPLETED) al cobrar la última cuota. BillingModule importa RetainerModule.
+- **Verificado (puntos clave):** e2e billing-advance 5/5 (anticipo por cuota 300→363 + crédito retainer;
+  claim-first no-doble; cierre; guards; role) + **retainer-anticipo 4/4 sin regresión** (depositAnticipo
+  reusado intacto) + retainer 8/8 + billing-recurring/installments + ledger 15/15. typecheck+eslint+prettier.
+  api-reference → 77.
+- **Decisión:** reusar depositAnticipo (no refactorizar RetainerService) + claim-first = más simple y
+  fail-safe contra el peor error (doble anticipo); el caso degradado (cuota EMITTED sin link tras un fallo
+  rarísimo post-emisión) es recuperable y NO genera doble factura.
+
+Con RP4b, el motor de facturación programada cubre recurrente + ambos modos de plan de pago. Siguiente:
+PR-RP5 (cron de barrido multi-tenant + dunning de cuotas) y PR-RP6 (UI).
