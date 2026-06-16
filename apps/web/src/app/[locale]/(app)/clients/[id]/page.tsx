@@ -27,6 +27,7 @@ import { useAuth } from '@/lib/auth';
 import { formatDate, formatMoney } from '@/lib/format';
 import { ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/lexora/status-badge';
+import { AdminResetPasswordButton } from '@/components/lexora/admin-reset-password';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -168,6 +169,14 @@ export default function ClientProfilePage() {
                   >
                     <KeyRound /> {t('grantPortal')}
                   </Button>
+                )}
+                {client.userId && (
+                  <AdminResetPasswordButton
+                    userId={client.userId}
+                    variant="outline"
+                    className="mt-3 w-full"
+                    label={t('resetPortalPassword')}
+                  />
                 )}
               </div>
 

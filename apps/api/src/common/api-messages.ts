@@ -67,6 +67,10 @@ export const API_MESSAGES = {
     'es-ES': 'La sesión ha alcanzado su duración máxima; vuelve a iniciar sesión.',
     'es-DO': 'La sesión ha alcanzado su duración máxima; vuelve a iniciar sesión.',
   },
+  'auth.resetInvalid': {
+    'es-ES': 'El enlace de restablecimiento no es válido o ha caducado.',
+    'es-DO': 'El enlace de restablecimiento no es válido o ha caducado.',
+  },
   'auth.invalidUser': {
     'es-ES': 'Usuario no válido.',
     'es-DO': 'Usuario no válido.',

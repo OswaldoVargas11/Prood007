@@ -262,9 +262,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  roles         UserRole[]
-  refreshTokens RefreshToken[]
+  tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roles          UserRole[]
+  refreshTokens  RefreshToken[]
+  passwordResets PasswordReset[]
 
   // Relaciones de negocio
   responsibleMatters Matter[]          @relation("MatterLawyer")
@@ -336,6 +337,24 @@ model RefreshToken {
   absoluteExpiresAt DateTime?
   revokedAt DateTime?
   createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Token de restablecimiento de contraseña (un solo uso). Como RefreshToken, SIN RLS: el flujo público
+// de reset opera sin contexto de tenant. Nunca se guarda el token en claro (solo su hash). Ver SEC3.
+model PasswordReset {
+  id          String    @id @default(cuid())
+  userId      String
+  // Hash (sha256) del token entregado; el token en claro solo se muestra/envía una vez.
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  // Admin del despacho que lo generó (flujo "reset por admin"); null en autoservicio ("olvidé...").
+  createdById String?
+  createdAt   DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

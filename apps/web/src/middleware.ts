@@ -28,7 +28,13 @@ export default function middleware(req: NextRequest) {
   const scope = req.cookies.get(SCOPE_COOKIE)?.value;
   const isLogin = rest === '/login' || rest.startsWith('/login/');
   const isOnboarding = rest === '/onboarding' || rest.startsWith('/onboarding/');
-  const isPublic = isLogin || isOnboarding;
+  // Recuperación de contraseña: accesible sin sesión (el usuario no puede entrar). Ver SEC3.
+  const isRecovery =
+    rest === '/forgot-password' ||
+    rest.startsWith('/forgot-password/') ||
+    rest === '/reset-password' ||
+    rest.startsWith('/reset-password/');
+  const isPublic = isLogin || isOnboarding || isRecovery;
   const isPortal = rest === '/portal' || rest.startsWith('/portal/');
   const home = scope === 'client' ? 'portal' : 'dashboard';
 
