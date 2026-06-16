@@ -667,27 +667,35 @@ UPDATE`** sobre la cuenta (para que un DEPOSIT y una APPLICATION concurrentes no
   R3b). `PaymentMethod.RETAINER` (Payment.method es String → sin migración). e2e retainer-apply 6/6
   (parcial→PAID, saldo insuficiente, bloqueo anticipo, factura ajena, role-gating, invariante).
 
-## D-027 · Fase 1 (Ítem 2 R3b/R3c): deducción del anticipo + rectificativa · **PROPUESTA, PENDIENTE DE RATIFICACIÓN POR ASESOR FISCAL**
+## D-027 · Fase 1 (Ítem 2 R3b): deducción del anticipo (≠ rectificativa) + rectificativa del refund · **RATIFICADA (owner, 2026-06-16)**
 
-> ⚠️ **Estado: PROPUESTA.** Fija el problema y propone el modelo de la deducción del anticipo (R3b) y de
-> la devolución (R3c) para que el owner lo lleve al asesor. **NO se implementa lógica hasta ratificar**
-> (mismo proceso que D-026). Hasta entonces, aplicar saldo de ANTICIPO está **bloqueado** (ver PR-R3a).
+> ✅ **Estado: RATIFICADA por el owner (2026-06-16).** Modelo ES cerrado; RD adoptado como marco +
+> conservador (menos certeza — un contador dominicano lo afinaría). Corrige la propuesta anterior: la
+> regularización del caso normal **NO es una rectificativa, es una deducción**; solo el REFUND lo es.
 
-- **Problema (doble IVA):** un ANTICIPO se factura con IVA al cobrarse (R2b). Si luego se emite la
-  factura final por el trabajo COMPLETO y además se aplica el saldo, el IVA del anticipo se cobraría dos
-  veces salvo que la factura final **deduzca** la base ya anticipada.
-- **(R3b) Deducción en la factura final — opciones a evaluar con asesor:**
-  1. **Factura final por el remanente**: base final = trabajo total − base ya anticipada; IVA sobre el
-     remanente. Simple, pero la factura final no refleja el bruto del servicio.
-  2. **Factura final por el total con línea negativa de anticipo**: línea de minoración por la base
-     anticipada (y su IVA), de modo que el neto a pagar excluya lo ya cobrado. Refleja el bruto; exige
-     que el registro Verifactu/e-CF admita la minoración correctamente.
-  - En ambos, la **aplicación del saldo del retainer** (R3a) liquida el importe correspondiente; el
-    encadenamiento Verifactu y el devengo deben quedar conformes. Jurisdicción vía `ComplianceProvider`
-    (ES LIVA/Verifactu · RD ITBIS/e-CF).
-- **(R3c) REFUND de un anticipo ya facturado:** exige **factura rectificativa** (Verifactu/e-CF), no
-  solo un `RetainerEntry REFUND(−)`. El movimiento de saldo y la rectificativa van juntos (atómico).
-- **Pregunta abierta al asesor:** ¿opción 1 o 2 para R3b? ¿requisitos de la rectificativa de anticipo
-  en ES y su equivalente RD? Postura por defecto (D-026): ante la duda, conservador.
-- **Gate R3b/R3c:** no se implementan hasta ratificación. R3a (mecánica, con bloqueo de anticipo) y R5
-  (UI) pueden avanzar mientras tanto.
+- **Devengo y pasivo:** cada pago anticipado **requiere su propia factura** (el IVA se devenga al cobrar
+  cada anticipo, R2b); el anticipo se registra como **pasivo** hasta que se realiza la operación
+  definitiva, momento en que se **regulariza**.
+- **(R3b) Deducción del anticipo en la factura final — NO es rectificativa:** al cerrar el asunto se
+  emite la factura por el **servicio completo** y se **descuentan los anticipos ya facturados** mediante
+  **líneas negativas que referencian esas facturas de anticipo**. Así el IVA acumulado = IVA del total,
+  sin doble imposición. Las **facturas de anticipo quedan inmutables** (Verifactu); la final las
+  **neutraliza por deducción**. → reusar `buildInvoiceRecord` para la final con un **bloque de deducción
+  de anticipos**, encadenada. (Esto reemplaza la idea anterior de "factura por el remanente".)
+- **(R3c) REFUND de un anticipo ya facturado — SÍ es rectificativa:** devolver un anticipo facturado
+  **no es restar saldo**: se emite **factura rectificativa** para anular la operación y ajustar el IVA
+  declarado en el período del cobro. Bajo Verifactu (las facturas no se modifican/borran) la
+  rectificativa es un **registro nuevo encadenado**, **por sustitución** (la errónea en negativo + la
+  rectificativa) o **por diferencias** (factura con el importe rectificado), indicando su **condición de
+  rectificativa, la causa y la factura rectificada**. → reusar `buildInvoiceRecord` con **tipo
+  rectificativa** + `RetainerEntry REFUND(−)`, atómico.
+- **RD vía `ComplianceProvider`:** el refund equivale a una **nota de crédito e-CF**; la deducción del
+  anticipo va en el **e-CF final**. Menos cerrado en las fuentes → es donde más conviene el contador
+  dominicano.
+- **Split:** R3a (aplicar saldo a factura = `Payment(RETAINER)` + `APPLICATION`, mecánico — **hecho**,
+  #64; la aplicación solo reduce el pendiente, la deducción fiscal vive en la final) → **R3b** (deducción
+  en factura final + rectificativa de refund) ya **diseñable** con este modelo.
+- **Recomendación (no bloqueante):** el motor fiscal acumula anticipo → factura de anticipo → deducción
+  en final → rectificativa → (pronto) recurrente, todo bajo Verifactu y la responsabilidad de fabricante
+  del owner. Una **revisión única de un fiscalista sobre el motor entero** (no decisión a decisión; sobre
+  todo RD y el encadenamiento de rectificativas) es seguro barato. El owner decide.
