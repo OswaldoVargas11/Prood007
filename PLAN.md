@@ -298,10 +298,13 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
   `@@unique([tenantId,invoiceId,offsetDays])` + registro de lo disparado). Enums de dominio
   `DunningChannel`/`DunningSeverity`/`DunningReminderStatus`. RLS fail-closed en ambas. Sin lógica.
   Migración `20260616120000_dunning`. **Espera CI verde + OK del owner.**
-- [ ] **PR-D2 — Motor + canal in-app + endpoint manual** (PR-y-espera): `DunningService` evalúa
-      vencidas vs reglas y crea recordatorios idempotentes; `DunningChannel` interface + `InAppChannel`
-      (Notificación al despacho); `AuditService.log('dunning.reminder_sent')`; endpoint manual "recordar
-      ahora". Email/SMS solo como interface.
+- [~] **PR-D2 — Motor + canal in-app + endpoint manual** (PR-y-espera): `DunningService` evalúa
+  vencidas vs reglas (configuradas o calendario por defecto +1/+7/+15) y crea recordatorios
+  idempotentes (P2002 capturado con gracia); `DunningChannelDispatcher` (multi-provider) + `InAppChannel`
+  (Notificación al despacho); `AuditService.log('dunning.reminder_sent')`; endpoints `POST /dunning/run`
+  ("recordar ahora") + `GET /dunning/reminders`. Email/SMS solo como interface (Fase 2). Helpers de
+  vencimiento extraídos a `ledger/overdue.util.ts` (fuente única, sin duplicar). e2e 7/7 + RLS 7/7
+  local. **Espera CI verde + OK del owner.**
 - [ ] **PR-D3 — Scheduler (cron diario)** (PR-y-espera): `@nestjs/schedule` + cron multi-tenant sobre
       el `DunningService` de D2.
 - [ ] **PR-D4 — UI despacho** (auto-mergeable): surfacing de vencidas a recordar + "recordar ahora" +

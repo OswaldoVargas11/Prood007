@@ -1045,3 +1045,32 @@ Sensibilidad / merge:
 - Toca `prisma/` (migración) + RLS → **PR-y-espera** (no auto-merge). Sin código de negocio todavía.
 - **Siguiente:** PR-D2 (DunningService + canal in-app + endpoint manual). Pendiente: verde en CI + OK
   del owner para fusionar D1.
+
+## 2026-06-16 — Claude — Ítem 1 (Dunning) PR-D2: motor + canal in-app + endpoint manual
+
+Contexto: D1 fusionado a main (#56, CI verde incl. e2e RLS dedicado que el owner exigió). Arranca D2,
+la primera parte con lógica.
+
+Hecho:
+
+- `apps/api/src/ledger/overdue.util.ts`: extraídos `deriveOverdue`/`startOfTodayUtc`/`addDaysUtc`/
+  `SETTLED_STATUSES`/`DEFAULT_PAYMENT_TERM_DAYS` desde `ledger.service` (fuente única; el ledger ahora
+  importa de ahí, comportamiento idéntico). Evita duplicar "vencidas" en el motor.
+- `apps/api/src/dunning/`: `DunningService` (evalúa vencidas vs reglas efectivas; crea recordatorios
+  idempotentes capturando P2002; entrega por canal; audita `dunning.reminder_sent`), `dunning.policy.ts`
+  (calendario por defecto +1/+7/+15 con fallback si no hay reglas), canal `DunningChannelDispatcher`
+  multi-provider + `InAppChannel` (avisa a FIRM_ADMIN), `DunningController` (`POST /dunning/run`,
+  `GET /dunning/reminders`, `@Roles(FIRM_ADMIN, LAWYER)`), `DunningModule` (registrado en `app.module`).
+- Docs: PLAN (D2 [~]), DECISIONS (D-025 ampliada con decisiones de implementación), arquitectura
+  07-api-reference (sección `dunning`).
+
+Pruebas (LOCAL, contra Postgres real como `legalflow_app`; migración aplicada con `migrate deploy`):
+
+- `apps/api/test/dunning.e2e-spec.ts` 7/7: 401 sin token, 403 CLIENT, run entrega 3 etapas, 1
+  recordatorio por etapa en SENT, **doble run sin duplicados ni 500 (idempotencia)**, 3× audit
+  `dunning.reminder_sent`, aislamiento por tenant. RLS de D1 7/7. typecheck + eslint API limpios.
+- Nota: hubo que parar la instancia local del API (lock del query engine en Windows) para regenerar el
+  cliente Prisma; el owner había autorizado reiniciarla.
+
+Sensibilidad / merge: lógica de dunning (dinero-adyacente) → **PR-y-espera**. No toca migración.
+Siguiente: PR-D3 (cron diario con `@nestjs/schedule` reutilizando `DunningService`).

@@ -17,6 +17,12 @@ import { ResolveApprovalDto } from './dto/resolve-approval.dto';
 import { apiError } from '../common/api-messages';
 import { buildInvoicePdf, invoiceRowToPdfData } from './invoice-pdf';
 import { PaymentsService } from '../payments/payments.service';
+import {
+  DEFAULT_PAYMENT_TERM_DAYS,
+  addDaysUtc,
+  deriveOverdue,
+  startOfTodayUtc,
+} from './overdue.util';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
@@ -37,33 +43,6 @@ const BALANCE_SIGN: Record<LedgerEntryType, number> = {
   [LedgerEntryType.ADJUSTMENT]: 1,
   [LedgerEntryType.INVOICE]: 0,
 };
-
-/** Plazo de pago por defecto (días) cuando la factura no trae `dueDate` explícito. */
-const DEFAULT_PAYMENT_TERM_DAYS = 30;
-
-/** Estados en los que una factura ya no puede vencer (cobrada o anulada). */
-const SETTLED_STATUSES: InvoiceStatus[] = [InvoiceStatus.PAID, InvoiceStatus.CANCELLED];
-
-/** Medianoche UTC de hoy: una factura vence cuando su `dueDate` quedó ESTRICTAMENTE en el pasado
- *  (el propio día de vencimiento aún no cuenta como vencida). */
-function startOfTodayUtc(): Date {
-  const n = new Date();
-  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate()));
-}
-
-function addDaysUtc(base: Date, days: number): Date {
-  return new Date(base.getTime() + days * 86_400_000);
-}
-
-/** Deriva si una factura está vencida en lectura, sin depender del scheduler de dunning. */
-function deriveOverdue(
-  status: InvoiceStatus,
-  dueDate: Date | null,
-  today: Date = startOfTodayUtc(),
-): boolean {
-  if (!dueDate || SETTLED_STATUSES.includes(status)) return false;
-  return dueDate.getTime() < today.getTime();
-}
 
 @Injectable()
 export class LedgerService {

@@ -138,6 +138,16 @@ RLS acotan el acceso). "público" = `@Public`.
 | GET    | `/api/ledger/invoices/:id/pdf`      | FIRM_ADMIN, LAWYER |
 | POST   | `/api/ledger/invoices/:id/pay`      | FIRM_ADMIN, LAWYER |
 
+### `dunning` — `/api/dunning` (2) · clase: **FIRM_ADMIN, LAWYER**
+
+Recordatorios de cobro de facturas vencidas. Todo acotado al tenant (RLS + `user.tenantId`). El cron
+diario automático llega en PR-D3 reutilizando el mismo `DunningService`.
+
+| Método | Ruta                     | Rol                | Nota                                                    |
+| ------ | ------------------------ | ------------------ | ------------------------------------------------------- |
+| POST   | `/api/dunning/run`       | FIRM_ADMIN, LAWYER | "Recordar ahora": evalúa vencidas y dispara las etapas  |
+| GET    | `/api/dunning/reminders` | FIRM_ADMIN, LAWYER | Recordatorios generados (línea de tiempo); `?invoiceId` |
+
 ### `settings` — `/api/settings` (5) · clase: **FIRM_ADMIN**
 
 | Método | Ruta                           | Rol        |
