@@ -537,5 +537,102 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
      acotadas por RLS a ese tenant (sin fugas cross-tenant). Mismo patrón que el cierre del fail-open de
      WebSocket (D-013).
   3. **Aislamiento de fallos** — un error en un tenant se registra y NO detiene el barrido del resto.
-     Verificado local: e2e cron 2/2 (barrido multi-tenant bajo RLS + idempotencia). Pendiente: verde en
-     CI + OK del owner para fusionar.
+     Verificado: e2e cron 2/2 (barrido multi-tenant bajo RLS + idempotencia). **Fusionado a main (#58).**
+- **Ítem 1 (Dunning) COMPLETO:** D1 (#56) · D2 (#57) · D3 (#58) · D4 UI despacho (#59) · D5 UI portal
+  (#60). Las vencidas se persiguen solas (cron diario) y a demanda; aviso al despacho + recordatorio al
+  cliente con enlace de pago. EMAIL/SMS = integración Fase 2.
+
+## D-026 · Fase 1 (Ítem 2): provisión de fondos / retainer — tratamiento fiscal · **RATIFICADA (owner, 2026-06-16)**
+
+> ✅ **Estado: RATIFICADA por el owner (2026-06-16).** ES queda cerrado; RD se adopta como **marco +
+> default conservador** (menos certeza que ES — un contador dominicano lo afinaría). El owner asume el
+> default conforme y conservador sin asesor; ver "Ratificación" para la postura y la recomendación de una
+> revisión única del motor fiscal (firma la Declaración Responsable como fabricante).
+> **La lógica fiscal se implementa en R2**, una vez fusionado #61. Reemplaza el borrador anterior, cuyo
+> default (provisión = cobro a cuenta no fiscal) iba al revés del caso típico.
+
+- **Contexto:** segundo ítem de la cola de cobro (modelo estándar ES: cobrar por adelantado y trabajar
+  contra saldo). Construye sobre el ledger/`Payment`.
+
+### Tratamiento fiscal (ratificado)
+
+- **Default CONFORME = anticipo de honorarios devenga IVA al cobro.** Una provisión que es anticipo de
+  servicios identificados **devenga IVA en el momento del cobro** (art. 75.Dos LIVA) → **factura
+  inmediata** (consume serie fiscal / Verifactu). Este es el **comportamiento por defecto** (el borrador
+  anterior lo tenía invertido).
+- **El tratamiento es un atributo POR provisión** que fija el usuario al cobrar, con el default conforme.
+  Ramas de excepción explícitas:
+  1. **Provisión genérica no delimitada** (sin servicio identificado) → **sin devengo** hasta identificar
+     el servicio (doctrina TJUE C-419/02 _BUPA_).
+  2. **Suplido** (art. 78.Tres.3º LIVA) → **sin IVA**, factura a nombre del cliente (gasto por cuenta y
+     en nombre del cliente).
+- **Jurisdicción vía `ComplianceProvider`, NO asumir ES.** La regla de devengo y la emisión cuelgan del
+  provider del tenant: **ES** = LIVA / Verifactu; **RD** = ITBIS 18% / e-CF-DGII. Ningún país hardcodeado.
+- **Implicación REFUND:** si el depósito devengó IVA al cobrarse, devolverlo exige **factura
+  rectificativa** (Verifactu / e-CF), no solo restar saldo (ver Parte C).
+
+### Ratificación (owner, 2026-06-16) — mecánica confirmada para R2/R3
+
+- **ES (cerrado):** el anticipo de honorarios devenga IVA **al cobro** (art. 75.Dos LIVA) → repercutir
+  IVA 21%, **emitir factura de anticipo** y **practicar retención IRPF** si el cliente es retenedor.
+  La **factura final del asunto deduce el anticipo ya facturado** (regulariza descontando lo anticipado;
+  no se grava dos veces). En clave Verifactu: toda provisión que sea anticipo se factura de inmediato.
+- **RD (marco + conservador, menos certeza):** servicios de abogacía gravados con **ITBIS 18%**; el
+  nacimiento de la obligación se ancla a la **emisión del e-CF** / prestación (art. 338 CT Ley 11-92 +
+  art. 7 Decreto 293-11), **no al cobro** como en ES. Default conservador: **emitir e-CF con ITBIS al
+  tomar un anticipo** ligado a servicios identificados. (Un contador dominicano afinaría este punto.)
+- **Ante la duda, conservador** = aplicar impuesto (+ retención en ES). El error caro es **infra-
+  repercutir**, no sobre-documentar.
+- **Suplido con rigor:** solo gastos pagados en nombre y por cuenta del cliente con **justificante a
+  nombre del cliente** (tasas, registro, notaría) → fuera de base, sin IVA, no sujeto a retención. La
+  rama que Hacienda/DGII auditan; documentación estricta.
+- **"Genérico no delimitado" (BUPA)** = borde raro en abogacía: salvo que sea claramente genérico,
+  tratar como anticipo (default conforme).
+- **Cadena que R2/R3 debe implementar:** `DEPOSIT` (anticipo) → **factura de anticipo** (reusa
+  `buildInvoiceRecord`: base + IVA/ITBIS − retención, como la FAC ya verificada) + postea al ledger →
+  … → **factura final que descuenta el anticipo facturado** → si se devuelve un anticipo ya facturado,
+  **rectificativa**. El `DEPOSIT` "suplido" no factura con IVA (doc a nombre del cliente, fuera de base).
+- **Recomendación (no bloqueante):** dado que el owner firma la Declaración Responsable como fabricante,
+  una **revisión única del motor fiscal por un fiscalista** (sobre todo RD y la mecánica anticipo→final→
+  rectificativa) es seguro barato frente a esa responsabilidad. Queda anotado; el owner decide.
+
+### Esquema (ratificado por el owner, 2026-06-16 — implementado en PR-R1)
+
+1. **Granularidad POR EXPEDIENTE/ASUNTO**, no por cliente — `RetainerAccount.matterId @unique` (1-1 con
+   `Matter`). En la práctica ES la provisión se segrega por asunto. El **"saldo por cliente" se DERIVA**
+   sumando las cuentas de sus asuntos (vista/cálculo, no una tabla nueva). Posible extensión futura (NO
+   ahora): un retainer general no ligado a asunto.
+2. **Mono-moneda por tenant (explícito)** — `RetainerAccount.currency` = moneda del tenant, fijada al
+   crear; el `RetainerEntry` NO lleva `currency`. Un **guard** (R2/R3) rechaza un cobro/movimiento cuya
+   moneda no sea la del tenant. Multi-moneda (añadir `currency` al `RetainerEntry`) = futuro, no ahora.
+3. **Saldo = `RetainerAccount` (cacheado) + `RetainerEntry` (movimientos auditados)** con signo
+   (DEPOSIT +, APPLICATION/REFUND −, ADJUSTMENT ±).
+4. **Manual primero, Stripe después** — tanda: R1 (modelo) → R2 (cobro manual + saldo) → R3 (aplicar a
+   factura) → R5 (UI). R4 (Stripe sin factura: `Payment.invoiceId` nullable + checkout sin factura +
+   webhook) **diferido**.
+
+### Restricciones que heredan R2/R3 (registradas ahora; se implementan en R2/R3)
+
+- **Invariante de saldo `balance == Σ(entries)`** garantizado por: (a) un **test de reconciliación**, y
+  (b) actualización del saldo + inserción del movimiento en **una sola transacción con `SELECT … FOR
+UPDATE`** sobre la cuenta (para que un DEPOSIT y una APPLICATION concurrentes no se pisen). **Guard
+  contra saldo negativo** al aplicar.
+- **Relación con el ledger del expediente (decidida):** la **APPLICATION** de provisión a una factura
+  postea su apunte `PAYMENT` al ledger del expediente vía `reconcile` (el ledger sigue siendo la foto
+  financiera única de cobros/facturas). El **DEPOSIT NO** postea un apunte `PROVISION` al ledger del
+  expediente (evita doble cómputo con el `PAYMENT` posterior): el depósito vive en el sub-ledger del
+  retainer (`RetainerEntry` + saldo cacheado), que **reconcilia** con el ledger por la vía de la
+  aplicación. El `PROVISION` manual del ledger (existente) se mantiene como está. (Sujeto a ajuste según
+  el modelo fiscal ratificado; no es un mini-ledger paralelo sin definir.)
+- **REFUND → rectificativa:** ver implicación fiscal arriba; R2/R3 debe emitir la rectificativa cuando el
+  depósito devengó IVA, no solo restar saldo.
+
+### Sensibilidad / merge
+
+- R1–R4 tocan migración/dinero/Stripe → **PR-y-espera**. R5 (UI) → auto-mergeable.
+- **PR-R1 (enmendado):** tablas `RetainerAccount` (por `matterId`) + `RetainerEntry` (sin `currency`),
+  enum `RetainerMovementType`, migración `20260616130000_retainer`, RLS fail-closed. **Sin lógica.**
+  Verificado: e2e retainer-rls 5/5 (lectura acotada, cross-tenant invisible, WITH CHECK, fail-closed)
+  local + CI; schema válido; typecheck + lint limpios.
+- **GATE:** (b) ADR **RATIFICADA** por el owner (2026-06-16) ✅. Queda **(a): fusionar #61 enmendado**
+  (lo hace el owner). R2 arranca en cuanto (a) se cumpla.

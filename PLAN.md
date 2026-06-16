@@ -318,6 +318,35 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
   con el botón "Pagar online" existente (reusa el checkout de Stripe). i18n es-ES/es-DO. e2e
   portal-dunning 1/1 (overdue derivado + ámbito propio); web tsc/lint/build/vitest OK.
 
+### Ítem 2 — Provisión de fondos / retainer `[~]` (ver D-026)
+
+> Cobrar por adelantado y trabajar contra saldo (estándar ES). Construye sobre el ledger/Payment.
+> Esquema (ratificado): retainer **por expediente** (saldo por cliente = Σ asuntos, derivado) ·
+> **mono-moneda** por tenant · cuenta cacheada + movimientos · manual primero, Stripe después (R4).
+> Fiscal (D-026, **PROPUESTA pendiente de ratificación por asesor**): default CONFORME = anticipo de
+> honorarios **devenga IVA al cobro** → factura inmediata; ramas: genérica no delimitada (sin devengo),
+> suplido (sin IVA); regla vía `ComplianceProvider` (ES LIVA/Verifactu · RD ITBIS/e-CF).
+> **GATE:** (b) D-026 **ratificada** por el owner (2026-06-16) ✅; queda **(a) fusionar #61** → R2 entra.
+
+- [~] **PR-R1 — Modelo + migración + RLS** (PR-y-espera, migración+RLS): `RetainerAccount` (**por
+  expediente**, `matterId @unique`; saldo cacheado; moneda del tenant) + `RetainerEntry` (movimientos
+  DEPOSIT/APPLICATION/REFUND/ADJUSTMENT con signo, **sin `currency`** — mono-moneda; `invoiceId`/
+  `paymentId`). Enum `RetainerMovementType`. RLS fail-closed. Migración `20260616130000_retainer`. e2e
+  retainer-rls 5/5. Sin lógica. **Enmendado tras revisión del owner (granularidad por asunto + moneda).**
+  - Restricciones que hereda R2/R3 (ver D-026): invariante `balance == Σ(entries)` con `SELECT … FOR
+UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea `PAYMENT` al ledger
+    (DEPOSIT no, evita doble cómputo); REFUND con IVA → factura rectificativa.
+- [ ] **PR-R2 — Cobro de provisión (manual) + saldo** (PR-y-espera; **bloqueado por el GATE**): depósito
+      manual → `RetainerEntry DEPOSIT` + actualiza saldo (transaccional con `FOR UPDATE`, auditado); guard
+      de moneda = tenant; lectura de saldo + movimientos por expediente (y agregado por cliente, derivado).
+- [ ] **PR-R3 — Aplicar provisión a factura** (PR-y-espera): `POST /retainer/apply` crea un `Payment`
+      (método `RETAINER`) por la vía `reconcile` (mueve `amountPaid`, PARTIAL/PAID, apunte PAYMENT) +
+      `RetainerEntry APPLICATION (−)` que baja el saldo, en una transacción. Valida saldo y moneda.
+- [ ] **PR-R5 — UI** (auto-mergeable): saldo + movimientos en la ficha de cliente, "cobrar provisión"
+      y "aplicar a factura"; portal: el cliente ve su saldo (lectura). Estados/i18n/AA.
+- [ ] **PR-R4 — Cobro de provisión online (Stripe, sin factura)** (PR-y-espera, DIFERIDO): `invoiceId`
+      nullable + checkout sin factura + webhook que acredita el retainer. Pieza más sensible; PR aparte.
+
 ## Diferido (stubs detrás de interfaz — NO construir aún)
 
 - Envío real AEAT/DGII, LexNET en vivo, firma electrónica (Signaturit/DocuSign), SMS.
