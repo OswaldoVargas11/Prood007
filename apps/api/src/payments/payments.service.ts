@@ -184,12 +184,28 @@ export class PaymentsService {
   }
 
   // ── Cobro online (Stripe Connect) ─────────────────────────────────────────
+  /** ¿Se puede cobrar online? = pasarela configurada (clave) Y el despacho conectó su cuenta Stripe. */
+  async canPayOnline(user: { tenantId: string; jurisdiction: RequestUser['jurisdiction'] }) {
+    const provider = this.providers.get(user.jurisdiction);
+    if (!provider.isOnlineEnabled()) return false;
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: user.tenantId },
+      select: { stripeAccountId: true },
+    });
+    return Boolean(tenant.stripeAccountId);
+  }
+
   /**
    * Crea una sesión de pago online para el saldo pendiente de la factura y devuelve el enlace de cobro.
    * El cargo va a la cuenta conectada del despacho (Connect Standard). No crea `Payment` aún: el cobro
-   * se concilia cuando llega el webhook `checkout.session.completed`.
+   * se concilia cuando llega el webhook `checkout.session.completed`. `returnUrls` permite que el portal
+   * del cliente devuelva a su propia área (el caller controla a dónde vuelve el cliente tras pagar).
    */
-  async createCheckout(user: RequestUser, invoiceId: string) {
+  async createCheckout(
+    user: RequestUser,
+    invoiceId: string,
+    returnUrls?: { successUrl: string; cancelUrl: string },
+  ) {
     const provider = this.providers.get(user.jurisdiction);
     if (!provider.isOnlineEnabled()) {
       throw new BadRequestException(apiError('payments.onlineNotConfigured'));
@@ -225,8 +241,8 @@ export class PaymentsService {
       amount: outstanding.toFixed(2),
       currency: invoice.currency,
       description: `Factura ${invoice.number}`,
-      successUrl: `${base}/invoices/${invoice.id}?paid=1`,
-      cancelUrl: `${base}/invoices/${invoice.id}`,
+      successUrl: returnUrls?.successUrl ?? `${base}/invoices/${invoice.id}?paid=1`,
+      cancelUrl: returnUrls?.cancelUrl ?? `${base}/invoices/${invoice.id}`,
     });
     await this.audit.log(user, 'invoice.checkout_created', 'Invoice', invoice.id, {
       providerRef: result.providerRef,

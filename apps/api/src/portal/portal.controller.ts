@@ -1,4 +1,4 @@
-import { Controller, Get, Param, StreamableFile } from '@nestjs/common';
+import { Controller, Get, Param, Post, StreamableFile } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import { PortalService } from './portal.service';
 import { pdfStream } from '../common/pdf-response';
@@ -45,6 +45,18 @@ export class PortalController {
   @Get('invoices')
   invoices(@CurrentUser() user: RequestUser) {
     return this.portal.listInvoices(user);
+  }
+
+  /** ¿Puede el cliente pagar online? (para mostrar u ocultar el botón "Pagar online"). */
+  @Get('payments/config')
+  paymentConfig(@CurrentUser() user: RequestUser) {
+    return this.portal.paymentConfig(user);
+  }
+
+  /** El cliente paga online SU propia factura: devuelve el enlace de Stripe Checkout. */
+  @Post('invoices/:id/checkout')
+  checkout(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.portal.payInvoice(user, id);
   }
 
   /** Descarga el PDF de una factura propia del cliente. */

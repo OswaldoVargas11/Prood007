@@ -3,16 +3,10 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { CheckCircle2, CreditCard, Download, Loader2 } from 'lucide-react';
+import { CheckCircle2, Download, Loader2 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Link } from '@/i18n/navigation';
-import {
-  downloadInvoicePdf,
-  useCreateCheckout,
-  useInvoice,
-  usePaymentConfig,
-  usePayInvoice,
-} from '@/lib/hooks';
+import { downloadInvoicePdf, useInvoice, usePayInvoice } from '@/lib/hooks';
 import { invoiceStatusVariant } from '@/lib/ledger';
 import { formatMoney, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
@@ -26,16 +20,6 @@ export default function InvoiceDetailPage() {
   const locale = useLocale();
   const { data: inv, isLoading, isError, refetch } = useInvoice(id);
   const pay = usePayInvoice(id);
-  const paymentConfig = usePaymentConfig();
-  const checkout = useCreateCheckout(id);
-
-  function payOnline() {
-    checkout.mutate(undefined, {
-      onSuccess: ({ url }) => {
-        window.location.href = url;
-      },
-    });
-  }
 
   if (isLoading) {
     return (
@@ -84,23 +68,15 @@ export default function InvoiceDetailPage() {
         <div className="flex items-center gap-2">
           <DownloadPdfButton id={inv.id} number={inv.number} label={t('downloadPdf')} />
           {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
-            <>
-              {paymentConfig.data?.onlineEnabled && (
-                <Button size="sm" onClick={payOnline} disabled={checkout.isPending}>
-                  {checkout.isPending ? <Loader2 className="animate-spin" /> : <CreditCard />}
-                  {t('payOnline')}
-                </Button>
-              )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => pay.mutate()}
-                disabled={pay.isPending}
-              >
-                {pay.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
-                {t('markPaid')}
-              </Button>
-            </>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => pay.mutate()}
+              disabled={pay.isPending}
+            >
+              {pay.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
+              {t('markPaid')}
+            </Button>
           )}
         </div>
       </div>
@@ -155,9 +131,6 @@ export default function InvoiceDetailPage() {
             </>
           )}
         </div>
-        {checkout.isError && (
-          <p className="px-4 pb-3 text-xs text-[var(--danger)]">{t('checkoutError')}</p>
-        )}
       </Card>
 
       {/* Bloque de cumplimiento real (Verifactu / e-CF) que devuelve el backend */}
