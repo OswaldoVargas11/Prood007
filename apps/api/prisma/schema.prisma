@@ -13,7 +13,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   // url = rol de aplicación de mínimo privilegio (sin superusuario) → RLS SÍ se aplica en runtime.
   url       = env("DATABASE_URL")
   // directUrl = rol propietario/privilegiado, usado SOLO por Prisma Migrate (DDL, roles, RLS).
@@ -93,28 +93,51 @@ enum PaymentStatus {
   FAILED
 }
 
+// Canal de entrega de un recordatorio de cobro (dunning). Hoy solo IN_APP; EMAIL/SMS reservados para
+// Fase 2 (punto de integración, sin canal construido aún). Ver enums de @legalflow/domain.
+enum DunningChannel {
+  IN_APP
+  EMAIL
+  SMS
+}
+
+// Severidad/escalado del recordatorio: recordatorio → aviso → aviso final, según crece el retraso.
+enum DunningSeverity {
+  REMINDER
+  WARNING
+  FINAL
+}
+
+// Estado de un recordatorio concreto: planificado, entregado, omitido (factura cobrada antes), fallido.
+enum DunningReminderStatus {
+  SCHEDULED
+  SENT
+  SKIPPED
+  FAILED
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Tenancy & Auth / RBAC
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Tenant {
-  id           String       @id @default(cuid())
-  name         String
+  id                    String       @id @default(cuid())
+  name                  String
   // Identificador fiscal del despacho emisor (NIF/CIF en ES, RNC en RD). Necesario para facturar.
-  taxId        String?
-  jurisdiction Jurisdiction
-  currency     Currency
-  locale       String       @default("es-ES")
+  taxId                 String?
+  jurisdiction          Jurisdiction
+  currency              Currency
+  locale                String       @default("es-ES")
   // Licencia / suscripción: plan y plazas contratadas (asientos) por rol de staff.
-  plan         String       @default("Profesional")
+  plan                  String       @default("Profesional")
   // Máximo de usuarios ACTIVOS por rol (la licencia del despacho).
-  maxAdmins    Int          @default(2)
-  maxLawyers   Int          @default(5)
+  maxAdmins             Int          @default(2)
+  maxLawyers            Int          @default(5)
   // Serie fiscal: prefijo de la numeración de facturas (p. ej. "FAC", "A").
-  invoiceSeries String      @default("FAC")
+  invoiceSeries         String       @default("FAC")
   // Festivos locales del despacho: array JSON [{ date: "yyyy-mm-dd", name }] que afina el cómputo de
   // plazos procesales (se suman a los festivos nacionales de la jurisdicción).
-  holidays     Json?
+  holidays              Json?
   // Certificado digital del despacho (para firmar/emitir). Metadatos; el fichero va al StorageProvider.
   certificateName       String?
   certificateKey        String?
@@ -122,27 +145,29 @@ model Tenant {
   // RGPD/Ley 172-13 — gobernanza de datos (D-022): región de residencia de datos del despacho
   // (p. ej. "EU" para ES; a definir para RD) y política de conservación configurable en meses. La
   // RETENCIÓN es metadato/política (la conservación legal prevalece sobre el borrado); no auto-purga.
-  dataRegion      String?
-  retentionMonths Int?
+  dataRegion            String?
+  retentionMonths       Int?
   // Cuenta conectada de Stripe (Connect Standard) del despacho. El cobro online va a SU cuenta, no a la
   // plataforma (evita ser transmisor de fondos). Vacío = el despacho aún no ha conectado Stripe. Ver D-024.
-  stripeAccountId String?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  stripeAccountId       String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
 
-  users         User[]
-  roles         Role[]
-  clients       Client[]
-  matters       Matter[]
-  documents     Document[]
-  tasks         Task[]
-  timeEntries   TimeEntry[]
-  ledgerEntries LedgerEntry[]
-  invoices      Invoice[]
-  payments      Payment[]
-  notifications Notification[]
-  messages      Message[]
-  auditLogs     AuditLog[]
+  users            User[]
+  roles            Role[]
+  clients          Client[]
+  matters          Matter[]
+  documents        Document[]
+  tasks            Task[]
+  timeEntries      TimeEntry[]
+  ledgerEntries    LedgerEntry[]
+  invoices         Invoice[]
+  payments         Payment[]
+  dunningRules     DunningRule[]
+  dunningReminders DunningReminder[]
+  notifications    Notification[]
+  messages         Message[]
+  auditLogs        AuditLog[]
 }
 
 model User {
@@ -160,9 +185,9 @@ model User {
   refreshTokens RefreshToken[]
 
   // Relaciones de negocio
-  responsibleMatters Matter[]      @relation("MatterLawyer")
-  clientProfile      Client?       @relation("ClientUser")
-  assignedTasks      Task[]        @relation("TaskAssignee")
+  responsibleMatters Matter[]          @relation("MatterLawyer")
+  clientProfile      Client?           @relation("ClientUser")
+  assignedTasks      Task[]            @relation("TaskAssignee")
   timeEntries        TimeEntry[]
   uploadedVersions   DocumentVersion[] @relation("VersionUploader")
   reviews            DocumentReview[]
@@ -189,10 +214,10 @@ model Role {
 }
 
 model Permission {
-  id    String @id @default(cuid())
+  id   String @id @default(cuid())
   // p. ej. "matter:read", "invoice:create", "document:approve".
-  code  String @unique
-  name  String
+  code String @unique
+  name String
 
   roles RolePermission[]
 }
@@ -236,26 +261,26 @@ model RefreshToken {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Client {
-  id        String   @id @default(cuid())
-  tenantId  String
-  name      String
+  id           String    @id @default(cuid())
+  tenantId     String
+  name         String
   // Identificador fiscal validado por el ComplianceProvider (NIF/CIF · RNC/Cédula).
-  taxId     String
+  taxId        String
   // Tipo detectado por el provider (NIF/CIF/NIE/RNC/CEDULA). Texto libre para no acoplar al país.
-  taxIdKind String?
-  email     String?
-  phone     String?
-  address   String?
+  taxIdKind    String?
+  email        String?
+  phone        String?
+  address      String?
   // Vínculo opcional a un User con rol CLIENT (acceso al portal).
-  userId    String?  @unique
+  userId       String?   @unique
   // RGPD/Ley 172-13 — derecho de supresión por ANONIMIZACIÓN (no hard-delete): sello temporal de
   // cuándo se anonimizó la PII. El expediente/facturas/auditoría se PRESERVAN (retención legal). D-022.
   anonymizedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user     User?    @relation("ClientUser", fields: [userId], references: [id])
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User?     @relation("ClientUser", fields: [userId], references: [id])
   matters  Matter[]
   invoices Invoice[]
 
@@ -264,18 +289,18 @@ model Client {
 }
 
 model Matter {
-  id           String       @id @default(cuid())
-  tenantId     String
-  reference    String // referencia interna del expediente
-  title        String
-  type         String // tipo de asunto (texto libre; catálogo en capa de app)
-  status       MatterStatus @default(OPEN)
-  clientId     String
-  lawyerId     String? // abogado responsable
-  openedAt     DateTime     @default(now())
-  closedAt     DateTime?
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  id        String       @id @default(cuid())
+  tenantId  String
+  reference String // referencia interna del expediente
+  title     String
+  type      String // tipo de asunto (texto libre; catálogo en capa de app)
+  status    MatterStatus @default(OPEN)
+  clientId  String
+  lawyerId  String? // abogado responsable
+  openedAt  DateTime     @default(now())
+  closedAt  DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 
   tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client        Client        @relation(fields: [clientId], references: [id])
@@ -359,20 +384,20 @@ model DocumentReview {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Task {
-  id          String     @id @default(cuid())
-  tenantId    String
-  matterId    String?
-  title       String
-  description String?
-  status      TaskStatus @default(TODO)
-  dueDate     DateTime?
+  id           String     @id @default(cuid())
+  tenantId     String
+  matterId     String?
+  title        String
+  description  String?
+  status       TaskStatus @default(TODO)
+  dueDate      DateTime?
   // Si la tarea nace de un plazo procesal calculado, se guarda el tipo y metadatos.
   deadlineType String?
   // true si dueDate proviene de getProceduralDeadlines (vínculo a plazo procesal).
-  isProcedural Boolean   @default(false)
-  assigneeId  String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  isProcedural Boolean    @default(false)
+  assigneeId   String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   matter   Matter? @relation(fields: [matterId], references: [id], onDelete: SetNull)
@@ -411,26 +436,26 @@ model TimeEntry {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model LedgerEntry {
-  id          String          @id @default(cuid())
-  tenantId    String
-  matterId    String
-  type        LedgerEntryType
-  description String
+  id             String          @id @default(cuid())
+  tenantId       String
+  matterId       String
+  type           LedgerEntryType
+  description    String
   // Importe con signo según convención de tipo (provisión +, suplido −, etc.).
-  amount      Decimal         @db.Decimal(18, 2)
-  currency    Currency
+  amount         Decimal         @db.Decimal(18, 2)
+  currency       Currency
   // Factura asociada cuando type = INVOICE/PAYMENT.
-  invoiceId   String?
+  invoiceId      String?
   // Flujo de aprobación de costes: APPROVED por defecto; un coste propuesto por letrado nace PROPOSED.
-  approvalStatus ApprovalStatus @default(APPROVED)
+  approvalStatus ApprovalStatus  @default(APPROVED)
   // Usuario que propuso el coste (cuando approvalStatus != APPROVED por defecto).
   proposedById   String?
   // Usuario admin que resolvió (aprobó/rechazó) la propuesta.
   resolvedById   String?
   // Nota del proponente o del que resuelve.
   approvalNote   String?
-  occurredAt  DateTime        @default(now())
-  createdAt   DateTime        @default(now())
+  occurredAt     DateTime        @default(now())
+  createdAt      DateTime        @default(now())
 
   tenant  Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   matter  Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
@@ -442,45 +467,46 @@ model LedgerEntry {
 }
 
 model Invoice {
-  id            String        @id @default(cuid())
-  tenantId      String
-  matterId      String
-  clientId      String
-  number        String
-  status        InvoiceStatus @default(DRAFT)
-  issueDate     DateTime
+  id        String        @id @default(cuid())
+  tenantId  String
+  matterId  String
+  clientId  String
+  number    String
+  status    InvoiceStatus @default(DRAFT)
+  issueDate DateTime
   // Vencimiento del cobro (issueDate + plazo de pago). Base de "vencidas" y dunning.
-  dueDate       DateTime?
+  dueDate   DateTime?
   // Momento en que la factura quedó cobrada por completo (status = PAID).
-  paidAt        DateTime?
-  currency      Currency
+  paidAt    DateTime?
+  currency  Currency
 
   // Totales neutrales calculados por el provider (Decimal, no float).
   taxableBase       Decimal @db.Decimal(18, 2)
   taxAmount         Decimal @db.Decimal(18, 2)
-  withholdingAmount Decimal @db.Decimal(18, 2) @default(0)
+  withholdingAmount Decimal @default(0) @db.Decimal(18, 2)
   total             Decimal @db.Decimal(18, 2)
   // Importe cobrado acumulado (soporta cobros parciales). 0 hasta el primer cobro.
-  amountPaid        Decimal @db.Decimal(18, 2) @default(0)
+  amountPaid        Decimal @default(0) @db.Decimal(18, 2)
 
   // Registro fiscal específico del país (Verifactu / e-CF) como JSON OPACO al núcleo.
-  complianceRecord  Json?
+  complianceRecord   Json?
   // Formato del registro: "VERIFACTU" | "ECF".
-  complianceFormat  String?
+  complianceFormat   String?
   // Hash del registro fiscal (encadenamiento Verifactu).
-  recordHash        String?
+  recordHash         String?
   // Hash del registro inmediatamente anterior (cadena inalterable).
   previousRecordHash String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  matter   Matter        @relation(fields: [matterId], references: [id])
-  client   Client        @relation(fields: [clientId], references: [id])
-  lines    InvoiceLine[]
-  ledger   LedgerEntry[]
-  payments Payment[]
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter           Matter            @relation(fields: [matterId], references: [id])
+  client           Client            @relation(fields: [clientId], references: [id])
+  lines            InvoiceLine[]
+  ledger           LedgerEntry[]
+  payments         Payment[]
+  dunningReminders DunningReminder[]
 
   @@unique([tenantId, number])
   @@index([tenantId])
@@ -533,11 +559,66 @@ model InvoiceLine {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Dunning (recordatorios de cobro de facturas vencidas)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Regla de dunning configurable por despacho: "a los N días del vencimiento, dispara un recordatorio
+// de tal severidad por tal canal". El escalado se expresa con varias reglas de offsetDays creciente
+// (p. ej. +1 REMINDER, +7 WARNING, +15 FINAL). Jurisdicción-aware vía el tenant (idioma/tono en UI).
+model DunningRule {
+  id         String          @id @default(cuid())
+  tenantId   String
+  // Días tras la fecha de vencimiento (dueDate) en los que aplica esta etapa. Único por tenant.
+  offsetDays Int
+  severity   DunningSeverity @default(REMINDER)
+  // Canal de entrega de esta etapa. Hoy IN_APP; EMAIL/SMS quedan listos para Fase 2.
+  channel    DunningChannel  @default(IN_APP)
+  active     Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reminders DunningReminder[]
+
+  @@unique([tenantId, offsetDays])
+  @@index([tenantId])
+}
+
+// Recordatorio concreto generado para una factura en una etapa. Es el ancla de IDEMPOTENCIA del motor
+// (único por factura+offset: no se vuelve a generar la misma etapa) y el registro de "qué se disparó".
+// La auditoría inmutable se sigue escribiendo aparte en AuditLog; este modelo es el estado operativo.
+model DunningReminder {
+  id           String                @id @default(cuid())
+  tenantId     String
+  invoiceId    String
+  // Regla que lo originó (null para recordatorios manuales ad-hoc). Si se borra la regla, queda el histórico.
+  ruleId       String?
+  // Instantánea de la etapa al generarse (estable aunque la regla cambie/desaparezca).
+  offsetDays   Int
+  severity     DunningSeverity
+  channel      DunningChannel        @default(IN_APP)
+  status       DunningReminderStatus @default(SCHEDULED)
+  // Fecha en la que la etapa vence (dueDate + offsetDays).
+  scheduledFor DateTime
+  sentAt       DateTime?
+  metadata     Json?
+  createdAt    DateTime              @default(now())
+
+  tenant  Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoice Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  rule    DunningRule? @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, invoiceId, offsetDays])
+  @@index([tenantId, invoiceId])
+  @@index([tenantId, status])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Notificaciones, chat y auditoría
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   tenantId  String
   userId    String
   type      String
@@ -546,7 +627,7 @@ model Notification {
   // Metadatos arbitrarios (ids relacionados).
   data      Json?
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

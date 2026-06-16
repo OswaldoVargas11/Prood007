@@ -49,47 +49,57 @@ erDiagram
 
     Invoice ||--o{ InvoiceLine : "líneas"
     Invoice ||--o{ LedgerEntry : "apuntes (PAYMENT/INVOICE)"
+    Invoice ||--o{ DunningReminder : "recordatorios"
+    Tenant ||--o{ DunningRule : "reglas dunning"
+    Tenant ||--o{ DunningReminder : "recordatorios"
+    DunningRule ||--o{ DunningReminder : "genera"
 ```
 
 ## Modelos y campos clave
 
-| Modelo              | Campos clave (no exhaustivo)                                                                                                                               | Relaciones                                                            |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| **Tenant**          | `id`, `name`, `jurisdiction`, `currency`, `taxId`, `locale`, `plan`, `invoiceSeries`, `dataRegion`, `retentionMonths`, `certificate*`                      | raíz de todo lo tenant-scoped                                         |
-| **User**            | `id`, `tenantId`, `email`, `passwordHash`, `fullName`                                                                                                      | → roles (UserRole), perfil cliente, matters, tasks, versiones, tokens |
-| **Role**            | `id`, `tenantId`, `code` (FIRM_ADMIN/LAWYER/CLIENT)                                                                                                        | RolePermission, UserRole                                              |
-| **Permission**      | `id`, `code`                                                                                                                                               | RolePermission (catálogo **global**, sin RLS)                         |
-| **RolePermission**  | `roleId`, `permissionId`                                                                                                                                   | join (sin RLS)                                                        |
-| **UserRole**        | `userId`, `roleId`                                                                                                                                         | join (sin RLS)                                                        |
-| **RefreshToken**    | `id`(jti), `userId`, `tokenHash`, `expiresAt`, `revokedAt`                                                                                                 | sesiones; **sin RLS** (rol de sistema)                                |
-| **Client**          | `id`, `tenantId`, `name`, `taxId`, `taxIdKind`, `email`, `phone`, `userId?`, `anonymizedAt?`, `dataRegion?`, `retentionMonths?`                            | matters, invoices, usuario portal                                     |
-| **Matter**          | `id`, `tenantId`, `reference`, `title`, `type`, `status` (MatterStatus), `clientId`, `lawyerId?`, `openedAt`, `closedAt?`                                  | documentos, tareas, tiempo, ledger, facturas, mensajes                |
-| **Document**        | `id`, `tenantId`, `matterId`, `name`                                                                                                                       | versiones                                                             |
-| **DocumentVersion** | `id`, `documentId`, `version`, `uploadedById`, `reviewStatus` (DocumentReviewStatus), `storageKey`, `size`                                                 | revisiones                                                            |
-| **DocumentReview**  | `id`, `versionId`, `reviewerId`, `status`, `comment?`                                                                                                      | —                                                                     |
-| **Task**            | `id`, `tenantId`, `matterId?`, `assigneeId?`, `title`, `status` (TaskStatus), `dueDate?`                                                                   | —                                                                     |
-| **TimeEntry**       | `id`, `tenantId`, `matterId`, `userId`, `minutes`, `hourlyRate`, `workedAt`                                                                                | alimenta el ledger                                                    |
-| **LedgerEntry**     | `id`, `tenantId`, `matterId`, `type` (LedgerEntryType), `amount`, `currency`, `invoiceId?`, `approvalStatus?`                                              | apuntes (provisión, tiempo, factura, pago, costes)                    |
-| **Invoice**         | `id`, `tenantId`, `matterId`, `clientId`, `number`, `status` (InvoiceStatus), `issueDate`, `total`, `currency`, registro fiscal (qr/huella/encadenamiento) | líneas, apuntes                                                       |
-| **InvoiceLine**     | `id`, `invoiceId`, `description`, `quantity`, `unitPrice`, `taxCode`                                                                                       | —                                                                     |
-| **Notification**    | `id`, `tenantId`, `userId`, `type`, `title`, `body?`, `data?`, `readAt?`                                                                                   | destinatario                                                          |
-| **Message**         | `id`, `tenantId`, `matterId`, `authorId`, `body`                                                                                                           | chat por expediente                                                   |
-| **AuditLog**        | `id`, `tenantId`, `actorId?`, `action`, `entity`, `entityId`, `createdAt`                                                                                  | append-only                                                           |
+| Modelo              | Campos clave (no exhaustivo)                                                                                                                               | Relaciones                                                                             |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Tenant**          | `id`, `name`, `jurisdiction`, `currency`, `taxId`, `locale`, `plan`, `invoiceSeries`, `dataRegion`, `retentionMonths`, `certificate*`                      | raíz de todo lo tenant-scoped                                                          |
+| **User**            | `id`, `tenantId`, `email`, `passwordHash`, `fullName`                                                                                                      | → roles (UserRole), perfil cliente, matters, tasks, versiones, tokens                  |
+| **Role**            | `id`, `tenantId`, `code` (FIRM_ADMIN/LAWYER/CLIENT)                                                                                                        | RolePermission, UserRole                                                               |
+| **Permission**      | `id`, `code`                                                                                                                                               | RolePermission (catálogo **global**, sin RLS)                                          |
+| **RolePermission**  | `roleId`, `permissionId`                                                                                                                                   | join (sin RLS)                                                                         |
+| **UserRole**        | `userId`, `roleId`                                                                                                                                         | join (sin RLS)                                                                         |
+| **RefreshToken**    | `id`(jti), `userId`, `tokenHash`, `expiresAt`, `revokedAt`                                                                                                 | sesiones; **sin RLS** (rol de sistema)                                                 |
+| **Client**          | `id`, `tenantId`, `name`, `taxId`, `taxIdKind`, `email`, `phone`, `userId?`, `anonymizedAt?`, `dataRegion?`, `retentionMonths?`                            | matters, invoices, usuario portal                                                      |
+| **Matter**          | `id`, `tenantId`, `reference`, `title`, `type`, `status` (MatterStatus), `clientId`, `lawyerId?`, `openedAt`, `closedAt?`                                  | documentos, tareas, tiempo, ledger, facturas, mensajes                                 |
+| **Document**        | `id`, `tenantId`, `matterId`, `name`                                                                                                                       | versiones                                                                              |
+| **DocumentVersion** | `id`, `documentId`, `version`, `uploadedById`, `reviewStatus` (DocumentReviewStatus), `storageKey`, `size`                                                 | revisiones                                                                             |
+| **DocumentReview**  | `id`, `versionId`, `reviewerId`, `status`, `comment?`                                                                                                      | —                                                                                      |
+| **Task**            | `id`, `tenantId`, `matterId?`, `assigneeId?`, `title`, `status` (TaskStatus), `dueDate?`                                                                   | —                                                                                      |
+| **TimeEntry**       | `id`, `tenantId`, `matterId`, `userId`, `minutes`, `hourlyRate`, `workedAt`                                                                                | alimenta el ledger                                                                     |
+| **LedgerEntry**     | `id`, `tenantId`, `matterId`, `type` (LedgerEntryType), `amount`, `currency`, `invoiceId?`, `approvalStatus?`                                              | apuntes (provisión, tiempo, factura, pago, costes)                                     |
+| **Invoice**         | `id`, `tenantId`, `matterId`, `clientId`, `number`, `status` (InvoiceStatus), `issueDate`, `total`, `currency`, registro fiscal (qr/huella/encadenamiento) | líneas, apuntes                                                                        |
+| **InvoiceLine**     | `id`, `invoiceId`, `description`, `quantity`, `unitPrice`, `taxCode`                                                                                       | —                                                                                      |
+| **DunningRule**     | `id`, `tenantId`, `offsetDays`, `severity` (DunningSeverity), `channel` (DunningChannel), `active`                                                         | reglas de recordatorio por tenant (`@@unique tenantId,offsetDays`)                     |
+| **DunningReminder** | `id`, `tenantId`, `invoiceId`, `ruleId?`, `offsetDays`, `severity`, `channel`, `status` (DunningReminderStatus), `scheduledFor`, `sentAt?`                 | recordatorio por factura/etapa; idempotente (`@@unique tenantId,invoiceId,offsetDays`) |
+| **Notification**    | `id`, `tenantId`, `userId`, `type`, `title`, `body?`, `data?`, `readAt?`                                                                                   | destinatario                                                                           |
+| **Message**         | `id`, `tenantId`, `matterId`, `authorId`, `body`                                                                                                           | chat por expediente                                                                    |
+| **AuditLog**        | `id`, `tenantId`, `actorId?`, `action`, `entity`, `entityId`, `createdAt`                                                                                  | append-only                                                                            |
 
-## Enumerados (8)
+## Enumerados
 
-| Enum                   | Valores                                                                                         |
-| ---------------------- | ----------------------------------------------------------------------------------------------- |
-| `Jurisdiction`         | `es`, `do`                                                                                      |
-| `Currency`             | `EUR`, `DOP`                                                                                    |
-| `MatterStatus`         | `OPEN`, `IN_PROGRESS`, `ON_HOLD`, `CLOSED`, `ARCHIVED`                                          |
-| `DocumentReviewStatus` | `PENDING`, `IN_REVIEW`, `APPROVED`, `REJECTED`, `CHANGES_REQUESTED`                             |
-| `TaskStatus`           | `TODO`, `IN_PROGRESS`, `DONE`, `CANCELLED`                                                      |
-| `LedgerEntryType`      | `PROVISION`, `DISBURSEMENT`, `TIME_FEE`, `FEE`, `INVOICE`, `PAYMENT`, `ADJUSTMENT`              |
-| `InvoiceStatus`        | `DRAFT`, `ISSUED`, `SENT`, `PAID`, `CANCELLED`                                                  |
-| `ApprovalStatus`       | `PROPOSED`, `APPROVED`, `REJECTED` (por defecto `APPROVED`; un coste propuesto nace `PROPOSED`) |
+| Enum                    | Valores                                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------------------- |
+| `Jurisdiction`          | `es`, `do`                                                                                      |
+| `Currency`              | `EUR`, `DOP`                                                                                    |
+| `MatterStatus`          | `OPEN`, `IN_PROGRESS`, `ON_HOLD`, `CLOSED`, `ARCHIVED`                                          |
+| `DocumentReviewStatus`  | `PENDING`, `IN_REVIEW`, `APPROVED`, `REJECTED`, `CHANGES_REQUESTED`                             |
+| `TaskStatus`            | `TODO`, `IN_PROGRESS`, `DONE`, `CANCELLED`                                                      |
+| `LedgerEntryType`       | `PROVISION`, `DISBURSEMENT`, `TIME_FEE`, `FEE`, `INVOICE`, `PAYMENT`, `ADJUSTMENT`              |
+| `InvoiceStatus`         | `DRAFT`, `ISSUED`, `SENT`, `PAID`, `CANCELLED`                                                  |
+| `ApprovalStatus`        | `PROPOSED`, `APPROVED`, `REJECTED` (por defecto `APPROVED`; un coste propuesto nace `PROPOSED`) |
+| `DunningChannel`        | `IN_APP`, `EMAIL`, `SMS` (hoy solo `IN_APP`; EMAIL/SMS = integración Fase 2)                    |
+| `DunningSeverity`       | `REMINDER`, `WARNING`, `FINAL` (escalado del aviso)                                             |
+| `DunningReminderStatus` | `SCHEDULED`, `SENT`, `SKIPPED`, `FAILED`                                                        |
 
-Todos los valores confirmados contra `schema.prisma` (líneas 27–89).
+Valores confirmados contra `schema.prisma`. (Nota: la tabla de modelos no es exhaustiva — `Payment` y
+los enums `PaymentStatus`/`PaymentMethod` viven en el módulo de cobro; ver D-024.)
 
 ## Notas de integridad
 

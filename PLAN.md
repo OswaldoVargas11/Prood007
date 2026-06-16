@@ -287,6 +287,28 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
 - [ ] Cola de Fase 1: provisión de fondos/retainer · dunning (in-app) · recurrente/planes de pago ·
       "tiempo sin facturar" como sugerencia. **PDF con QR ya existe** (no rehacer).
 
+### Ítem 1 — Dunning (recordatorios de cobro) `[~]` (ver D-025)
+
+> Construye sobre los estados ricos + `overdue` derivado. Motor de reglas por días tras vencimiento
+> (+1/+7/+15) con escalado; surfacing in-app (despacho) + portal (cliente, con enlace de pago Stripe);
+> **canal-agnóstico** (EMAIL/SMS = punto de integración para Fase 2); auditoría de cada recordatorio.
+
+- [~] **PR-D1 — Modelo + migración + RLS** (PR-y-espera, migración+RLS): tablas `DunningRule`
+  (reglas por tenant: `offsetDays`/`severity`/`channel`) y `DunningReminder` (ancla de idempotencia
+  `@@unique([tenantId,invoiceId,offsetDays])` + registro de lo disparado). Enums de dominio
+  `DunningChannel`/`DunningSeverity`/`DunningReminderStatus`. RLS fail-closed en ambas. Sin lógica.
+  Migración `20260616120000_dunning`. **Espera CI verde + OK del owner.**
+- [ ] **PR-D2 — Motor + canal in-app + endpoint manual** (PR-y-espera): `DunningService` evalúa
+      vencidas vs reglas y crea recordatorios idempotentes; `DunningChannel` interface + `InAppChannel`
+      (Notificación al despacho); `AuditService.log('dunning.reminder_sent')`; endpoint manual "recordar
+      ahora". Email/SMS solo como interface.
+- [ ] **PR-D3 — Scheduler (cron diario)** (PR-y-espera): `@nestjs/schedule` + cron multi-tenant sobre
+      el `DunningService` de D2.
+- [ ] **PR-D4 — UI despacho** (auto-mergeable): surfacing de vencidas a recordar + "recordar ahora" +
+      timeline de dunning en el detalle de factura. Estados cargando/vacío/error, dark+light, AA, i18n.
+- [ ] **PR-D5 — UI portal cliente** (auto-mergeable): banner de recordatorio en factura vencida con
+      enlace de pago (reusa checkout Stripe). i18n/jurisdicción-aware.
+
 ## Diferido (stubs detrás de interfaz — NO construir aún)
 
 - Envío real AEAT/DGII, LexNET en vivo, firma electrónica (Signaturit/DocuSign), SMS.
