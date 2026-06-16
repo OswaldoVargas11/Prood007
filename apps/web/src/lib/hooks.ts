@@ -31,6 +31,7 @@ import type {
   Notification,
   Paginated,
   PaymentConfig,
+  PortalInvoice,
   StripeConnectStatus,
   SeatUsage,
   StaffRole,
@@ -562,7 +563,7 @@ export function usePortalTasks(id: string) {
 export function usePortalInvoices() {
   return useQuery({
     queryKey: ['portal', 'invoices'],
-    queryFn: () => api.get<Invoice[]>('/portal/invoices'),
+    queryFn: () => api.get<PortalInvoice[]>('/portal/invoices'),
   });
 }
 

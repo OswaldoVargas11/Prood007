@@ -313,8 +313,10 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
   resumen de la corrida en la lista de facturas + timeline de recordatorios en el detalle de factura
   (`GET /dunning/reminders`). Componente `lexora/dunning.tsx`, hooks `useDunningRun`/`useDunningReminders`.
   Estados cargando/vacío/error, dark+light, AA, i18n es-ES/es-DO. web typecheck/lint/build/vitest OK.
-- [ ] **PR-D5 — UI portal cliente** (auto-mergeable): banner de recordatorio en factura vencida con
-      enlace de pago (reusa checkout Stripe). i18n/jurisdicción-aware.
+- [~] **PR-D5 — UI portal cliente** (auto-mergeable): `GET /portal/invoices` ahora expone `overdue`
+  (+`dueDate`) derivado; banner de recordatorio en el portal cuando hay vencidas + badge "Vencida",
+  con el botón "Pagar online" existente (reusa el checkout de Stripe). i18n es-ES/es-DO. e2e
+  portal-dunning 1/1 (overdue derivado + ámbito propio); web tsc/lint/build/vitest OK.
 
 ## Diferido (stubs detrás de interfaz — NO construir aún)
 

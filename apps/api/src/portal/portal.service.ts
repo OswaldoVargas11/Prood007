@@ -5,6 +5,8 @@ import { PaymentsService } from '../payments/payments.service';
 import { assertMatterAccess } from '../messages/matter-access';
 import { apiError } from '../common/api-messages';
 import { buildInvoicePdf, invoiceRowToPdfData } from '../ledger/invoice-pdf';
+import { deriveOverdue, startOfTodayUtc } from '../ledger/overdue.util';
+import type { InvoiceStatus } from '@legalflow/domain';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
@@ -78,7 +80,7 @@ export class PortalService {
 
   async listInvoices(user: RequestUser) {
     const client = await this.myClient(user);
-    return this.prisma.invoice.findMany({
+    const rows = await this.prisma.invoice.findMany({
       where: { tenantId: user.tenantId, clientId: client.id },
       orderBy: { issueDate: 'desc' },
       select: {
@@ -86,6 +88,7 @@ export class PortalService {
         number: true,
         status: true,
         issueDate: true,
+        dueDate: true,
         currency: true,
         total: true,
         taxableBase: true,
@@ -93,6 +96,13 @@ export class PortalService {
         withholdingAmount: true,
       },
     });
+    // `overdue` derivado en lectura (misma regla que el despacho): el cliente ve el recordatorio de
+    // pago sin depender del scheduler de dunning. Ver ledger/overdue.util.
+    const today = startOfTodayUtc();
+    return rows.map((r) => ({
+      ...r,
+      overdue: deriveOverdue(r.status as InvoiceStatus, r.dueDate, today),
+    }));
   }
 
   /**
