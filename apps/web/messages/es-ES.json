@@ -220,6 +220,7 @@
       "documents": "Documentos",
       "tasks": "Tareas",
       "costs": "Costes",
+      "provision": "Provisión",
       "chat": "Chat",
       "activity": "Actividad",
       "soon": "Esta sección llega en un próximo slice."
@@ -466,6 +467,64 @@
     "days": "Días",
     "computed": "Vencimiento calculado",
     "holidays": "Festivos aplicados"
+  },
+  "retainer": {
+    "subtitle": "Provisión de fondos del expediente: saldo, movimientos y cobros a cuenta.",
+    "balance": "Saldo de provisión",
+    "clientBalance": "Provisión",
+    "deposit": "Cobrar provisión",
+    "depositTitle": "Cobrar provisión de fondos",
+    "anticipo": "Cobrar anticipo",
+    "anticipoTitle": "Cobrar anticipo de honorarios",
+    "apply": "Aplicar a factura",
+    "applyTitle": "Aplicar provisión a una factura",
+    "charge": "Cobrar",
+    "issueAnticipo": "Emitir y cobrar",
+    "applyAction": "Aplicar",
+    "amount": "Importe",
+    "amountOptional": "Importe (opcional)",
+    "amountFullPlaceholder": "Todo el pendiente",
+    "anticipoBase": "Base imponible (honorarios)",
+    "noteOptional": "Nota (opcional)",
+    "descriptionOptional": "Concepto (opcional)",
+    "kindLabel": "Tipo de provisión",
+    "applyWithholding": "Aplicar retención de IRPF",
+    "selectInvoice": "Factura",
+    "selectInvoicePlaceholder": "Elige una factura…",
+    "noInvoices": "Este expediente no tiene facturas pendientes de cobro.",
+    "linkedInvoice": "Factura vinculada",
+    "anticipoHint": "El anticipo de honorarios devenga impuesto al cobro: se emite su factura (Verifactu/e-CF) y se acredita el saldo por el total recibido.",
+    "anticipoIssued": "Factura de anticipo {number} emitida",
+    "viewInvoice": "Ver factura",
+    "applyHint": "Si dejas el importe vacío, se aplica el menor entre el pendiente de la factura y el saldo disponible.",
+    "hint": "Los anticipos de honorarios se facturan al cobro; los suplidos y las provisiones genéricas no devengan impuesto hasta aplicarse.",
+    "empty": "Aún no hay movimientos de provisión en este expediente.",
+    "loadError": "No se pudo cargar la provisión de fondos.",
+    "retry": "Reintentar",
+    "depositError": "No se pudo registrar la provisión.",
+    "anticipoError": "No se pudo emitir el anticipo.",
+    "applyError": "No se pudo aplicar la provisión a la factura.",
+    "kind": {
+      "ANTICIPO": "Anticipo",
+      "SUPLIDO": "Suplido",
+      "GENERICO": "Genérica"
+    },
+    "kindHint": {
+      "SUPLIDO": "Gasto pagado en nombre y por cuenta del cliente (fuera de base, sin impuesto).",
+      "GENERICO": "Provisión genérica no delimitada (sin devengo hasta identificar el servicio)."
+    },
+    "movement": {
+      "DEPOSIT": "Ingreso",
+      "APPLICATION": "Aplicación",
+      "REFUND": "Devolución",
+      "ADJUSTMENT": "Ajuste"
+    },
+    "col": {
+      "movement": "Movimiento",
+      "detail": "Detalle",
+      "amount": "Importe",
+      "date": "Fecha"
+    }
   },
   "billing": {
     "subtitle": "Ledger transparente del expediente y facturación.",

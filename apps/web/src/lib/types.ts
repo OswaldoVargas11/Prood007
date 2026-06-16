@@ -252,6 +252,37 @@ export interface InvoiceListItem {
   matter: { id: string; reference: string } | null;
 }
 
+// ── Provisión de fondos / retainer ───────────────────────────────────────────
+export type ProvisionKind = 'ANTICIPO' | 'SUPLIDO' | 'GENERICO';
+export type RetainerMovementType = 'DEPOSIT' | 'APPLICATION' | 'REFUND' | 'ADJUSTMENT';
+
+/** Movimiento del saldo de provisión (importe con signo: DEPOSIT +, APPLICATION/REFUND −). */
+export interface RetainerEntry {
+  id: string;
+  type: RetainerMovementType;
+  kind: ProvisionKind | null;
+  amount: string;
+  invoiceId: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+/** Cuenta de provisión de un expediente (`GET /retainer/matter/:id`): saldo cacheado + movimientos. */
+export interface RetainerAccount {
+  matterId: string;
+  currency: string | null;
+  balance: string;
+  entries: RetainerEntry[];
+}
+
+/** Saldo agregado de provisión de un cliente (`GET /retainer/client/:id`): Σ de sus expedientes. */
+export interface ClientRetainer {
+  clientId: string;
+  currency: string | null;
+  total: string;
+  accounts: { matterId: string; currency: string; balance: string }[];
+}
+
 // ── Dunning (recordatorios de cobro) ─────────────────────────────────────────
 export type DunningSeverity = 'REMINDER' | 'WARNING' | 'FINAL';
 export type DunningReminderStatus = 'SCHEDULED' | 'SENT' | 'SKIPPED' | 'FAILED';

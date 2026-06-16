@@ -19,11 +19,12 @@ import {
   downloadGdprExport,
   useAnonymizeClient,
   useClient,
+  useClientRetainer,
   useCreatePortalUser,
   useMatters,
 } from '@/lib/hooks';
 import { useAuth } from '@/lib/auth';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatMoney } from '@/lib/format';
 import { ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/lexora/status-badge';
 import { Badge } from '@/components/ui/badge';
@@ -58,6 +59,9 @@ export default function ClientProfilePage() {
   const tm = useTranslations('matters');
   const { data: client, isLoading } = useClient(id);
   const matters = useMatters({ clientId: id, pageSize: 100 });
+  const retainer = useClientRetainer(id);
+  const tr = useTranslations('retainer');
+  const locale = useLocale();
   const [granting, setGranting] = useState(false);
 
   if (isLoading) {
@@ -166,6 +170,18 @@ export default function ClientProfilePage() {
                   </Button>
                 )}
               </div>
+
+              {/* Saldo de provisión agregado (Σ de los expedientes del cliente). */}
+              {retainer.data && Number(retainer.data.total) > 0 && (
+                <div className="flex items-center justify-between rounded-md border border-border bg-[var(--surface-2)] px-3 py-2">
+                  <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {tr('clientBalance')}
+                  </span>
+                  <span className="text-sm font-semibold tabular-nums text-[var(--success)]">
+                    {formatMoney(retainer.data.total, retainer.data.currency ?? 'EUR', locale)}
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
