@@ -11,6 +11,8 @@ import { round2 } from '@legalflow/compliance';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
+import { LedgerService } from '../ledger/ledger.service';
+import { DEFAULT_PAYMENT_TERM_DAYS, addDaysUtc } from '../ledger/overdue.util';
 import { apiError } from '../common/api-messages';
 import { CreateBillingScheduleDto } from './dto/create-billing-schedule.dto';
 import type { RequestUser } from '../auth/auth.types';
@@ -24,15 +26,17 @@ interface ScheduleLine {
 }
 
 /**
- * Facturación programada (D-028): crea planes (RECURRING | INSTALLMENTS) y genera su cuadro de cuotas.
- * NO emite facturas ni cobra (eso es RP3/RP4); aquí solo se planifica. La emisión, cuando llegue, pasará
- * por `LedgerService.emitInvoiceInTx` (serie + Verifactu/e-CF + QR; sin atajos).
+ * Facturación programada (D-028): crea planes (RECURRING | INSTALLMENTS), genera su cuadro de cuotas y
+ * EMITE las facturas de los periodos vencidos. Cada emisión pasa por `LedgerService.emitInvoiceInTx`
+ * (serie + registro Verifactu/e-CF + QR + encadenamiento; sin atajos), una factura por periodo (RP3,
+ * RECURRING). Las cuotas de un plan de pago (INSTALLMENTS) las emite RP4.
  */
 @Injectable()
 export class BillingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly ledger: LedgerService,
   ) {}
 
   private async getMatterOrThrow(user: RequestUser, matterId: string) {
@@ -162,6 +166,158 @@ export class BillingService {
       installments: installments.length,
     });
     return this.getSchedule(user, out.id);
+  }
+
+  /** Carga el expediente con los datos fiscales necesarios para emitir (despacho + cliente con NIF). */
+  private async getMatterForEmission(tenantId: string, matterId: string) {
+    const matter = await this.prisma.matter.findFirst({
+      where: { id: matterId, tenantId },
+      include: {
+        tenant: { select: { name: true, taxId: true, currency: true } },
+        client: { select: { id: true, name: true, taxId: true } },
+      },
+    });
+    if (!matter) throw new BadRequestException(apiError('matters.notInFirm'));
+    return matter;
+  }
+
+  /**
+   * Emite las facturas de los periodos VENCIDOS de un plan RECURRING (D-028): por cada cuota SCHEDULED con
+   * `dueDate <= ahora`, emite **1 factura del periodo** vía `LedgerService.emitInvoiceInTx` (serie +
+   * registro Verifactu/e-CF + QR + encadenamiento) y marca la cuota EMITTED. Atómico **por periodo** (un
+   * fallo en el periodo k no deshace los k-1 ya emitidos, y no deja hueco en la serie). En planes ABIERTOS
+   * genera la siguiente cuota tras emitir. Avanza `nextRunAt`; si el plan acotado se agota → COMPLETED.
+   * El cron de barrido (RP5) llamará a este mismo motor para todos los planes vencidos.
+   */
+  async runDueEmissions(user: RequestUser, scheduleId: string) {
+    const schedule = await this.prisma.billingSchedule.findFirst({
+      where: { id: scheduleId, tenantId: user.tenantId },
+    });
+    if (!schedule) throw new NotFoundException(apiError('billing.scheduleNotFound'));
+    if (schedule.type !== BillingScheduleType.RECURRING) {
+      // La emisión de planes de pago (INSTALLMENTS) llega en RP4.
+      throw new BadRequestException(apiError('billing.installmentsRunNotYet'));
+    }
+    if (schedule.status !== BillingScheduleStatus.ACTIVE) {
+      throw new BadRequestException(apiError('billing.scheduleNotActive'));
+    }
+
+    const matter = await this.getMatterForEmission(user.tenantId, schedule.matterId);
+    if (!matter.tenant.taxId) throw new BadRequestException(apiError('ledger.firmNoTaxId'));
+    if (!matter.client.taxId) throw new BadRequestException(apiError('clients.taxIdInvalid'));
+
+    const lines = (schedule.lines as unknown as ScheduleLine[]).map((l) => ({
+      description: l.description,
+      quantity: l.quantity,
+      unitPrice: l.unitPrice,
+      taxCode: l.taxCode,
+    }));
+    const withholdingTaxCode = schedule.withholdingTaxCode ?? undefined;
+    const matterArg = {
+      id: matter.id,
+      clientId: matter.client.id,
+      tenant: {
+        name: matter.tenant.name,
+        taxId: matter.tenant.taxId,
+        currency: matter.tenant.currency,
+      },
+      client: { name: matter.client.name, taxId: matter.client.taxId as string },
+    };
+
+    const now = new Date();
+    const emitted: { invoiceId: string; number: string; sequence: number }[] = [];
+
+    // Bucle: emite cada periodo vencido en su propia transacción (atómico por factura).
+    // Cota de seguridad: el nº de cuotas vivas del plan (evita un bucle infinito por datos corruptos).
+    for (let guard = 0; guard < 1000; guard++) {
+      const next = await this.prisma.billingInstallment.findFirst({
+        where: {
+          tenantId: user.tenantId,
+          scheduleId: schedule.id,
+          status: BillingInstallmentStatus.SCHEDULED,
+          dueDate: { lte: now },
+        },
+        orderBy: { sequence: 'asc' },
+      });
+      if (!next) break;
+
+      // La factura se EXPIDE hoy (no se retrofecha); el periodo planificado vive en la cuota.
+      const issueDate = now.toISOString().slice(0, 10);
+      const dueDate = addDaysUtc(new Date(issueDate), DEFAULT_PAYMENT_TERM_DAYS);
+
+      const out = await tenantTransaction(this.prisma, async (tx) => {
+        const { invoice } = await this.ledger.emitInvoiceInTx(tx, user, {
+          matter: matterArg,
+          lines,
+          withholdingTaxCode,
+          issueDate,
+          dueDate,
+        });
+        await tx.billingInstallment.updateMany({
+          where: { id: next.id, tenantId: user.tenantId },
+          data: {
+            status: BillingInstallmentStatus.EMITTED,
+            invoiceId: invoice.id,
+            emittedAt: now,
+          },
+        });
+        // Plan ABIERTO: si esta era la última cuota generada, crea la siguiente (rolling).
+        if (schedule.occurrences == null) {
+          const last = await tx.billingInstallment.findFirst({
+            where: { tenantId: user.tenantId, scheduleId: schedule.id },
+            orderBy: { sequence: 'desc' },
+            select: { sequence: true },
+          });
+          if (last && last.sequence === next.sequence) {
+            const seq = next.sequence + 1;
+            await tx.billingInstallment.create({
+              data: {
+                tenantId: user.tenantId,
+                scheduleId: schedule.id,
+                sequence: seq,
+                dueDate: this.addInterval(
+                  schedule.startDate,
+                  schedule.intervalUnit as BillingInterval,
+                  schedule.intervalCount * (seq - 1),
+                ),
+                amount: next.amount,
+                status: BillingInstallmentStatus.SCHEDULED,
+              },
+            });
+          }
+        }
+        return invoice;
+      });
+      emitted.push({ invoiceId: out.id, number: out.number, sequence: next.sequence });
+    }
+
+    // Recalcula nextRunAt (próxima cuota SCHEDULED) o cierra el plan acotado agotado.
+    const upcoming = await this.prisma.billingInstallment.findFirst({
+      where: {
+        tenantId: user.tenantId,
+        scheduleId: schedule.id,
+        status: BillingInstallmentStatus.SCHEDULED,
+      },
+      orderBy: { dueDate: 'asc' },
+      select: { dueDate: true },
+    });
+    const completed = !upcoming && schedule.occurrences != null;
+    await this.prisma.billingSchedule.updateMany({
+      where: { id: schedule.id, tenantId: user.tenantId },
+      data: {
+        nextRunAt: upcoming?.dueDate ?? null,
+        status: completed ? BillingScheduleStatus.COMPLETED : schedule.status,
+      },
+    });
+
+    if (emitted.length > 0) {
+      await this.audit.log(user, 'billing.emitted', 'BillingSchedule', schedule.id, {
+        matterId: schedule.matterId,
+        emitted: emitted.length,
+        invoices: emitted.map((e) => e.number),
+      });
+    }
+    return { scheduleId: schedule.id, emitted, completed };
   }
 
   /** Planes de facturación de un expediente (con su nº de cuotas), acotado al tenant. */

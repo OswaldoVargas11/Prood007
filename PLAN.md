@@ -413,8 +413,12 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
       `GET /billing/schedules?matterId` + `GET /billing/schedules/:id` con cuotas. `BillingModule`
       (service+controller, exporta el service para RP3/RP4). e2e billing-schedules 9/9 (generación,
       validaciones, lecturas, role-gating, aislamiento). Sin emisión todavía.
-- [ ] **PR-RP3 — Emisión recurrente** (PR-y-espera, Verifactu-crítico): run que emite 1 factura/periodo
-      vía `emitInvoiceInTx` y avanza `nextRunAt`. e2e (factura por periodo, encadenado, atómico).
+- [x] **PR-RP3 — Emisión recurrente** (PR-y-espera, Verifactu-crítico): `POST /billing/schedules/:id/run`
+      emite **1 factura por periodo vencido** vía `emitInvoiceInTx` (serie + Verifactu/e-CF + QR +
+      encadenamiento), **atómico por periodo**; en planes abiertos hace _catch-up_ de los vencidos y
+      genera (rolling) la siguiente cuota; avanza `nextRunAt` y cierra (COMPLETED) el plan acotado agotado.
+      Guard de INSTALLMENTS (→ RP4) y de plan no-ACTIVE. e2e billing-recurring 4/4 (encadenamiento, cierre,
+      rolling+idempotencia, guard, role) + ledger 15/15 sin regresión.
 - [ ] **PR-RP4 — Emisión planes de pago** (PR-y-espera, Verifactu-crítico): (a) 1 factura + cuotas-cobro;
       (b) factura de anticipo por cuota (reusa R2b) + deducción en la final (R3b). e2e ambos.
 - [ ] **PR-RP5 — Cron de barrido + dunning de cuotas** (PR-y-espera): cron diario multi-tenant (patrón

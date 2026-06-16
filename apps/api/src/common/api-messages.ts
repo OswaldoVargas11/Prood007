@@ -281,6 +281,14 @@ export const API_MESSAGES = {
     'es-ES': 'Plan de facturación no encontrado.',
     'es-DO': 'Plan de facturación no encontrado.',
   },
+  'billing.scheduleNotActive': {
+    'es-ES': 'El plan de facturación no está activo.',
+    'es-DO': 'El plan de facturación no está activo.',
+  },
+  'billing.installmentsRunNotYet': {
+    'es-ES': 'La emisión de planes de pago aún no está disponible (PR-RP4).',
+    'es-DO': 'La emisión de planes de pago aún no está disponible (PR-RP4).',
+  },
 
   // ── Tareas ────────────────────────────────────────────────────────────────
   'tasks.assigneeNotInFirm': {

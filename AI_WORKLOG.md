@@ -1442,3 +1442,20 @@ Siguiente: PR-RP2 (crear/leer planes + generación del cuadro de cuotas).
 - Reusa `tenantTransaction` (RLS) + `round2`; exporta `BillingService` para RP3/RP4. Auto-merge en verde.
 
 Siguiente: PR-RP3 (emisión recurrente: 1 factura/periodo vía emitInvoiceInTx + avanzar nextRunAt).
+
+### 2026-06-16 - Claude Opus 4.8 - PR-RP3: emisión recurrente (Verifactu-crítico)
+
+- **PR-RP3:** `POST /billing/schedules/:id/run` (+ `BillingService.runDueEmissions`). Por cada cuota
+  SCHEDULED con dueDate ≤ ahora emite 1 factura del periodo vía `LedgerService.emitInvoiceInTx` (serie +
+  Verifactu/e-CF + QR + encadenamiento; sin atajos), atómico POR PERIODO (un fallo en el periodo k no
+  deshace los k-1, ni deja hueco de serie). issueDate = hoy (no se retrofecha). Planes abiertos: catch-up
+  de todos los vencidos + rolling de la siguiente cuota. Avanza nextRunAt; cierra (COMPLETED) el acotado
+  agotado. Guards: INSTALLMENTS → 400 (RP4); plan no-ACTIVE → 400. BillingModule importa LedgerModule.
+- **Verificado (puntos clave fiscales):** e2e billing-recurring 4/4 — emisión por periodo + ENCADENAMIENTO
+  (previousRecordHash == huella anterior) + serie secuencial + cierre acotado + catch-up/rolling abierto +
+  idempotencia + guard INSTALLMENTS + role. **ledger 15/15 sin regresión** + billing-schedules 9/9 +
+  billing-rls 5/5 + anticipo 4/4. typecheck + eslint + prettier. api-reference → 76.
+- Nota de diseño: el catch-up emite TODOS los periodos vencidos al correr (correcto para puesta al día);
+  un plan nuevo se crea con startDate ≈ hoy, así solo emite el periodo actual.
+
+Siguiente: PR-RP4 (emisión de planes de pago: a 1 factura + cuotas-cobro; b anticipo por cuota).
