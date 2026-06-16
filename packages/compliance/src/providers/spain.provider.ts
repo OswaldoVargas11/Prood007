@@ -102,12 +102,15 @@ export class SpainComplianceProvider implements ComplianceProvider {
     ].join('|');
     const recordHash = createHash('sha256').update(canonical).digest('hex');
 
-    // URL de validación con QR (estructura representativa del servicio de la AEAT).
+    // URL de validación con QR (estructura representativa del servicio de la AEAT). El parámetro `fecha`
+    // del cotejo AEAT va en formato dd-mm-aaaa (no ISO); `issueDate` es ISO yyyy-mm-dd → se reordena.
+    const [anio, mes, dia] = invoice.issueDate.slice(0, 10).split('-');
+    const fechaQr = `${dia}-${mes}-${anio}`;
     const qrUrl =
       'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR?' +
       `nif=${encodeURIComponent(invoice.seller.taxId)}` +
       `&numserie=${encodeURIComponent(invoice.invoiceNumber)}` +
-      `&fecha=${encodeURIComponent(invoice.issueDate)}` +
+      `&fecha=${encodeURIComponent(fechaQr)}` +
       `&importe=${encodeURIComponent(totals.total)}`;
 
     return {

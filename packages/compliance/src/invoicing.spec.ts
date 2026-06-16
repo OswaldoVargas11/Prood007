@@ -51,11 +51,14 @@ describe('España — buildInvoiceRecord (Verifactu)', () => {
     expect(a.recordHash).toBe(b.recordHash);
   });
 
-  it('incluye una URL de validación QR con el importe total', async () => {
-    const rec = await es.buildInvoiceRecord(baseInvoice());
+  it('incluye una URL de validación QR con el importe total y la fecha en dd-mm-aaaa', async () => {
+    const rec = await es.buildInvoiceRecord(baseInvoice()); // issueDate 2026-01-15
     const qr = (rec.payload as { qrUrl: string }).qrUrl;
     expect(qr).toContain('ValidarQR');
     expect(qr).toContain('importe=1210.00');
+    // La AEAT espera la fecha del cotejo en dd-mm-aaaa, no en ISO.
+    expect(qr).toContain('fecha=15-01-2026');
+    expect(qr).not.toContain('fecha=2026-01-15');
   });
 });
 

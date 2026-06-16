@@ -1379,3 +1379,13 @@ Operativo: el API local que bloqueaba prisma generate era `node dist/main.js` (P
 
 Siguiente sugerido: R5c (UI de cierre con deducción + devolución) o el ítem recurrente/planes de pago
 (el más compliance-pesado; proponer opciones de cobro recurrente antes de implementar).
+
+### 2026-06-16 - Claude Opus 4.8 - Fixes UX (apply anticipo) + QR Verifactu
+
+- **fix UX apply anticipo (#70, merged):** aplicar saldo de anticipo a una factura lo bloquea el backend
+  (doble IVA); la UI mostraba error genérico. Ahora el diálogo «aplicar» avisa de forma proactiva y se
+  deshabilita si el expediente tiene anticipo, y los diálogos muestran el mensaje real del backend
+  (`ApiError.message`). Reproducido y verificado en navegador (preview).
+- **fix QR Verifactu (fecha):** el parámetro `fecha` del cotejo AEAT iba en ISO (aaaa-mm-dd); la AEAT lo
+  exige en **dd-mm-aaaa**. Reordenado en `spain.provider` (no afecta a la huella/encadenamiento, que usa
+  `issueDate`; solo cambia la URL del QR). Test añadido. compliance 57/57.
