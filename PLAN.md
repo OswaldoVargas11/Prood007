@@ -309,8 +309,10 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
   (actor=sistema). Sin contexto de request: lista tenants con el rol de SISTEMA y evalúa cada uno bajo
   `runWithTenant` (acotado por RLS). e2e cron 2/2 (barrido multi-tenant bajo RLS + idempotencia).
   **Espera CI verde + OK del owner.**
-- [ ] **PR-D4 — UI despacho** (auto-mergeable): surfacing de vencidas a recordar + "recordar ahora" +
-      timeline de dunning en el detalle de factura. Estados cargando/vacío/error, dark+light, AA, i18n.
+- [~] **PR-D4 — UI despacho** (auto-mergeable): botón "Recordar vencidas" (`POST /dunning/run`) con
+  resumen de la corrida en la lista de facturas + timeline de recordatorios en el detalle de factura
+  (`GET /dunning/reminders`). Componente `lexora/dunning.tsx`, hooks `useDunningRun`/`useDunningReminders`.
+  Estados cargando/vacío/error, dark+light, AA, i18n es-ES/es-DO. web typecheck/lint/build/vitest OK.
 - [ ] **PR-D5 — UI portal cliente** (auto-mergeable): banner de recordatorio en factura vencida con
       enlace de pago (reusa checkout Stripe). i18n/jurisdicción-aware.
 

@@ -1100,3 +1100,26 @@ Pruebas (LOCAL, Postgres real como `legalflow_app`):
 
 Sensibilidad / merge: automatización del cobro + dependencia nueva → **PR-y-espera**. No toca migración
 ni RLS (reusa el patrón existente). Siguiente: PR-D4 (UI despacho: surfacing + "recordar ahora" + timeline).
+
+## 2026-06-16 — Claude — Ítem 1 (Dunning) PR-D4: UI despacho
+
+Contexto: backend del dunning completo (D1+D2+D3 en main). D4 = primera de las dos PRs de UI
+(auto-mergeable: solo lectura + un botón que llama al endpoint existente; no toca auth/RLS/migración/dinero).
+
+Hecho (apps/web):
+
+- `lib/types.ts`: `DunningReminder`, `DunningRunSummary`, enums `DunningSeverity/Status/Channel`.
+- `lib/hooks.ts`: `useDunningReminders(invoiceId?)` (GET /dunning/reminders) + `useDunningRun()`
+  (POST /dunning/run; invalida reminders + invoices).
+- `components/lexora/dunning.tsx`: `DunningRunButton` (botón "Recordar vencidas" con resumen
+  entregados·vencidas o error en línea) y `DunningTimeline` (línea de tiempo por factura: severidad/
+  estado/canal en badges + fecha; cargando/vacío/error).
+- Cableado: botón en la cabecera de la lista de facturas (`(app)/invoices`); timeline en el detalle
+  (`(app)/invoices/[id]`, oculto en borradores).
+- i18n `dunning.*` en es-ES y es-DO (plurales ICU en `runResult`/`offsetDays`).
+
+Pruebas (local): web `tsc` + `next lint` + `next build` + `vitest` (20) OK. Sin datos mock; estados
+cargando/vacío/error; dark+light vía tokens; badges con texto (no solo color) para AA.
+
+Sensibilidad / merge: solo UI de lectura + acción sobre endpoint existente → **auto-mergeable en verde**.
+Siguiente: PR-D5 (portal cliente: banner de recordatorio con enlace de pago).
