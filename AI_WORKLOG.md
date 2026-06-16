@@ -1251,3 +1251,29 @@ typecheck + eslint limpios.
 
 Sensibilidad / merge: lógica de dinero + migración (columna `kind`) → **PR-y-espera**. Siguiente: PR-R2b
 (emisión de factura de anticipo, atómica con serie+ledger+saldo).
+
+## 2026-06-16 — Claude — Ítem 2 (Retainer) PR-R2b: factura de anticipo (atómica)
+
+Pieza Verifactu-crítica. Decisiones fiscales fijadas por el owner: amount = BASE (IVA/ITBIS encima,
+IRPF por `withholdingTaxCode`); factura de anticipo nace **PAID** y el retainer acredita el **total**.
+
+Hecho:
+
+- `LedgerService.emitInvoiceInTx(tx, user, params)`: núcleo de emisión fiscal extraído de `createInvoice`
+  (serie con `count` DENTRO de la tx + encadenamiento + `buildInvoiceRecord` + factura ISSUED + apunte
+  INVOICE). `createInvoice` ahora lo reutiliza (sin duplicar; **ledger e2e 15/15 intacto** = red de
+  seguridad del refactor). `nextInvoiceNumber` privado eliminado (la serie se consume en la tx).
+- `RetainerService.depositAnticipo` (`POST /retainer/anticipo`): en UNA `tenantTransaction` emite la
+  factura vía `emitInvoiceInTx`, la marca PAID (Payment MANUAL + invoice.update + apunte PAYMENT, espejo
+  de `reconcile`) y acredita el retainer por el total con `postMovement` (FOR UPDATE), `DEPOSIT(ANTICIPO)`
+  ligado a factura+payment. Atómico: un fallo revierte serie+registro+ledger+saldo. taxCode estándar por
+  jurisdicción (ES `IVA_STANDARD` / RD `ITBIS_STANDARD`); jurisdicción vía `ComplianceProvider`.
+  `RetainerModule` importa `LedgerModule`. Sin migración ni cambio de dominio.
+
+Pruebas (LOCAL): e2e **retainer-anticipo 4/4** (ES IVA21%+IRPF15%→total 1060, factura PAID + recordHash,
+saldo 1060, segundo anticipo encadena, **atomicidad: sin NIF → 400 sin factura/saldo huérfanos**,
+role-gating CLIENT→403) + **ledger 15/15** (sin regresión) + retainer 8/8 + retainer-rls 5/5. typecheck +
+eslint limpios.
+
+Sensibilidad / merge: emisión fiscal + dinero → **PR-y-espera**. No toca migración. Siguiente: PR-R3
+(aplicar provisión a factura final, deduciendo el anticipo) + R5 (UI). R4 (Stripe) diferido.

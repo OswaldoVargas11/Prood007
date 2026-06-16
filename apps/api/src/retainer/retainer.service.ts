@@ -1,12 +1,22 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { ProvisionKind, RetainerMovementType } from '@legalflow/domain';
+import {
+  Jurisdiction,
+  InvoiceStatus,
+  LedgerEntryType,
+  PaymentMethod,
+  PaymentStatus,
+  ProvisionKind,
+  RetainerMovementType,
+} from '@legalflow/domain';
 import { round2 } from '@legalflow/compliance';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
+import { LedgerService } from '../ledger/ledger.service';
 import { apiError } from '../common/api-messages';
 import { RecordDepositDto } from './dto/record-deposit.dto';
+import { RecordAnticipoDto } from './dto/record-anticipo.dto';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Tolerancia de redondeo al comparar saldos (céntimos). */
@@ -23,23 +33,25 @@ interface MovementInput {
 }
 
 /**
- * Provisión de fondos / retainer (saldo por expediente). PR-R2: motor de saldo + tipos NO fiscales
- * (SUPLIDO, GENERICO) + lecturas. El tipo ANTICIPO está BLOQUEADO aquí (devenga IVA/ITBIS y exige
- * emisión de factura, que llega en R2b): un anticipo nunca se registra como saldo sin su factura.
+ * Provisión de fondos / retainer (saldo por expediente). Motor de saldo atómico (`SELECT … FOR UPDATE`
+ * + guards + invariante `balance == Σ(entries)`). `deposit` cubre los tipos NO fiscales (SUPLIDO,
+ * GENERICO) y RECHAZA ANTICIPO; el ANTICIPO va por `depositAnticipo` (R2b), que emite su factura de
+ * anticipo: un anticipo nunca se registra como saldo sin su factura.
  */
 @Injectable()
 export class RetainerService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly ledger: LedgerService,
   ) {}
 
   private async getMatterOrThrow(user: RequestUser, matterId: string) {
     const matter = await this.prisma.matter.findFirst({
       where: { id: matterId, tenantId: user.tenantId },
       include: {
-        tenant: { select: { currency: true } },
-        client: { select: { id: true, name: true } },
+        tenant: { select: { name: true, taxId: true, currency: true } },
+        client: { select: { id: true, name: true, taxId: true } },
       },
     });
     if (!matter) throw new BadRequestException(apiError('matters.notInFirm'));
@@ -81,6 +93,114 @@ export class RetainerService {
       kind: dto.kind,
     });
     return result;
+  }
+
+  /**
+   * Cobro de provisión de tipo ANTICIPO de honorarios (R2b). Bajo el default conforme (D-026), devenga
+   * IVA/ITBIS al cobro y EXIGE factura: emite la FACTURA DE ANTICIPO y acredita el retainer por el TOTAL
+   * recibido, TODO ATÓMICO en una transacción — serie fiscal + registro Verifactu/e-CF (reutiliza
+   * `buildInvoiceRecord` vía `LedgerService.emitInvoiceInTx`, sin atajos) + factura PAID + Payment +
+   * apuntes de ledger (INVOICE + PAYMENT) + `RetainerEntry DEPOSIT(ANTICIPO)` + saldo. Un fallo parcial
+   * revierte limpio, incluida la serie. La factura final deducirá el anticipo (R3).
+   *
+   * `amount` = BASE imponible (honorarios). IVA 21% (ES) / ITBIS 18% (RD) por el `taxCode` de la
+   * jurisdicción; IRPF si el cliente es retenedor (`withholdingTaxCode`). El saldo se acredita por el
+   * total recibido (base + impuesto − retención).
+   */
+  async depositAnticipo(user: RequestUser, dto: RecordAnticipoDto) {
+    const base = Number(dto.amount);
+    if (!(base > 0)) throw new BadRequestException(apiError('retainer.amountPositive'));
+
+    const matter = await this.getMatterOrThrow(user, dto.matterId);
+    if (!matter.tenant.taxId) throw new BadRequestException(apiError('ledger.firmNoTaxId'));
+    if (!matter.client.taxId) throw new BadRequestException(apiError('clients.taxIdInvalid'));
+    const tenantCurrency = matter.tenant.currency;
+    if (dto.currency && dto.currency !== tenantCurrency) {
+      throw new BadRequestException(apiError('retainer.currencyMismatch'));
+    }
+
+    const account = await this.ensureAccount(user.tenantId, matter.id, tenantCurrency);
+    const issueDate = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    // Impuesto de línea por jurisdicción (sale del provider; aquí solo el código estándar).
+    const taxCode = user.jurisdiction === Jurisdiction.DO ? 'ITBIS_STANDARD' : 'IVA_STANDARD';
+    const description = dto.description?.trim() || 'Provisión de fondos (anticipo de honorarios)';
+
+    const out = await tenantTransaction(this.prisma, async (tx) => {
+      const { invoice, record } = await this.ledger.emitInvoiceInTx(tx, user, {
+        matter: {
+          id: matter.id,
+          clientId: matter.clientId,
+          tenant: {
+            name: matter.tenant.name,
+            taxId: matter.tenant.taxId,
+            currency: tenantCurrency,
+          },
+          client: { name: matter.client.name, taxId: matter.client.taxId as string },
+        },
+        lines: [{ description, quantity: '1', unitPrice: base.toFixed(2), taxCode }],
+        withholdingTaxCode: dto.withholdingTaxCode,
+        issueDate,
+        dueDate: new Date(issueDate), // cobrada de inmediato (el anticipo ya se recibió)
+      });
+
+      const total = round2(Number(record.totals.total));
+      // Cobro inmediato del anticipo: factura PAID + Payment + apunte PAYMENT (espejo del reconcile).
+      const payment = await tx.payment.create({
+        data: {
+          tenantId: user.tenantId,
+          invoiceId: invoice.id,
+          amount: total.toFixed(2),
+          currency: tenantCurrency,
+          status: PaymentStatus.SUCCEEDED,
+          method: PaymentMethod.MANUAL,
+          note: 'Anticipo de provisión',
+          paidAt: now,
+        },
+      });
+      await tx.invoice.updateMany({
+        where: { id: invoice.id, tenantId: user.tenantId },
+        data: { amountPaid: total.toFixed(2), status: InvoiceStatus.PAID, paidAt: now },
+      });
+      await tx.ledgerEntry.create({
+        data: {
+          tenantId: user.tenantId,
+          matterId: matter.id,
+          type: LedgerEntryType.PAYMENT,
+          description: `Cobro factura ${invoice.number}`,
+          amount: total.toFixed(2),
+          currency: tenantCurrency,
+          invoiceId: invoice.id,
+        },
+      });
+      // Acredita el retainer por el TOTAL recibido, ligado a la factura y al cobro.
+      const mv = await this.postMovement(tx, user.tenantId, account.id, {
+        type: RetainerMovementType.DEPOSIT,
+        kind: ProvisionKind.ANTICIPO,
+        amount: total.toFixed(2),
+        invoiceId: invoice.id,
+        paymentId: payment.id,
+      });
+      return { invoice, record, balance: mv.balance };
+    });
+
+    await this.audit.log(user, 'retainer.anticipo', 'Invoice', out.invoice.id, {
+      matterId: matter.id,
+      number: out.invoice.number,
+      base: base.toFixed(2),
+      total: out.record.totals.total,
+      format: out.record.format,
+    });
+    return {
+      invoiceId: out.invoice.id,
+      number: out.invoice.number,
+      base: out.record.totals.taxableBase,
+      tax: out.record.totals.taxAmount,
+      withholding: out.record.totals.withholdingAmount,
+      total: out.record.totals.total,
+      balance: out.balance,
+      compliance: out.record,
+    };
   }
 
   /** Cuenta de provisión de un expediente + movimientos (lectura, acotada al tenant). */

@@ -342,12 +342,13 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
   guard de moneda = tenant; `GET /retainer/matter/:id` (saldo+movimientos) y `/retainer/client/:id`
   (agregado derivado). Migración `20260616140000_provision_kind` (enum `ProvisionKind` + `kind`). e2e
   retainer 8/8 (incl. **concurrencia: 10 depósitos sin perder updates** + invariante `balance ==
-    Σ(entries)`) + retainer-rls 5/5. **Verificado local; espera CI + OK del owner.**
-- [ ] **PR-R2b — Emisión de factura de anticipo** (PR-y-espera, Verifactu-crítico): habilita el tipo
-      ANTICIPO → emite factura de anticipo vía `buildInvoiceRecord` (ES IVA 21% + IRPF; RD ITBIS 18% +
-      e-CF; jurisdicción por `ComplianceProvider`). **Atómico**: consumir serie fiscal + crear registro
-      Verifactu/e-CF + postear al ledger + `RetainerEntry DEPOSIT(ANTICIPO)` + saldo, todo en UNA
-      transacción (fallo parcial revierte limpio, incl. la serie). Reusa el motor de R2.
+  Σ(entries)`) + retainer-rls 5/5. **Verificado local; espera CI + OK del owner.**
+- [~] **PR-R2b — Emisión de factura de anticipo** (PR-y-espera, Verifactu-crítico): `POST
+    /retainer/anticipo` (amount = base) → emite factura de anticipo vía `buildInvoiceRecord` (ES IVA
+  21% + IRPF; RD ITBIS 18% + e-CF; jurisdicción por `ComplianceProvider`), factura **PAID** + Payment + apuntes ledger, y acredita el retainer por el **total**. **Atómico**: serie (count dentro de la
+  tx) + registro fiscal + ledger + `RetainerEntry DEPOSIT(ANTICIPO)` + saldo en UNA transacción.
+  Reutiliza el núcleo extraído `LedgerService.emitInvoiceInTx` (sin duplicar; ledger e2e 15/15 intacto)
+  y el motor `postMovement` de R2. e2e retainer-anticipo 4/4. **Verificado local; espera CI + OK.**
 - [ ] **PR-R3 — Aplicar provisión a factura** (PR-y-espera): `POST /retainer/apply` crea un `Payment`
       (método `RETAINER`) por la vía `reconcile` (mueve `amountPaid`, PARTIAL/PAID, apunte PAYMENT) +
       `RetainerEntry APPLICATION (−)` que baja el saldo, en una transacción. Valida saldo y moneda.

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma, type Currency } from '@prisma/client';
 import { ApprovalStatus, InvoiceStatus, LedgerEntryType } from '@legalflow/domain';
-import { round2 } from '@legalflow/compliance';
+import { InvoiceRecord, round2 } from '@legalflow/compliance';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
 import { ComplianceService } from '../compliance/compliance.service';
@@ -203,18 +204,6 @@ export class LedgerService {
   }
 
   // ── Facturación ─────────────────────────────────────────────────────────
-  private async nextInvoiceNumber(tenantId: string): Promise<string> {
-    const year = new Date().getFullYear();
-    const [count, tenant] = await Promise.all([
-      this.prisma.invoice.count({ where: { tenantId } }),
-      this.prisma.tenant.findUniqueOrThrow({
-        where: { id: tenantId },
-        select: { invoiceSeries: true },
-      }),
-    ]);
-    const series = tenant.invoiceSeries || 'FAC';
-    return `${series}-${year}-${String(count + 1).padStart(4, '0')}`;
-  }
 
   /**
    * Pre-cálculo fiscal READ-ONLY (sin crear factura ni mover estado). Resuelve el provider de la
@@ -244,84 +233,121 @@ export class LedgerService {
     if (!matter.tenant.taxId) {
       throw new BadRequestException(apiError('ledger.firmNoTaxId'));
     }
-
-    const provider = this.compliance.forTenant({ jurisdiction: user.jurisdiction });
-    const number = await this.nextInvoiceNumber(user.tenantId);
     const issueDate = dto.issueDate ?? new Date().toISOString().slice(0, 10);
     const dueDate = dto.dueDate
       ? new Date(dto.dueDate)
       : addDaysUtc(new Date(issueDate), DEFAULT_PAYMENT_TERM_DAYS);
 
-    // Encadenamiento: huella del último registro fiscal emitido por el tenant.
-    const previous = await this.prisma.invoice.findFirst({
-      where: { tenantId: user.tenantId, recordHash: { not: null } },
-      orderBy: { createdAt: 'desc' },
-      select: { recordHash: true },
-    });
-
-    const record = await provider.buildInvoiceRecord({
-      invoiceNumber: number,
-      issueDate,
-      currency: matter.tenant.currency,
-      seller: { name: matter.tenant.name, taxId: matter.tenant.taxId },
-      buyer: { name: matter.client.name, taxId: matter.client.taxId },
-      lines: dto.lines,
-      withholdingTaxCode: dto.withholdingTaxCode,
-      previousRecordHash: previous?.recordHash ?? undefined,
-    });
-
-    const invoice = await tenantTransaction(this.prisma, async (tx) => {
-      const created = await tx.invoice.create({
-        data: {
-          tenantId: user.tenantId,
-          matterId: matter.id,
-          clientId: matter.clientId,
-          number,
-          status: InvoiceStatus.ISSUED,
-          issueDate: new Date(issueDate),
-          dueDate,
-          currency: matter.tenant.currency,
-          taxableBase: record.totals.taxableBase,
-          taxAmount: record.totals.taxAmount,
-          withholdingAmount: record.totals.withholdingAmount,
-          total: record.totals.total,
-          complianceFormat: record.format,
-          complianceRecord: record.payload as object,
-          recordHash: record.recordHash,
-          previousRecordHash: previous?.recordHash ?? null,
-          lines: {
-            create: dto.lines.map((l) => ({
-              description: l.description,
-              quantity: l.quantity,
-              unitPrice: l.unitPrice,
-              taxCode: l.taxCode,
-              lineTotal: round2(Number(l.quantity) * Number(l.unitPrice)).toFixed(2),
-            })),
-          },
-        },
-        include: { lines: true },
-      });
-      // Apunte de ledger informativo ligado a la factura (no mueve saldo).
-      await tx.ledgerEntry.create({
-        data: {
-          tenantId: user.tenantId,
-          matterId: matter.id,
-          type: LedgerEntryType.INVOICE,
-          description: `Factura ${number}`,
-          amount: record.totals.total,
-          currency: matter.tenant.currency,
-          invoiceId: created.id,
-        },
-      });
-      return created;
-    });
+    const { invoice, record } = await tenantTransaction(this.prisma, (tx) =>
+      this.emitInvoiceInTx(tx, user, {
+        matter,
+        lines: dto.lines,
+        withholdingTaxCode: dto.withholdingTaxCode,
+        issueDate,
+        dueDate,
+      }),
+    );
 
     await this.audit.log(user, 'invoice.issued', 'Invoice', invoice.id, {
-      number,
+      number: invoice.number,
       total: record.totals.total,
       format: record.format,
     });
     return { invoice, compliance: record };
+  }
+
+  /**
+   * Núcleo de emisión fiscal DENTRO de una transacción dada: consume la serie (count dentro de la tx),
+   * encadena con la huella anterior, llama a `buildInvoiceRecord` (mismo registro Verifactu/e-CF que la
+   * emisión normal — sin atajos) y persiste factura + líneas + apunte `INVOICE`. NO cobra: nace ISSUED;
+   * el llamador decide el cobro. Reutilizado por la emisión normal y por la factura de anticipo del
+   * retainer (R2b), de modo que serie + registro + ledger queden en la MISMA transacción que el saldo.
+   */
+  async emitInvoiceInTx(
+    tx: Prisma.TransactionClient,
+    user: RequestUser,
+    p: {
+      matter: {
+        id: string;
+        clientId: string;
+        tenant: { name: string; taxId: string | null; currency: Currency };
+        client: { name: string; taxId: string };
+      };
+      lines: { description: string; quantity: string; unitPrice: string; taxCode: string }[];
+      withholdingTaxCode?: string;
+      issueDate: string;
+      dueDate: Date;
+    },
+  ): Promise<{
+    invoice: Prisma.InvoiceGetPayload<{ include: { lines: true } }>;
+    record: InvoiceRecord;
+  }> {
+    const provider = this.compliance.forTenant({ jurisdiction: user.jurisdiction });
+    // Serie consumida dentro de la tx (count+1) → atómica con el resto: si algo revierte, no hay hueco.
+    const count = await tx.invoice.count({ where: { tenantId: user.tenantId } });
+    const tenantRow = await tx.tenant.findUniqueOrThrow({
+      where: { id: user.tenantId },
+      select: { invoiceSeries: true },
+    });
+    const series = tenantRow.invoiceSeries || 'FAC';
+    const number = `${series}-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+    const previous = await tx.invoice.findFirst({
+      where: { tenantId: user.tenantId, recordHash: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      select: { recordHash: true },
+    });
+    const record = await provider.buildInvoiceRecord({
+      invoiceNumber: number,
+      issueDate: p.issueDate,
+      currency: p.matter.tenant.currency,
+      seller: { name: p.matter.tenant.name, taxId: p.matter.tenant.taxId as string },
+      buyer: { name: p.matter.client.name, taxId: p.matter.client.taxId },
+      lines: p.lines,
+      withholdingTaxCode: p.withholdingTaxCode,
+      previousRecordHash: previous?.recordHash ?? undefined,
+    });
+    const invoice = await tx.invoice.create({
+      data: {
+        tenantId: user.tenantId,
+        matterId: p.matter.id,
+        clientId: p.matter.clientId,
+        number,
+        status: InvoiceStatus.ISSUED,
+        issueDate: new Date(p.issueDate),
+        dueDate: p.dueDate,
+        currency: p.matter.tenant.currency,
+        taxableBase: record.totals.taxableBase,
+        taxAmount: record.totals.taxAmount,
+        withholdingAmount: record.totals.withholdingAmount,
+        total: record.totals.total,
+        complianceFormat: record.format,
+        complianceRecord: record.payload as object,
+        recordHash: record.recordHash,
+        previousRecordHash: previous?.recordHash ?? null,
+        lines: {
+          create: p.lines.map((l) => ({
+            description: l.description,
+            quantity: l.quantity,
+            unitPrice: l.unitPrice,
+            taxCode: l.taxCode,
+            lineTotal: round2(Number(l.quantity) * Number(l.unitPrice)).toFixed(2),
+          })),
+        },
+      },
+      include: { lines: true },
+    });
+    await tx.ledgerEntry.create({
+      data: {
+        tenantId: user.tenantId,
+        matterId: p.matter.id,
+        type: LedgerEntryType.INVOICE,
+        description: `Factura ${number}`,
+        amount: record.totals.total,
+        currency: p.matter.tenant.currency,
+        invoiceId: invoice.id,
+      },
+    });
+    return { invoice, record };
   }
 
   async getInvoice(user: RequestUser, id: string) {
