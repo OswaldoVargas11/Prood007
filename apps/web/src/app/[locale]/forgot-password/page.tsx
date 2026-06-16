@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { useForgotPassword } from '@/lib/hooks';
+import { isEmailish } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,7 +19,7 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
 
-  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const valid = isEmailish(email);
 
   async function submit() {
     await forgot.mutateAsync(email.trim()).catch(() => undefined);
