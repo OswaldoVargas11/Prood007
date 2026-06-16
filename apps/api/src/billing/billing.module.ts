@@ -3,6 +3,7 @@ import { LedgerModule } from '../ledger/ledger.module';
 import { RetainerModule } from '../retainer/retainer.module';
 import { BillingService } from './billing.service';
 import { BillingController } from './billing.controller';
+import { BillingCron } from './billing.cron';
 
 /**
  * Facturación programada (D-028): recurrente (iguala) + planes de pago. RP2: crear/leer + cuadro de cuotas.
@@ -13,7 +14,7 @@ import { BillingController } from './billing.controller';
 @Module({
   imports: [LedgerModule, RetainerModule],
   controllers: [BillingController],
-  providers: [BillingService],
+  providers: [BillingService, BillingCron],
   exports: [BillingService],
 })
 export class BillingModule {}

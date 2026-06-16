@@ -6,6 +6,7 @@ import {
   BillingInstallmentStatus,
   BillingScheduleStatus,
   BillingScheduleType,
+  type Jurisdiction,
 } from '@legalflow/domain';
 import { round2 } from '@legalflow/compliance';
 import { PrismaService } from '../prisma/prisma.service';
@@ -25,6 +26,12 @@ interface ScheduleLine {
   unitPrice: string;
   taxCode: string;
 }
+
+/**
+ * Actor mínimo para la EMISIÓN (tenant + jurisdicción). Lo satisface `RequestUser` (rutas HTTP) y también
+ * el cron de barrido, que no tiene request. La auditoría acepta este actor (actorId nulo = sistema).
+ */
+type BillingEmitActor = { tenantId: string; jurisdiction: Jurisdiction };
 
 /** Datos del expediente que `LedgerService.emitInvoiceInTx` necesita para emitir. */
 interface EmitMatterArg {
@@ -199,7 +206,7 @@ export class BillingService {
    * genera la siguiente cuota tras emitir. Avanza `nextRunAt`; si el plan acotado se agota → COMPLETED.
    * El cron de barrido (RP5) llamará a este mismo motor para todos los planes vencidos.
    */
-  async runDueEmissions(user: RequestUser, scheduleId: string) {
+  async runDueEmissions(user: BillingEmitActor, scheduleId: string) {
     const schedule = await this.prisma.billingSchedule.findFirst({
       where: { id: scheduleId, tenantId: user.tenantId },
     });
@@ -259,12 +266,47 @@ export class BillingService {
   }
 
   /**
+   * Barrido de un tenant (lo invoca el cron, DENTRO de `runWithTenant` → RLS acotada a ese tenant). Emite
+   * los planes ACTIVE cuyo `nextRunAt` ha vencido: RECURRING (1 factura/periodo) e INSTALLMENTS·
+   * SERVICE_RENDERED (factura única). Los ADVANCE NO se barren (su emisión va ligada al cobro). Un fallo en
+   * un plan no detiene el barrido del resto.
+   */
+  async sweepTenant(
+    actor: BillingEmitActor,
+  ): Promise<{ schedules: number; emitted: number; failed: number }> {
+    const now = new Date();
+    const due = await this.prisma.billingSchedule.findMany({
+      where: {
+        tenantId: actor.tenantId,
+        status: BillingScheduleStatus.ACTIVE,
+        nextRunAt: { lte: now },
+        NOT: {
+          type: BillingScheduleType.INSTALLMENTS,
+          fiscalMode: BillingFiscalMode.ADVANCE,
+        },
+      },
+      select: { id: true },
+    });
+    let emitted = 0;
+    let failed = 0;
+    for (const s of due) {
+      try {
+        const r = await this.runDueEmissions(actor, s.id);
+        emitted += r.emitted.length;
+      } catch {
+        failed += 1;
+      }
+    }
+    return { schedules: due.length, emitted, failed };
+  }
+
+  /**
    * RECURRING: emite 1 factura por periodo VENCIDO (`dueDate ≤ ahora`), atómico por periodo; en planes
    * abiertos hace catch-up + rolling de la siguiente cuota; avanza `nextRunAt` y cierra (COMPLETED) el
    * acotado agotado.
    */
   private async emitRecurringDue(
-    user: RequestUser,
+    user: BillingEmitActor,
     schedule: {
       id: string;
       startDate: Date;
@@ -371,7 +413,7 @@ export class BillingService {
    * Idempotente: si ya se emitió la factura, no la duplica. No hay más emisiones → `nextRunAt = null`.
    */
   private async emitInstallmentsServiceRendered(
-    user: RequestUser,
+    user: BillingEmitActor,
     schedule: { id: string },
     matterArg: EmitMatterArg,
     lines: ScheduleLine[],

@@ -426,13 +426,18 @@ UPDATE` + guard de saldo negativo + test de reconciliación; APPLICATION postea 
       `runDueEmissions` refactorizado para despachar por tipo/modo. e2e billing-installments 3/3 + recurring
       4/4 sin regresión.
 - [x] **PR-RP4b — Emisión plan de pago (anticipos)** (PR-y-espera, Verifactu-crítico): `POST
-    /billing/installments/:id/collect` cobra una cuota de un plan ADVANCE → emite su **factura de
+  /billing/installments/:id/collect` cobra una cuota de un plan ADVANCE → emite su **factura de
       anticipo** (devengo al cobro) + acredita el retainer, reutilizando `RetainerService.depositAnticipo`
       (sin duplicar). **Claim-first** (reserva SCHEDULED→EMITTED atómica): fail-safe contra doble anticipo
       bajo reintento/concurrencia. La deducción de los anticipos en la final ya existe (R3b). Cierra el
       plan al cobrar la última. e2e billing-advance 5/5 + retainer-anticipo 4/4 sin regresión.
-- [ ] **PR-RP5 — Cron de barrido + dunning de cuotas** (PR-y-espera): cron diario multi-tenant (patrón
-      del cron de dunning) que procesa vencimientos + recuerda cuotas vencidas.
+- [x] **PR-RP5 — Cron de barrido** (PR-y-espera): `BillingCron` (`@Cron` diario, patrón del cron de
+      dunning) barre todos los tenants (system BYPASSRLS para listar + `runWithTenant` para acotar por RLS)
+      y emite los planes vencidos (RECURRING + INSTALLMENTS·SERVICE_RENDERED) vía `BillingService.sweepTenant`;
+      los ADVANCE NO se barren (van al cobro). El núcleo `emitInvoiceInTx` se ensanchó a un actor mínimo
+      (tenant+jurisdicción) para emitir sin request (auditoría con actorId nulo = sistema). e2e billing-cron
+      2/2 (multi-tenant, tipos, aislamiento, idempotencia) + ledger 15/15 sin regresión. (Dunning de las
+      cuotas: las facturas de periodo emitidas ya las cubre el dunning existente.)
 - [ ] **PR-RP6 — UI** (auto-mergeable): crear/gestionar planes en la ficha + lectura en el portal.
 - [ ] **Fase B — Auto-cobro off-session** (ES, épica aparte): SetupIntent (tarjeta on-file) +
       PaymentIntents programados + manejo SCA/3DS + reintentos.
