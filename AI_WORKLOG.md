@@ -1427,3 +1427,18 @@ Siguiente: ítem recurrente / planes de pago (proponer opciones antes de impleme
   verde (PR-y-espera por migración+RLS).
 
 Siguiente: PR-RP2 (crear/leer planes + generación del cuadro de cuotas).
+
+### 2026-06-16 - Claude Opus 4.8 - PR-RP2: crear/leer planes de facturación
+
+- **PR-RP2 (sin migración):** `BillingModule` (service+controller). `POST /billing/schedules` crea un
+  plan (RECURRING|INSTALLMENTS con `fiscalMode`) y **genera el cuadro de cuotas** en una tx: RECURRING
+  acotado (N periodos por `occurrences`) o abierto (solo la 1ª, el cron añadirá las demás); INSTALLMENTS
+  reparte la base a partes iguales con la última cuota absorbiendo el redondeo. `addInterval` (UTC,
+  semanas/meses/trimestres/años). Lecturas `GET /billing/schedules?matterId` y `/:id` con cuotas.
+  Validación por tipo (recurring sin installmentCount; installments con ≥2). Audit. NO emite (RP3/RP4).
+- **Verificado (puntos clave):** e2e **billing-schedules 9/9** (generación recurrente acotada/abierta;
+  fraccionamiento con reparto+redondeo Σ==base; fiscalMode ADVANCE; validaciones; lecturas; role-gating
+  CLIENT 403; aislamiento cross-tenant) + typecheck + eslint + prettier. api-reference → 75 endpoints.
+- Reusa `tenantTransaction` (RLS) + `round2`; exporta `BillingService` para RP3/RP4. Auto-merge en verde.
+
+Siguiente: PR-RP3 (emisión recurrente: 1 factura/periodo vía emitInvoiceInTx + avanzar nextRunAt).
