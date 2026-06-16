@@ -1203,3 +1203,24 @@ Parte C — restricciones registradas para R2/R3 (en D-026 y PLAN): invariante `
 ledger (DEPOSIT no → evita doble cómputo); REFUND con IVA → factura rectificativa.
 
 Siguiente: avisar al owner para (1) fusionar #61 enmendado y (2) ratificar D-026. **R2 en pausa.**
+
+## 2026-06-16 — Claude — D-026 RATIFICADA por el owner (ES cerrado, RD marco conservador)
+
+El owner ratificó D-026 (condición (b) del gate). Confirmado:
+
+- **ES (cerrado):** anticipo de honorarios devenga IVA **al cobro** (art. 75.Dos LIVA) → IVA 21% +
+  **retención IRPF** si el cliente es retenedor + **factura de anticipo**; la **factura final deduce el
+  anticipo** ya facturado (no se grava dos veces). Suplido (art. 78.Tres.3º) = excepción con justificante
+  a nombre del cliente, fuera de base.
+- **RD (marco + conservador, sin certeza cerrada):** ITBIS 18%; el devengo se ancla a la **emisión del
+  e-CF** (art. 338 CT + Decreto 293-11), no al cobro. Default conservador: emitir e-CF con ITBIS al tomar
+  el anticipo. Un contador dominicano afinaría.
+- **Postura:** default conforme + conservador (ante la duda, repercutir; el error caro es infra-
+  repercutir). El owner recomienda (no bloqueante) una revisión única del motor fiscal por fiscalista
+  (sobre todo RD + cadena anticipo→final→rectificativa), dada la Declaración Responsable.
+
+Actualizado D-026 → **RATIFICADA** con la mecánica confirmada y la cadena que R2/R3 implementará
+(DEPOSIT anticipo → factura de anticipo vía `buildInvoiceRecord` + postea al ledger → factura final que
+descuenta → rectificativa en devolución). PLAN/D-026 GATE: queda solo **(a) fusionar #61**.
+
+Estado del gate: (b) ✅ ratificada · (a) ⛔ #61 OPEN (lo fusiona el owner). **R2 sigue en pausa hasta (a).**

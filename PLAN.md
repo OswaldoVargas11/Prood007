@@ -326,7 +326,7 @@ Query para estado de servidor · `NEXT_PUBLIC_API_URL` por entorno.
 > Fiscal (D-026, **PROPUESTA pendiente de ratificación por asesor**): default CONFORME = anticipo de
 > honorarios **devenga IVA al cobro** → factura inmediata; ramas: genérica no delimitada (sin devengo),
 > suplido (sin IVA); regla vía `ComplianceProvider` (ES LIVA/Verifactu · RD ITBIS/e-CF).
-> **GATE: no arrancar R2 hasta (a) #61 enmendado fusionado y (b) D-026 ratificada.**
+> **GATE:** (b) D-026 **ratificada** por el owner (2026-06-16) ✅; queda **(a) fusionar #61** → R2 entra.
 
 - [~] **PR-R1 — Modelo + migración + RLS** (PR-y-espera, migración+RLS): `RetainerAccount` (**por
   expediente**, `matterId @unique`; saldo cacheado; moneda del tenant) + `RetainerEntry` (movimientos

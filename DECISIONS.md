@@ -542,17 +542,19 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
   (#60). Las vencidas se persiguen solas (cron diario) y a demanda; aviso al despacho + recordatorio al
   cliente con enlace de pago. EMAIL/SMS = integración Fase 2.
 
-## D-026 · Fase 1 (Ítem 2): provisión de fondos / retainer — tratamiento fiscal · **PROPUESTA, PENDIENTE DE RATIFICACIÓN POR ASESOR FISCAL**
+## D-026 · Fase 1 (Ítem 2): provisión de fondos / retainer — tratamiento fiscal · **RATIFICADA (owner, 2026-06-16)**
 
-> ⚠️ **Estado: PROPUESTA.** Esta ADR fija el modelo de datos (ratificado por el owner, ver "Esquema") y
-> PROPONE el tratamiento fiscal del cobro de la provisión para que el owner lo lleve a un asesor fiscal.
-> **La lógica fiscal (R2) NO se implementa hasta la ratificación.** Reemplaza el borrador anterior, cuyo
+> ✅ **Estado: RATIFICADA por el owner (2026-06-16).** ES queda cerrado; RD se adopta como **marco +
+> default conservador** (menos certeza que ES — un contador dominicano lo afinaría). El owner asume el
+> default conforme y conservador sin asesor; ver "Ratificación" para la postura y la recomendación de una
+> revisión única del motor fiscal (firma la Declaración Responsable como fabricante).
+> **La lógica fiscal se implementa en R2**, una vez fusionado #61. Reemplaza el borrador anterior, cuyo
 > default (provisión = cobro a cuenta no fiscal) iba al revés del caso típico.
 
 - **Contexto:** segundo ítem de la cola de cobro (modelo estándar ES: cobrar por adelantado y trabajar
   contra saldo). Construye sobre el ledger/`Payment`.
 
-### Tratamiento fiscal (propuesto, a ratificar)
+### Tratamiento fiscal (ratificado)
 
 - **Default CONFORME = anticipo de honorarios devenga IVA al cobro.** Una provisión que es anticipo de
   servicios identificados **devenga IVA en el momento del cobro** (art. 75.Dos LIVA) → **factura
@@ -568,6 +570,31 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
   provider del tenant: **ES** = LIVA / Verifactu; **RD** = ITBIS 18% / e-CF-DGII. Ningún país hardcodeado.
 - **Implicación REFUND:** si el depósito devengó IVA al cobrarse, devolverlo exige **factura
   rectificativa** (Verifactu / e-CF), no solo restar saldo (ver Parte C).
+
+### Ratificación (owner, 2026-06-16) — mecánica confirmada para R2/R3
+
+- **ES (cerrado):** el anticipo de honorarios devenga IVA **al cobro** (art. 75.Dos LIVA) → repercutir
+  IVA 21%, **emitir factura de anticipo** y **practicar retención IRPF** si el cliente es retenedor.
+  La **factura final del asunto deduce el anticipo ya facturado** (regulariza descontando lo anticipado;
+  no se grava dos veces). En clave Verifactu: toda provisión que sea anticipo se factura de inmediato.
+- **RD (marco + conservador, menos certeza):** servicios de abogacía gravados con **ITBIS 18%**; el
+  nacimiento de la obligación se ancla a la **emisión del e-CF** / prestación (art. 338 CT Ley 11-92 +
+  art. 7 Decreto 293-11), **no al cobro** como en ES. Default conservador: **emitir e-CF con ITBIS al
+  tomar un anticipo** ligado a servicios identificados. (Un contador dominicano afinaría este punto.)
+- **Ante la duda, conservador** = aplicar impuesto (+ retención en ES). El error caro es **infra-
+  repercutir**, no sobre-documentar.
+- **Suplido con rigor:** solo gastos pagados en nombre y por cuenta del cliente con **justificante a
+  nombre del cliente** (tasas, registro, notaría) → fuera de base, sin IVA, no sujeto a retención. La
+  rama que Hacienda/DGII auditan; documentación estricta.
+- **"Genérico no delimitado" (BUPA)** = borde raro en abogacía: salvo que sea claramente genérico,
+  tratar como anticipo (default conforme).
+- **Cadena que R2/R3 debe implementar:** `DEPOSIT` (anticipo) → **factura de anticipo** (reusa
+  `buildInvoiceRecord`: base + IVA/ITBIS − retención, como la FAC ya verificada) + postea al ledger →
+  … → **factura final que descuenta el anticipo facturado** → si se devuelve un anticipo ya facturado,
+  **rectificativa**. El `DEPOSIT` "suplido" no factura con IVA (doc a nombre del cliente, fuera de base).
+- **Recomendación (no bloqueante):** dado que el owner firma la Declaración Responsable como fabricante,
+  una **revisión única del motor fiscal por un fiscalista** (sobre todo RD y la mecánica anticipo→final→
+  rectificativa) es seguro barato frente a esa responsabilidad. Queda anotado; el owner decide.
 
 ### Esquema (ratificado por el owner, 2026-06-16 — implementado en PR-R1)
 
@@ -607,5 +634,5 @@ UPDATE`** sobre la cuenta (para que un DEPOSIT y una APPLICATION concurrentes no
   enum `RetainerMovementType`, migración `20260616130000_retainer`, RLS fail-closed. **Sin lógica.**
   Verificado: e2e retainer-rls 5/5 (lectura acotada, cross-tenant invisible, WITH CHECK, fail-closed)
   local + CI; schema válido; typecheck + lint limpios.
-- **GATE:** no se arranca R2 hasta que (a) #61 enmendado esté fusionado y (b) esta ADR esté **ratificada
-  por el asesor fiscal** del owner.
+- **GATE:** (b) ADR **RATIFICADA** por el owner (2026-06-16) ✅. Queda **(a): fusionar #61 enmendado**
+  (lo hace el owner). R2 arranca en cuanto (a) se cumpla.
