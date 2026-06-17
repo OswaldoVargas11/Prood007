@@ -250,6 +250,7 @@ model Tenant {
   notifications       Notification[]
   messages            Message[]
   auditLogs           AuditLog[]
+  signatureRequests   SignatureRequest[]
 }
 
 model User {
@@ -513,9 +514,10 @@ model DocumentVersion {
   createdAt    DateTime             @default(now())
 
   // tenantId es escalar (sin relación a Tenant) para el filtrado por tenant; ver DocumentReview.
-  document   Document         @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  uploadedBy User             @relation("VersionUploader", fields: [uploadedById], references: [id])
+  document   Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  uploadedBy User               @relation("VersionUploader", fields: [uploadedById], references: [id])
   reviews    DocumentReview[]
+  signatures SignatureRequest[]
 
   @@unique([documentId, version])
   @@index([tenantId])
@@ -536,6 +538,38 @@ model DocumentReview {
 
   @@index([tenantId])
   @@index([versionId])
+}
+
+// Solicitud de firma electrónica (Signaturit) sobre una versión concreta de documento. El estado
+// es String (no enum) — STUBBED/PENDING al solicitar (adaptador listo, sin transmisión real) y
+// SIGNED/DECLINED/EXPIRED/CANCELED por callback verificado. Tenant-scoped con RLS (la migración
+// activa ENABLE/FORCE + política fail-closed). `documentId`/`matterId`/`requestedById` son escalares
+// (sin relación, como DocumentVersion.tenantId) para filtrar; el ciclo de vida cuelga de la versión.
+model SignatureRequest {
+  id            String    @id @default(cuid())
+  tenantId      String
+  documentId    String
+  versionId     String
+  matterId      String
+  provider      String    @default("signaturit")
+  externalId    String
+  status        String    @default("PENDING")
+  signerName    String
+  signerEmail   String
+  signUrl       String?
+  detail        String?
+  requestedById String
+  requestedAt   DateTime  @default(now())
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  version DocumentVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, documentId])
+  @@index([tenantId, matterId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -170,6 +170,20 @@ export const API_MESSAGES = {
     'es-DO': 'Solo abogados o administradores pueden revisar documentos.',
   },
 
+  // ── Firma electrónica (Signaturit) ────────────────────────────────────────
+  'signatures.notFound': {
+    'es-ES': 'Solicitud de firma no encontrada.',
+    'es-DO': 'Solicitud de firma no encontrada.',
+  },
+  'signatures.notCancelable': {
+    'es-ES': 'La solicitud de firma no se puede cancelar en su estado actual.',
+    'es-DO': 'La solicitud de firma no se puede cancelar en su estado actual.',
+  },
+  'signatures.webhookInvalid': {
+    'es-ES': 'Webhook de firma inválido (firma no verificada).',
+    'es-DO': 'Webhook de firma inválido (firma no verificada).',
+  },
+
   // ── Plantillas de documento ───────────────────────────────────────────────
   'templates.notFound': {
     'es-ES': 'Plantilla no encontrada.',

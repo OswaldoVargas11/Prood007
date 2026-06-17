@@ -787,3 +787,19 @@ facturasRectificadas, causa }`. RD → `<TipoeCF>34</TipoeCF>` (nota de crédito
   RP4 (emisión planes a/b) → RP5 (cron+dunning de cuotas) → RP6 (UI) → Fase B (off-session).
 - **Recomendación (no bloqueante):** entra en la **revisión única del fiscalista** ya recomendada en
   D-027 (anticipo→factura→deducción→rectificativa→**recurrente**), sobre todo la parte RD.
+
+## D-029 · Fase 5: firma electrónica (Signaturit) — adaptador listo, sin transmisión real · **ACEPTADA (owner, 2026-06-17)**
+
+- **Patrón:** espejo del adaptador de envío fiscal AEAT/DGII (D-024 / PR #90). La firma vive detrás de
+  una interfaz enchufable `SignatureProvider` (`@legalflow/compliance`); `SignatureProviderFactory`
+  selecciona el proveedor (`signaturit` por defecto, pluggable a DocuSign). El stub NO transmite
+  (`requestSignature` → `STUBBED`) pero respeta la FORMA EXACTA del cliente real (firma de métodos,
+  idempotencia por `externalId`, verificación HMAC del webhook). Activar = sustituir el cuerpo por el
+  cliente HTTP de Signaturit; ni el núcleo ni la UI cambian.
+- **Modelo:** `SignatureRequest` (1:N con `DocumentVersion`), `status` String (no enum, como KYC) —
+  PENDING al solicitar, SIGNED/DECLINED/EXPIRED/CANCELED por callback. RLS fail-closed por tenant.
+- **Webhook:** ruta PÚBLICA `POST /signatures/webhook/signaturit` (mismo patrón que el de cobros,
+  D-024): cuerpo crudo + firma HMAC-SHA256; el tenant sale del evento verificado (`runWithTenant`).
+  Idempotente. Avisa al solicitante cuando el documento queda firmado.
+- **Fuera de alcance:** transmisión real a Signaturit (requiere API key + plantilla de firma), firma
+  cualificada con certificado, y posición visual de la firma en el PDF.

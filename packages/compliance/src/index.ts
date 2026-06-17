@@ -10,3 +10,9 @@ export * from './submission.interface';
 export * from './submission.factory';
 export { SpainTaxSubmissionProvider } from './providers/spain.submission';
 export { DominicanTaxSubmissionProvider } from './providers/dominican.submission';
+export * from './signature.interface';
+export * from './signature.factory';
+export {
+  SignaturitSignatureProvider,
+  deterministicSignatureId,
+} from './providers/signaturit.signature';
