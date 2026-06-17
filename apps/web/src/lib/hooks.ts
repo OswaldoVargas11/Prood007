@@ -20,8 +20,13 @@ import type {
   DeadlineResult,
   DunningReminder,
   DunningRunSummary,
+  AgedReceivables,
   DocumentDetail,
   DocumentTemplate,
+  KycOverviewRow,
+  KycProfile,
+  KycSummary,
+  TimeByLawyerRow,
   DocumentReviewStatus,
   FirmSettings,
   Invoice,
@@ -212,6 +217,52 @@ export function useReviewVersion(matterId: string) {
       comment?: string;
     }) => api.post(`/documents/versions/${versionId}/review`, { status, comment }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', matterId] }),
+  });
+}
+
+// ── KYC / AML (Fase 4) ────────────────────────────────────────────────────────
+export function useKycOverview() {
+  return useQuery({ queryKey: ['kyc'], queryFn: () => api.get<KycOverviewRow[]>('/kyc') });
+}
+
+export function useKycSummary() {
+  return useQuery({
+    queryKey: ['kyc', 'summary'],
+    queryFn: () => api.get<KycSummary>('/kyc/summary'),
+  });
+}
+
+export function useClientKyc(clientId: string) {
+  return useQuery({
+    queryKey: ['kyc', clientId],
+    queryFn: () => api.get<KycProfile | null>(`/kyc/${clientId}`),
+    enabled: Boolean(clientId),
+  });
+}
+
+export function useUpsertKyc(clientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Partial<Omit<KycProfile, 'id' | 'clientId' | 'reviewedAt'>>) =>
+      api.put<KycProfile>(`/kyc/${clientId}`, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['kyc'] });
+    },
+  });
+}
+
+// ── Informes (Fase 4) ─────────────────────────────────────────────────────────
+export function useAgedReceivables() {
+  return useQuery({
+    queryKey: ['reports', 'aged-receivables'],
+    queryFn: () => api.get<AgedReceivables>('/reports/aged-receivables'),
+  });
+}
+
+export function useTimeByLawyer() {
+  return useQuery({
+    queryKey: ['reports', 'time-by-lawyer'],
+    queryFn: () => api.get<TimeByLawyerRow[]>('/reports/time-by-lawyer'),
   });
 }
 

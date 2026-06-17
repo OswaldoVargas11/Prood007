@@ -26,7 +26,9 @@
       "comms": "Comunicación",
       "admin": "Despacho"
     },
-    "templates": "Plantillas"
+    "templates": "Plantillas",
+    "aml": "AML",
+    "reports": "Informes"
   },
   "time": {
     "title": "Tiempo",
@@ -967,5 +969,61 @@
   },
   "toasts": {
     "newMessage": "Nuevo mensaje"
+  },
+  "kyc": {
+    "title": "KYC / Prevención de blanqueo",
+    "subtitle": "Diligencia debida del cliente (sujeto obligado).",
+    "status": "Estado",
+    "risk": "Nivel de riesgo",
+    "isPep": "Persona expuesta políticamente (PEP)",
+    "identityVerified": "Identidad verificada",
+    "sanctionsChecked": "Cribado de sanciones realizado",
+    "notes": "Notas de diligencia",
+    "save": "Guardar",
+    "saved": "Diligencia actualizada.",
+    "error": "No se pudo guardar la diligencia.",
+    "statuses": {
+      "PENDING": "Pendiente",
+      "IN_REVIEW": "En revisión",
+      "APPROVED": "Aprobado",
+      "REJECTED": "Rechazado"
+    },
+    "risks": {
+      "LOW": "Bajo",
+      "MEDIUM": "Medio",
+      "HIGH": "Alto"
+    },
+    "amlTitle": "Prevención de blanqueo (AML)",
+    "amlSubtitle": "Estado de diligencia debida de todos los clientes del despacho.",
+    "amlEmpty": "Aún no hay clientes.",
+    "total": "Clientes",
+    "highRisk": "Riesgo alto",
+    "pep": "PEP",
+    "client": "Cliente",
+    "flags": "Alertas"
+  },
+  "reports": {
+    "title": "Informes",
+    "subtitle": "Indicadores de gestión del despacho. Exportables a CSV.",
+    "client": "Cliente",
+    "aged": {
+      "title": "Cartera vencida",
+      "current": "Corriente",
+      "d1_30": "1-30 días",
+      "d31_60": "31-60 días",
+      "d60plus": "+60 días",
+      "total": "Total pendiente",
+      "invoice": "Factura",
+      "days": "Días",
+      "outstanding": "Pendiente"
+    },
+    "time": {
+      "title": "Tiempo por letrado",
+      "empty": "Aún no hay tiempo registrado.",
+      "lawyer": "Letrado",
+      "hours": "Horas",
+      "billedPct": "% facturado",
+      "amount": "Honorarios"
+    }
   }
 }

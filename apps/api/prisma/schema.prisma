@@ -235,6 +235,7 @@ model Tenant {
   matters             Matter[]
   documents           Document[]
   documentTemplates   DocumentTemplate[]
+  kycProfiles         KycProfile[]
   tasks               Task[]
   timeEntries         TimeEntry[]
   ledgerEntries       LedgerEntry[]
@@ -395,9 +396,36 @@ model Client {
   matters          Matter[]
   invoices         Invoice[]
   billingSchedules BillingSchedule[]
+  kyc              KycProfile?
 
   @@index([tenantId])
   @@index([tenantId, taxId])
+}
+
+// Perfil KYC/AML del cliente (prevención de blanqueo — sujeto obligado en ES). 1:1 con Client.
+// `status`: PENDING | IN_REVIEW | APPROVED | REJECTED · `risk`: LOW | MEDIUM | HIGH (validado en DTO).
+// Tenant-scoped con RLS fail-closed (activada en la migración). Ver Fase 4.
+model KycProfile {
+  id               String    @id @default(cuid())
+  tenantId         String
+  clientId         String    @unique
+  status           String    @default("PENDING")
+  risk             String    @default("MEDIUM")
+  // Persona expuesta políticamente.
+  isPep            Boolean   @default(false)
+  // Verificaciones del expediente de diligencia debida.
+  identityVerified Boolean   @default(false)
+  sanctionsChecked Boolean   @default(false)
+  notes            String?
+  reviewedById     String?
+  reviewedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 model Matter {
