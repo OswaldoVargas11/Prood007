@@ -83,6 +83,18 @@ export const API_MESSAGES = {
     'es-ES': 'La nueva contraseña debe ser distinta de la actual.',
     'es-DO': 'La nueva contraseña debe ser distinta de la actual.',
   },
+  'auth.tokenStale': {
+    'es-ES': 'La sesión ya no es válida; vuelve a iniciar sesión.',
+    'es-DO': 'La sesión ya no es válida; vuelve a iniciar sesión.',
+  },
+  'auth.accountLocked': {
+    'es-ES': 'Cuenta bloqueada temporalmente por intentos fallidos. Inténtalo de nuevo más tarde.',
+    'es-DO': 'Cuenta bloqueada temporalmente por intentos fallidos. Inténtalo de nuevo más tarde.',
+  },
+  'auth.passwordBreached': {
+    'es-ES': 'Esta contraseña aparece en filtraciones públicas conocidas; elige otra distinta.',
+    'es-DO': 'Esta contraseña aparece en filtraciones públicas conocidas; elige otra distinta.',
+  },
 
   // ── Clientes ──────────────────────────────────────────────────────────────
   'clients.taxIdInvalid': {

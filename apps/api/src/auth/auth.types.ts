@@ -10,6 +10,8 @@ export interface AccessTokenPayload {
   jur: Jurisdiction;
   email: string;
   roles: string[];
+  /** issued-at en segundos (lo añade passport-jwt al firmar; lo usamos para el corte por cambio de clave). */
+  iat?: number;
 }
 
 /** Payload del refresh token JWT. */
@@ -27,6 +29,8 @@ export interface RequestUser {
   jurisdiction: Jurisdiction;
   email: string;
   roles: string[];
+  /** El usuario debe cambiar su contraseña en el próximo acceso (alta/reset por admin, SEC4). */
+  mustChangePassword?: boolean;
 }
 
 /** Par de tokens devuelto al cliente. */

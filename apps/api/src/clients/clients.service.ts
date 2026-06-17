@@ -24,6 +24,7 @@ import { AuditService } from '../audit/audit.service';
 import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { CreatePortalUserDto } from './dto/create-portal-user.dto';
+import { HibpService } from '../auth/hibp.service';
 import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -38,6 +39,7 @@ export class ClientsService {
     private readonly prisma: PrismaService,
     private readonly compliance: ComplianceService,
     private readonly audit: AuditService,
+    private readonly hibp: HibpService,
   ) {}
 
   /** Valida el identificador fiscal contra el provider del tenant y devuelve su forma normalizada. */
@@ -334,6 +336,7 @@ export class ClientsService {
     });
     if (existing) throw new ConflictException(apiError('users.emailExists'));
 
+    await this.hibp.assertNotBreached(dto.password);
     const role = await this.prisma.role.findFirstOrThrow({
       where: { tenantId: user.tenantId, code: Role.CLIENT },
     });
@@ -346,6 +349,8 @@ export class ClientsService {
           email,
           passwordHash,
           fullName: dto.fullName,
+          // El usuario de portal creado por staff debe fijar su propia contraseña al primer acceso (SEC4).
+          mustChangePassword: true,
           roles: { create: [{ roleId: role.id }] },
         },
       });

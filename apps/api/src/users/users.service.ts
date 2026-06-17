@@ -10,6 +10,7 @@ import { Role } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
+import { HibpService } from '../auth/hibp.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { apiError } from '../common/api-messages';
@@ -33,6 +34,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly hibp: HibpService,
   ) {}
 
   /** Cuenta usuarios ACTIVOS de un rol concreto en el tenant. */
@@ -114,6 +116,7 @@ export class UsersService {
       );
     }
 
+    await this.hibp.assertNotBreached(dto.password);
     const roleId = await this.roleId(user.tenantId, dto.role);
     const passwordHash = await argon2.hash(dto.password);
     const created = await this.prisma.user.create({
@@ -122,6 +125,8 @@ export class UsersService {
         email,
         passwordHash,
         fullName: dto.fullName,
+        // El usuario recién creado por el admin debe fijar su propia contraseña al primer acceso (SEC4).
+        mustChangePassword: true,
         roles: { create: [{ roleId }] },
       },
     });
