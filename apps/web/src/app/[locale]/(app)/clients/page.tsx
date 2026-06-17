@@ -136,9 +136,12 @@ export default function ClientsPage() {
           </div>
         )}
         {!isLoading && !isError && data?.items.length === 0 && (
-          <div className="flex flex-col items-center gap-2 p-12 text-center text-sm text-muted-foreground">
+          <div className="flex flex-col items-center gap-3 p-12 text-center text-sm text-muted-foreground">
             <Users className="size-6" />
             {t('empty')}
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <Plus /> {t('emptyCta')}
+            </Button>
           </div>
         )}
       </Card>

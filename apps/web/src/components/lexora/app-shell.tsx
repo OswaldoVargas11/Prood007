@@ -10,10 +10,12 @@ import { PageTransition } from './page-transition';
 import { CommandMenu, useCommandMenu } from './command-menu';
 import { AiPanel } from './ai-panel';
 import { NotificationsBell } from './notifications-bell';
+import { RealtimeToasts } from './realtime-toasts';
 import { UserMenu } from './user-menu';
 import { ThemeToggle } from './theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Toaster } from '@/components/ui/sonner';
 
 function isStaff(roles: string[]): boolean {
   return roles.includes('FIRM_ADMIN') || roles.includes('LAWYER');
@@ -93,6 +95,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         <PageTransition className="flex-1 p-6 lg:p-8">{children}</PageTransition>
       </div>
       <CommandMenu open={open} onOpenChange={setOpen} />
+      <Toaster />
+      <RealtimeToasts />
     </div>
   );
 }

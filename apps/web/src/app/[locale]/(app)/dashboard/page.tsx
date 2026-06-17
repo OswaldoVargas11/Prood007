@@ -18,6 +18,7 @@ import type { DashboardSummary } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FirstStepsCard } from '@/components/lexora/first-steps-card';
 import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
@@ -57,6 +58,7 @@ export default function DashboardPage() {
 
       {!isLoading && !isError && data && user && (
         <>
+          <FirstStepsCard summary={data} />
           <KpiRow data={data} />
           <div className="grid gap-4 lg:grid-cols-[1.5fr_1fr]">
             <RevenueCard data={data} />

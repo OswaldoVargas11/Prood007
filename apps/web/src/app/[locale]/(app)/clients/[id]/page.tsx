@@ -31,8 +31,10 @@ import { AdminResetPasswordButton } from '@/components/lexora/admin-reset-passwo
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
+import { isEmailish } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -273,7 +275,7 @@ function GrantPortalDialog({
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailValid = isEmailish(email);
   const valid = emailValid && fullName.trim().length >= 2 && password.length >= 10;
 
   async function submit() {
@@ -310,8 +312,7 @@ function GrantPortalDialog({
           </div>
           <div className="space-y-1.5">
             <Label>{t('portalPassword')}</Label>
-            <Input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
