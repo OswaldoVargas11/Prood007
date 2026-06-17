@@ -1,6 +1,5 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { SystemPrismaService } from '../src/prisma/prisma.service';
@@ -22,12 +21,10 @@ describe('SEC4 hardening (e2e)', () => {
   let userId: string;
 
   beforeAll(async () => {
-    // El rate-limiting del login ya se prueba en security.e2e-spec; aquí lo desactivamos para poder
-    // hacer varios logins seguidos sin chocar con el throttler (10/min) en una sola suite.
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-      .overrideGuard(ThrottlerGuard)
-      .useValue({ canActivate: () => true })
-      .compile();
+    // NB: el login está limitado a 10/min (throttler); esta suite mantiene a propósito sus llamadas
+    // a POST /auth/login por debajo de ese tope (el 429 ya se prueba en security.e2e-spec). El resto
+    // de fallos de login del lockout se siembran en BD para no gastar peticiones.
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(createValidationPipe());
     app.setGlobalPrefix('api');
@@ -83,7 +80,7 @@ describe('SEC4 hardening (e2e)', () => {
     await resetLockState();
     const before = await system.auditLog.count({ where: { tenantId } });
 
-    await request(server()).post('/api/auth/login').send({ email, password }).expect(200);
+    // Un fallo (el éxito ya quedó auditado por el login del test anterior; lo verificamos por conteo).
     await request(server())
       .post('/api/auth/login')
       .send({ email, password: 'incorrecta-xxx' })
@@ -156,16 +153,18 @@ describe('SEC4 hardening (e2e)', () => {
       .expect(401);
     expect(res.body.messageKey).toBe('auth.tokenStale');
 
-    // Restauramos: un par nuevo (iat posterior) vuelve a ser válido.
+    // El MISMO access token vuelve a ser válido si el corte deja de aplicar (passwordChangedAt al
+    // pasado), confirmando que el rechazo era por el sello y no por el token en sí.
     await system.user.update({
       where: { id: userId },
-      data: { passwordChangedAt: null },
+      data: { passwordChangedAt: new Date(Date.now() - 60_000) },
     });
-    const fresh = await login(password);
     await request(server())
       .get('/api/auth/me')
-      .set('Authorization', `Bearer ${fresh.accessToken}`)
+      .set('Authorization', `Bearer ${stale.accessToken}`)
       .expect(200);
+
+    await system.user.update({ where: { id: userId }, data: { passwordChangedAt: null } });
     await resetLockState();
   });
 
