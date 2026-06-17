@@ -181,7 +181,12 @@ export default function MattersPage() {
           )}
 
           {!isLoading && !isError && data?.items.length === 0 && (
-            <div className="p-12 text-center text-sm text-muted-foreground">{t('empty')}</div>
+            <div className="flex flex-col items-center gap-3 p-12 text-center text-sm text-muted-foreground">
+              {t('empty')}
+              <Button size="sm" onClick={() => setCreating(true)}>
+                <Plus /> {t('emptyCta')}
+              </Button>
+            </div>
           )}
         </Card>
       )}

@@ -164,7 +164,18 @@
     "daysLeft": "{n, plural, =0 {hoy} one {# día} other {# días}}",
     "activity": "Actividad reciente",
     "noActivity": "Sin actividad reciente.",
-    "system": "Sistema"
+    "system": "Sistema",
+    "firstSteps": {
+      "title": "Primeros pasos",
+      "subtitle": "Completa la configuración inicial de tu despacho.",
+      "progress": "{done} de {total}",
+      "step": {
+        "client": "Añade tu primer cliente",
+        "matter": "Crea tu primer expediente",
+        "document": "Sube un documento",
+        "invoice": "Emite tu primera factura"
+      }
+    }
   },
   "matters": {
     "title": "Expedientes",
@@ -258,7 +269,8 @@
       "proposeSend": "Proponer",
       "proposeSent": "Coste propuesto. Pendiente de aprobación.",
       "proposeError": "No se pudo proponer el coste."
-    }
+    },
+    "emptyCta": "Nuevo expediente"
   },
   "clients": {
     "title": "Clientes",
@@ -320,7 +332,8 @@
       "anonymizedOn": "Anonimizado el {date}",
       "anonymizedNote": "Los datos personales se han borrado y el portal está cortado. El expediente y las facturas se conservan por obligación legal."
     },
-    "resetPortalPassword": "Restablecer contraseña del portal"
+    "resetPortalPassword": "Restablecer contraseña del portal",
+    "emptyCta": "Crear el primer cliente"
   },
   "documentsOverview": {
     "title": "Documentos",
@@ -650,7 +663,12 @@
   "command": {
     "placeholder": "Buscar o ejecutar una acción…",
     "empty": "Sin resultados.",
-    "navigation": "Navegación"
+    "navigation": "Navegación",
+    "searchHint": "Escribe para buscar clientes, expedientes o facturas…",
+    "searching": "Buscando…",
+    "groupClients": "Clientes",
+    "groupMatters": "Expedientes",
+    "groupInvoices": "Facturas"
   },
   "ai": {
     "assistant": "Asistente IA",
@@ -907,5 +925,12 @@
       "status": "Estado",
       "action": "Acción"
     }
+  },
+  "common": {
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña"
+  },
+  "toasts": {
+    "newMessage": "Nuevo mensaje"
   }
 }

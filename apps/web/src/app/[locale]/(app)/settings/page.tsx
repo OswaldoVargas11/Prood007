@@ -31,6 +31,7 @@ import { formatDate } from '@/lib/format';
 import { ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,7 +43,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { cn } from '@/lib/utils';
+import { cn, isEmailish } from '@/lib/utils';
 import { AdminResetPasswordButton } from '@/components/lexora/admin-reset-password';
 import type { StaffRole, StaffUser } from '@/lib/types';
 
@@ -386,7 +387,7 @@ function AddStaffDialog({
   const [role, setRole] = useState<StaffRole>('LAWYER');
   const [error, setError] = useState<string | null>(null);
 
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailValid = isEmailish(email);
   const valid = emailValid && fullName.trim().length >= 2 && password.length >= 10;
   const noSeat = seatsFull
     ? role === 'FIRM_ADMIN'
@@ -426,8 +427,7 @@ function AddStaffDialog({
           </div>
           <div className="space-y-1.5">
             <Label>{t('staff.password')}</Label>
-            <Input
-              type="password"
+            <PasswordInput
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
