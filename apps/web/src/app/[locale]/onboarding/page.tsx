@@ -7,9 +7,10 @@ import { useAuth, type RegisterTenantInput } from '@/lib/auth';
 import { useRouter, Link } from '@/i18n/navigation';
 import { ApiError } from '@/lib/api';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { ThemeToggle } from '@/components/lexora/theme-toggle';
-import { cn } from '@/lib/utils';
+import { cn, isEmailish } from '@/lib/utils';
 
 type Jur = 'es' | 'do';
 type Cur = 'EUR' | 'DOP';
@@ -39,7 +40,7 @@ export default function OnboardingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailValid = isEmailish(email);
   const fiscalValid = jurisdiction ? fiscalLooksValid(jurisdiction, taxId) : false;
 
   const canContinue = useMemo(() => {
@@ -296,8 +297,7 @@ export default function OnboardingPage() {
                     />
                   </Field>
                   <Field label={t('password')} hint={t('passwordHint')}>
-                    <Input
-                      type="password"
+                    <PasswordInput
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       autoComplete="new-password"

@@ -6,7 +6,7 @@ import { CheckCircle2, Loader2 } from 'lucide-react';
 import { useChangePassword } from '@/lib/hooks';
 import { ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
@@ -75,9 +75,8 @@ export function ChangePasswordForm() {
     <div className="space-y-4">
       <div className="space-y-1.5">
         <Label htmlFor="cp-current">{t('current')}</Label>
-        <Input
+        <PasswordInput
           id="cp-current"
-          type="password"
           value={current}
           onChange={(e) => setCurrent(e.target.value)}
           autoComplete="current-password"
@@ -86,9 +85,8 @@ export function ChangePasswordForm() {
 
       <div className="space-y-1.5">
         <Label htmlFor="cp-new">{t('new')}</Label>
-        <Input
+        <PasswordInput
           id="cp-new"
-          type="password"
           value={next}
           onChange={(e) => setNext(e.target.value)}
           autoComplete="new-password"
@@ -113,9 +111,8 @@ export function ChangePasswordForm() {
 
       <div className="space-y-1.5">
         <Label htmlFor="cp-confirm">{t('confirm')}</Label>
-        <Input
+        <PasswordInput
           id="cp-confirm"
-          type="password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           autoComplete="new-password"

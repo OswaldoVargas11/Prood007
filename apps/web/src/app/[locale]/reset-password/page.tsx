@@ -9,7 +9,7 @@ import { useResetPassword } from '@/lib/hooks';
 import { ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { ThemeToggle } from '@/components/lexora/theme-toggle';
 import { cn } from '@/lib/utils';
@@ -82,9 +82,8 @@ function ResetForm() {
     >
       <div className="space-y-1.5">
         <Label htmlFor="rp-new">{t('new')}</Label>
-        <Input
+        <PasswordInput
           id="rp-new"
-          type="password"
           autoComplete="new-password"
           autoFocus
           value={next}
@@ -96,9 +95,8 @@ function ResetForm() {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="rp-confirm">{t('confirm')}</Label>
-        <Input
+        <PasswordInput
           id="rp-confirm"
-          type="password"
           autoComplete="new-password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
