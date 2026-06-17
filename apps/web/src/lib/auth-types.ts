@@ -14,6 +14,8 @@ export interface AuthUser {
   jurisdiction: 'es' | 'do';
   email: string;
   roles: string[];
+  /** Si true, el backend exige cambiar la contraseña antes de operar (cuenta creada por admin/reset). */
+  mustChangePassword?: boolean;
 }
 
 export type Role = 'FIRM_ADMIN' | 'LAWYER' | 'CLIENT';

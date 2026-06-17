@@ -27,7 +27,7 @@ function strengthOf(pw: string): 0 | 1 | 2 | 3 | 4 {
  * Formulario de cambio de contraseña self-service, reutilizable por staff (Ajustes) y cliente
  * (Portal). Cierra el resto de sesiones en el servidor y mantiene viva la sesión actual.
  */
-export function ChangePasswordForm() {
+export function ChangePasswordForm({ onSuccess }: { onSuccess?: () => void } = {}) {
   const t = useTranslations('security');
   const change = useChangePassword();
   const [current, setCurrent] = useState('');
@@ -51,6 +51,7 @@ export function ChangePasswordForm() {
       setNext('');
       setConfirm('');
       setDone(true);
+      onSuccess?.();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('error'));
     }

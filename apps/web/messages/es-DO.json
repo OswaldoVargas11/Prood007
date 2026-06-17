@@ -732,6 +732,10 @@
       "requestNew": "Solicitar uno nuevo",
       "tooShort": "Mínimo {min} caracteres.",
       "mismatch": "Las contraseñas no coinciden."
+    },
+    "force": {
+      "title": "Cambia tu contraseña",
+      "subtitle": "Por seguridad, debes establecer una contraseña propia antes de continuar."
     }
   },
   "settings": {

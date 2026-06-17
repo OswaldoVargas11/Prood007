@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/auth';
 import { useRouter, Link } from '@/i18n/navigation';
 import { NotificationsBell } from './notifications-bell';
 import { RealtimeToasts } from './realtime-toasts';
+import { ForcePasswordChange } from './force-password-change';
 import { PageTransition } from './page-transition';
 import { ThemeToggle } from './theme-toggle';
 import { UserMenu } from './user-menu';
@@ -33,6 +34,10 @@ export function PortalShell({ children }: { children: ReactNode }) {
         </div>
       </div>
     );
+  }
+
+  if (user.mustChangePassword) {
+    return <ForcePasswordChange />;
   }
 
   return (
