@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as argon2 from 'argon2';
 import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
@@ -22,6 +22,8 @@ const FORGOT_RESET_TTL_MS = 60 * 60 * 1000; // 1 h (autoservicio por correo)
  */
 @Injectable()
 export class PasswordResetService {
+  private readonly logger = new Logger(PasswordResetService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly system: SystemPrismaService,
@@ -94,7 +96,13 @@ export class PasswordResetService {
 
     const user = users[0]!;
     const { token } = await this.createToken(user.id, FORGOT_RESET_TTL_MS);
-    await this.mail.sendPasswordReset(user.email, this.resetLink(token));
+    // Fail-soft: un fallo de envío NO debe cambiar la respuesta genérica (no filtrar existencia de
+    // cuentas) ni propagar un 500. Se registra para diagnóstico y se resuelve igualmente.
+    try {
+      await this.mail.sendPasswordReset(user.email, this.resetLink(token));
+    } catch (err) {
+      this.logger.error('Fallo al enviar el correo de recuperación', err as Error);
+    }
   }
 
   /**
