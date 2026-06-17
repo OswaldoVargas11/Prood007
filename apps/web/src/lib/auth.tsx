@@ -20,6 +20,8 @@ interface AuthContextValue {
   login: (email: string, password: string, tenantId?: string) => Promise<void>;
   register: (input: RegisterTenantInput) => Promise<void>;
   logout: () => Promise<void>;
+  /** Recarga el usuario desde /auth/me (p. ej. tras un cambio de contraseña forzado). */
+  refreshUser: () => Promise<void>;
   hasRole: (role: string) => boolean;
 }
 
@@ -97,6 +99,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    setUser(await api.get<AuthUser>('/auth/me'));
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -104,9 +110,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       logout,
+      refreshUser,
       hasRole: (r) => user?.roles.includes(r) ?? false,
     }),
-    [user, loading, login, register, logout],
+    [user, loading, login, register, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
