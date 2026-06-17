@@ -6,3 +6,7 @@ export * from './taxid';
 export * from './factory';
 export { SpainComplianceProvider } from './providers/spain.provider';
 export { DominicanComplianceProvider } from './providers/dominican.provider';
+export * from './submission.interface';
+export * from './submission.factory';
+export { SpainTaxSubmissionProvider } from './providers/spain.submission';
+export { DominicanTaxSubmissionProvider } from './providers/dominican.submission';
