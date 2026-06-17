@@ -1,0 +1,18 @@
+# Contexto de build (Fly/Docker) — excluye lo pesado y lo sensible.
+**/node_modules
+.git
+**/.next
+**/dist
+**/build
+**/coverage
+**/coverage-e2e
+**/.turbo
+storage
+apps/api/storage
+qa-screenshots
+*.log
+# Secretos: nunca al contexto de build.
+.env
+.env.*
+!.env.example
+.claude

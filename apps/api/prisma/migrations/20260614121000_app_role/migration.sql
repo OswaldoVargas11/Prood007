@@ -17,7 +17,15 @@ BEGIN
 END $$;
 
 -- Asegurar que NO puede saltarse RLS (defensivo, por si el rol existiera con otros atributos).
-ALTER ROLE legalflow_app NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB;
+-- En Postgres GESTIONADO (p. ej. Neon) el rol de migración no es superusuario y no puede tocar el
+-- atributo SUPERUSER (ni para confirmarlo). Como un rol recién creado ya nace NOSUPERUSER/NOBYPASSRLS,
+-- envolvemos el ALTER para ignorar el error de privilegio en ese caso (en self-managed se aplica igual).
+DO $$
+BEGIN
+  ALTER ROLE legalflow_app NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB;
+EXCEPTION WHEN insufficient_privilege THEN
+  NULL;
+END $$;
 
 GRANT USAGE ON SCHEMA public TO legalflow_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO legalflow_app;

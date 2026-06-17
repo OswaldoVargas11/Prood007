@@ -12,11 +12,17 @@ RUN pnpm install --frozen-lockfile || pnpm install
 
 FROM deps AS build
 COPY . .
+# Next.js hornea las NEXT_PUBLIC_* en build → la URL de la API debe llegar como build-arg.
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN pnpm --filter @legalflow/domain build \
  && pnpm --filter @legalflow/web build
 
 FROM base AS runtime
 ENV NODE_ENV=production
+# next start escucha en este host/puerto (0.0.0.0 para que Fly lo alcance).
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 COPY --from=build /repo /repo
 WORKDIR /repo/apps/web
 EXPOSE 3000
