@@ -61,6 +61,15 @@ describe('cliente API', () => {
     });
   });
 
+  it('api.put envía método PUT con el cuerpo serializado', async () => {
+    setAccessToken('tok');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ ok: true }));
+    await api.put('/kyc/c1', { status: 'APPROVED' });
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(init.method).toBe('PUT');
+    expect(init.body).toBe(JSON.stringify({ status: 'APPROVED' }));
+  });
+
   it('devuelve undefined en 204 sin cuerpo', async () => {
     setAccessToken('tok');
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
