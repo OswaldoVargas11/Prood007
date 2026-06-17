@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { Role, TaskStatus } from '@legalflow/domain';
 import { TasksService } from './tasks.service';
+import { DeadlineRemindersService } from './deadline-reminders.service';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateTaskFromDeadlineDto } from './dto/create-task-from-deadline.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
@@ -11,11 +12,24 @@ import type { RequestUser } from '../auth/auth.types';
 @Roles(Role.FIRM_ADMIN, Role.LAWYER)
 @Controller('tasks')
 export class TasksController {
-  constructor(private readonly tasks: TasksService) {}
+  constructor(
+    private readonly tasks: TasksService,
+    private readonly reminders: DeadlineRemindersService,
+  ) {}
 
   @Post()
   create(@CurrentUser() user: RequestUser, @Body() dto: CreateTaskDto) {
     return this.tasks.create(user, dto);
+  }
+
+  /**
+   * "Recordar plazos ahora": dispara el avisador de plazos próximos para el despacho actual (como
+   * `/dunning/run`). Útil para pruebas/operación; el cron diario lo hace para todos los tenants.
+   */
+  @Roles(Role.FIRM_ADMIN)
+  @Post('run-reminders')
+  runReminders(@CurrentUser() user: RequestUser) {
+    return this.reminders.runForTenant(user);
   }
 
   /** Crea una tarea a partir de un plazo procesal calculado por el provider de la jurisdicción. */
