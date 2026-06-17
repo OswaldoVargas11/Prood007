@@ -1,5 +1,6 @@
 import {
   BadgeCheck,
+  BarChart3,
   Briefcase,
   CalendarDays,
   CheckSquare,
@@ -12,6 +13,7 @@ import {
   ReceiptText,
   ScrollText,
   Settings,
+  ShieldCheck,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -66,7 +68,9 @@ export const NAV_GROUPS: NavGroup[] = [
     key: 'admin',
     items: [
       { key: 'calendar', href: '/calendar', icon: CalendarDays, enabled: true },
+      { key: 'aml', href: '/aml', icon: ShieldCheck, enabled: true },
       // Grupo «Despacho» admin (Tanda B). Solo FIRM_ADMIN.
+      { key: 'reports', href: '/reports', icon: BarChart3, enabled: true, adminOnly: true },
       { key: 'approvals', href: '/approvals', icon: BadgeCheck, enabled: true, adminOnly: true },
       { key: 'audit', href: '/audit', icon: ScrollText, enabled: true, adminOnly: true },
       { key: 'settings', href: '/settings', icon: Settings, enabled: true, adminOnly: true },

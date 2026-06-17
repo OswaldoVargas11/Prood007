@@ -468,6 +468,65 @@ export interface MatterDocument {
   versions: DocumentVersion[];
 }
 
+// ── KYC / AML (Fase 4) ────────────────────────────────────────────────────────
+export type KycStatus = 'PENDING' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
+export type KycRisk = 'LOW' | 'MEDIUM' | 'HIGH';
+
+/** Perfil KYC de un cliente (de `GET /kyc/:clientId`). */
+export interface KycProfile {
+  id: string;
+  clientId: string;
+  status: KycStatus;
+  risk: KycRisk;
+  isPep: boolean;
+  identityVerified: boolean;
+  sanctionsChecked: boolean;
+  notes: string | null;
+  reviewedAt: string | null;
+}
+
+/** Fila del panel AML (de `GET /kyc`). */
+export interface KycOverviewRow {
+  clientId: string;
+  name: string;
+  taxId: string;
+  status: KycStatus;
+  risk: KycRisk | null;
+  isPep: boolean;
+  reviewedAt: string | null;
+}
+
+/** Resumen del panel AML (de `GET /kyc/summary`). */
+export interface KycSummary {
+  total: number;
+  byStatus: Record<KycStatus, number>;
+  highRisk: number;
+  pep: number;
+}
+
+// ── Informes (Fase 4) ─────────────────────────────────────────────────────────
+export interface AgedReceivables {
+  currency: string;
+  totalOutstanding: number;
+  buckets: { current: number; d1_30: number; d31_60: number; d60plus: number };
+  items: {
+    number: string;
+    client: string;
+    currency: string;
+    dueDate: string | null;
+    outstanding: number;
+    daysOverdue: number;
+  }[];
+}
+
+export interface TimeByLawyerRow {
+  lawyerId: string;
+  name: string;
+  hours: number;
+  amount: number;
+  billedPct: number;
+}
+
 /** Plantilla de documento del despacho (de `GET /templates`). `tokens` = marcadores del cuerpo. */
 export interface DocumentTemplate {
   id: string;

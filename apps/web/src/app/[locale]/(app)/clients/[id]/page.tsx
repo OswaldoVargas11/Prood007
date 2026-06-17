@@ -28,6 +28,7 @@ import { formatDate, formatMoney } from '@/lib/format';
 import { ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/lexora/status-badge';
 import { AdminResetPasswordButton } from '@/components/lexora/admin-reset-password';
+import { KycCard } from '@/components/lexora/kyc-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -198,6 +199,9 @@ export default function ClientProfilePage() {
 
           {/* RGPD: exportar / anonimizar — solo FIRM_ADMIN (el backend también lo restringe). */}
           <GdprCard client={client} />
+
+          {/* KYC/AML: diligencia debida del cliente (prevención de blanqueo). */}
+          <KycCard clientId={client.id} />
         </div>
         <GrantPortalDialog client={client} open={granting} onClose={() => setGranting(false)} />
 
