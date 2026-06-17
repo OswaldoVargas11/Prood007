@@ -509,6 +509,11 @@ model Task {
   // true si dueDate proviene de getProceduralDeadlines (vínculo a plazo procesal).
   isProcedural Boolean    @default(false)
   assigneeId   String?
+  // Deduplicación de recordatorios de plazo: la fecha límite para la que ya se avisó y la ventana
+  // más urgente (días de antelación) ya notificada. Si dueDate cambia, el avisador detecta el desfase
+  // y vuelve a avisar; sólo se notifica una ventana más urgente (menor) que la última registrada.
+  lastRemindedForDueDate DateTime?
+  lastReminderWindow     Int?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
