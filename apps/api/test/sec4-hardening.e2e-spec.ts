@@ -1,5 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { SystemPrismaService } from '../src/prisma/prisma.service';
@@ -21,7 +22,12 @@ describe('SEC4 hardening (e2e)', () => {
   let userId: string;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    // El rate-limiting del login ya se prueba en security.e2e-spec; aquí lo desactivamos para poder
+    // hacer varios logins seguidos sin chocar con el throttler (10/min) en una sola suite.
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideGuard(ThrottlerGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(createValidationPipe());
     app.setGlobalPrefix('api');
@@ -163,14 +169,24 @@ describe('SEC4 hardening (e2e)', () => {
     await resetLockState();
   });
 
-  it('lockout: 5 fallos bloquean la cuenta; con clave correcta sigue 401 hasta expirar', async () => {
-    await resetLockState();
-    for (let i = 0; i < 5; i++) {
-      await request(server())
-        .post('/api/auth/login')
-        .send({ email, password: 'mala-clave' })
-        .expect(401);
-    }
+  it('lockout: el 5º fallo bloquea la cuenta; con clave correcta sigue 401 hasta expirar', async () => {
+    // El login está limitado (throttler 10/min): sembramos 4 fallos previos en BD y disparamos el 5º
+    // por HTTP. Así verificamos el umbral real (MAX_FAILED_ATTEMPTS = 5) con una sola petición.
+    await system.user.update({
+      where: { id: userId },
+      data: { failedLoginAttempts: 4, lockedUntil: null },
+    });
+
+    // 5º fallo consecutivo → fija el bloqueo (y reinicia el contador a 0).
+    await request(server())
+      .post('/api/auth/login')
+      .send({ email, password: 'mala-clave' })
+      .expect(401);
+
+    const u = await system.user.findUniqueOrThrow({ where: { id: userId } });
+    expect(u.lockedUntil).not.toBeNull();
+    expect(u.lockedUntil!.getTime()).toBeGreaterThan(Date.now());
+    expect(u.failedLoginAttempts).toBe(0);
 
     // Ya bloqueada: incluso con la clave correcta → 401 accountLocked.
     const locked = await request(server())
@@ -178,11 +194,6 @@ describe('SEC4 hardening (e2e)', () => {
       .send({ email, password })
       .expect(401);
     expect(locked.body.messageKey).toBe('auth.accountLocked');
-
-    // Estado en BD: bloqueo en el futuro y contador reiniciado al fijar el lock.
-    const u = await system.user.findUniqueOrThrow({ where: { id: userId } });
-    expect(u.lockedUntil).not.toBeNull();
-    expect(u.lockedUntil!.getTime()).toBeGreaterThan(Date.now());
 
     // Simulamos la expiración del bloqueo (no esperamos 15 min reales) y comprobamos que entra.
     await resetLockState();

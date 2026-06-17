@@ -29,6 +29,10 @@ export class HibpService {
     return this.config.get<string>('HIBP_ENABLED') === 'true';
   }
 
+  // NOTA DE SEGURIDAD: SHA-1 aquí NO es un hash de almacenamiento de credenciales (eso es argon2,
+  // ver hashPassword). Es el digest EXIGIDO por el protocolo k-anonymity de HIBP: solo se envían los
+  // 5 primeros hex del SHA-1 para no revelar la contraseña. No procede argon2/bcrypt ni "salting".
+  // codeql[js/insufficient-password-hash]
   private sha1Upper(value: string): string {
     return createHash('sha1').update(value, 'utf8').digest('hex').toUpperCase();
   }

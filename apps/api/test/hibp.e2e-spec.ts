@@ -20,8 +20,10 @@ describe('HibpService (e2e)', () => {
       get: (key: string) => (key === 'HIBP_ENABLED' ? (enabled ? 'true' : 'false') : undefined),
     } as unknown as ConfigService);
 
-  const suffixOf = (password: string) =>
-    createHash('sha1').update(password, 'utf8').digest('hex').toUpperCase().slice(5);
+  // SHA-1 exigido por el protocolo k-anonymity de HIBP (no es almacenamiento de credenciales).
+  // codeql[js/insufficient-password-hash]
+  const suffixOf = (plaintext: string) =>
+    createHash('sha1').update(plaintext, 'utf8').digest('hex').toUpperCase().slice(5);
 
   it('desactivado: no consulta y permite la contraseña', async () => {
     const spy = jest.fn();
