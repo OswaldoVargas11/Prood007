@@ -468,6 +468,32 @@ export interface MatterDocument {
   versions: DocumentVersion[];
 }
 
+// ── Firma electrónica (Signaturit, Fase 5) ────────────────────────────────────
+export type SignatureStatus =
+  | 'PENDING'
+  | 'SIGNED'
+  | 'DECLINED'
+  | 'EXPIRED'
+  | 'CANCELED'
+  | 'STUBBED';
+
+export interface SignatureRequest {
+  id: string;
+  documentId: string;
+  versionId: string;
+  matterId: string;
+  provider: string;
+  externalId: string;
+  status: SignatureStatus;
+  signerName: string;
+  signerEmail: string;
+  signUrl: string | null;
+  detail: string | null;
+  requestedAt: string;
+  completedAt: string | null;
+  createdAt: string;
+}
+
 // ── KYC / AML (Fase 4) ────────────────────────────────────────────────────────
 export type KycStatus = 'PENDING' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
 export type KycRisk = 'LOW' | 'MEDIUM' | 'HIGH';

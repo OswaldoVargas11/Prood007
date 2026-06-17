@@ -11,6 +11,7 @@ import { docStatusVariant, formatBytes, mimeLabel } from '@/lib/doc-status';
 import { formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SignaturePanel } from '@/components/lexora/signature-panel';
 import { cn } from '@/lib/utils';
 import type { DocumentVersion, MatterDocument } from '@/lib/types';
 
@@ -209,6 +210,7 @@ export default function MatterDocumentsPage() {
                   <Download className="size-3.5" />
                   {t('download')}
                 </button>
+                <SignaturePanel documentId={selected.id} latestVersionId={latest.id} />
               </div>
             )}
           </div>

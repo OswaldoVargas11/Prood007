@@ -43,6 +43,7 @@ import type {
   Notification,
   Paginated,
   PaymentConfig,
+  SignatureRequest,
   PortalInvoice,
   ProvisionKind,
   RetainerAccount,
@@ -217,6 +218,33 @@ export function useReviewVersion(matterId: string) {
       comment?: string;
     }) => api.post(`/documents/versions/${versionId}/review`, { status, comment }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', matterId] }),
+  });
+}
+
+// ── Firma electrónica (Signaturit, Fase 5) ────────────────────────────────────
+
+export function useDocumentSignatures(documentId: string | null) {
+  return useQuery({
+    queryKey: ['signatures', 'document', documentId],
+    queryFn: () => api.get<SignatureRequest[]>(`/signatures/by-document/${documentId}`),
+    enabled: !!documentId,
+  });
+}
+
+export function useRequestSignature(documentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { versionId: string; signerName: string; signerEmail: string }) =>
+      api.post<SignatureRequest>('/signatures', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['signatures', 'document', documentId] }),
+  });
+}
+
+export function useCancelSignature(documentId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post<SignatureRequest>(`/signatures/${id}/cancel`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['signatures', 'document', documentId] }),
   });
 }
 

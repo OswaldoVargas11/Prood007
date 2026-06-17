@@ -1002,6 +1002,26 @@
     "client": "Cliente",
     "flags": "Alertas"
   },
+  "signatures": {
+    "title": "Firma electrónica",
+    "request": "Solicitar firma",
+    "signerName": "Nombre del firmante",
+    "signerEmail": "Correo del firmante",
+    "send": "Enviar a firmar",
+    "cancel": "Cancelar",
+    "cancelRequest": "Cancelar solicitud",
+    "loading": "Cargando firmas…",
+    "empty": "Sin solicitudes de firma.",
+    "error": "No se pudo solicitar la firma.",
+    "statuses": {
+      "PENDING": "Pendiente de firma",
+      "STUBBED": "Pendiente de firma",
+      "SIGNED": "Firmado",
+      "DECLINED": "Rechazado",
+      "EXPIRED": "Vencido",
+      "CANCELED": "Cancelado"
+    }
+  },
   "reports": {
     "title": "Informes",
     "subtitle": "Indicadores de gestión del despacho. Exportables a CSV.",

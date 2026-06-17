@@ -15,6 +15,7 @@ import { ClientsModule } from './clients/clients.module';
 import { MattersModule } from './matters/matters.module';
 import { DocumentsModule } from './documents/documents.module';
 import { TemplatesModule } from './templates/templates.module';
+import { SignaturesModule } from './signatures/signatures.module';
 import { KycModule } from './kyc/kyc.module';
 import { ReportsModule } from './reports/reports.module';
 import { TasksModule } from './tasks/tasks.module';
@@ -47,6 +48,7 @@ import { HealthController } from './health.controller';
     ClientsModule,
     MattersModule,
     DocumentsModule,
+    SignaturesModule,
     TemplatesModule,
     KycModule,
     ReportsModule,

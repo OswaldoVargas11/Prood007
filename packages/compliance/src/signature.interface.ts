@@ -1,0 +1,115 @@
+/**
+ * SignatureProvider — frontera de FIRMA ELECTRÓNICA del documento ante el proveedor (Signaturit).
+ *
+ * Separa el documento del despacho (ya generado/subido) de su firma cualificada, que requiere red,
+ * credenciales y la plataforma del proveedor, y por tanto vive detrás de su propia interfaz
+ * enchufable. En el MVP cubrimos **Signaturit** (firma electrónica avanzada/cualificada, eIDAS),
+ * pluggable a DocuSign u otros sin tocar el núcleo.
+ *
+ * ───────────────────────────────────────────────────────────────────────────────────────────────
+ * PUNTO DE INTEGRACIÓN: aquí se enchufa el cliente real. Hoy la implementación es un STUB que NO
+ * transmite (`requestSignature` devuelve `status: 'STUBBED'`), pero respeta la FORMA EXACTA del
+ * cliente real:
+ *   · firma de los métodos (`requestSignature` / `getStatus` / `cancel`),
+ *   · idempotencia por `externalId` (misma versión de documento → mismo identificador, sin doble alta),
+ *   · verificación de la firma HMAC del webhook entrante (la plataforma confirma la firma por callback).
+ * Para activar el envío real basta sustituir el cuerpo por el cliente HTTP de Signaturit; ni el núcleo
+ * (`apps/api`) ni la UI necesitan cambiar.
+ * ───────────────────────────────────────────────────────────────────────────────────────────────
+ */
+
+/** Estados del ciclo de vida de una solicitud de firma. */
+export type SignatureStatus =
+  /** No transmitido (no hay cliente real conectado); la solicitud queda creada como PENDING. */
+  | 'STUBBED'
+  /** Solicitada; a la espera de que el firmante actúe. */
+  | 'PENDING'
+  /** Firmada por el destinatario. */
+  | 'SIGNED'
+  /** Rechazada por el destinatario. */
+  | 'DECLINED'
+  /** Caducada sin firmar. */
+  | 'EXPIRED'
+  /** Cancelada por el despacho. */
+  | 'CANCELED';
+
+/** Datos mínimos para iniciar una solicitud de firma de una versión concreta de documento. */
+export interface SignatureRequestInput {
+  /**
+   * Identificador interno estable de lo que se firma (id de la versión del documento). Se usa para
+   * derivar un `externalId` determinista, de modo que reintentar no genere una doble solicitud.
+   */
+  reference: string;
+  /** Nombre legible del documento (asunto del envío al firmante). */
+  documentName: string;
+  /** Nombre del firmante. */
+  signerName: string;
+  /** Email del firmante (destino del envío). */
+  signerEmail: string;
+}
+
+/**
+ * Resultado de un intento ante el proveedor de firma. Forma EXACTA que devolverá el cliente real
+ * cuando se enchufe la transmisión; en el MVP `requestSignature` devuelve `STUBBED` pero con todos
+ * los campos poblados para que el seam del núcleo no cambie al activar el envío.
+ */
+export interface SignatureResult {
+  status: SignatureStatus;
+  /** Detalle legible (mensaje del proveedor o nota del stub). */
+  detail?: string;
+  /** Identificador asignado por el proveedor a la solicitud (idempotencia + consulta posterior). */
+  externalId?: string;
+  /** URL de firma para el destinatario (en el stub, un enlace determinista de Signaturit). */
+  signUrl?: string;
+  /** Marca de tiempo del intento (ISO 8601). */
+  timestamp?: string;
+}
+
+/** Evento normalizado del webhook del proveedor (tras verificar la firma HMAC del callback). */
+export interface SignatureWebhookEvent {
+  /** Identificador del proveedor de la solicitud afectada. */
+  externalId: string;
+  /**
+   * Tenant al que pertenece la solicitud. La ruta del webhook es PÚBLICA (la llama el proveedor, no
+   * un usuario autenticado): el tenant NO sale de un usuario sino del evento FIRMADO, igual que el
+   * webhook de cobros. Se adjunta como metadato en la solicitud original y la plataforma lo devuelve.
+   */
+  tenantId: string;
+  /** Nuevo estado de la solicitud (SIGNED/DECLINED/EXPIRED/CANCELED/PENDING). */
+  status: SignatureStatus;
+  detail?: string;
+}
+
+export interface SignatureProvider {
+  /** Proveedor que cubre este adaptador: "SIGNATURIT". Identifica el sistema en logs y persistencia. */
+  readonly provider: string;
+
+  /**
+   * Inicia (o reinicia) una solicitud de firma y devuelve el resultado del intento.
+   * Idempotente por `externalId` (misma `reference` → mismo identificador).
+   */
+  requestSignature(input: SignatureRequestInput): Promise<SignatureResult>;
+
+  /** Consulta el estado de una solicitud previa por su identificador del proveedor. */
+  getStatus(externalId: string): Promise<SignatureResult>;
+
+  /** Cancela una solicitud en curso. */
+  cancel(externalId: string): Promise<SignatureResult>;
+
+  /**
+   * Verifica la firma HMAC-SHA256 del cuerpo CRUDO del webhook entrante contra el secreto compartido.
+   * Devuelve `false` (nunca lanza) si falta el secreto/firma o no coincide; comparación en tiempo
+   * constante para no filtrar información por temporización.
+   */
+  verifyWebhook(
+    rawBody: string,
+    signature: string | undefined,
+    secret: string | undefined,
+  ): boolean;
+
+  /** Normaliza el cuerpo del webhook del proveedor a un evento interno; `null` si es inválido. */
+  parseWebhook(rawBody: string): SignatureWebhookEvent | null;
+}
+
+/** Token de inyección (Nest) para resolver el proveedor de firma configurado. */
+export const SIGNATURE_PROVIDER = Symbol('SIGNATURE_PROVIDER');
