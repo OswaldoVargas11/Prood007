@@ -28,7 +28,14 @@ END $$;
 
 -- Atributos deseados (defensivo, por si el rol existiera con otros): puede saltarse RLS, pero NO es
 -- superusuario y no puede crear roles/bases. La contraseña por defecto es solo para dev/CI.
-ALTER ROLE legalflow_system NOSUPERUSER BYPASSRLS NOCREATEROLE NOCREATEDB;
+-- En Postgres GESTIONADO (Neon) no se puede tocar el atributo SUPERUSER; el rol ya se creó con
+-- BYPASSRLS arriba, así que ignoramos el error de privilegio (en self-managed se aplica igual).
+DO $$
+BEGIN
+  ALTER ROLE legalflow_system NOSUPERUSER BYPASSRLS NOCREATEROLE NOCREATEDB;
+EXCEPTION WHEN insufficient_privilege THEN
+  NULL;
+END $$;
 
 GRANT USAGE ON SCHEMA public TO legalflow_system;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO legalflow_system;

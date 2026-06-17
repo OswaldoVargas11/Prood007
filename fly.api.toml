@@ -1,0 +1,27 @@
+# Fly.io — API NestJS (Lawzora). Build desde la raíz del monorepo con apps/api/Dockerfile.
+# Deploy:  flyctl deploy --config fly.api.toml --remote-only
+app = "lawzora-api"
+primary_region = "fra"
+
+[build]
+  dockerfile = "apps/api/Dockerfile"
+
+[http_service]
+  internal_port = 4000
+  force_https = true
+  # El cron (dunning/plazos) vive en la API → SIEMPRE encendida y 1 sola instancia
+  # (varias réplicas duplicarían los avisos).
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "3s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

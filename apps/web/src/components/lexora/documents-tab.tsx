@@ -14,6 +14,7 @@ import {
 } from '@/lib/hooks';
 import { docStatusVariant, formatBytes, REVIEW_ACTIONS } from '@/lib/doc-status';
 import { formatDateTime } from '@/lib/format';
+import { SignaturePanel } from '@/components/lexora/signature-panel';
 import type { DocumentReviewStatus, DocumentVersion, MatterDocument } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -153,6 +154,7 @@ export function DocumentsTab({ matterId }: { matterId: string }) {
                     </div>
                   ))}
                 </div>
+                {latest && <SignaturePanel documentId={doc.id} latestVersionId={latest.id} />}
               </CardContent>
             </Card>
           );

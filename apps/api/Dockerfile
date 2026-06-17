@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 # Dockerfile de la API (NestJS). Build multi-stage en monorepo pnpm.
 FROM node:20-alpine AS base
-RUN corepack enable
+# openssl: Prisma lo necesita para detectar libssl en Alpine (si falta, avisa y puede fallar).
+RUN apk add --no-cache openssl && corepack enable
 WORKDIR /repo
 
 # ── deps: instala dependencias del workspace ──
@@ -9,6 +10,8 @@ FROM base AS deps
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml* ./
 COPY packages ./packages
 COPY apps/api/package.json ./apps/api/package.json
+# El postinstall de la API ejecuta `prisma generate`, que necesita el schema → copiarlo antes.
+COPY apps/api/prisma ./apps/api/prisma
 RUN pnpm install --frozen-lockfile || pnpm install
 
 # ── build ──
