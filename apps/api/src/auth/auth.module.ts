@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { TokensService } from './tokens.service';
 import { PasswordResetService } from './password-reset.service';
+import { HibpService } from './hibp.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -18,6 +19,7 @@ import { MAIL_PROVIDER, NoopMailProvider } from './mail/mail.provider';
     AuthService,
     TokensService,
     PasswordResetService,
+    HibpService,
     JwtStrategy,
     // Proveedor de correo: stub por defecto (no envía). Sustituible por SMTP/Resend bajo el token.
     { provide: MAIL_PROVIDER, useClass: NoopMailProvider },
@@ -25,6 +27,6 @@ import { MAIL_PROVIDER, NoopMailProvider } from './mail/mail.provider';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
-  exports: [AuthService, TokensService],
+  exports: [AuthService, TokensService, HibpService],
 })
 export class AuthModule {}

@@ -257,8 +257,13 @@ model User {
   passwordHash String
   fullName     String
   isActive     Boolean  @default(true)
-  // Momento del último cambio de contraseña (auditoría + base para invalidación futura de tokens).
+  // Momento del último cambio de contraseña (auditoría + invalidación inmediata de access tokens, SEC4).
   passwordChangedAt DateTime?
+  // Lockout por cuenta (SEC4): contador de fallos consecutivos y, en su caso, fin del bloqueo.
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  // Obliga a cambiar la contraseña en el próximo acceso (alta por staff/portal o reset por admin, SEC4).
+  mustChangePassword  Boolean   @default(false)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

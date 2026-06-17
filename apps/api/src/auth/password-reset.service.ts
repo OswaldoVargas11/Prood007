@@ -5,6 +5,7 @@ import * as argon2 from 'argon2';
 import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { TokensService } from './tokens.service';
+import { HibpService } from './hibp.service';
 import { MAIL_PROVIDER, type MailProvider } from './mail/mail.provider';
 import { apiError } from '../common/api-messages';
 import type { RequestUser } from './auth.types';
@@ -26,6 +27,7 @@ export class PasswordResetService {
     private readonly system: SystemPrismaService,
     private readonly tokens: TokensService,
     private readonly audit: AuditService,
+    private readonly hibp: HibpService,
     private readonly config: ConfigService,
     @Inject(MAIL_PROVIDER) private readonly mail: MailProvider,
   ) {}
@@ -69,6 +71,11 @@ export class PasswordResetService {
       ADMIN_RESET_TTL_MS,
       actor.userId,
     );
+    // El usuario destino deberá fijar una contraseña propia al aplicar el reset (SEC4).
+    await this.prisma.user.update({
+      where: { id: target.id },
+      data: { mustChangePassword: true },
+    });
     await this.audit.log(actor, 'user.password_reset_issued', 'User', target.id);
     return { token, resetLink: this.resetLink(token), expiresAt, email: target.email };
   }
@@ -101,11 +108,13 @@ export class PasswordResetService {
     if (!row || row.usedAt || row.expiresAt.getTime() < Date.now()) {
       throw new BadRequestException(apiError('auth.resetInvalid'));
     }
+    await this.hibp.assertNotBreached(newPassword);
 
     const passwordHash = await argon2.hash(newPassword);
     await this.system.user.update({
       where: { id: row.userId },
-      data: { passwordHash, passwordChangedAt: new Date() },
+      // Fijar la contraseña propia limpia la obligación de cambio (SEC4).
+      data: { passwordHash, passwordChangedAt: new Date(), mustChangePassword: false },
     });
     await this.system.passwordReset.update({
       where: { id: row.id },
