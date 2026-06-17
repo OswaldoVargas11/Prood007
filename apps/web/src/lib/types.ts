@@ -468,6 +468,17 @@ export interface MatterDocument {
   versions: DocumentVersion[];
 }
 
+/** Plantilla de documento del despacho (de `GET /templates`). `tokens` = marcadores del cuerpo. */
+export interface DocumentTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  body: string;
+  tokens?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Una revisión registrada sobre una versión (de `GET /documents/:id`). */
 export interface DocumentReview {
   id: string;

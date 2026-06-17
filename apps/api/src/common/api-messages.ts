@@ -170,6 +170,12 @@ export const API_MESSAGES = {
     'es-DO': 'Solo abogados o administradores pueden revisar documentos.',
   },
 
+  // ── Plantillas de documento ───────────────────────────────────────────────
+  'templates.notFound': {
+    'es-ES': 'Plantilla no encontrada.',
+    'es-DO': 'Plantilla no encontrada.',
+  },
+
   // ── Ledger / Facturación ──────────────────────────────────────────────────
   'ledger.manualTypeNotAllowed': {
     'es-ES': 'Tipo de apunte no permitido manualmente.',

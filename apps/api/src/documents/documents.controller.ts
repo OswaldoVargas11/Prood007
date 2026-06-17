@@ -14,6 +14,7 @@ import { Role } from '@legalflow/domain';
 import { DocumentsService } from './documents.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { ReviewDocumentDto } from './dto/review-document.dto';
+import { GenerateFromTemplateDto } from './dto/generate-from-template.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -52,6 +53,12 @@ export class DocumentsController {
     @UploadedFile() file: MulterFile,
   ) {
     return this.documents.addVersion(user, id, file);
+  }
+
+  /** Genera un documento en el expediente a partir de una plantilla (campos combinados). */
+  @Post('from-template')
+  generateFromTemplate(@CurrentUser() user: RequestUser, @Body() dto: GenerateFromTemplateDto) {
+    return this.documents.generateFromTemplate(user, dto);
   }
 
   @Get('by-matter/:matterId')
