@@ -2,12 +2,14 @@
 
 import { useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Download, FileText, Loader2, Plus, Upload } from 'lucide-react';
+import { Download, FileText, LayoutTemplate, Loader2, Plus, Upload } from 'lucide-react';
 import {
   downloadVersion,
   useAddDocumentVersion,
+  useGenerateFromTemplate,
   useMatterDocuments,
   useReviewVersion,
+  useTemplates,
   useUploadDocument,
 } from '@/lib/hooks';
 import { docStatusVariant, formatBytes, REVIEW_ACTIONS } from '@/lib/doc-status';
@@ -42,6 +44,7 @@ export function DocumentsTab({ matterId }: { matterId: string }) {
   const versionFileRef = useRef<HTMLInputElement>(null);
   const [versionFor, setVersionFor] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<DocumentVersion | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   function onNewFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -59,10 +62,16 @@ export function DocumentsTab({ matterId }: { matterId: string }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
-        <Button size="sm" onClick={() => newFileRef.current?.click()} disabled={upload.isPending}>
-          {upload.isPending ? <Loader2 className="animate-spin" /> : <Upload />}
-          {t('upload')}
-        </Button>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={() => setGenerating(true)}>
+            <LayoutTemplate />
+            {t('fromTemplate')}
+          </Button>
+          <Button size="sm" onClick={() => newFileRef.current?.click()} disabled={upload.isPending}>
+            {upload.isPending ? <Loader2 className="animate-spin" /> : <Upload />}
+            {t('upload')}
+          </Button>
+        </div>
         <input ref={newFileRef} type="file" className="hidden" onChange={onNewFile} />
         <input ref={versionFileRef} type="file" className="hidden" onChange={onVersionFile} />
       </div>
@@ -150,7 +159,85 @@ export function DocumentsTab({ matterId }: { matterId: string }) {
         })}
 
       <ReviewDialog matterId={matterId} version={reviewing} onClose={() => setReviewing(null)} />
+      <GenerateDialog matterId={matterId} open={generating} onClose={() => setGenerating(false)} />
     </div>
+  );
+}
+
+/** Diálogo para generar un documento a partir de una plantilla del despacho. */
+function GenerateDialog({
+  matterId,
+  open,
+  onClose,
+}: {
+  matterId: string;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const t = useTranslations('documents');
+  const { data: templates, isLoading } = useTemplates();
+  const generate = useGenerateFromTemplate(matterId);
+  const [templateId, setTemplateId] = useState('');
+  const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    setError(null);
+    try {
+      await generate.mutateAsync({ templateId, name: name.trim() || undefined });
+      setTemplateId('');
+      setName('');
+      onClose();
+    } catch {
+      setError(t('generateError'));
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('generateTitle')}</DialogTitle>
+          <DialogDescription>{t('generateSubtitle')}</DialogDescription>
+        </DialogHeader>
+        {isLoading ? (
+          <Skeleton className="h-9 w-full" />
+        ) : templates && templates.length > 0 ? (
+          <div className="space-y-3">
+            <select
+              value={templateId}
+              onChange={(e) => setTemplateId(e.target.value)}
+              className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">{t('chooseTemplate')}</option>
+              {templates.map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>
+                  {tpl.name}
+                </option>
+              ))}
+            </select>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t('docNameOptional')}
+              className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">{t('noTemplates')}</p>
+        )}
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={onClose}>
+            {t('cancel')}
+          </Button>
+          <Button size="sm" onClick={submit} disabled={!templateId || generate.isPending}>
+            {generate.isPending && <Loader2 className="animate-spin" />}
+            {t('generate')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

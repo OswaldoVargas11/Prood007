@@ -14,6 +14,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ClientsModule } from './clients/clients.module';
 import { MattersModule } from './matters/matters.module';
 import { DocumentsModule } from './documents/documents.module';
+import { TemplatesModule } from './templates/templates.module';
 import { TasksModule } from './tasks/tasks.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -44,6 +45,7 @@ import { HealthController } from './health.controller';
     ClientsModule,
     MattersModule,
     DocumentsModule,
+    TemplatesModule,
     TasksModule,
     LedgerModule,
     PaymentsModule,

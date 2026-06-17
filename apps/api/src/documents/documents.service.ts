@@ -13,6 +13,7 @@ import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { apiError } from '../common/api-messages';
+import { renderTemplate, type TemplateContext } from '../templates/render';
 import type { RequestUser } from '../auth/auth.types';
 
 interface UploadedFile {
@@ -20,6 +21,28 @@ interface UploadedFile {
   mimetype: string;
   size: number;
   buffer: Buffer;
+}
+
+/** Escapa caracteres HTML para insertar texto del despacho en el `<title>` de forma segura. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** Convierte un nombre en un slug seguro para el nombre de archivo. */
+function slugify(value: string): string {
+  return (
+    value
+      .normalize('NFD')
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .toLowerCase()
+      .slice(0, 80) || 'documento'
+  );
 }
 
 @Injectable()
@@ -77,6 +100,68 @@ export class DocumentsService {
     });
     const version = await this.persistVersion(user, document.id, 1, file);
     await this.audit.log(user, 'document.uploaded', 'Document', document.id, { version: 1 });
+    return { document, version };
+  }
+
+  /**
+   * Genera un documento en el expediente a partir de una plantilla del despacho, sustituyendo los
+   * marcadores {{campo}} con datos del cliente/expediente/despacho. El resultado se guarda como un
+   * Document + versión 1 (HTML), pasando por el mismo pipeline cifrado que una subida normal.
+   */
+  async generateFromTemplate(
+    user: RequestUser,
+    input: { templateId: string; matterId: string; name?: string },
+  ) {
+    await this.assertMatterInTenant(user, input.matterId);
+
+    const template = await this.prisma.documentTemplate.findFirst({
+      where: { id: input.templateId, tenantId: user.tenantId },
+    });
+    if (!template) throw new NotFoundException(apiError('templates.notFound'));
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { id: input.matterId, tenantId: user.tenantId },
+      include: { client: { select: { name: true, taxId: true, email: true, address: true } } },
+    });
+    if (!matter) throw new BadRequestException(apiError('matters.notInFirm'));
+    const tenant = await this.prisma.tenant.findFirst({ where: { id: user.tenantId } });
+
+    const context: TemplateContext = {
+      'cliente.nombre': matter.client.name,
+      'cliente.nif': matter.client.taxId,
+      'cliente.email': matter.client.email ?? '',
+      'cliente.direccion': matter.client.address ?? '',
+      'expediente.referencia': matter.reference,
+      'expediente.titulo': matter.title,
+      'expediente.tipo': matter.type,
+      'despacho.nombre': tenant?.name ?? '',
+      'despacho.nif': tenant?.taxId ?? '',
+      fecha: new Date().toLocaleDateString('es-ES'),
+    };
+
+    const rendered = renderTemplate(template.body, context);
+    const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(
+      template.name,
+    )}</title></head><body>${rendered}</body></html>`;
+    const buffer = Buffer.from(html, 'utf8');
+    const file: UploadedFile = {
+      originalname: `${slugify(input.name?.trim() || template.name)}.html`,
+      mimetype: 'text/html',
+      size: buffer.length,
+      buffer,
+    };
+
+    const document = await this.prisma.document.create({
+      data: {
+        tenantId: user.tenantId,
+        matterId: input.matterId,
+        name: input.name?.trim() || template.name,
+      },
+    });
+    const version = await this.persistVersion(user, document.id, 1, file);
+    await this.audit.log(user, 'document.generated_from_template', 'Document', document.id, {
+      templateId: template.id,
+    });
     return { document, version };
   }
 

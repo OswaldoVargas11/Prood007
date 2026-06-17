@@ -21,6 +21,7 @@ import type {
   DunningReminder,
   DunningRunSummary,
   DocumentDetail,
+  DocumentTemplate,
   DocumentReviewStatus,
   FirmSettings,
   Invoice,
@@ -210,6 +211,57 @@ export function useReviewVersion(matterId: string) {
       status: DocumentReviewStatus;
       comment?: string;
     }) => api.post(`/documents/versions/${versionId}/review`, { status, comment }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', matterId] }),
+  });
+}
+
+// ── Plantillas de documento (Fase 3) ─────────────────────────────────────────
+export function useTemplates() {
+  return useQuery({
+    queryKey: ['templates'],
+    queryFn: () => api.get<DocumentTemplate[]>('/templates'),
+  });
+}
+
+export function useCreateTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; description?: string; body: string }) =>
+      api.post<DocumentTemplate>('/templates', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+  });
+}
+
+export function useUpdateTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      name?: string;
+      description?: string;
+      body?: string;
+    }) => api.patch<DocumentTemplate>(`/templates/${id}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+  });
+}
+
+export function useDeleteTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del(`/templates/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+  });
+}
+
+/** Genera un documento en un expediente a partir de una plantilla (refresca los documentos). */
+export function useGenerateFromTemplate(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { templateId: string; name?: string }) =>
+      api.post<MatterDocument>('/documents/from-template', { ...body, matterId }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', matterId] }),
   });
 }

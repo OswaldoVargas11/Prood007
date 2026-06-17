@@ -5,6 +5,7 @@ import {
   CheckSquare,
   Clock,
   FileText,
+  LayoutTemplate,
   LayoutDashboard,
   MessageSquare,
   Receipt,
@@ -47,6 +48,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: 'tasks', href: '/tasks', icon: CheckSquare, enabled: true },
       { key: 'time', href: '/time', icon: Clock, enabled: true },
       { key: 'documents', href: '/documents', icon: FileText, enabled: true },
+      { key: 'templates', href: '/templates', icon: LayoutTemplate, enabled: true },
     ],
   },
   {

@@ -234,6 +234,7 @@ model Tenant {
   clients             Client[]
   matters             Matter[]
   documents           Document[]
+  documentTemplates   DocumentTemplate[]
   tasks               Task[]
   timeEntries         TimeEntry[]
   ledgerEntries       LedgerEntry[]
@@ -449,6 +450,23 @@ model Document {
 
   @@index([tenantId])
   @@index([tenantId, matterId])
+}
+
+// Plantilla de documento del despacho (contrato/escrito) con campos combinados {{cliente.nombre}}…
+// Tenant-scoped con RLS (la migración activa ENABLE/FORCE + política fail-closed). Ver Fase 3.
+model DocumentTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  // Cuerpo con marcadores {{campo}} que se sustituyen al generar (cliente/expediente/despacho).
+  body        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 model DocumentVersion {

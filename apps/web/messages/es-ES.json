@@ -25,7 +25,8 @@
       "finance": "Finanzas",
       "comms": "Comunicación",
       "admin": "Despacho"
-    }
+    },
+    "templates": "Plantillas"
   },
   "time": {
     "title": "Tiempo",
@@ -450,7 +451,37 @@
       "APPROVED": "Aprobado",
       "REJECTED": "Rechazado",
       "CHANGES_REQUESTED": "Cambios solicitados"
-    }
+    },
+    "fromTemplate": "Generar desde plantilla",
+    "generateTitle": "Generar documento desde plantilla",
+    "generateSubtitle": "Se crea un documento en el expediente con los datos del cliente y el expediente ya rellenados.",
+    "chooseTemplate": "Elige una plantilla…",
+    "docNameOptional": "Nombre del documento (opcional)",
+    "noTemplates": "Aún no hay plantillas. Créalas en la sección «Plantillas».",
+    "generate": "Generar",
+    "generateError": "No se pudo generar el documento.",
+    "cancel": "Cancelar"
+  },
+  "templates": {
+    "title": "Plantillas de documentos",
+    "subtitle": "Crea contratos y escritos con campos combinados que se rellenan al generarlos en un expediente.",
+    "new": "Nueva plantilla",
+    "empty": "Aún no tienes plantillas.",
+    "createFirst": "Crear la primera",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "confirmDelete": "¿Eliminar la plantilla «{name}»?",
+    "newTitle": "Nueva plantilla",
+    "editTitle": "Editar plantilla",
+    "dialogDesc": "Usa marcadores {{campo}} en el cuerpo; se sustituyen al generar el documento.",
+    "name": "Nombre",
+    "description": "Descripción",
+    "body": "Cuerpo",
+    "bodyPlaceholder": "Estimado/a {{cliente.nombre}}, en relación con el expediente {{expediente.referencia}}…",
+    "tokensHelp": "Pulsa un campo para insertarlo en el cuerpo:",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "saveError": "No se pudo guardar la plantilla."
   },
   "tasks": {
     "title": "Tareas",
