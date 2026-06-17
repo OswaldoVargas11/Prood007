@@ -153,6 +153,39 @@ export interface InvoiceRecord {
   submission: { status: 'STUBBED' | 'PENDING' | 'ACCEPTED' | 'REJECTED'; detail?: string };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Envío del registro fiscal al organismo (AEAT Verifactu · DGII e-CF)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Estados posibles del envío del registro fiscal al organismo. */
+export type SubmissionStatus = 'STUBBED' | 'PENDING' | 'ACCEPTED' | 'REJECTED';
+
+/**
+ * Resultado de un intento de envío del registro fiscal al organismo (AEAT/DGII).
+ *
+ * Esta es la FORMA EXACTA que devolverá el cliente real cuando se enchufe la transmisión:
+ *  - ES: alta del registro Verifactu vía SOAP/REST de la AEAT con certificado del despacho.
+ *  - RD: emisión del e-CF a la DGII (recepción + acuse + estado de aprobación).
+ *
+ * En el MVP las implementaciones devuelven `status: 'STUBBED'` (no transmitido), pero con
+ * todos los campos poblados que tendría la respuesta real, para que el seam del núcleo no
+ * cambie al activar la transmisión.
+ */
+export interface SubmissionResult {
+  /** Estado del envío. 'STUBBED' = no transmitido (no hay cliente real conectado). */
+  status: SubmissionStatus;
+  /** Detalle legible (clave i18n o mensaje del organismo). */
+  detail?: string;
+  /**
+   * Identificador asignado por el organismo al registro enviado (CSV de la AEAT · TrackId de la
+   * DGII). Permite consultar el estado más tarde (`getStatus`) e idempotencia entre reintentos.
+   * En el stub se deriva de forma determinista del `recordHash` para que sea estable.
+   */
+  externalId?: string;
+  /** Marca de tiempo del intento (ISO 8601). */
+  timestamp?: string;
+}
+
 export interface InvoiceTotals {
   /** Base imponible total (suma de líneas sin impuestos). */
   taxableBase: string;
