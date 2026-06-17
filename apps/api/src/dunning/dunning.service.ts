@@ -88,7 +88,7 @@ export class DunningService {
         dueDate: { not: null, lt: today },
         status: { notIn: SETTLED_STATUSES },
       },
-      include: { client: { select: { id: true, name: true } } },
+      include: { client: { select: { id: true, name: true, email: true } } },
     });
     summary.evaluated = invoices.length;
 
@@ -106,7 +106,7 @@ export class DunningService {
             currency: inv.currency,
             dueDate,
           },
-          { id: inv.client.id, name: inv.client.name },
+          { id: inv.client.id, name: inv.client.name, email: inv.client.email },
           rule,
           actor,
         );

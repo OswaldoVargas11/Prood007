@@ -7,7 +7,7 @@ export const DUNNING_CHANNELS = 'DUNNING_CHANNELS';
 export interface DunningDeliveryInput {
   tenantId: string;
   invoice: { id: string; number: string; total: string; currency: string; dueDate: Date | null };
-  client: { id: string; name: string };
+  client: { id: string; name: string; email?: string | null };
   severity: DunningSeverity;
   offsetDays: number;
 }
