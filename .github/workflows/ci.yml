@@ -182,6 +182,8 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      # gitleaks-action lista los commits del PR vía API; en repo PRIVADA el token lo exige.
+      pull-requests: read
     steps:
       - uses: actions/checkout@v6
         with:
