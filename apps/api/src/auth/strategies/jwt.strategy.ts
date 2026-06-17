@@ -47,11 +47,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     }
 
     // Corte por cambio de clave: si el token se emitió antes del último cambio, ya no vale.
-    // `iat` viene en segundos; `passwordChangedAt` en ms. Se compara con margen de 1s para evitar
-    // falsos positivos por el truncado a segundos del `iat`.
+    // `iat` viene en segundos (truncado); `passwordChangedAt` en ms. Comparamos a granularidad de
+    // segundo: el token es "viejo" solo si su segundo de emisión es ANTERIOR al segundo del cambio.
+    // Así nunca marcamos como viejo el par que se emite justo después de sellar `passwordChangedAt`
+    // (mismo segundo → válido), pero sí invalidamos cualquier access emitido en un segundo previo.
     if (payload.iat != null && user.passwordChangedAt) {
-      const issuedAtMs = payload.iat * 1000;
-      if (issuedAtMs + 1000 <= user.passwordChangedAt.getTime()) {
+      const changedAtSec = Math.floor(user.passwordChangedAt.getTime() / 1000);
+      if (payload.iat < changedAtSec) {
         throw new UnauthorizedException(apiError('auth.tokenStale'));
       }
     }

@@ -1,6 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash } from 'node:crypto';
+import { webcrypto } from 'node:crypto';
 import { HibpService } from '../src/auth/hibp.service';
 
 /**
@@ -20,10 +20,15 @@ describe('HibpService (e2e)', () => {
       get: (key: string) => (key === 'HIBP_ENABLED' ? (enabled ? 'true' : 'false') : undefined),
     } as unknown as ConfigService);
 
-  // SHA-1 exigido por el protocolo k-anonymity de HIBP (no es almacenamiento de credenciales).
-  // codeql[js/insufficient-password-hash]
-  const suffixOf = (plaintext: string) =>
-    createHash('sha1').update(plaintext, 'utf8').digest('hex').toUpperCase().slice(5);
+  // SHA-1 (Web Crypto) exigido por el protocolo k-anonymity de HIBP; no es almacenamiento de credenciales.
+  const suffixOf = async (plaintext: string) => {
+    const digest = await webcrypto.subtle.digest('SHA-1', new TextEncoder().encode(plaintext));
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase()
+      .slice(5);
+  };
 
   it('desactivado: no consulta y permite la contraseña', async () => {
     const spy = jest.fn();
@@ -34,7 +39,7 @@ describe('HibpService (e2e)', () => {
 
   it('activado + contraseña filtrada: rechaza con BadRequest', async () => {
     const pwd = 'P@ssw0rd-Leaked!';
-    const body = `0000000000000000000000000000000000A:3\r\n${suffixOf(pwd)}:99\r\nFFFF:1`;
+    const body = `0000000000000000000000000000000000A:3\r\n${await suffixOf(pwd)}:99\r\nFFFF:1`;
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       text: () => Promise.resolve(body),

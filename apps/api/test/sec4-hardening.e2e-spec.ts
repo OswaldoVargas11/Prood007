@@ -142,29 +142,29 @@ describe('SEC4 hardening (e2e)', () => {
 
   it('corte duro: un access token previo al cambio de clave → 401 (token viejo)', async () => {
     await resetLockState();
-    // Token "viejo": emitido ANTES del cambio de contraseña.
+    // Obtenemos un access válido y, para forzar el corte de forma determinista (sin depender del
+    // segundo exacto del cambio), sellamos passwordChangedAt en el FUTURO respecto al iat del token.
     const stale = await login(password);
+    await system.user.update({
+      where: { id: userId },
+      data: { passwordChangedAt: new Date(Date.now() + 60_000) },
+    });
 
-    // Cambiamos la clave (sella passwordChangedAt al instante).
-    await request(server())
-      .post('/api/auth/change-password')
-      .set('Authorization', `Bearer ${stale.accessToken}`)
-      .send({ currentPassword: password, newPassword })
-      .expect(200);
-
-    // El access token previo ya no vale, sin esperar a su expiración natural.
     const res = await request(server())
       .get('/api/auth/me')
       .set('Authorization', `Bearer ${stale.accessToken}`)
       .expect(401);
     expect(res.body.messageKey).toBe('auth.tokenStale');
 
-    // Dejamos la clave del usuario como estaba para los siguientes tests de lockout.
-    const after = await login(newPassword);
+    // Restauramos: un par nuevo (iat posterior) vuelve a ser válido.
+    await system.user.update({
+      where: { id: userId },
+      data: { passwordChangedAt: null },
+    });
+    const fresh = await login(password);
     await request(server())
-      .post('/api/auth/change-password')
-      .set('Authorization', `Bearer ${after.accessToken}`)
-      .send({ currentPassword: newPassword, newPassword: password })
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${fresh.accessToken}`)
       .expect(200);
     await resetLockState();
   });

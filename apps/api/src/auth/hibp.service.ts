@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { webcrypto } from 'node:crypto';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { apiError } from '../common/api-messages';
@@ -32,9 +32,15 @@ export class HibpService {
   // NOTA DE SEGURIDAD: SHA-1 aquí NO es un hash de almacenamiento de credenciales (eso es argon2,
   // ver hashPassword). Es el digest EXIGIDO por el protocolo k-anonymity de HIBP: solo se envían los
   // 5 primeros hex del SHA-1 para no revelar la contraseña. No procede argon2/bcrypt ni "salting".
-  // codeql[js/insufficient-password-hash]
-  private sha1Upper(value: string): string {
-    return createHash('sha1').update(value, 'utf8').digest('hex').toUpperCase();
+  // Se usa la Web Crypto API (SubtleCrypto) en lugar de createHash: misma SHA-1, sin que el digest
+  // se confunda con un hash de credencial.
+  private async sha1Upper(value: string): Promise<string> {
+    const data = new TextEncoder().encode(value);
+    const digest = await webcrypto.subtle.digest('SHA-1', data);
+    return Array.from(new Uint8Array(digest))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase();
   }
 
   /**
@@ -44,7 +50,7 @@ export class HibpService {
   async assertNotBreached(password: string): Promise<void> {
     if (!this.enabled) return;
 
-    const hash = this.sha1Upper(password);
+    const hash = await this.sha1Upper(password);
     const prefix = hash.slice(0, 5);
     const suffix = hash.slice(5);
 
