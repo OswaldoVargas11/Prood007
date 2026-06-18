@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { HibpService } from '../auth/hibp.service';
+import { PasswordResetService } from '../auth/password-reset.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { apiError } from '../common/api-messages';
@@ -35,6 +36,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly hibp: HibpService,
+    private readonly passwordReset: PasswordResetService,
   ) {}
 
   /** Cuenta usuarios ACTIVOS de un rol concreto en el tenant. */
@@ -134,6 +136,8 @@ export class UsersService {
       email,
       role: dto.role,
     });
+    // Correo de bienvenida con enlace de activación (el nuevo usuario fija su contraseña). Fail-soft.
+    await this.passwordReset.sendInvite(created.id, { portal: false });
     return { id: created.id, email, fullName: created.fullName, role: dto.role, isActive: true };
   }
 

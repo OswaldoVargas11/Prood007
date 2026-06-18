@@ -6,12 +6,13 @@ import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { TokensService } from './tokens.service';
 import { HibpService } from './hibp.service';
-import { MAIL_PROVIDER, type MailProvider } from './mail/mail.provider';
+import { MAIL_PROVIDER, accountInviteMessage, type MailProvider } from './mail/mail.provider';
 import { apiError } from '../common/api-messages';
 import type { RequestUser } from './auth.types';
 
 const ADMIN_RESET_TTL_MS = 24 * 60 * 60 * 1000; // 24 h (el admin entrega el enlace al usuario)
 const FORGOT_RESET_TTL_MS = 60 * 60 * 1000; // 1 h (autoservicio por correo)
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 d (activación de una cuenta nueva por invitación)
 
 /**
  * Recuperación de contraseña — "ambos" caminos (SEC3):
@@ -80,6 +81,33 @@ export class PasswordResetService {
     });
     await this.audit.log(actor, 'user.password_reset_issued', 'User', target.id);
     return { token, resetLink: this.resetLink(token), expiresAt, email: target.email };
+  }
+
+  /**
+   * Envía el correo de BIENVENIDA/INVITACIÓN a una cuenta recién creada por el despacho (cliente de
+   * portal o personal): emite un token de ACTIVACIÓN (7 d) y manda el enlace para que el invitado
+   * fije su propia contraseña. Reutiliza la página de reset. FAIL-SOFT: un fallo de correo NO rompe el
+   * alta de la cuenta (se registra y se sigue). En dev/CI sin SMTP, el provider Noop no envía nada.
+   */
+  async sendInvite(userId: string, opts: { portal: boolean }): Promise<void> {
+    const user = await this.system.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, fullName: true, tenant: { select: { name: true } } },
+    });
+    if (!user) return;
+    try {
+      const { token } = await this.createToken(user.id, INVITE_TTL_MS);
+      await this.mail.sendMail(
+        accountInviteMessage(user.email, {
+          fullName: user.fullName,
+          firmName: user.tenant.name,
+          activationLink: this.resetLink(token),
+          portal: opts.portal,
+        }),
+      );
+    } catch (err) {
+      this.logger.error('Fallo al enviar el correo de bienvenida/invitación', err as Error);
+    }
   }
 
   /**
