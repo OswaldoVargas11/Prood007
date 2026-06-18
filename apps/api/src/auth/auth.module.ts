@@ -44,6 +44,6 @@ import { SmtpMailProvider } from './mail/smtp-mail.provider';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
-  exports: [AuthService, TokensService, HibpService, MAIL_PROVIDER],
+  exports: [AuthService, TokensService, PasswordResetService, HibpService, MAIL_PROVIDER],
 })
 export class AuthModule {}

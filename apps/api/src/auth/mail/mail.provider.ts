@@ -37,6 +37,51 @@ export function passwordResetMessage(to: string, resetLink: string): MailMessage
   return { to, subject, html, text };
 }
 
+/** Escapa texto del despacho/usuario para insertarlo de forma segura en el HTML del correo. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Plantilla (es) del correo de BIENVENIDA/INVITACIÓN al crear una cuenta (cliente de portal o
+ * personal del despacho). Lleva un enlace de ACTIVACIÓN (reutiliza la página de reset) para que el
+ * invitado fije su propia contraseña, de modo que el despacho no tenga que comunicarla a mano.
+ */
+export function accountInviteMessage(
+  to: string,
+  opts: { fullName?: string; firmName: string; activationLink: string; portal: boolean },
+): MailMessage {
+  const greeting = opts.fullName ? `Hola ${escapeHtml(opts.fullName)},` : 'Hola,';
+  const firm = escapeHtml(opts.firmName);
+  const intro = opts.portal
+    ? `${firm} te ha dado acceso a su portal de cliente.`
+    : `Se ha creado tu cuenta en ${firm}.`;
+  const subject = opts.portal
+    ? `Acceso a tu portal de cliente — ${opts.firmName}`
+    : `Tu cuenta en ${opts.firmName}`;
+  const text =
+    `${opts.fullName ? `Hola ${opts.fullName},` : 'Hola,'}\n\n` +
+    `${
+      opts.portal
+        ? `${opts.firmName} te ha dado acceso a su portal de cliente.`
+        : `Se ha creado tu cuenta en ${opts.firmName}.`
+    }\n\n` +
+    `Activa tu cuenta y elige tu contraseña (el enlace caduca en 7 días):\n${opts.activationLink}\n\n` +
+    `Una vez activada, inicia sesión con tu email.`;
+  const html =
+    `<p>${greeting}</p>` +
+    `<p>${intro}</p>` +
+    `<p><a href="${opts.activationLink}">Activar mi cuenta y elegir contraseña</a> ` +
+    `(el enlace caduca en 7 días).</p>` +
+    `<p>Una vez activada, inicia sesión con tu email.</p>`;
+  return { to, subject, html, text };
+}
+
 /**
  * Implementación por defecto: NO envía correo. Registra la intención para trazabilidad en dev/CI.
  * Para activar email real, regístrese `SmtpMailProvider` bajo el token MAIL_PROVIDER (ver auth.module).

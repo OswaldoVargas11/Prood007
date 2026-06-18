@@ -25,6 +25,7 @@ import { CreateClientDto } from './dto/create-client.dto';
 import { UpdateClientDto } from './dto/update-client.dto';
 import { CreatePortalUserDto } from './dto/create-portal-user.dto';
 import { HibpService } from '../auth/hibp.service';
+import { PasswordResetService } from '../auth/password-reset.service';
 import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -40,6 +41,7 @@ export class ClientsService {
     private readonly compliance: ComplianceService,
     private readonly audit: AuditService,
     private readonly hibp: HibpService,
+    private readonly passwordReset: PasswordResetService,
   ) {}
 
   /** Valida el identificador fiscal contra el provider del tenant y devuelve su forma normalizada. */
@@ -360,6 +362,8 @@ export class ClientsService {
     await this.audit.log(user, 'client.portal_user_created', 'Client', clientId, {
       portalUserId: created.id,
     });
+    // Correo de bienvenida con enlace de activación (el cliente fija su propia contraseña). Fail-soft.
+    await this.passwordReset.sendInvite(created.id, { portal: true });
     return { userId: created.id, email };
   }
 }
