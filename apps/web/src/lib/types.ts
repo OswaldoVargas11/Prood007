@@ -494,6 +494,48 @@ export interface SignatureRequest {
   createdAt: string;
 }
 
+// ── Suscripción (SaaS de plataforma) ──────────────────────────────────────────
+export type SubscriptionStatusValue = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELED';
+
+export interface SubscriptionTier {
+  upTo: number | null;
+  pricePerSeatEur: number;
+}
+
+export interface SubscriptionInfo {
+  status: SubscriptionStatusValue;
+  trialEndsAt: string | null;
+  trialDaysLeft: number | null;
+  currentPeriodEnd: string | null;
+  hasAccess: boolean;
+  seats: number;
+  seatsUsed: number;
+  seatCap: number;
+  pricePerSeatEur: number;
+  monthlyTotalEur: number;
+  tiers: SubscriptionTier[];
+}
+
+/** Despacho visto por el super-admin de plataforma (consola). */
+export interface PlatformTenant {
+  id: string;
+  name: string;
+  jurisdiction: string;
+  currency: string;
+  status: SubscriptionStatusValue;
+  seats: number;
+  seatCap: number;
+  trialEndsAt: string | null;
+  trialDaysLeft: number | null;
+  currentPeriodEnd: string | null;
+  createdAt: string;
+  seatsUsed: number;
+  clients: number;
+  matters: number;
+  pricePerSeatEur: number;
+  monthlyTotalEur: number;
+}
+
 // ── KYC / AML (Fase 4) ────────────────────────────────────────────────────────
 export type KycStatus = 'PENDING' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
 export type KycRisk = 'LOW' | 'MEDIUM' | 'HIGH';

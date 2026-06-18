@@ -10,6 +10,7 @@ import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { PERMISSION_NAMES, PERMISSIONS, ROLE_NAMES, ROLE_PERMISSIONS } from './rbac/permissions';
 import { apiError } from '../common/api-messages';
+import { TRIAL_DAYS } from '../subscription/plans';
 import type { RequestUser, TokenPair } from './auth.types';
 
 // Lockout por cuenta (SEC4): umbral de fallos consecutivos y duración del bloqueo.
@@ -62,6 +63,10 @@ export class AuthService {
           jurisdiction: dto.jurisdiction as unknown as Jurisdiction,
           currency: dto.currency as unknown as Currency,
           locale: dto.locale ?? (dto.jurisdiction === Jurisdiction.DO ? 'es-DO' : 'es-ES'),
+          // Prueba gratis de 15 días con TODO abierto. Al expirar sin suscripción → muro. Las plazas
+          // (maxAdmins/maxLawyers) y `seats` quedan en su default; se fijan al suscribirse (Stripe).
+          subscriptionStatus: 'TRIALING',
+          trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
         },
       });
 
