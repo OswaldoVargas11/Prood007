@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual } from 'node:crypto';
 import {
   BadRequestException,
   Body,
@@ -15,11 +15,12 @@ import { PlatformLoginDto } from './dto/platform.dto';
 
 const PLATFORM_TOKEN_TTL_SECONDS = 8 * 60 * 60; // 8 h
 
-/** Compara dos strings en tiempo constante (vía hash de longitud fija para no filtrar la longitud). */
+/** Comparación en tiempo constante (sin hashear): guarda de longitud + timingSafeEqual sobre bytes. */
 function safeEqual(a: string, b: string): boolean {
-  const ha = createHash('sha256').update(a).digest();
-  const hb = createHash('sha256').update(b).digest();
-  return timingSafeEqual(ha, hb);
+  const ba = Buffer.from(a, 'utf8');
+  const bb = Buffer.from(b, 'utf8');
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
 }
 
 /**
