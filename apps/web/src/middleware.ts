@@ -24,6 +24,12 @@ export default function middleware(req: NextRequest) {
   const locale = hasLocale ? maybeLocale : routing.defaultLocale;
   const rest = '/' + segments.slice(hasLocale ? 2 : 1).join('/');
 
+  // Consola de plataforma (super-admin): auth propia (sessionStorage), NO la sesión del despacho.
+  // Se salta toda la lógica de sesión/rol del despacho; solo aplica i18n.
+  if (rest === '/platform' || rest.startsWith('/platform/')) {
+    return intlMiddleware(req);
+  }
+
   const hasSession = req.cookies.has(SESSION_COOKIE);
   const scope = req.cookies.get(SCOPE_COOKIE)?.value;
   const isLogin = rest === '/login' || rest.startsWith('/login/');

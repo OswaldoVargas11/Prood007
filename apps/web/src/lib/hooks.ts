@@ -44,6 +44,7 @@ import type {
   Paginated,
   PaymentConfig,
   SignatureRequest,
+  SubscriptionInfo,
   PortalInvoice,
   ProvisionKind,
   RetainerAccount,
@@ -1186,4 +1187,26 @@ export async function downloadGdprExport(clientId: string, filename: string): Pr
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ── Suscripción (SaaS de plataforma) ──────────────────────────────────────────
+
+export function useSubscription() {
+  return useQuery({
+    queryKey: ['subscription'],
+    queryFn: () => api.get<SubscriptionInfo>('/subscription'),
+    staleTime: 30_000,
+  });
+}
+
+/** Inicia el Checkout de Stripe para N plazas y devuelve la URL de pago. */
+export function useCheckout() {
+  return useMutation({
+    mutationFn: (seats: number) => api.post<{ url: string }>('/subscription/checkout', { seats }),
+  });
+}
+
+/** Abre el portal de Stripe (gestionar/cancelar la suscripción). */
+export function usePortal() {
+  return useMutation({ mutationFn: () => api.post<{ url: string }>('/subscription/portal') });
 }

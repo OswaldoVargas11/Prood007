@@ -209,6 +209,14 @@ model Tenant {
   // Máximo de usuarios ACTIVOS por rol (la licencia del despacho).
   maxAdmins             Int          @default(2)
   maxLawyers            Int          @default(5)
+  // SaaS de plataforma (suscripción del despacho a Lawzora; distinto del cobro despacho→cliente).
+  // Prueba de 15 días con todo desbloqueado; al expirar sin suscripción → muro (SubscriptionGuard).
+  subscriptionStatus    String       @default("TRIALING") // TRIALING|ACTIVE|PAST_DUE|SUSPENDED|CANCELED
+  // Modelo POR USUARIO: producto completo, se paga por plaza de staff. `seats` = plazas contratadas
+  // (0 = en prueba, sin compra). Precio por plaza con descuento por volumen (ver subscription/plans.ts).
+  seats                 Int          @default(0)
+  trialEndsAt           DateTime?
+  currentPeriodEnd      DateTime?
   // Serie fiscal: prefijo de la numeración de facturas (p. ej. "FAC", "A").
   invoiceSeries         String       @default("FAC")
   // Festivos locales del despacho: array JSON [{ date: "yyyy-mm-dd", name }] que afina el cómputo de
@@ -226,6 +234,10 @@ model Tenant {
   // Cuenta conectada de Stripe (Connect Standard) del despacho. El cobro online va a SU cuenta, no a la
   // plataforma (evita ser transmisor de fondos). Vacío = el despacho aún no ha conectado Stripe. Ver D-024.
   stripeAccountId       String?
+  // Suscripción de PLATAFORMA: el despacho como cliente de Lawzora en el Stripe de la plataforma
+  // (distinto de stripeAccountId, que es su cuenta Connect para cobrar a SUS clientes).
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 

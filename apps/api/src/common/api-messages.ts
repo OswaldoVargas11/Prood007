@@ -170,6 +170,38 @@ export const API_MESSAGES = {
     'es-DO': 'Solo abogados o administradores pueden revisar documentos.',
   },
 
+  // ── Suscripción (SaaS de plataforma) ──────────────────────────────────────
+  'subscription.required': {
+    'es-ES': 'Tu prueba ha finalizado. Suscríbete para seguir usando Lawzora.',
+    'es-DO': 'Tu prueba ha finalizado. Suscríbete para seguir usando Lawzora.',
+  },
+  'subscription.stripeNotConfigured': {
+    'es-ES': 'El cobro por suscripción no está configurado.',
+    'es-DO': 'El cobro por suscripción no está configurado.',
+  },
+  'subscription.checkoutFailed': {
+    'es-ES': 'No se pudo iniciar el pago de la suscripción.',
+    'es-DO': 'No se pudo iniciar el pago de la suscripción.',
+  },
+  'subscription.noCustomer': {
+    'es-ES': 'El despacho aún no tiene una suscripción que gestionar.',
+    'es-DO': 'El despacho aún no tiene una suscripción que gestionar.',
+  },
+  'subscription.webhookInvalid': {
+    'es-ES': 'Webhook de suscripción inválido (firma no verificada).',
+    'es-DO': 'Webhook de suscripción inválido (firma no verificada).',
+  },
+
+  // ── Plataforma (super-admin) ──────────────────────────────────────────────
+  'platform.notConfigured': {
+    'es-ES': 'La consola de plataforma no está configurada (faltan credenciales).',
+    'es-DO': 'La consola de plataforma no está configurada (faltan credenciales).',
+  },
+  'platform.tenantNotFound': {
+    'es-ES': 'Despacho no encontrado.',
+    'es-DO': 'Despacho no encontrado.',
+  },
+
   // ── Firma electrónica (Signaturit) ────────────────────────────────────────
   'signatures.notFound': {
     'es-ES': 'Solicitud de firma no encontrada.',

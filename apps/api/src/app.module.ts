@@ -5,6 +5,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { TenantContextInterceptor } from './prisma/tenant-context.interceptor';
+import { SubscriptionInterceptor } from './subscription/subscription.interceptor';
 import { ComplianceModule } from './compliance/compliance.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
@@ -16,6 +17,8 @@ import { MattersModule } from './matters/matters.module';
 import { DocumentsModule } from './documents/documents.module';
 import { TemplatesModule } from './templates/templates.module';
 import { SignaturesModule } from './signatures/signatures.module';
+import { SubscriptionModule } from './subscription/subscription.module';
+import { PlatformModule } from './platform/platform.module';
 import { KycModule } from './kyc/kyc.module';
 import { ReportsModule } from './reports/reports.module';
 import { TasksModule } from './tasks/tasks.module';
@@ -49,6 +52,8 @@ import { HealthController } from './health.controller';
     MattersModule,
     DocumentsModule,
     SignaturesModule,
+    SubscriptionModule,
+    PlatformModule,
     TemplatesModule,
     KycModule,
     ReportsModule,
@@ -70,6 +75,8 @@ import { HealthController } from './health.controller';
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     // Fija el contexto de tenant por request (para RLS). Tras los guards (req.user ya está).
     { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
+    // Muro de suscripción: bloquea (402) si la prueba caducó sin suscripción, salvo @AllowExpired.
+    { provide: APP_INTERCEPTOR, useClass: SubscriptionInterceptor },
   ],
 })
 export class AppModule {}

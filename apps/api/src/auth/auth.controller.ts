@@ -12,8 +12,12 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
+import { AllowExpired } from '../subscription/allow-expired.decorator';
 import type { RequestUser } from './auth.types';
 
+// Rutas de sesión accesibles aunque la prueba haya caducado (login/me/logout/refresh): sin esto, un
+// despacho con prueba expirada no podría ni cargar la sesión para llegar al muro de suscripción.
+@AllowExpired()
 @Controller('auth')
 export class AuthController {
   constructor(

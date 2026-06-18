@@ -16,6 +16,7 @@
     "chat": "Mensajes",
     "approvals": "Aprobaciones",
     "audit": "Auditoría",
+    "subscription": "Suscripción",
     "settings": "Ajustes",
     "portal": "Portal del cliente",
     "soon": "Pronto",
@@ -1021,6 +1022,36 @@
       "EXPIRED": "Vencido",
       "CANCELED": "Cancelado"
     }
+  },
+  "subscription": {
+    "title": "Tu suscripción",
+    "subtitle": "Producto completo. Pagas por plaza, con descuento por volumen.",
+    "statuses": {
+      "TRIALING": "Prueba",
+      "ACTIVE": "Activa",
+      "PAST_DUE": "Pago pendiente",
+      "SUSPENDED": "Suspendida",
+      "CANCELED": "Cancelada"
+    },
+    "trialLeft": "Te quedan {days} días de prueba",
+    "seatsUsed": "{used} plazas en uso",
+    "priceTable": "Precio por plaza (descuento por volumen)",
+    "seatsRange": "{range} plazas",
+    "perSeat": "plaza",
+    "seatsLabel": "Plazas",
+    "total": "Total",
+    "month": "mes",
+    "subscribe": "Suscribirme",
+    "changePlan": "Cambiar plazas",
+    "manage": "Gestionar pago",
+    "allFeatures": "Todas las funciones incluidas, sea cual sea el número de plazas.",
+    "error": "No se pudo continuar. Inténtalo de nuevo.",
+    "bannerTrial": "Te quedan {days} días de prueba gratis",
+    "bannerCta": "Suscríbete",
+    "wallTitle": "Tu prueba ha finalizado",
+    "wallSubtitle": "Suscríbete para seguir usando Lawzora. Tus datos están intactos.",
+    "pageTitle": "Suscripción",
+    "pageSubtitle": "Gestiona tu plan y tus plazas."
   },
   "reports": {
     "title": "Informes",
