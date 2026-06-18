@@ -51,7 +51,8 @@ export function hasAppAccess(
 ): boolean {
   if (t.subscriptionStatus === 'ACTIVE') return true;
   if (t.subscriptionStatus === 'TRIALING') {
-    return t.trialEndsAt != null && t.trialEndsAt.getTime() > now.getTime();
+    // Sin fecha de fin de prueba (tenant creado directamente, p. ej. en tests) → no bloquear.
+    return t.trialEndsAt == null || t.trialEndsAt.getTime() > now.getTime();
   }
   return false;
 }
