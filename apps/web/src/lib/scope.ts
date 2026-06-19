@@ -30,3 +30,16 @@ export function scopeFromAccessToken(accessToken: string): Scope {
     return 'client';
   }
 }
+
+/** Jurisdicción del despacho (gobierna terminología fiscal: ITBIS↔IVA, etc.). Ante duda, `es`. */
+export type AppJurisdiction = 'es' | 'do';
+export function jurisdictionFromAccessToken(accessToken: string): AppJurisdiction {
+  try {
+    const part = accessToken.split('.')[1];
+    if (!part) return 'es';
+    const payload = JSON.parse(Buffer.from(part, 'base64url').toString('utf8')) as { jur?: string };
+    return payload.jur === 'do' ? 'do' : 'es';
+  } catch {
+    return 'es';
+  }
+}

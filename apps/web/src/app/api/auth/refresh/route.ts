@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import type { TokenPair } from '@/lib/auth-types';
-import { scopeFromAccessToken } from '@/lib/scope';
+import { jurisdictionFromAccessToken, scopeFromAccessToken } from '@/lib/scope';
 import {
   clearSessionCookie,
   getSessionToken,
   nestUrl,
+  setJurisdictionCookie,
   setScopeCookie,
   setSessionCookie,
 } from '@/lib/server/session';
@@ -31,5 +32,6 @@ export async function POST(): Promise<NextResponse> {
   const pair = data as TokenPair;
   await setSessionCookie(pair.refreshToken);
   await setScopeCookie(scopeFromAccessToken(pair.accessToken));
+  await setJurisdictionCookie(jurisdictionFromAccessToken(pair.accessToken));
   return NextResponse.json({ accessToken: pair.accessToken, expiresIn: pair.expiresIn });
 }

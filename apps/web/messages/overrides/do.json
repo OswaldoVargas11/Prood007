@@ -1,0 +1,40 @@
+{
+  "clients": {
+    "fiscalPlaceholder": "RNC / Cédula / NIF…",
+    "fiscalHint": "RNC/Cédula en RD · NIF/CIF/NIE en España.",
+    "docPlaceholder": "No. de documento"
+  },
+  "retainer": {
+    "amount": "Monto",
+    "amountOptional": "Monto (opcional)",
+    "anticipoBase": "Base gravable (honorarios)",
+    "applyWithholding": "Aplicar retención",
+    "anticipoHint": "El anticipo de honorarios devenga ITBIS al cobro: se emite su e-CF y se acredita el saldo por el total recibido.",
+    "applyHint": "Si dejas el monto vacío, se aplica el menor entre el pendiente de la factura y el saldo disponible.",
+    "applyAnticipoBlocked": "Este expediente tiene saldo de anticipo (ya facturado con ITBIS). No se aplica como cobro a una factura: se realiza emitiendo la factura final con deducción del anticipo. Aquí solo se aplican fondos de suplido o genéricos.",
+    "closeHint": "Al cerrar el asunto, emite la factura final deduciendo el anticipo (sin doble ITBIS) o devuelve el anticipo con una nota de crédito.",
+    "finalInvoiceHint": "Factura el servicio completo. Se deducen automáticamente los anticipos ya facturados de este expediente: el ITBIS acumulado es el del total, sin doble imposición.",
+    "addLine": "Agregar línea",
+    "refundTitle": "Devolver un anticipo (nota de crédito)",
+    "refundHint": "Devolver un anticipo facturado emite una nota de crédito que lo reversa (la factura de anticipo queda inmutable) y devuelve el saldo.",
+    "refundReasonPlaceholder": "Motivo de la modificación",
+    "issueRefund": "Emitir nota de crédito",
+    "refundIssued": "Nota de crédito {number} emitida",
+    "refundError": "No se pudo emitir la nota de crédito.",
+    "col": {
+      "amount": "Monto"
+    }
+  },
+  "billingPlans": {
+    "fiscalModeHint": {
+      "SERVICE_RENDERED": "El servicio ya se prestó: se emite una única factura por el total (ITBIS íntegro) y las cuotas son su calendario de cobro."
+    },
+    "applyWithholding": "Aplicar retención de ISR"
+  },
+  "signatures": {
+    "signerEmail": "Correo del firmante",
+    "statuses": {
+      "EXPIRED": "Vencido"
+    }
+  }
+}

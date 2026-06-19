@@ -10,6 +10,8 @@ import type { Scope } from '../scope';
 export const SESSION_COOKIE = 'lf_session';
 /** Ámbito de navegación (firm/client) para el gate de rol en el middleware de servidor. */
 export const SCOPE_COOKIE = 'lf_scope';
+/** Jurisdicción del despacho (es/do): gobierna la terminología fiscal del catálogo i18n en servidor. */
+export const JURISDICTION_COOKIE = 'lf_jur';
 const REFRESH_MAX_AGE = 7 * 24 * 60 * 60; // 7 días, igual que el refresh TTL del backend
 
 /** URL de la API Nest para llamadas servidor→servidor (sin CORS). */
@@ -32,6 +34,7 @@ export async function clearSessionCookie(): Promise<void> {
   const store = await cookies();
   store.delete(SESSION_COOKIE);
   store.delete(SCOPE_COOKIE);
+  store.delete(JURISDICTION_COOKIE);
 }
 
 export async function getSessionToken(): Promise<string | null> {
@@ -41,6 +44,17 @@ export async function getSessionToken(): Promise<string | null> {
 /** Fija el ámbito (no es secreto, pero httpOnly evita manipulación trivial desde el cliente). */
 export async function setScopeCookie(scope: Scope): Promise<void> {
   (await cookies()).set(SCOPE_COOKIE, scope, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: REFRESH_MAX_AGE,
+  });
+}
+
+/** Fija la jurisdicción del despacho (es/do). La lee el servidor i18n para elegir el catálogo. */
+export async function setJurisdictionCookie(jur: 'es' | 'do'): Promise<void> {
+  (await cookies()).set(JURISDICTION_COOKIE, jur, {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',

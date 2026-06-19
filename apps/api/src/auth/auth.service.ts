@@ -68,7 +68,8 @@ export class AuthService {
           taxId: dto.taxId,
           jurisdiction: dto.jurisdiction as unknown as Jurisdiction,
           currency: dto.currency as unknown as Currency,
-          locale: dto.locale ?? (dto.jurisdiction === Jurisdiction.DO ? 'es-DO' : 'es-ES'),
+          // Un solo idioma de UI (`es`); la jurisdicción gobierna la terminología fiscal, no el locale.
+          locale: 'es',
           // Prueba gratis de 15 días con TODO abierto. Al expirar sin suscripción → muro. Las plazas
           // (maxAdmins/maxLawyers) y `seats` quedan en su default; se fijan al suscribirse (Stripe).
           subscriptionStatus: 'TRIALING',
