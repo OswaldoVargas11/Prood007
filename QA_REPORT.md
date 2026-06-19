@@ -246,3 +246,65 @@ La primera pasada dejó 8 flujos sin pulsar. La Parte B los ejercitó de verdad 
 6. **(Cobertura)** Blindar con smoke E2E de UI los flujos ya verificados a mano: descarga/comparador de documentos, cronómetro→Costes, emitir factura, onboarding, RGPD.
 
 **Para enseñar a despachos:** ✅ adelante. **Ningún 🔴 en Parte A ni Parte B.** Todos los caminos críticos funcionan (emitir factura + QR Verifactu, subir/descargar/comparar documentos, cronómetro facturable, RGPD export/anonimizar desde la UI, aislamiento staff/cliente, onboarding). Pulido pendiente: el #4b a la espera de OK (PR #42). La Agenda como "calendario de plazos" (no agenda general) es decisión de producto diferida.
+
+---
+
+---
+
+# QA v0.2 — Suscripción, login multi-despacho, header, novedades y facturación multi-moneda
+
+- **Fecha:** 2026-06-19
+- **Versión:** `main` @ v0.2.0 (tras PRs #97 suscripción · #98 login multi-despacho · #100 header · #101 versionado · #102 multi-moneda)
+- **Alcance:** los cambios de esta tanda + regresión del núcleo.
+
+## Metodología (según guías de testing consultadas)
+
+Modelo por capas recomendado para SaaS multi-tenant ([Total Shift Left](https://totalshiftleft.ai/blog/testing-strategy-saas-platforms), [QAwerk](https://qawerk.com/blog/saas-testing-checklist/)) + exploratorio de edge cases y fuzzing de formularios ([BrowserStack](https://www.browserstack.com/guide/exploratory-testing), [testomat.io](https://testomat.io/blog/complete-web-application-testing-checklist/)):
+
+1. **Aislamiento de tenant y auth en cada commit** → suite e2e de RLS/auth en CI.
+2. **Flujos núcleo en cada PR** → e2e por feature (suscripción/muro, login multi-despacho, multi-moneda).
+3. **Exploratorio + edge cases** → revisión estática dirigida + matriz de escenarios (abajo).
+
+> **Limitación honesta:** el stack local no arranca de forma fiable en esta máquina (Docker `EnableDockerAI`, ver memoria), así que **no hubo click-through con navegador**. El "entorno" de pruebas efectivo es **CI con Postgres 16 real**, que ejecuta TODA la suite e2e en cada PR. Recomiendo, como cobertura adicional, smoke E2E de UI (Playwright) sobre los flujos nuevos cuando el entorno local esté operativo.
+
+## Cobertura automatizada (verde en CI · Postgres 16)
+
+| Suite e2e                | Cubre                                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `subscription-wall`      | muro de fin de prueba: vigente→200, caducada→402, `/subscription` y `/auth/me` accesibles, reactivación→200; payload anual (×10) y cupo Fundador |
+| `multi-tenant-login`     | alta cross-tenant del mismo email; resolución por contraseña; 401 sin match; selector 409 `chooseTenant`                                         |
+| `multi-currency-invoice` | EUR/ES por defecto; USD/RD override; preview por formato (ITBIS 18%); cartera **agrupada por moneda**                                            |
+| `reports` (actualizado)  | `aged-receivables` ahora devuelve `byCurrency`                                                                                                   |
+| Núcleo (51 specs)        | RLS multi-tenant, ledger, retainer, dunning, pagos, KYC, firmas, etc. → regresión verde                                                          |
+
+**Gate de seguridad:** `pnpm audit --prod` (alta/crítica), gitleaks, CodeQL → verde (corregido advisory **nodemailer** GHSA-p6gq-j5cr-w38f en PR #97).
+
+## Matriz de escenarios exploratorios
+
+| Escenario                                              | Resultado                                                     |
+| ------------------------------------------------------ | ------------------------------------------------------------- |
+| Selector de plazas: borrar el "1" y teclear otro valor | ✅ corregido (PR #97)                                         |
+| Toggle mensual/anual + Plan Fundador (carta)           | ✅ implementado; render visual **pendiente de click-through** |
+| Login con email en 1 solo despacho                     | ✅ flujo normal con lockout                                   |
+| Login con email en 2 despachos, contraseñas distintas  | ✅ entra al correcto                                          |
+| Login con misma contraseña en 2 despachos              | ✅ selector de despacho                                       |
+| Header: copiar ID de despacho                          | ✅ implementado                                               |
+| Aviso "Novedades" tras login (localStorage)            | ✅ implementado                                               |
+| Emitir factura EUR/USD/DOP + formato ES/RD             | ✅ backend + UI; PDF según formato                            |
+| Cartera vencida con varias monedas                     | ✅ no mezcla (agrupada)                                       |
+
+## Hallazgos para tu aprobación (anotados, NO corregidos)
+
+> Ninguno es bloqueante de la tanda; requieren tu decisión antes de tocarlos.
+
+1. 🔴 **[OPS — acción tuya] Rotar la clave `sk_live` expuesta** y configurar en Fly los secrets: `STRIPE_SECRET_KEY`, `STRIPE_PRICE_SEAT`, `STRIPE_PRICE_SEAT_ANNUAL`, `STRIPE_WEBHOOK_SECRET`. Sin `STRIPE_PRICE_SEAT_ANNUAL`, el checkout anual responde 400 (mensaje claro). Ejecutar `scripts/setup-stripe-billing.mjs` con clave **test** en dev.
+2. 🟠 **[FISCAL] Combinaciones moneda×formato sin restringir.** Se puede emitir, p. ej., USD con formato ES/Verifactu. Es mecánicamente correcto, pero conviene validar con asesor fiscal qué combinaciones son admisibles y, si procede, restringirlas.
+3. 🟠 **[DISEÑO] Retainer/anticipos mono-moneda del tenant.** Un expediente facturado en USD no puede aplicar anticipos si el retainer del despacho es EUR (guard `currencyMismatch`). Decidir si se quiere retainer multi-moneda.
+4. 🟡 **[BILLING] Facturación recurrente/anticipos** emiten en moneda y formato del tenant por defecto (no exponen selección como la factura manual). Confirmar si debe poder elegirse también ahí.
+5. 🟡 **[UX] Login:** el campo "ID del despacho (opcional)" sigue siempre visible; con el selector automático podría ocultarse tras un enlace "¿problemas para entrar?".
+6. 🟡 **[UX] "Novedades"** se muestra también a despachos recién creados (a modo de bienvenida). Confirmar si se prefiere no mostrarlo en el primer login.
+7. 🟢 **[Cobertura] Paridad de claves i18n** es-ES/es-DO: añadidas en ambos esta tanda; recomendable un test en CI que verifique paridad de claves.
+8. 🟢 **[Cobertura] Smoke E2E de UI** (Playwright) para los flujos nuevos cuando el entorno local esté operativo.
+9. 🟢 **[Verificar] Visualización de moneda en el portal del cliente** (listado de facturas del cliente): confirmar que muestra la moneda por factura como ya hace el listado del despacho.
+
+**Conclusión:** la tanda v0.2 está **verde en CI** (todas las suites + seguridad) y mergeada a `main`. Los 9 puntos anteriores quedan anotados para tu revisión; al aprobarlos, los abordo en PRs separados.
