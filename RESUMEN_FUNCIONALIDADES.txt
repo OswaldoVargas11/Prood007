@@ -1,0 +1,300 @@
+================================================================================
+ LAWZORA — RESUMEN DE FUNCIONALIDADES
+ SaaS de gestión legal multi-jurisdicción (España + República Dominicana)
+ Generado: 2026-06-19
+================================================================================
+
+Nota de alcance: marcamos con [OK] lo plenamente funcional, con [DEMO/STUB] lo
+que está implementado de forma representativa pero sin integración fiscal real
+(firma con certificado + envío al organismo), y con [PEND] lo planificado.
+
+--------------------------------------------------------------------------------
+0. QUÉ ES
+--------------------------------------------------------------------------------
+Plataforma SaaS multi-despacho (multi-tenant) para la gestión integral de un
+despacho de abogados: clientes, expedientes, tareas y plazos procesales, tiempo,
+documentos, facturación con cumplimiento fiscal por país, cobros, portal del
+cliente, y una consola de plataforma para el dueño del SaaS.
+
+Núcleo agnóstico + adaptadores de cumplimiento por jurisdicción: el mismo motor
+sirve a despachos de España, de RD, o que trabajen en AMBOS países.
+
+Arquitectura: monorepo (pnpm) — API NestJS 10 (Postgres/Prisma con Row-Level
+Security) + Web Next.js (App Router) + paquetes compartidos (compliance, domain).
+
+--------------------------------------------------------------------------------
+1. MULTI-JURISDICCIÓN Y MULTI-MONEDA (transversal)
+--------------------------------------------------------------------------------
+[OK] Dos jurisdicciones: España (es) y República Dominicana (do). La jurisdicción
+     es atributo del despacho y gobierna impuestos, identificadores y formato
+     fiscal — NO el idioma.
+[OK] Idioma único español (es). La terminología fiscal se adapta por jurisdicción
+     vía overrides (IVA↔ITBIS, IRPF↔ISR, factura rectificativa↔nota de crédito,
+     Importe↔Monto…). Cookie lf_jur según el despacho.
+[OK] Identificadores fiscales validados con dígito/letra de control:
+       - España: NIF/DNI, NIE, CIF, y NIF especiales K/L/M.
+       - RD: RNC (9 díg.) y Cédula (11 díg.).
+       - Pasaporte / Otro documento (extranjeros, validación de formato).
+[OK] Impuestos por país: España IVA 21%/10% + retención IRPF 15%/7%;
+     RD ITBIS 18% (sin retención).
+[OK] Multi-moneda: EUR / USD / DOP. Moneda por defecto del despacho + elegible
+     POR FACTURA y POR PROVISIÓN. Todos los importes mostrados respetan su moneda
+     (sin mezclar): paneles, facturación e informes desglosan por moneda.
+[OK] Formato fiscal elegible POR FACTURA (es = Verifactu/AEAT · do = e-CF/DGII),
+     desacoplado de la jurisdicción del despacho → un despacho puede facturar en
+     ambos formatos.
+
+--------------------------------------------------------------------------------
+2. AUTENTICACIÓN, SESIONES Y SEGURIDAD
+--------------------------------------------------------------------------------
+[OK] Registro de despacho (onboarding) con auto-login: crea el tenant, siembra
+     el RBAC y el primer FIRM_ADMIN.
+[OK] Login con email + contraseña. Soporte de cuentas en VARIOS despachos
+     (elección de despacho al iniciar sesión).
+[OK] Tokens JWT: access en memoria + refresh en cookie httpOnly (BFF de Next).
+     Rotación de refresh con DETECCIÓN DE REUSO (un token reutilizado revoca todas
+     las sesiones del usuario).
+[OK] Recuperación de contraseña self-service (enlace por correo) y cambio de
+     contraseña forzado al primer acceso (usuarios creados por staff).
+[OK] RBAC por roles (FIRM_ADMIN, LAWYER, CLIENT) + Row-Level Security en BD
+     (aislamiento por tenant a nivel de base de datos).
+[OK] Bloqueo temporal por intentos fallidos; verificación de contraseñas filtradas
+     (HIBP); cabeceras de seguridad (helmet); rate limiting; CORS restringido.
+[OK] Gate de rol en el middleware de servidor (un CLIENT no puede entrar a la app
+     del despacho ni al revés).
+
+--------------------------------------------------------------------------------
+3. CLIENTES
+--------------------------------------------------------------------------------
+[OK] Alta/edición de clientes con validación del documento (fiscal o pasaporte/otro).
+[OK] Comprobación de CONFLICTO DE INTERÉS al dar de alta (coincidencia por nombre).
+[OK] Tipo de cliente inferido (empresa/persona) por el tipo de documento.
+[OK] Saldo del cliente calculado en vivo desde el ledger.
+[OK] Acceso al PORTAL para el cliente (crea usuario rol CLIENT + correo de invitación).
+[OK] RGPD / Ley 172-13:
+       - Derecho de ACCESO/PORTABILIDAD: exporta todos los datos del titular.
+       - Derecho de SUPRESIÓN por ANONIMIZACIÓN (preserva expedientes/facturas por
+         retención legal; revoca accesos). Confirmación con "escribe para confirmar".
+
+--------------------------------------------------------------------------------
+4. KYC / PREVENCIÓN DE BLANQUEO (AML)
+--------------------------------------------------------------------------------
+[OK] Diligencia debida del cliente (sujeto obligado): perfil KYC por cliente,
+     estado, nivel de riesgo.
+[OK] Vista general AML + resumen (totales, pendientes, alto riesgo).
+
+--------------------------------------------------------------------------------
+5. EXPEDIENTES (MATTERS)
+--------------------------------------------------------------------------------
+[OK] Alta/edición de expedientes, tipo, referencia, letrado responsable, cliente.
+[OK] Estados (abierto, en curso, cerrado…), listado paginado y filtros.
+[OK] Ficha de expediente con pestañas (resumen, costes/ledger, documentos, etc.)
+     y panel lateral: plazos próximos, saldo, "facturado" (desglosado por moneda),
+     proponer coste y CRONÓMETRO de tiempo.
+
+--------------------------------------------------------------------------------
+6. TAREAS Y PLAZOS PROCESALES
+--------------------------------------------------------------------------------
+[OK] Tareas con título, descripción, vencimiento, asignación, estado.
+[OK] PLAZOS PROCESALES: cálculo en días hábiles con festivos.
+       - España: festivos nacionales integrados + festivos locales del despacho;
+         integración LexNET (stub del modelo notificaciones/acuses/escritos).
+       - RD: días hábiles (calendario judicial menos consolidado; avisos).
+[OK] Crear tarea "desde un plazo" (calcula la fecha límite automáticamente).
+[OK] Recordatorios de plazos.
+
+--------------------------------------------------------------------------------
+7. TIEMPO (TIME TRACKING)
+--------------------------------------------------------------------------------
+[OK] Registro de tiempo (concepto, minutos, tarifa/hora, fecha) atado a expediente.
+[OK] Cronómetro en la ficha del expediente.
+[OK] Vistas: por día, no facturado, agrupado por expediente (para facturar).
+[OK] Honorarios calculados (minutos × tarifa) en la moneda del despacho.
+
+--------------------------------------------------------------------------------
+8. DOCUMENTOS, PLANTILLAS Y FIRMA ELECTRÓNICA
+--------------------------------------------------------------------------------
+[OK] Subida de documentos por expediente (almacenamiento en Cloudflare R2 / S3).
+[OK] VERSIONADO de documentos + estados de REVISIÓN (pendiente/en revisión).
+[OK] Hash de contenido por versión, descarga autenticada, visor.
+[OK] PLANTILLAS de documentos con marcadores ({{cliente.nombre}}, {{expediente.referencia}}…)
+     y generación de documentos desde plantilla.
+[OK] FIRMA ELECTRÓNICA (Signaturit): solicitar firma de un documento, seguimiento
+     de estado, webhook de actualización (firmado/caducado…).
+
+--------------------------------------------------------------------------------
+9. LEDGER, FACTURACIÓN Y CUMPLIMIENTO FISCAL
+--------------------------------------------------------------------------------
+[OK] LEDGER jurídico transparente por expediente: provisiones, pagos, suplidos,
+     honorarios, costes, ajustes, facturas — con signo y saldo en vivo.
+[OK] Aprobación de COSTES: un letrado propone, un FIRM_ADMIN aprueba/rechaza.
+[OK] Pre-cálculo fiscal en vivo (preview) reutilizando la MISMA matemática que la
+     emisión real (base, IVA/ITBIS, retención, total).
+[OK] Emisión de FACTURAS con:
+       - Serie fiscal por despacho, numeración consumida atómicamente.
+       - Encadenamiento por hash (huella anterior → registro inmutable).
+       - Moneda y formato fiscal elegibles por factura.
+[DEMO/STUB] REGISTRO FISCAL por país:
+       - España: registro Verifactu (huella SHA-256, encadenamiento, URL+QR de
+         cotejo AEAT). Estructura correcta; SIN firma con certificado real ni envío
+         a la AEAT (STUBBED).
+       - RD: e-CF (XML conforme a la estructura DGII, tipo 31/34). MAQUETA: faltan
+         DetallesItems, formato real de eNCF (E+tipo+secuencia), firma XML-DSig y
+         transmisión a la DGII. NO tiene validez fiscal todavía (ver §22).
+[OK] PDF de la factura (servidor), jurisdicción-aware: NIF/CIF↔RNC/Cédula,
+     IVA↔ITBIS, "Verifactu·AEAT"↔"e-CF·DGII", QR solo en Verifactu, eNCF en RD.
+[OK] El EMISOR de la factura es siempre el DESPACHO (su nombre + RNC/NIF), nunca
+     la plataforma.
+[OK] FACTURAS RECTIFICATIVAS / NOTAS DE CRÉDITO (España R1 sustitución/diferencias;
+     RD nota de crédito e-CF tipo 34) encadenadas y referenciando la factura origen.
+[OK] Listado global de facturas con filtros (todas, vencidas, parciales, pagadas)
+     y detalle de factura con el bloque de cumplimiento fiscal y descarga PDF.
+[OK] Cobro de factura (marcar pagada, cobros parciales).
+
+--------------------------------------------------------------------------------
+10. PROVISIÓN DE FONDOS / RETAINER
+--------------------------------------------------------------------------------
+[OK] Provisión de fondos por expediente (saldo), mono-moneda por cuenta.
+[OK] Tipos: SUPLIDO, GENÉRICO y ANTICIPO de honorarios.
+[OK] ANTICIPO devenga impuesto al cobro: emite su factura de anticipo (Verifactu/e-CF)
+     y acredita el saldo; en la factura final se DEDUCE sin doble imposición.
+[OK] Aplicación de saldo a facturas; DEVOLUCIÓN de anticipo vía rectificativa/nota
+     de crédito. Motor de saldo atómico (invariante saldo == Σ movimientos).
+
+--------------------------------------------------------------------------------
+11. FACTURACIÓN PROGRAMADA / RECURRENTE
+--------------------------------------------------------------------------------
+[OK] Calendarios de facturación por expediente:
+       - RECURRING (iguala): una factura por periodo.
+       - Servicio prestado: una factura por el total + cuotas como calendario de cobro.
+[OK] Generación de facturas del calendario y cobro de cuotas (instalments).
+[OK] Ejecución por cron + manual.
+
+--------------------------------------------------------------------------------
+12. DUNNING (RECORDATORIOS DE COBRO)
+--------------------------------------------------------------------------------
+[OK] Detección de facturas vencidas y disparo de recordatorios según reglas.
+[OK] "Recordar ahora" manual + ejecución por cron.
+[OK] Línea de tiempo de recordatorios por factura; reglas configurables; canal
+     in-app y EMAIL (requiere regla EMAIL configurada).
+
+--------------------------------------------------------------------------------
+13. PAGOS ONLINE (STRIPE CONNECT)
+--------------------------------------------------------------------------------
+[OK] Cobro online del despacho a SUS clientes vía Stripe Connect (el dinero va a
+     la cuenta del despacho). Onboarding de la cuenta conectada + estado.
+[OK] Checkout de pago de factura desde el portal del cliente. Webhook de Stripe.
+     (Disponible según jurisdicción; Stripe no opera en RD → stub en RD.)
+
+--------------------------------------------------------------------------------
+14. INFORMES
+--------------------------------------------------------------------------------
+[OK] Cartera vencida (aged receivables) AGRUPADA POR MONEDA, por tramos de
+     antigüedad (corriente / 1-30 / 31-60 / 60+).
+[OK] Tiempo por letrado: horas, honorarios y % facturado.
+[OK] Exportación a CSV.
+[DEMO/STUB] Informes fiscales: España SII; RD 606 (compras) / 607 (ventas) —
+     estructura/stub, sin envío real al organismo.
+
+--------------------------------------------------------------------------------
+15. PANEL PRINCIPAL (DASHBOARD)
+--------------------------------------------------------------------------------
+[OK] KPIs: expedientes activos/totales, clientes, tareas abiertas, plazos próximos
+     (con urgentes), revisiones pendientes.
+[OK] Facturado del mes y pendiente de cobro DESGLOSADOS POR MONEDA.
+[OK] Gráfico de ingresos por mes (moneda principal), plazos procesales próximos,
+     actividad reciente, "primeros pasos".
+
+--------------------------------------------------------------------------------
+16. MENSAJES, NOTIFICACIONES Y TIEMPO REAL
+--------------------------------------------------------------------------------
+[OK] Mensajería por expediente (despacho ↔ cliente).
+[OK] Notificaciones in-app (campana) con marca de leído; refresco periódico.
+[OK] Canal en TIEMPO REAL (websockets) para avisos (p. ej. mensajes nuevos).
+
+--------------------------------------------------------------------------------
+17. AGENDA (CALENDARIO)
+--------------------------------------------------------------------------------
+[OK] Vista de agenda con tareas/plazos del despacho (urgencia por color).
+
+--------------------------------------------------------------------------------
+18. AUDITORÍA
+--------------------------------------------------------------------------------
+[OK] Registro de auditoría inmutable de acciones (quién, qué, cuándo, sobre qué).
+[OK] Vista paginada con el nombre del actor. Trazas en altas, ediciones, emisión
+     de facturas, acceso/borrado de datos personales, etc.
+
+--------------------------------------------------------------------------------
+19. AJUSTES DEL DESPACHO
+--------------------------------------------------------------------------------
+[OK] Datos del despacho (nombre, identificador fiscal, serie de facturación).
+[OK] USUARIOS del despacho (staff): alta, activar/desactivar, rol; uso de plazas
+     (asientos) según la licencia; reseteo de contraseña por admin.
+[OK] FESTIVOS LOCALES del despacho (para el cómputo de plazos).
+[OK] Subida de CERTIFICADO (para la firma fiscal — base para Verifactu/e-CF reales).
+[OK] Conexión de cobro online (Stripe Connect) del despacho.
+[OK] Licencia/plan (solo lectura) e info de la cuenta.
+
+--------------------------------------------------------------------------------
+20. PORTAL DEL CLIENTE
+--------------------------------------------------------------------------------
+[OK] Acceso de solo lectura del cliente a SUS expedientes: documentos, ledger,
+     tareas, saldo de provisión.
+[OK] Sus facturas + pago online (si está habilitado).
+[OK] Mensajería con el despacho. Aislado de la app del despacho por rol.
+
+--------------------------------------------------------------------------------
+21. CONSOLA DE PLATAFORMA + SUSCRIPCIÓN SaaS (el dueño del SaaS)
+--------------------------------------------------------------------------------
+[OK] Consola de SUPER-ADMIN (login propio): lista de despachos con estado de
+     suscripción, plazas, días de prueba, €/mes, datos (clientes/expedientes).
+[OK] Acciones: extender prueba (+15 días), activar/suspender suscripción, fijar plazas.
+[OK] SUSCRIPCIÓN SaaS (Lawzora cobra al despacho), por usuario con descuento por
+     volumen: prueba gratis de 15 días; muro al expirar; precios €39/€35/€29 por
+     plaza (1-5 / 6-15 / 16+); pago MENSUAL o ANUAL (2 meses gratis); Plan Fundador
+     (precio por plaza bloqueado de por vida, primeros 25 despachos).
+[OK] Self-service con Stripe (Checkout + portal de cliente). EN MODO LIVE: cobra de
+     verdad. Webhook que sincroniza estado/plazas/periodo del despacho.
+[OK] Interceptor de suscripción: si el despacho no tiene acceso (prueba caducada
+     sin pagar) → 402 y muro de suscripción.
+
+--------------------------------------------------------------------------------
+22. CUMPLIMIENTO FISCAL — ESTADO REAL (IMPORTANTE)
+--------------------------------------------------------------------------------
+La GENERACIÓN por formato funciona (Verifactu para ES, e-CF para RD), pero el
+cumplimiento fiscal REAL aún no está activo:
+[STUB] España (Verifactu): registro con estructura correcta y QR de cotejo, pero
+       SIN firma con certificado real ni alta/envío a la AEAT.
+[STUB] RD (e-CF): XML representativo; faltan DetallesItems, formato real de eNCF
+       (E+tipo+secuencia de rango autorizado), firma XML-DSig y transmisión a la DGII.
+[PEND] Para "go-live fiscal": cada DESPACHO debe certificarse como emisor electrónico
+       (certificado digital propio + autorización DGII/AEAT + rangos eNCF); y Lawzora,
+       como software/proveedor, debe certificarse ante la DGII. La plataforma firma
+       cada documento con el certificado DEL DESPACHO, nunca a su propio nombre.
+
+--------------------------------------------------------------------------------
+23. INFRAESTRUCTURA / TÉCNICO
+--------------------------------------------------------------------------------
+[OK] API NestJS 10 + Prisma + PostgreSQL (Neon) con Row-Level Security multi-tenant.
+[OK] Web Next.js 15 (App Router, next-intl) con BFF para auth (cookies httpOnly).
+[OK] Almacenamiento de archivos: Cloudflare R2 (S3-compatible).
+[OK] Correo: Brevo (SMTP) — invitaciones, reset de contraseña, dunning.
+[OK] Pagos: Stripe (Connect para despacho→cliente; suscripción SaaS Lawzora→despacho).
+[OK] Firma: Signaturit. Tareas programadas (cron) para facturación y dunning.
+[OK] Despliegue en producción: Fly.io (API + Web, región Frankfurt) + dominio
+     lawzora.com (HTTPS, CORS bloqueado). CI en GitHub Actions (tests, cobertura,
+     auditoría de dependencias, CodeQL, gitleaks, control de drift de migraciones).
+
+--------------------------------------------------------------------------------
+24. PENDIENTES / FUTURO (no implementado aún)
+--------------------------------------------------------------------------------
+[PEND] Cumplimiento fiscal real (Verifactu AEAT + e-CF DGII): firma con certificado
+       + transmisión al organismo + certificación por despacho (ver §22).
+[PEND] MFA y login social (Microsoft / Google / Apple).
+[PEND] Informes fiscales reales (SII / 606 / 607) con envío al organismo.
+[PEND] (Seguridad operativa) rotar secretos usados en pruebas y cambiar la
+       contraseña del admin de plataforma antes del uso real.
+
+================================================================================
+ FIN DEL RESUMEN
+================================================================================

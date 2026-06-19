@@ -1,0 +1,82 @@
+================================================================================
+ LAWZORA — GUION DE DEMO PARA VENTAS (1 página)
+ Objetivo: que un prospecto se vea reflejado en 60 segundos, con honestidad.
+================================================================================
+
+LAS 3 DEMOS  (https://lawzora.com/es/login · contraseña común: Lawzora.Demo-2026!)
+  · es@demo.lawzora    → Despacho ESPAÑA puro    (EUR · Verifactu/AEAT)
+  · do@demo.lawzora    → Despacho RD puro        (DOP · e-CF/DGII)
+  · dual@demo.lawzora  → Despacho que trabaja en AMBOS (factura en los dos formatos)
+
+ANTES DE CADA LLAMADA: resetea a un estado limpio y conocido:
+  node apps/api/scripts/seed-demo-firms.mjs
+(Las suscripciones quedan ACTIVE: el muro de prueba nunca aparece en la demo.)
+
+--------------------------------------------------------------------------------
+RECORRIDO DE 60 SEGUNDOS  (elige la firma que se parezca al prospecto)
+--------------------------------------------------------------------------------
+1) PANEL: "Esto es tu despacho de un vistazo: expedientes activos, plazos que
+   vencen esta semana, facturado del mes y pendiente de cobro — y fíjate: si
+   facturas en varias monedas, se muestran POR SEPARADO, nunca mezcladas."
+   (En la DUAL verás EUR y DOP a la vez.)
+
+2) EXPEDIENTE → pestaña Costes/Facturación: "Registras tiempo, propones costes
+   con aprobación, y emites la factura. El cálculo fiscal es en vivo."
+
+3) EMITIR FACTURA: elige formato y moneda. Enseña la ficha de la factura emitida:
+   - ESPAÑA: el bloque "Verifactu · AEAT" con su QR de cotejo y la huella encadenada.
+   - RD: el "e-CF · DGII" con su registro. (En la DUAL emite una de cada.)
+
+4) PORTAL DEL CLIENTE: "Tu cliente entra y ve SUS expedientes, documentos y
+   facturas, y puede pagar online."
+
+--------------------------------------------------------------------------------
+EL MOMENTO CLAVE: "¿esto ya envía a la AEAT / DGII?"
+--------------------------------------------------------------------------------
+RESPUESTA HONESTA (apréndela tal cual):
+
+  "La GENERACIÓN y el ENCADENAMIENTO ya son conformes: cada factura se crea en
+   el formato correcto de tu país —Verifactu en España, e-CF en RD—, con su
+   huella encadenada e inmutable y su QR/registro. Lo que ves aquí es el
+   documento real.
+
+   La TRANSMISIÓN al organismo se activa en el ONBOARDING FISCAL, con TU
+   certificado digital. Es así por diseño y por ley: el emisor de cada factura
+   eres TÚ (tu despacho, tu RNC/NIF), no nosotros; por eso la firma y el envío
+   se hacen con el certificado de tu despacho, que tú aportas una sola vez al
+   darte de alta. Nosotros generamos, firmamos con TU certificado y transmitimos
+   en tu nombre."
+
+POR QUÉ ESTO GENERA CONFIANZA (no es una excusa):
+  · Es la arquitectura correcta: en e-CF (RD) y en Verifactu (ES) el emisor
+    electrónico es el contribuyente. Cada despacho se certifica una vez ante su
+    organismo (certificado digital + autorización + rangos). Nosotros somos el
+    software que lo automatiza.
+  · El prospecto entiende que sus facturas NO salen a nombre de un tercero.
+
+QUÉ ENSEÑAR (ya se ve bien — solo señálalo, no toques nada):
+  · El QR "Cotejo AEAT" en la factura española.
+  · El registro e-CF en la factura dominicana.
+  · La "huella" y "huella anterior": el encadenamiento inmutable.
+
+--------------------------------------------------------------------------------
+QUÉ **NO** DECIR  (evita prometer de más)
+--------------------------------------------------------------------------------
+  ✗ "Ya está enviando a la AEAT/DGII en tiempo real."  (Aún no: requiere el
+     certificado del despacho + el onboarding fiscal.)
+  ✗ "Nosotros nos encargamos de tu certificado."  (El certificado es del
+     despacho; nosotros lo integramos.)
+  ✓ Encuadra siempre la transmisión como "el último paso del onboarding fiscal,
+     con tu certificado", no como algo que falte en el producto.
+
+--------------------------------------------------------------------------------
+SI PREGUNTAN "¿cuándo está la transmisión real?"
+--------------------------------------------------------------------------------
+  "Es la fase de go-live fiscal: subes tu certificado en Ajustes, conectamos los
+   rangos autorizados y activamos el envío. La generación —lo difícil y lo que
+   garantiza que tus facturas son correctas— ya está hecha."
+
+================================================================================
+ Reset rápido:  node apps/api/scripts/seed-demo-firms.mjs   (idempotente)
+ Solo limpiar:  node apps/api/scripts/seed-demo-firms.mjs --wipe
+================================================================================
