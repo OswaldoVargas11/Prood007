@@ -16,6 +16,7 @@
     "chat": "Mensajes",
     "approvals": "Aprobaciones",
     "audit": "Auditoría",
+    "import": "Importar",
     "subscription": "Suscripción",
     "settings": "Ajustes",
     "portal": "Portal del cliente",
@@ -789,6 +790,35 @@
       "title": "Cambia tu contraseña",
       "subtitle": "Por seguridad, debes establecer una contraseña propia antes de continuar."
     }
+  },
+  "import": {
+    "title": "Importar clientes",
+    "subtitle": "Migra tus clientes desde un CSV (p. ej. exportado de Excel u otro programa).",
+    "notAuthorized": "Solo el administrador del despacho puede importar datos.",
+    "step1": "Sube tu archivo CSV o pega su contenido",
+    "formatHint": "Columnas: nombre, documento, tipo (opcional: PASSPORT/OTHER), email, teléfono, dirección.",
+    "downloadTemplate": "Descargar plantilla",
+    "chooseFile": "Elegir archivo CSV",
+    "pastePlaceholder": "…o pega aquí el contenido del CSV (con cabecera).",
+    "preview": "Previsualizar",
+    "previewError": "No se pudo procesar el CSV.",
+    "okCount": "{n} listos",
+    "dupCount": "{n} duplicados",
+    "errCount": "{n} con error",
+    "totalCount": "{n} filas en total",
+    "colLine": "Fila",
+    "colName": "Nombre",
+    "colDoc": "Documento",
+    "colStatus": "Estado",
+    "colDetail": "Detalle",
+    "status": {
+      "ok": "Listo",
+      "duplicate": "Duplicado",
+      "error": "Error"
+    },
+    "nothingToImport": "No hay filas válidas para importar.",
+    "importN": "Importar {n} clientes",
+    "imported": "{n, plural, one {# cliente importado} other {# clientes importados}}"
   },
   "settings": {
     "title": "Ajustes del despacho",

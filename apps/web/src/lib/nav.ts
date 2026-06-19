@@ -15,6 +15,7 @@ import {
   ScrollText,
   Settings,
   ShieldCheck,
+  Upload,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -74,6 +75,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: 'reports', href: '/reports', icon: BarChart3, enabled: true, adminOnly: true },
       { key: 'approvals', href: '/approvals', icon: BadgeCheck, enabled: true, adminOnly: true },
       { key: 'audit', href: '/audit', icon: ScrollText, enabled: true, adminOnly: true },
+      { key: 'import', href: '/import', icon: Upload, enabled: true, adminOnly: true },
       {
         key: 'subscription',
         href: '/subscription',

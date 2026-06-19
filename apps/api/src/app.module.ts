@@ -32,6 +32,7 @@ import { PortalModule } from './portal/portal.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { UsersModule } from './users/users.module';
 import { SettingsModule } from './settings/settings.module';
+import { ImportModule } from './import/import.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -68,6 +69,7 @@ import { HealthController } from './health.controller';
     DashboardModule,
     UsersModule,
     SettingsModule,
+    ImportModule,
   ],
   controllers: [HealthController],
   providers: [

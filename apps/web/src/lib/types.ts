@@ -110,6 +110,26 @@ export interface DashboardSummary {
   }[];
 }
 
+/** Importación de clientes (migración CSV): fila del dry-run. */
+export interface ImportPreviewRow {
+  line: number;
+  name: string;
+  taxId: string;
+  status: 'ok' | 'duplicate' | 'error';
+  kind?: string;
+  message?: string;
+}
+export interface ImportPreview {
+  summary: { total: number; ok: number; duplicates: number; errors: number };
+  rows: ImportPreviewRow[];
+}
+export interface ImportResult {
+  created: number;
+  skippedDuplicates: number;
+  errors: number;
+  failed: { line: number; message: string }[];
+}
+
 export interface Message {
   id: string;
   matterId: string;

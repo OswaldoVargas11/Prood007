@@ -30,6 +30,8 @@ import type {
   TimeByLawyerRow,
   DocumentReviewStatus,
   FirmSettings,
+  ImportPreview,
+  ImportResult,
   Invoice,
   InvoiceListItem,
   InvoicePreview,
@@ -928,6 +930,23 @@ export function useCreateClient() {
     }) => api.post<Client>('/clients', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
     meta: { successToast: toastMsg.clientCreated },
+  });
+}
+
+// ── Importación / migración de datos (CSV) ────────────────────────────────────
+/** Dry-run de importación de clientes: valida el CSV y devuelve el detalle por fila (no escribe). */
+export function useImportClientsPreview() {
+  return useMutation({
+    mutationFn: (csv: string) => api.post<ImportPreview>('/import/clients/preview', { csv }),
+    meta: { skipErrorToast: true },
+  });
+}
+/** Confirma la importación: crea los clientes válidos no duplicados. */
+export function useImportClientsCommit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (csv: string) => api.post<ImportResult>('/import/clients/commit', { csv }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
   });
 }
 
