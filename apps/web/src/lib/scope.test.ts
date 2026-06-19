@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { scopeFromAccessToken, scopeFromRoles } from './scope';
+import { jurisdictionFromAccessToken, scopeFromAccessToken, scopeFromRoles } from './scope';
 
 function tokenWithRoles(roles: string[]): string {
   const payload = Buffer.from(JSON.stringify({ roles })).toString('base64url');
+  return `header.${payload}.sig`;
+}
+
+function tokenWithJur(jur: string): string {
+  const payload = Buffer.from(JSON.stringify({ jur })).toString('base64url');
   return `header.${payload}.sig`;
 }
 
@@ -30,5 +35,13 @@ describe('scope', () => {
   it('ante un payload que no es JSON válido, devuelve client (catch)', () => {
     // El segundo segmento existe pero su base64url no decodifica a JSON → entra al catch.
     expect(scopeFromAccessToken('header.@@@@@@.sig')).toBe('client');
+  });
+
+  it('deriva la jurisdicción del JWT (do/es); ante duda, es', () => {
+    expect(jurisdictionFromAccessToken(tokenWithJur('do'))).toBe('do');
+    expect(jurisdictionFromAccessToken(tokenWithJur('es'))).toBe('es');
+    expect(jurisdictionFromAccessToken(tokenWithJur('xx'))).toBe('es'); // valor raro → es
+    expect(jurisdictionFromAccessToken('no-es-un-jwt')).toBe('es');
+    expect(jurisdictionFromAccessToken('header.@@@@@@.sig')).toBe('es');
   });
 });
