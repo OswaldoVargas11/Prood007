@@ -18,12 +18,17 @@ export interface CheckoutOptions {
 type StripeClient = InstanceType<typeof Stripe>;
 type StripeEvent = ReturnType<StripeClient['webhooks']['constructEvent']>;
 
-/** Forma mínima de una suscripción de Stripe que usamos (evita el namespace de tipos estricto). */
+/**
+ * Forma mínima de una suscripción de Stripe que usamos (evita el namespace de tipos estricto). OJO:
+ * desde la API basil (2025) y en dahlia (2026), `current_period_end` se movió de la suscripción a
+ * CADA ITEM. Lo declaramos en ambos sitios y leemos primero el del item (D-…): si solo miráramos el
+ * nivel superior vendría `undefined` y `new Date(NaN)` abortaría la activación al pagar.
+ */
 interface SubLike {
   id: string;
   status: string;
-  current_period_end: number;
-  items: { data: Array<{ quantity?: number | null }> };
+  current_period_end?: number;
+  items: { data: Array<{ quantity?: number | null; current_period_end?: number }> };
   metadata?: Record<string, string> | null;
 }
 
@@ -216,19 +221,26 @@ export class StripeBillingService {
 
   /** Aplica al tenant el estado/plazas/periodo de una suscripción de Stripe (cross-tenant, BYPASSRLS). */
   private async applySubscription(tenantId: string, sub: SubLike): Promise<void> {
-    const seats = sub.items.data[0]?.quantity ?? 0;
+    const item = sub.items.data[0];
+    const seats = item?.quantity ?? 0;
     const cycle: BillingCycle = sub.metadata?.cycle === 'ANNUAL' ? 'ANNUAL' : 'MONTHLY';
+    // Fin de periodo: en API basil/dahlia vive en el item; fallback al nivel superior (versiones viejas).
+    const periodEndUnix = item?.current_period_end ?? sub.current_period_end;
 
     const data: Record<string, unknown> = {
       subscriptionStatus: mapStatus(sub.status),
       seats,
       billingCycle: cycle,
-      currentPeriodEnd: new Date(sub.current_period_end * 1000),
       stripeSubscriptionId: sub.id,
       // El tope operativo de plazas pasa a ser el contratado.
       maxLawyers: seats,
       maxAdmins: Math.max(1, Math.min(seats, 5)),
     };
+    // Solo guardamos la fecha si Stripe la dio y es válida: `new Date(NaN)` rompería TODO el update y
+    // el despacho quedaría sin activar pese a haber pagado. ACTIVE no depende de esta fecha (hasAppAccess).
+    if (typeof periodEndUnix === 'number' && Number.isFinite(periodEndUnix)) {
+      data.currentPeriodEnd = new Date(periodEndUnix * 1000);
+    }
 
     // Plan Fundador: alta efectiva del beneficio si lo pidió, no lo era ya, y queda cupo. Congela la
     // tarifa POR PLAZA vigente (snapshot de tramos): el precio sigue dependiendo del volumen.
