@@ -176,13 +176,22 @@ function BalanceCard({ matterId, onOpenLedger }: { matterId: string; onOpenLedge
   const locale = useLocale();
   const { data } = useMatterLedger(matterId);
 
+  // "Facturado" DESGLOSADO por moneda: las facturas del expediente pueden ser de distintas monedas
+  // (EUR/USD/DOP) y no deben sumarse en una sola cifra. Devuelve el texto ya formateado (« · » entre monedas).
   const billed = useMemo(() => {
     if (!data) return null;
-    const sum = data.entries
-      .filter((e) => e.type === 'INVOICE')
-      .reduce((acc, e) => acc + Number(e.amount), 0);
-    return sum;
-  }, [data]);
+    const byCcy = new Map<string, number>();
+    for (const e of data.entries) {
+      if (e.type === 'INVOICE')
+        byCcy.set(e.currency, (byCcy.get(e.currency) ?? 0) + Number(e.amount));
+    }
+    return byCcy.size
+      ? [...byCcy.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .map(([c, v]) => formatMoney(v, c, locale))
+          .join(' · ')
+      : formatMoney(0, data.currency, locale);
+  }, [data, locale]);
 
   return (
     <Card>
@@ -203,10 +212,7 @@ function BalanceCard({ matterId, onOpenLedger }: { matterId: string; onOpenLedge
       </div>
       <div className="mt-0.5 text-[11.5px] text-[var(--text-subtle)]">{t('pending')}</div>
       <div className="mt-3.5 flex gap-2">
-        <Stat
-          label={t('billed')}
-          value={data && billed !== null ? formatMoney(billed, data.currency, locale) : '—'}
-        />
+        <Stat label={t('billed')} value={data && billed !== null ? billed : '—'} />
         <Stat label={t('entries')} value={data ? String(data.entries.length) : '—'} />
       </div>
     </Card>

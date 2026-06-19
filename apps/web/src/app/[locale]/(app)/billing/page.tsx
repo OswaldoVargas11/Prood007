@@ -44,43 +44,55 @@ export default function BillingOverviewPage() {
       .map((q, i) => {
         const matter = matters[i];
         if (!matter || !q.data) return null;
-        const billed = q.data.entries
-          .filter((e) => e.type === 'INVOICE')
-          .reduce((acc, e) => acc + Number(e.amount), 0);
+        // "Facturado" DESGLOSADO por moneda: las facturas del expediente pueden ser de monedas distintas
+        // (EUR/USD/DOP); sumarlas como una sola daría una cifra sin sentido. El SALDO, en cambio, es mono-
+        // moneda por expediente (honorarios/costes en la moneda del despacho; las facturas no mueven saldo).
+        const billedByCcy = new Map<string, number>();
+        for (const e of q.data.entries) {
+          if (e.type === 'INVOICE')
+            billedByCcy.set(e.currency, (billedByCcy.get(e.currency) ?? 0) + Number(e.amount));
+        }
+        const billedTotal = [...billedByCcy.values()].reduce((a, b) => a + b, 0); // solo para ordenar
         return {
           matter,
-          currency: q.data.currency,
+          currency: q.data.currency, // moneda del saldo
           balance: Number(q.data.balance),
-          billed,
+          billedByCcy,
+          billedTotal,
           movements: q.data.entries.length,
         };
       })
       .filter((r): r is NonNullable<typeof r> => r !== null)
-      .sort((a, b) => b.billed - a.billed);
+      .sort((a, b) => b.billedTotal - a.billedTotal);
   }, [ledgerQueries, matters]);
 
-  // Resumen DESGLOSADO por moneda: no se pueden sumar EUR/USD/DOP en un único total (igual que el panel).
+  // Resumen DESGLOSADO por moneda: facturado agregado por moneda de factura; saldo por moneda de expediente.
   const summary = useMemo(() => {
-    const byCcy = new Map<string, { billed: number; balance: number }>();
+    const billedByCcy = new Map<string, number>();
+    const balanceByCcy = new Map<string, number>();
     let movements = 0;
     for (const r of rows) {
-      const e = byCcy.get(r.currency) ?? { billed: 0, balance: 0 };
-      e.billed += r.billed;
-      e.balance += r.balance;
-      byCcy.set(r.currency, e);
+      for (const [c, v] of r.billedByCcy) billedByCcy.set(c, (billedByCcy.get(c) ?? 0) + v);
+      balanceByCcy.set(r.currency, (balanceByCcy.get(r.currency) ?? 0) + r.balance);
       movements += r.movements;
     }
-    const list = [...byCcy.entries()].sort((a, b) => b[1].billed - a[1].billed);
-    return {
-      movements,
-      billed: list.length
-        ? list.map(([c, v]) => formatMoney(v.billed, c, locale))
-        : [formatMoney(0, 'EUR', locale)],
-      balance: list.length
-        ? list.map(([c, v]) => formatMoney(v.balance, c, locale))
-        : [formatMoney(0, 'EUR', locale)],
+    const fmtList = (m: Map<string, number>) => {
+      const list = [...m.entries()].sort((a, b) => b[1] - a[1]);
+      return list.length
+        ? list.map(([c, v]) => formatMoney(v, c, locale))
+        : [formatMoney(0, 'EUR', locale)];
     };
+    return { movements, billed: fmtList(billedByCcy), balance: fmtList(balanceByCcy) };
   }, [rows, locale]);
+
+  /** "Facturado" del expediente, por moneda (unido por « · »); « — » si no hay facturas. */
+  const rowBilled = (billedByCcy: Map<string, number>) =>
+    billedByCcy.size
+      ? [...billedByCcy.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .map(([c, v]) => formatMoney(v, c, locale))
+          .join(' · ')
+      : '—';
 
   const loading =
     mattersQuery.isLoading || (matters.length > 0 && ledgerQueries.some((q) => q.isLoading));
@@ -135,7 +147,7 @@ export default function BillingOverviewPage() {
                     {clientName.get(r.matter.clientId) ?? '—'}
                   </span>
                   <span className="text-right text-[12.5px] tabular-nums">
-                    {formatMoney(r.billed, r.currency, locale)}
+                    {rowBilled(r.billedByCcy)}
                   </span>
                   <span className="text-right text-[12.5px] font-semibold tabular-nums">
                     {formatMoney(r.balance, r.currency, locale)}
