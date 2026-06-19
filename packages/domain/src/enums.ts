@@ -254,7 +254,7 @@ export enum RectificationMode {
   DIFERENCIAS = 'DIFERENCIAS',
 }
 
-/** Tipo de identificador fiscal (validado por el provider de cumplimiento). */
+/** Tipo de identificador fiscal o documento de identidad (validado por el provider de cumplimiento). */
 export enum TaxIdKind {
   /** España */
   NIF = 'NIF',
@@ -263,4 +263,7 @@ export enum TaxIdKind {
   /** República Dominicana */
   RNC = 'RNC',
   CEDULA = 'CEDULA',
+  /** Transfronterizos (validación ligera, sin dígito de control). Para clientes extranjeros. */
+  PASSPORT = 'PASSPORT',
+  OTHER = 'OTHER',
 }

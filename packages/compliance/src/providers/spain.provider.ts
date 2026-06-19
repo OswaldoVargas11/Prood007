@@ -8,10 +8,10 @@
  * lógica real pendiente (E9). El envío a AEAT va STUBBEADO.
  */
 import { createHash } from 'node:crypto';
-import { Jurisdiction, InvoiceDocumentType, RectificationMode } from '@legalflow/domain';
+import { Jurisdiction, InvoiceDocumentType, RectificationMode, TaxIdKind } from '@legalflow/domain';
 import { addBusinessDays, spanishNationalHolidays } from '../deadlines';
 import { computeInvoiceTotals } from '../tax-math';
-import { validateEsTaxId } from '../taxid';
+import { validateEsTaxId, validateForeignDoc } from '../taxid';
 import type { ComplianceProvider } from '../provider.interface';
 import type {
   CourtIntegration,
@@ -30,7 +30,12 @@ export class SpainComplianceProvider implements ComplianceProvider {
   readonly jurisdiction = Jurisdiction.ES;
   readonly invoiceFormat = 'VERIFACTU';
 
-  validateTaxId(id: string): TaxIdValidationResult {
+  validateTaxId(id: string, declaredKind?: TaxIdKind): TaxIdValidationResult {
+    if (declaredKind === TaxIdKind.PASSPORT || declaredKind === TaxIdKind.OTHER) {
+      const doc = validateForeignDoc(id, declaredKind);
+      if (doc.valid) return doc;
+      return { valid: false, error: { code: 'INVALID_DOC', messageKey: 'compliance.doc.invalid' } };
+    }
     const result = validateEsTaxId(id);
     if (result.valid) return result;
     return {

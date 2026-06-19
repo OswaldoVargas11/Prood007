@@ -34,6 +34,7 @@ function initials(name: string): string {
 /** Tipo de cliente derivado del tipo de identificador fiscal (sin acoplar al país). */
 function clientType(kind: string | null): 'company' | 'individual' | null {
   if (!kind) return null;
+  if (kind === 'OTHER') return null; // documento genérico: no inferimos empresa/persona
   return kind === 'CIF' || kind === 'RNC' ? 'company' : 'individual';
 }
 
@@ -155,6 +156,9 @@ function CreateClientDialog({ open, onClose }: { open: boolean; onClose: () => v
   const router = useRouter();
   const [name, setName] = useState('');
   const [taxId, setTaxId] = useState('');
+  // 'FISCAL' = identificador fiscal de la jurisdicción (validación estricta); 'PASSPORT'/'OTHER' =
+  // documento extranjero/genérico (validación ligera).
+  const [docType, setDocType] = useState<'FISCAL' | 'PASSPORT' | 'OTHER'>('FISCAL');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -169,11 +173,13 @@ function CreateClientDialog({ open, onClose }: { open: boolean; onClose: () => v
       const client = await create.mutateAsync({
         name: name.trim(),
         taxId: taxId.trim(),
+        docType: docType === 'FISCAL' ? undefined : docType,
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
       });
       setName('');
       setTaxId('');
+      setDocType('FISCAL');
       setEmail('');
       setPhone('');
       onClose();
@@ -212,14 +218,32 @@ function CreateClientDialog({ open, onClose }: { open: boolean; onClose: () => v
             )}
           </div>
           <div className="space-y-1.5">
-            <Label>{t('fiscalId')}</Label>
-            <Input
-              value={taxId}
-              onChange={(e) => setTaxId(e.target.value)}
-              className="font-mono"
-              placeholder={t('fiscalPlaceholder')}
-            />
-            <p className="text-[11px] text-[var(--text-subtle)]">{t('fiscalHint')}</p>
+            <div className="grid grid-cols-[10rem_1fr] gap-3">
+              <div className="space-y-1.5">
+                <Label>{t('docType')}</Label>
+                <select
+                  value={docType}
+                  onChange={(e) => setDocType(e.target.value as 'FISCAL' | 'PASSPORT' | 'OTHER')}
+                  className="flex h-9 w-full rounded-md border border-input bg-[var(--surface-1)] px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="FISCAL">{t('docFiscal')}</option>
+                  <option value="PASSPORT">{t('docPassport')}</option>
+                  <option value="OTHER">{t('docOther')}</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{docType === 'FISCAL' ? t('fiscalId') : t('docId')}</Label>
+                <Input
+                  value={taxId}
+                  onChange={(e) => setTaxId(e.target.value)}
+                  className="font-mono"
+                  placeholder={docType === 'FISCAL' ? t('fiscalPlaceholder') : t('docPlaceholder')}
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-[var(--text-subtle)]">
+              {docType === 'FISCAL' ? t('fiscalHint') : t('docHint')}
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

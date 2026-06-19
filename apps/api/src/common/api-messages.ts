@@ -101,6 +101,10 @@ export const API_MESSAGES = {
     'es-ES': 'Identificador fiscal no válido para la jurisdicción del despacho.',
     'es-DO': 'Identificador fiscal no válido para la jurisdicción del despacho.',
   },
+  'clients.docInvalid': {
+    'es-ES': 'Documento no válido. Usa de 5 a 20 caracteres (letras y números).',
+    'es-DO': 'Documento no válido. Usa de 5 a 20 caracteres (letras y números).',
+  },
   'clients.notFound': {
     'es-ES': 'Cliente no encontrado.',
     'es-DO': 'Cliente no encontrado.',

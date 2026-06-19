@@ -1,4 +1,5 @@
-import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { TaxIdKind } from '@legalflow/domain';
 
 export class CreateClientDto {
   @IsString()
@@ -6,11 +7,19 @@ export class CreateClientDto {
   @MaxLength(200)
   name!: string;
 
-  /** Identificador fiscal (NIF/CIF/NIE en ES, RNC/Cédula en RD). Validado por el provider. */
+  /** Identificador fiscal (NIF/CIF/NIE en ES, RNC/Cédula en RD) o documento. Validado por el provider. */
   @IsString()
   @MinLength(5)
   @MaxLength(30)
   taxId!: string;
+
+  /**
+   * Tipo de documento declarado. Si es PASSPORT u OTHER, se valida en ligero (clientes extranjeros);
+   * si se omite, se asume documento fiscal y se valida estricto contra la jurisdicción del despacho.
+   */
+  @IsOptional()
+  @IsEnum(TaxIdKind)
+  docType?: TaxIdKind;
 
   @IsOptional()
   @IsEmail()

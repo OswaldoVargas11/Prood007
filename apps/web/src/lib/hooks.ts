@@ -911,6 +911,7 @@ export function useCreateClient() {
     mutationFn: (body: {
       name: string;
       taxId: string;
+      docType?: 'PASSPORT' | 'OTHER';
       email?: string;
       phone?: string;
       address?: string;

@@ -5,10 +5,10 @@
  * "not available" court integration because LexNET does not apply in this jurisdiction.
  */
 import { createHash } from 'node:crypto';
-import { Jurisdiction, InvoiceDocumentType } from '@legalflow/domain';
+import { Jurisdiction, InvoiceDocumentType, TaxIdKind } from '@legalflow/domain';
 import { addBusinessDays } from '../deadlines';
 import { computeInvoiceTotals } from '../tax-math';
-import { validateDoTaxId } from '../taxid';
+import { validateDoTaxId, validateForeignDoc } from '../taxid';
 import type { ComplianceProvider } from '../provider.interface';
 import type {
   CourtIntegration,
@@ -27,7 +27,12 @@ export class DominicanComplianceProvider implements ComplianceProvider {
   readonly jurisdiction = Jurisdiction.DO;
   readonly invoiceFormat = 'ECF';
 
-  validateTaxId(id: string): TaxIdValidationResult {
+  validateTaxId(id: string, declaredKind?: TaxIdKind): TaxIdValidationResult {
+    if (declaredKind === TaxIdKind.PASSPORT || declaredKind === TaxIdKind.OTHER) {
+      const doc = validateForeignDoc(id, declaredKind);
+      if (doc.valid) return doc;
+      return { valid: false, error: { code: 'INVALID_DOC', messageKey: 'compliance.doc.invalid' } };
+    }
     const result = validateDoTaxId(id);
     if (result.valid) return result;
     return {
