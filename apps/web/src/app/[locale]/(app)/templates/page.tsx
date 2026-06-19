@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { FileText, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCreateTemplate, useDeleteTemplate, useTemplates, useUpdateTemplate } from '@/lib/hooks';
 import { ApiError } from '@/lib/api';
+import { ConfirmDialog } from '@/components/lexora/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -37,9 +38,11 @@ const TOKENS = [
 
 export default function TemplatesPage() {
   const t = useTranslations('templates');
+  const tc = useTranslations('common');
   const { data, isLoading } = useTemplates();
   const remove = useDeleteTemplate();
   const [editing, setEditing] = useState<DocumentTemplate | 'new' | null>(null);
+  const [deleting, setDeleting] = useState<DocumentTemplate | null>(null);
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6">
@@ -96,10 +99,7 @@ export default function TemplatesPage() {
                 <Button
                   size="sm"
                   variant="ghost"
-                  disabled={remove.isPending}
-                  onClick={() => {
-                    if (confirm(t('confirmDelete', { name: tpl.name }))) remove.mutate(tpl.id);
-                  }}
+                  onClick={() => setDeleting(tpl)}
                   aria-label={t('delete')}
                 >
                   <Trash2 className="text-[var(--danger)]" />
@@ -111,6 +111,16 @@ export default function TemplatesPage() {
       </div>
 
       <TemplateDialog template={editing} onClose={() => setEditing(null)} />
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title={t('confirmDelete', { name: deleting?.name ?? '' })}
+        confirmLabel={tc('delete')}
+        loading={remove.isPending}
+        onConfirm={() => {
+          if (deleting) remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) });
+        }}
+      />
     </div>
   );
 }

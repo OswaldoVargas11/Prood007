@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, getAccessToken, setAccessToken } from './api';
+import { toastMsg } from './toasts';
 import type {
   AnonymizeResult,
   Assignee,
@@ -117,6 +118,7 @@ export function useAnonymizeClient(id: string) {
       void qc.invalidateQueries({ queryKey: ['client', id] });
       void qc.invalidateQueries({ queryKey: ['clients'] });
     },
+    meta: { successToast: toastMsg.clientAnonymized },
   });
 }
 
@@ -310,6 +312,7 @@ export function useCreateTemplate() {
     mutationFn: (body: { name: string; description?: string; body: string }) =>
       api.post<DocumentTemplate>('/templates', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+    meta: { successToast: toastMsg.templateCreated },
   });
 }
 
@@ -334,6 +337,7 @@ export function useDeleteTemplate() {
   return useMutation({
     mutationFn: (id: string) => api.del(`/templates/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
+    meta: { successToast: toastMsg.templateDeleted },
   });
 }
 
@@ -372,6 +376,7 @@ export function useCreateTask() {
       assigneeId?: string;
     }) => api.post<Task>('/tasks', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+    meta: { successToast: toastMsg.taskCreated },
   });
 }
 
@@ -403,6 +408,7 @@ export function useDeleteTask() {
   return useMutation({
     mutationFn: (id: string) => api.del(`/tasks/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+    meta: { successToast: toastMsg.taskDeleted },
   });
 }
 
@@ -478,6 +484,7 @@ export function useLogTime() {
       invalidateMatterBilling(qc, vars.matterId);
       void qc.invalidateQueries({ queryKey: ['time'] });
     },
+    meta: { successToast: toastMsg.timeLogged },
   });
 }
 
@@ -499,6 +506,7 @@ export function useCreateInvoice(matterId: string) {
       invoiceFormat?: 'es' | 'do';
     }) => api.post<{ invoice: Invoice }>('/ledger/invoices', { ...body, matterId }),
     onSuccess: () => invalidateMatterBilling(qc, matterId),
+    meta: { successToast: toastMsg.invoiceCreated },
   });
 }
 
@@ -590,6 +598,7 @@ export function useDunningRun() {
       void qc.invalidateQueries({ queryKey: ['dunning-reminders'] });
       void qc.invalidateQueries({ queryKey: ['invoices'] });
     },
+    meta: { successToast: toastMsg.dunningRun },
   });
 }
 
@@ -630,6 +639,7 @@ export function useRetainerDeposit(matterId: string) {
       currency?: 'EUR' | 'USD' | 'DOP';
     }) => api.post<{ balance: string }>('/retainer/deposit', { ...body, matterId }),
     onSuccess: () => invalidateRetainer(qc, matterId),
+    meta: { successToast: toastMsg.depositRecorded },
   });
 }
 
@@ -917,6 +927,7 @@ export function useCreateClient() {
       address?: string;
     }) => api.post<Client>('/clients', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
+    meta: { successToast: toastMsg.clientCreated },
   });
 }
 
@@ -929,6 +940,7 @@ export function useCreateMatter() {
       void qc.invalidateQueries({ queryKey: ['matters'] });
       void qc.invalidateQueries({ queryKey: ['clients'] });
     },
+    meta: { successToast: toastMsg.matterCreated },
   });
 }
 
@@ -941,6 +953,7 @@ export function useCreatePortalUser(clientId: string) {
       void qc.invalidateQueries({ queryKey: ['client', clientId] });
       void qc.invalidateQueries({ queryKey: ['clients'] });
     },
+    meta: { successToast: toastMsg.portalCreated },
   });
 }
 
@@ -963,6 +976,7 @@ export function useCreateStaff() {
       void qc.invalidateQueries({ queryKey: ['seats'] });
       void qc.invalidateQueries({ queryKey: ['settings'] });
     },
+    meta: { successToast: toastMsg.staffCreated },
   });
 }
 
@@ -1085,6 +1099,7 @@ export function useUpdateSettings() {
       invoiceSeries?: string;
     }) => api.patch<FirmSettings>('/settings', body),
     onSuccess: (data) => qc.setQueryData(['settings'], data),
+    meta: { successToast: toastMsg.settingsSaved },
   });
 }
 
@@ -1142,6 +1157,7 @@ export function useProposeCost(matterId: string) {
       void qc.invalidateQueries({ queryKey: ['ledger', matterId] });
       void qc.invalidateQueries({ queryKey: ['approvals'] });
     },
+    meta: { successToast: toastMsg.costProposed },
   });
 }
 

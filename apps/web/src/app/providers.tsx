@@ -27,6 +27,11 @@ export function Providers({ children }: { children: ReactNode }) {
                 : 'No se pudo completar la acción. Revisa tu conexión e inténtalo de nuevo.';
             toast.error(msg);
           },
+          // Confirmación de éxito: la mutación declara `meta.successToast` (texto del catálogo).
+          onSuccess: (_data, _vars, _ctx, mutation) => {
+            const msg = mutation.meta?.successToast;
+            if (typeof msg === 'string') toast.success(msg);
+          },
         }),
         defaultOptions: {
           queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },

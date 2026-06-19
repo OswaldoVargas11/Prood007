@@ -985,10 +985,30 @@
   },
   "common": {
     "showPassword": "Mostrar contraseña",
-    "hidePassword": "Ocultar contraseña"
+    "hidePassword": "Ocultar contraseña",
+    "cancel": "Cancelar",
+    "delete": "Eliminar"
   },
   "toasts": {
-    "newMessage": "Nuevo mensaje"
+    "newMessage": "Nuevo mensaje",
+    "clientCreated": "Cliente creado",
+    "clientUpdated": "Cliente actualizado",
+    "clientAnonymized": "Cliente anonimizado",
+    "matterCreated": "Expediente creado",
+    "invoiceCreated": "Factura emitida",
+    "settingsSaved": "Ajustes guardados",
+    "costProposed": "Coste propuesto para aprobación",
+    "costApproved": "Coste aprobado",
+    "costRejected": "Coste rechazado",
+    "templateCreated": "Plantilla creada",
+    "templateDeleted": "Plantilla eliminada",
+    "taskCreated": "Tarea creada",
+    "taskDeleted": "Tarea eliminada",
+    "staffCreated": "Usuario creado",
+    "depositRecorded": "Provisión registrada",
+    "timeLogged": "Tiempo registrado",
+    "portalCreated": "Acceso al portal creado",
+    "dunningRun": "Recordatorios de cobro enviados"
   },
   "kyc": {
     "title": "KYC / Prevención de blanqueo",
