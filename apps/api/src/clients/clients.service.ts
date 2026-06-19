@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
-import { ApprovalStatus, LedgerEntryType, Role, TaxIdKind } from '@legalflow/domain';
+import { ApprovalStatus, Jurisdiction, LedgerEntryType, Role, TaxIdKind } from '@legalflow/domain';
 
 /** Signo de cada tipo de apunte para el saldo (espejo de LedgerService.BALANCE_SIGN). */
 const BALANCE_SIGN: Record<LedgerEntryType, number> = {
@@ -56,6 +56,14 @@ export class ClientsService {
   ): { normalized: string; kind?: string } {
     const provider = this.compliance.forJurisdiction(user.jurisdiction);
     const result = provider.validateTaxId(taxId, docType);
+    // Despachos que trabajan en AMBAS jurisdicciones (ES + RD): si el documento no es válido en la del
+    // despacho y no se declaró un tipo, lo intentamos con la OTRA jurisdicción, para poder dar de alta
+    // clientes del otro país (RNC/Cédula en un despacho ES, o NIF/CIF/NIE en uno RD).
+    if (!result.valid && !docType) {
+      const other = user.jurisdiction === Jurisdiction.ES ? Jurisdiction.DO : Jurisdiction.ES;
+      const alt = this.compliance.forJurisdiction(other).validateTaxId(taxId);
+      if (alt.valid) return { normalized: alt.normalized ?? taxId, kind: alt.kind };
+    }
     if (!result.valid) {
       // Mensaje acorde al tipo: documento (pasaporte/otro) vs identificador fiscal.
       const isDoc = docType === TaxIdKind.PASSPORT || docType === TaxIdKind.OTHER;
