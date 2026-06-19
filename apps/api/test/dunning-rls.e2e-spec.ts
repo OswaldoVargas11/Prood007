@@ -56,6 +56,7 @@ describe('RLS dunning a nivel de BD (e2e)', () => {
         number: `INV-${name}-${unique}`,
         issueDate: new Date(),
         currency,
+        invoiceFormat: jurisdiction,
         taxableBase: 100,
         taxAmount: 21,
         total: 121,
