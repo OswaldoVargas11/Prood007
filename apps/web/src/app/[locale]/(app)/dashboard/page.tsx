@@ -14,7 +14,7 @@ import { useAuth } from '@/lib/auth';
 import { useDashboardSummary } from '@/lib/hooks';
 import { activityColor, activityLabel, relativeTime } from '@/lib/activity';
 import { formatDate, formatMoney } from '@/lib/format';
-import type { DashboardSummary } from '@/lib/types';
+import type { DashboardSummary, MoneyByCurrency } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -78,6 +78,19 @@ function Panel({ children, className }: { children: React.ReactNode; className?:
   return <Card className={cn('overflow-hidden', className)}>{children}</Card>;
 }
 
+/** Importe de la moneda principal dentro de un desglose multi-moneda (o '0' si no aparece). */
+function primaryAmount(list: MoneyByCurrency[], currency: string): string {
+  return list.find((m) => m.currency === currency)?.amount ?? '0';
+}
+
+/** Monedas SECUNDARIAS (≠ principal) con importe ≠ 0, ya formateadas y unidas por « · ». */
+function otherMoney(list: MoneyByCurrency[], primary: string, locale: string): string {
+  return list
+    .filter((m) => m.currency !== primary && Number(m.amount) !== 0)
+    .map((m) => formatMoney(m.amount, m.currency, locale))
+    .join(' · ');
+}
+
 function KpiRow({ data }: { data: DashboardSummary }) {
   const t = useTranslations('dashboard');
   const locale = useLocale();
@@ -88,6 +101,7 @@ function KpiRow({ data }: { data: DashboardSummary }) {
     icon: LucideIcon;
     color: string;
     sub: string;
+    extra?: string;
     delta?: string;
     deltaColor?: string;
   }[] = [
@@ -109,10 +123,13 @@ function KpiRow({ data }: { data: DashboardSummary }) {
     },
     {
       label: t('kpiBillable'),
-      value: formatMoney(k.billableThisMonth, data.currency, locale),
+      value: formatMoney(primaryAmount(k.billableThisMonth, data.currency), data.currency, locale),
       icon: Receipt,
       color: 'var(--success)',
-      sub: t('kpiBillableSub', { amount: formatMoney(k.outstanding, data.currency, locale) }),
+      sub: t('kpiBillableSub', {
+        amount: formatMoney(primaryAmount(k.outstanding, data.currency), data.currency, locale),
+      }),
+      extra: otherMoney(k.billableThisMonth, data.currency, locale) || undefined,
     },
     {
       label: t('kpiReviews'),
@@ -143,6 +160,11 @@ function KpiRow({ data }: { data: DashboardSummary }) {
                 </span>
               </div>
               <div className="text-2xl font-semibold tabular-nums tracking-tight">{it.value}</div>
+              {it.extra && (
+                <div className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+                  + {it.extra}
+                </div>
+              )}
               <div className="mt-1.5 flex items-center gap-1.5 text-xs">
                 {it.delta && (
                   <span className="font-semibold tabular-nums" style={{ color: it.deltaColor }}>
@@ -182,7 +204,11 @@ function RevenueCard({ data }: { data: DashboardSummary }) {
         <div className="mb-1 flex items-start justify-between">
           <div>
             <div className="text-sm font-semibold">{t('revenue')}</div>
-            <div className="text-xs text-muted-foreground">{t('revenueSub')}</div>
+            <div className="text-xs text-muted-foreground">
+              {data.hasOtherCurrencies
+                ? t('revenueOnly', { currency: data.currency })
+                : t('revenueSub')}
+            </div>
           </div>
           <div className="text-right">
             <div className="text-lg font-semibold tabular-nums tracking-tight">
@@ -251,10 +277,17 @@ function DigestCard({ data }: { data: DashboardSummary }) {
     mark: '◆',
     color: 'var(--brand)',
     text: t('digestBillable', {
-      billed: formatMoney(k.billableThisMonth, data.currency, locale),
-      outstanding: formatMoney(k.outstanding, data.currency, locale),
+      billed: formatMoney(primaryAmount(k.billableThisMonth, data.currency), data.currency, locale),
+      outstanding: formatMoney(primaryAmount(k.outstanding, data.currency), data.currency, locale),
     }),
   });
+  const otherBilled = otherMoney(k.billableThisMonth, data.currency, locale);
+  if (otherBilled)
+    bullets.push({
+      mark: '◆',
+      color: 'var(--info)',
+      text: t('digestOther', { amounts: otherBilled }),
+    });
   bullets.push({
     mark: '●',
     color: k.pendingReviews > 0 ? 'var(--warning)' : 'var(--success)',

@@ -56,7 +56,14 @@ describe('Dashboard summary (e2e)', () => {
       totalClients: expect.any(Number),
       pendingReviews: expect.any(Number),
     });
-    expect(typeof res.body.kpis.billableThisMonth).toBe('string');
+    // Facturación desglosada por moneda (la principal siempre presente, aunque sea 0).
+    expect(Array.isArray(res.body.kpis.billableThisMonth)).toBe(true);
+    expect(res.body.kpis.billableThisMonth[0]).toMatchObject({
+      currency: 'EUR',
+      amount: expect.any(String),
+    });
+    expect(Array.isArray(res.body.kpis.outstanding)).toBe(true);
+    expect(typeof res.body.hasOtherCurrencies).toBe('boolean');
     expect(Array.isArray(res.body.revenueByMonth)).toBe(true);
     expect(res.body.revenueByMonth).toHaveLength(6);
     expect(Array.isArray(res.body.deadlines)).toBe(true);
