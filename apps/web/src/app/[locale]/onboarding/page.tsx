@@ -215,7 +215,7 @@ export default function OnboardingPage() {
                     onClick={() => selectJurisdiction('es')}
                     emoji="🇪🇸"
                     title="España"
-                    sub="Unión Europea · es-ES"
+                    sub="Unión Europea · EUR"
                     accent="Verifactu · AEAT"
                     note="IVA 21% + IRPF"
                   />
@@ -224,7 +224,7 @@ export default function OnboardingPage() {
                     onClick={() => selectJurisdiction('do')}
                     emoji="🇩🇴"
                     title="República Dominicana"
-                    sub="El Caribe · es-DO"
+                    sub="El Caribe · DOP"
                     accent="e-CF · DGII"
                     note="ITBIS 18%"
                   />

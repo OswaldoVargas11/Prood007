@@ -16,9 +16,20 @@ const SCOPE_COOKIE = 'lf_scope';
  *   el portal → /dashboard. Esto no se puede saltar desactivando JS; el backend (RBAC + RLS) sigue
  *   siendo la verdad. Ver D-014/D-015.
  */
+/** Locales legados (antes había uno por jurisdicción); ahora todo es `es`. */
+const LEGACY_LOCALES = ['es-ES', 'es-DO'];
+
 export default function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const segments = pathname.split('/');
+
+  // Redirección permanente de las URLs viejas /es-ES/* y /es-DO/* a /es/* (no rompe enlaces/marcadores).
+  if (LEGACY_LOCALES.includes(segments[1] ?? '')) {
+    const url = req.nextUrl.clone();
+    url.pathname = '/es' + (segments.slice(2).length ? '/' + segments.slice(2).join('/') : '');
+    return NextResponse.redirect(url, 308);
+  }
+
   const maybeLocale = segments[1];
   const hasLocale = routing.locales.includes(maybeLocale as (typeof routing.locales)[number]);
   const locale = hasLocale ? maybeLocale : routing.defaultLocale;
