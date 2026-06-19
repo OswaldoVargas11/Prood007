@@ -215,15 +215,15 @@ export class AuthService {
     }
   }
 
-  /** Perfil del usuario autenticado + su despacho (id + nombre) para el header y el soporte de login. */
+  /** Perfil del usuario autenticado + su despacho (id, nombre, moneda) para el header y los informes. */
   async getProfile(
     user: RequestUser,
-  ): Promise<RequestUser & { tenant: { id: string; name: string } }> {
+  ): Promise<RequestUser & { tenant: { id: string; name: string; currency: string } }> {
     const tenant = await this.system.tenant.findUnique({
       where: { id: user.tenantId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, currency: true },
     });
-    return { ...user, tenant: tenant ?? { id: user.tenantId, name: '' } };
+    return { ...user, tenant: tenant ?? { id: user.tenantId, name: '', currency: 'EUR' } };
   }
 
   /** Login correcto: resetea contador/bloqueo, audita y emite el par de tokens. */

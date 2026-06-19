@@ -680,7 +680,7 @@ export class RetainerService {
    * INSERT perdedor bloquea en el índice único hasta que el ganador confirma y luego cae en P2002 →
    * re-lee la fila ya confirmada. Devuelve siempre una cuenta confirmada y visible.
    */
-  private async ensureAccount(tenantId: string, matterId: string, currency: 'EUR' | 'DOP') {
+  private async ensureAccount(tenantId: string, matterId: string, currency: 'EUR' | 'USD' | 'DOP') {
     const existing = await this.prisma.retainerAccount.findUnique({ where: { matterId } });
     if (existing) return existing;
     try {

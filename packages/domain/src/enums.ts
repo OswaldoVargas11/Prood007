@@ -10,9 +10,10 @@ export enum Jurisdiction {
   DO = 'do',
 }
 
-/** Moneda a nivel de tenant. */
+/** Monedas soportadas para facturar (moneda por defecto del tenant + elegible por factura). */
 export enum Currency {
   EUR = 'EUR',
+  USD = 'USD',
   DOP = 'DOP',
 }
 

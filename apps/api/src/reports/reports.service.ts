@@ -10,7 +10,8 @@ export class ReportsService {
 
   /**
    * Cartera vencida (aged receivables): facturas no liquidadas con saldo pendiente, clasificadas por
-   * antigüedad del vencimiento (corriente · 1-30 · 31-60 · 60+ días). Importes en la moneda del tenant.
+   * antigüedad del vencimiento (corriente · 1-30 · 31-60 · 60+ días). AGRUPADO POR MONEDA: como el
+   * despacho puede facturar en EUR/USD/DOP, los totales NO se mezclan — un grupo por cada moneda.
    */
   async agedReceivables(user: RequestUser) {
     const invoices = await this.prisma.invoice.findMany({
@@ -27,30 +28,38 @@ export class ReportsService {
     });
 
     const today = startOfTodayUtc().getTime();
-    const buckets = { current: 0, d1_30: 0, d31_60: 0, d60plus: 0 };
-    const items: {
-      number: string;
-      client: string;
+    interface Group {
       currency: string;
-      dueDate: string | null;
-      outstanding: number;
-      daysOverdue: number;
-    }[] = [];
-    let totalOutstanding = 0;
-    let currency = '';
+      totalOutstanding: number;
+      buckets: { current: number; d1_30: number; d31_60: number; d60plus: number };
+      items: {
+        number: string;
+        client: string;
+        currency: string;
+        dueDate: string | null;
+        outstanding: number;
+        daysOverdue: number;
+      }[];
+    }
+    const groups = new Map<string, Group>();
 
     for (const inv of invoices) {
       const outstanding = Number(inv.total) - Number(inv.amountPaid);
       if (outstanding <= 0) continue;
-      currency = currency || inv.currency;
+      const g = groups.get(inv.currency) ?? {
+        currency: inv.currency,
+        totalOutstanding: 0,
+        buckets: { current: 0, d1_30: 0, d31_60: 0, d60plus: 0 },
+        items: [],
+      };
       const due = inv.dueDate ? inv.dueDate.getTime() : today;
       const daysOverdue = Math.max(0, Math.floor((today - due) / 86_400_000));
-      if (daysOverdue <= 0) buckets.current += outstanding;
-      else if (daysOverdue <= 30) buckets.d1_30 += outstanding;
-      else if (daysOverdue <= 60) buckets.d31_60 += outstanding;
-      else buckets.d60plus += outstanding;
-      totalOutstanding += outstanding;
-      items.push({
+      if (daysOverdue <= 0) g.buckets.current += outstanding;
+      else if (daysOverdue <= 30) g.buckets.d1_30 += outstanding;
+      else if (daysOverdue <= 60) g.buckets.d31_60 += outstanding;
+      else g.buckets.d60plus += outstanding;
+      g.totalOutstanding += outstanding;
+      g.items.push({
         number: inv.number,
         client: inv.client.name,
         currency: inv.currency,
@@ -58,19 +67,24 @@ export class ReportsService {
         outstanding: round2(outstanding),
         daysOverdue,
       });
+      groups.set(inv.currency, g);
     }
 
-    return {
-      currency,
-      totalOutstanding: round2(totalOutstanding),
-      buckets: {
-        current: round2(buckets.current),
-        d1_30: round2(buckets.d1_30),
-        d31_60: round2(buckets.d31_60),
-        d60plus: round2(buckets.d60plus),
-      },
-      items,
-    };
+    const byCurrency = [...groups.values()]
+      .map((g) => ({
+        currency: g.currency,
+        totalOutstanding: round2(g.totalOutstanding),
+        buckets: {
+          current: round2(g.buckets.current),
+          d1_30: round2(g.buckets.d1_30),
+          d31_60: round2(g.buckets.d31_60),
+          d60plus: round2(g.buckets.d60plus),
+        },
+        items: g.items,
+      }))
+      .sort((a, b) => b.totalOutstanding - a.totalOutstanding);
+
+    return { byCurrency };
   }
 
   /** Tiempo registrado por letrado: horas y honorarios (minutos × tarifa/60), con % facturado. */

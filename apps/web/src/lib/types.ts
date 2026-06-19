@@ -590,7 +590,7 @@ export interface KycSummary {
 }
 
 // ── Informes (Fase 4) ─────────────────────────────────────────────────────────
-export interface AgedReceivables {
+export interface AgedReceivablesGroup {
   currency: string;
   totalOutstanding: number;
   buckets: { current: number; d1_30: number; d31_60: number; d60plus: number };
@@ -602,6 +602,11 @@ export interface AgedReceivables {
     outstanding: number;
     daysOverdue: number;
   }[];
+}
+
+/** Cartera vencida agrupada por moneda (el despacho puede facturar en EUR/USD/DOP). */
+export interface AgedReceivables {
+  byCurrency: AgedReceivablesGroup[];
 }
 
 export interface TimeByLawyerRow {

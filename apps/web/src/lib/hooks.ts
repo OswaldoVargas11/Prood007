@@ -495,6 +495,8 @@ export function useCreateInvoice(matterId: string) {
       lines: InvoiceLineInput[];
       withholdingTaxCode?: string;
       issueDate?: string;
+      currency?: 'EUR' | 'USD' | 'DOP';
+      invoiceFormat?: 'es' | 'do';
     }) => api.post<{ invoice: Invoice }>('/ledger/invoices', { ...body, matterId }),
     onSuccess: () => invalidateMatterBilling(qc, matterId),
   });
@@ -516,11 +518,16 @@ export function useInvoicePreview(
   lines: PreviewLineInput[],
   withholdingTaxCode: string | undefined,
   enabled: boolean,
+  invoiceFormat?: 'es' | 'do',
 ) {
   return useQuery({
-    queryKey: ['invoice-preview', lines, withholdingTaxCode ?? null],
+    queryKey: ['invoice-preview', lines, withholdingTaxCode ?? null, invoiceFormat ?? null],
     queryFn: () =>
-      api.post<InvoicePreview>('/ledger/invoices/preview', { lines, withholdingTaxCode }),
+      api.post<InvoicePreview>('/ledger/invoices/preview', {
+        lines,
+        withholdingTaxCode,
+        invoiceFormat,
+      }),
     enabled,
     staleTime: 10_000,
     placeholderData: (prev) => prev,

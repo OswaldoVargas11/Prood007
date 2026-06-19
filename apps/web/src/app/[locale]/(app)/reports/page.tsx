@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { Download, BarChart3 } from 'lucide-react';
 import { useAgedReceivables, useTimeByLawyer } from '@/lib/hooks';
+import { useAuth } from '@/lib/auth';
 import { formatMoney } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,8 +33,12 @@ export default function ReportsPage() {
   const locale = useLocale();
   const aged = useAgedReceivables();
   const time = useTimeByLawyer();
+  const { user } = useAuth();
 
-  const cur = aged.data?.currency || 'EUR';
+  const groups = aged.data?.byCurrency ?? [];
+  const allItems = groups.flatMap((g) => g.items);
+  // Honorarios por tiempo en la moneda BASE del despacho (no dependen de la moneda de cada factura).
+  const cur = user?.tenant?.currency ?? 'EUR';
 
   return (
     <div className="mx-auto max-w-[1000px] space-y-6">
@@ -52,51 +57,59 @@ export default function ReportsPage() {
           <Button
             size="sm"
             variant="outline"
-            disabled={!aged.data || aged.data.items.length === 0}
-            onClick={() => downloadCsv('cartera-vencida.csv', aged.data?.items ?? [])}
+            disabled={allItems.length === 0}
+            onClick={() => downloadCsv('cartera-vencida.csv', allItems)}
           >
             <Download /> CSV
           </Button>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           {aged.isLoading ? (
             <Skeleton className="h-24 w-full" />
+          ) : groups.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">{t('aged.empty')}</p>
           ) : (
-            <>
-              <div className="grid gap-3 sm:grid-cols-4">
-                <Bucket
-                  label={t('aged.current')}
-                  value={aged.data?.buckets.current}
-                  currency={cur}
-                  locale={locale}
-                />
-                <Bucket
-                  label={t('aged.d1_30')}
-                  value={aged.data?.buckets.d1_30}
-                  currency={cur}
-                  locale={locale}
-                />
-                <Bucket
-                  label={t('aged.d31_60')}
-                  value={aged.data?.buckets.d31_60}
-                  currency={cur}
-                  locale={locale}
-                />
-                <Bucket
-                  label={t('aged.d60plus')}
-                  value={aged.data?.buckets.d60plus}
-                  currency={cur}
-                  locale={locale}
-                  warn
-                />
-              </div>
-              <div className="text-sm text-muted-foreground">
-                {t('aged.total')}:{' '}
-                <span className="font-semibold text-foreground tabular-nums">
-                  {formatMoney(aged.data?.totalOutstanding ?? 0, cur, locale)}
-                </span>
-              </div>
-              {(aged.data?.items.length ?? 0) > 0 && (
+            groups.map((g) => (
+              <div key={g.currency} className="space-y-4">
+                {/* Encabezado de moneda (solo si hay más de una, para no añadir ruido). */}
+                {groups.length > 1 && (
+                  <div className="text-[13px] font-semibold text-muted-foreground">
+                    {g.currency}
+                  </div>
+                )}
+                <div className="grid gap-3 sm:grid-cols-4">
+                  <Bucket
+                    label={t('aged.current')}
+                    value={g.buckets.current}
+                    currency={g.currency}
+                    locale={locale}
+                  />
+                  <Bucket
+                    label={t('aged.d1_30')}
+                    value={g.buckets.d1_30}
+                    currency={g.currency}
+                    locale={locale}
+                  />
+                  <Bucket
+                    label={t('aged.d31_60')}
+                    value={g.buckets.d31_60}
+                    currency={g.currency}
+                    locale={locale}
+                  />
+                  <Bucket
+                    label={t('aged.d60plus')}
+                    value={g.buckets.d60plus}
+                    currency={g.currency}
+                    locale={locale}
+                    warn
+                  />
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  {t('aged.total')}:{' '}
+                  <span className="font-semibold text-foreground tabular-nums">
+                    {formatMoney(g.totalOutstanding, g.currency, locale)}
+                  </span>
+                </div>
                 <div className="overflow-hidden rounded-lg border border-border">
                   <table className="w-full text-sm">
                     <thead>
@@ -108,7 +121,7 @@ export default function ReportsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {aged.data!.items.map((it) => (
+                      {g.items.map((it) => (
                         <tr key={it.number} className="border-b border-border last:border-0">
                           <td className="px-3 py-2 font-mono text-xs">{it.number}</td>
                           <td className="px-3 py-2">{it.client}</td>
@@ -121,8 +134,8 @@ export default function ReportsPage() {
                     </tbody>
                   </table>
                 </div>
-              )}
-            </>
+              </div>
+            ))
           )}
         </CardContent>
       </Card>

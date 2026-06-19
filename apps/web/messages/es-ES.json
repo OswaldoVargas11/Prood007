@@ -613,6 +613,10 @@
     "newEntry": "Añadir apunte",
     "logTime": "Registrar tiempo",
     "newInvoice": "Nueva factura",
+    "invoiceFormat": "Formato de factura",
+    "formatES": "España (IVA · Verifactu)",
+    "formatDO": "Rep. Dominicana (ITBIS · e-CF)",
+    "invoiceCurrency": "Moneda",
     "add": "Añadir",
     "amount": "Importe",
     "description": "Descripción",
@@ -1107,7 +1111,8 @@
       "total": "Total pendiente",
       "invoice": "Factura",
       "days": "Días",
-      "outstanding": "Pendiente"
+      "outstanding": "Pendiente",
+      "empty": "No hay facturas pendientes de cobro."
     },
     "time": {
       "title": "Tiempo por letrado",
