@@ -95,14 +95,35 @@ export class StripeBillingService {
     return this.config.get<string>('APP_PUBLIC_URL') ?? 'http://localhost:3000';
   }
 
-  /** Crea (o reutiliza) el customer del despacho en el Stripe de la plataforma. */
+  /**
+   * ¿El customer guardado sigue existiendo (y no está borrado) en Stripe? `retrieve` de un cliente
+   * borrado NO lanza: devuelve un objeto con `deleted: true`; uno inexistente lanza `resource_missing`.
+   * Tratamos ambos como "no existe" para poder recrearlo. Cualquier otro error se propaga.
+   */
+  private async customerExists(stripe: StripeClient, customerId: string): Promise<boolean> {
+    try {
+      const c = await stripe.customers.retrieve(customerId);
+      return !(c as { deleted?: boolean }).deleted;
+    } catch (e) {
+      if ((e as { code?: string }).code === 'resource_missing') return false;
+      throw e;
+    }
+  }
+
+  /**
+   * Crea (o reutiliza) el customer del despacho en el Stripe de la plataforma. Si el `cus_…` guardado
+   * ya no existe en Stripe (p. ej. tras pasar de test→live, o si se borró desde el panel), lo RECREA
+   * en lugar de fallar — así el botón "Suscribirme" nunca queda roto por un id huérfano.
+   */
   private async ensureCustomer(user: RequestUser): Promise<string> {
     const stripe = this.client();
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: user.tenantId },
       select: { id: true, name: true, stripeCustomerId: true },
     });
-    if (tenant.stripeCustomerId) return tenant.stripeCustomerId;
+    if (tenant.stripeCustomerId && (await this.customerExists(stripe, tenant.stripeCustomerId))) {
+      return tenant.stripeCustomerId;
+    }
     const me = await this.prisma.user.findUnique({
       where: { id: user.userId },
       select: { email: true },
@@ -159,15 +180,24 @@ export class StripeBillingService {
     const stripe = this.client();
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: user.tenantId },
-      select: { stripeCustomerId: true },
+      select: { id: true, stripeCustomerId: true },
     });
-    if (!tenant.stripeCustomerId)
-      throw new BadRequestException(apiError('subscription.noCustomer'));
-    const session = await stripe.billingPortal.sessions.create({
-      customer: tenant.stripeCustomerId,
-      return_url: `${this.baseUrl()}/subscription`,
-    });
-    return { url: session.url };
+    // Sólo abrimos el portal si el customer guardado existe de verdad en Stripe. Si quedó huérfano
+    // (test→live, borrado manual), limpiamos el id y pedimos que se suscriba primero.
+    if (tenant.stripeCustomerId && (await this.customerExists(stripe, tenant.stripeCustomerId))) {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: tenant.stripeCustomerId,
+        return_url: `${this.baseUrl()}/subscription`,
+      });
+      return { url: session.url };
+    }
+    if (tenant.stripeCustomerId) {
+      await this.prisma.tenant.update({
+        where: { id: tenant.id },
+        data: { stripeCustomerId: null },
+      });
+    }
+    throw new BadRequestException(apiError('subscription.noCustomer'));
   }
 
   // ── Webhook ────────────────────────────────────────────────────────────────
