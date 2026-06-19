@@ -100,9 +100,9 @@ export class AuthController {
     return this.passwordReset.resetPassword(dto.token, dto.newPassword);
   }
 
-  /** Devuelve el usuario autenticado (requiere access token). */
+  /** Devuelve el usuario autenticado + su despacho (id y nombre, para el header). */
   @Get('me')
   me(@CurrentUser() user: RequestUser) {
-    return user;
+    return this.auth.getProfile(user);
   }
 }

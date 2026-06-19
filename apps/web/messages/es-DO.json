@@ -1026,6 +1026,10 @@
       "CANCELED": "Cancelado"
     }
   },
+  "firm": {
+    "copyId": "Copiar ID del despacho",
+    "idCopied": "ID del despacho copiado"
+  },
   "subscription": {
     "title": "Tu suscripción",
     "subtitle": "Producto completo. Pagas por plaza, con descuento por volumen.",
