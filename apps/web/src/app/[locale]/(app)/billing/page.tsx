@@ -59,17 +59,28 @@ export default function BillingOverviewPage() {
       .sort((a, b) => b.billed - a.billed);
   }, [ledgerQueries, matters]);
 
-  const currency = rows[0]?.currency ?? 'EUR';
-  const totals = useMemo(() => {
-    return rows.reduce(
-      (acc, r) => ({
-        balance: acc.balance + r.balance,
-        billed: acc.billed + r.billed,
-        movements: acc.movements + r.movements,
-      }),
-      { balance: 0, billed: 0, movements: 0 },
-    );
-  }, [rows]);
+  // Resumen DESGLOSADO por moneda: no se pueden sumar EUR/USD/DOP en un único total (igual que el panel).
+  const summary = useMemo(() => {
+    const byCcy = new Map<string, { billed: number; balance: number }>();
+    let movements = 0;
+    for (const r of rows) {
+      const e = byCcy.get(r.currency) ?? { billed: 0, balance: 0 };
+      e.billed += r.billed;
+      e.balance += r.balance;
+      byCcy.set(r.currency, e);
+      movements += r.movements;
+    }
+    const list = [...byCcy.entries()].sort((a, b) => b[1].billed - a[1].billed);
+    return {
+      movements,
+      billed: list.length
+        ? list.map(([c, v]) => formatMoney(v.billed, c, locale))
+        : [formatMoney(0, 'EUR', locale)],
+      balance: list.length
+        ? list.map(([c, v]) => formatMoney(v.balance, c, locale))
+        : [formatMoney(0, 'EUR', locale)],
+    };
+  }, [rows, locale]);
 
   const loading =
     mattersQuery.isLoading || (matters.length > 0 && ledgerQueries.some((q) => q.isLoading));
@@ -87,15 +98,11 @@ export default function BillingOverviewPage() {
 
       {!loading && !isError && (
         <>
-          {/* Resumen del despacho */}
+          {/* Resumen del despacho (importes desglosados por moneda) */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Kpi label={t('totalBilled')} value={formatMoney(totals.billed, currency, locale)} />
-            <Kpi
-              label={t('totalBalance')}
-              value={formatMoney(totals.balance, currency, locale)}
-              accent
-            />
-            <Kpi label={t('totalMovements')} value={String(totals.movements)} />
+            <Kpi label={t('totalBilled')} values={summary.billed} />
+            <Kpi label={t('totalBalance')} values={summary.balance} accent />
+            <Kpi label={t('totalMovements')} values={[String(summary.movements)]} />
           </div>
 
           {/* Tabla por expediente */}
@@ -144,17 +151,24 @@ export default function BillingOverviewPage() {
   );
 }
 
-function Kpi({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+/** KPI con uno o varios importes (desglose multi-moneda); con una sola moneda se ve como un número grande. */
+function Kpi({ label, values, accent }: { label: string; values: string[]; accent?: boolean }) {
+  const multi = values.length > 1;
   return (
     <div className="rounded-xl border bg-card p-4 shadow-sm">
       <div className="text-[11.5px] text-[var(--text-subtle)]">{label}</div>
-      <div
-        className={cn(
-          'mt-1 text-[24px] font-semibold tabular-nums tracking-tight',
-          accent && 'text-[var(--brand)]',
-        )}
-      >
-        {value}
+      <div className={cn('mt-1 space-y-0.5', accent && 'text-[var(--brand)]')}>
+        {values.map((v, i) => (
+          <div
+            key={i}
+            className={cn(
+              'font-semibold tabular-nums tracking-tight',
+              multi ? 'text-[17px]' : 'text-[24px]',
+            )}
+          >
+            {v}
+          </div>
+        ))}
       </div>
     </div>
   );
