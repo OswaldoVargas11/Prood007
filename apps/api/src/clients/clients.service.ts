@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
-import { ApprovalStatus, LedgerEntryType, Role } from '@legalflow/domain';
+import { ApprovalStatus, LedgerEntryType, Role, TaxIdKind } from '@legalflow/domain';
 
 /** Signo de cada tipo de apunte para el saldo (espejo de LedgerService.BALANCE_SIGN). */
 const BALANCE_SIGN: Record<LedgerEntryType, number> = {
@@ -44,15 +44,27 @@ export class ClientsService {
     private readonly passwordReset: PasswordResetService,
   ) {}
 
-  /** Valida el identificador fiscal contra el provider del tenant y devuelve su forma normalizada. */
-  private validateTaxId(user: RequestUser, taxId: string): { normalized: string; kind?: string } {
+  /**
+   * Valida el documento del cliente contra el provider del tenant y devuelve su forma normalizada.
+   * `docType` PASSPORT/OTHER activa validación ligera (extranjeros); si se omite, validación fiscal
+   * estricta de la jurisdicción.
+   */
+  private validateTaxId(
+    user: RequestUser,
+    taxId: string,
+    docType?: TaxIdKind,
+  ): { normalized: string; kind?: string } {
     const provider = this.compliance.forJurisdiction(user.jurisdiction);
-    const result = provider.validateTaxId(taxId);
+    const result = provider.validateTaxId(taxId, docType);
     if (!result.valid) {
+      // Mensaje acorde al tipo: documento (pasaporte/otro) vs identificador fiscal.
+      const isDoc = docType === TaxIdKind.PASSPORT || docType === TaxIdKind.OTHER;
       throw new BadRequestException({
         // El provider aporta una messageKey específica (p. ej. compliance.es.taxId.invalid);
         // si falta, se usa la clave genérica del catálogo de la API.
-        ...apiError('clients.taxIdInvalid', { code: result.error?.code ?? 'INVALID_TAX_ID' }),
+        ...apiError(isDoc ? 'clients.docInvalid' : 'clients.taxIdInvalid', {
+          code: result.error?.code ?? 'INVALID_TAX_ID',
+        }),
         ...(result.error?.messageKey ? { messageKey: result.error.messageKey } : {}),
       });
     }
@@ -60,7 +72,7 @@ export class ClientsService {
   }
 
   async create(user: RequestUser, dto: CreateClientDto) {
-    const { normalized, kind } = this.validateTaxId(user, dto.taxId);
+    const { normalized, kind } = this.validateTaxId(user, dto.taxId, dto.docType);
     const client = await this.prisma.client.create({
       data: {
         tenantId: user.tenantId,
@@ -304,7 +316,7 @@ export class ClientsService {
       address: dto.address,
     };
     if (dto.taxId !== undefined) {
-      const { normalized, kind } = this.validateTaxId(user, dto.taxId);
+      const { normalized, kind } = this.validateTaxId(user, dto.taxId, dto.docType);
       data.taxId = normalized;
       data.taxIdKind = kind;
     }

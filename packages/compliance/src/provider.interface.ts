@@ -6,7 +6,7 @@
  * `ComplianceProvider`; obtiene la implementación correcta vía `ComplianceProviderFactory`
  * según `tenant.jurisdiction`.
  */
-import type { Jurisdiction } from '@legalflow/domain';
+import type { Jurisdiction, TaxIdKind } from '@legalflow/domain';
 import type {
   CourtIntegration,
   FiscalReports,
@@ -27,8 +27,13 @@ export interface ComplianceProvider {
   /** Formato del registro fiscal de la jurisdicción: "VERIFACTU" (ES) | "ECF" (RD). */
   readonly invoiceFormat: string;
 
-  /** Valida un identificador fiscal: NIF/CIF/NIE (ES) o RNC/Cédula (RD), con dígito de control. */
-  validateTaxId(id: string): TaxIdValidationResult;
+  /**
+   * Valida un documento de cliente. Por defecto valida el identificador FISCAL de la jurisdicción
+   * (NIF/CIF/NIE en ES · RNC/Cédula en RD) con su dígito/letra de control. Si `declaredKind` es
+   * PASSPORT u OTHER, aplica validación ligera (formato, sin dígito de control) para admitir
+   * clientes extranjeros o sin identificador fiscal local.
+   */
+  validateTaxId(id: string, declaredKind?: TaxIdKind): TaxIdValidationResult;
 
   /** Tasas impositivas vigentes: IVA + retención IRPF (ES); ITBIS (RD). */
   getTaxRates(): TaxRatesResult;

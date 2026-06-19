@@ -33,6 +33,17 @@ function isValidNie(value: string): boolean {
   return nifLetter(Number(prefix + m[2])) === m[3];
 }
 
+/**
+ * NIF especial de persona física: K (menor de 14 español), L (español no residente),
+ * M (extranjero sin NIE). Formato [KLM] + 7 dígitos + letra de control (cálculo de NIF sobre los 7
+ * dígitos). Sin esto, un menor/no residente/extranjero con NIF M no se podía dar de alta.
+ */
+function isValidSpecialNif(value: string): boolean {
+  const m = /^([KLM])(\d{7})([A-Z])$/.exec(value);
+  if (!m) return false;
+  return nifLetter(Number(m[2])) === m[3];
+}
+
 /** CIF: letra de organización + 7 dígitos + control (dígito o letra según tipo). */
 function isValidCif(value: string): boolean {
   const m = /^([A-HJ-NP-SUVW])(\d{7})([0-9A-J])$/.exec(value);
@@ -62,6 +73,7 @@ function isValidCif(value: string): boolean {
 export function validateEsTaxId(raw: string): TaxIdCheck {
   const normalized = raw.trim().toUpperCase().replace(/[\s-]/g, '');
   if (isValidNif(normalized)) return { valid: true, kind: TaxIdKind.NIF, normalized };
+  if (isValidSpecialNif(normalized)) return { valid: true, kind: TaxIdKind.NIF, normalized };
   if (isValidNie(normalized)) return { valid: true, kind: TaxIdKind.NIE, normalized };
   if (isValidCif(normalized)) return { valid: true, kind: TaxIdKind.CIF, normalized };
   return { valid: false };
@@ -95,5 +107,20 @@ export function validateDoTaxId(raw: string): TaxIdCheck {
   const normalized = raw.trim().replace(/[\s-]/g, '');
   if (isValidRnc(normalized)) return { valid: true, kind: TaxIdKind.RNC, normalized };
   if (isValidCedula(normalized)) return { valid: true, kind: TaxIdKind.CEDULA, normalized };
+  return { valid: false };
+}
+
+/**
+ * Validación LIGERA para documentos no fiscales declarados (pasaporte u otro documento de identidad).
+ * Los pasaportes no llevan dígito de control universal y su formato varía por país, así que sólo
+ * comprobamos un formato razonable (5–20 alfanuméricos en mayúsculas, con guiones internos). Esto
+ * desbloquea el alta de clientes extranjeros sin debilitar la validación de los identificadores
+ * fiscales (NIF/CIF/NIE · RNC/Cédula), que siguen exigiendo dígito/letra de control.
+ */
+export function validateForeignDoc(raw: string, kind: TaxIdKind): TaxIdCheck {
+  const normalized = raw.trim().toUpperCase().replace(/\s+/g, '');
+  if (/^[A-Z0-9](?:[A-Z0-9-]{3,18})[A-Z0-9]$/.test(normalized)) {
+    return { valid: true, kind, normalized };
+  }
   return { valid: false };
 }

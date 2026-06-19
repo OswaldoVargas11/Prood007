@@ -1,5 +1,5 @@
 import { TaxIdKind } from '@legalflow/domain';
-import { validateDoTaxId, validateEsTaxId } from './taxid';
+import { validateDoTaxId, validateEsTaxId, validateForeignDoc } from './taxid';
 
 describe('validateEsTaxId', () => {
   it('validates and normalizes Spanish NIF', () => {
@@ -60,6 +60,21 @@ describe('validateEsTaxId', () => {
     expect(validateEsTaxId('ABC')).toEqual({ valid: false });
   });
 
+  it('validates special NIF K/L/M (menor / no residente / extranjero)', () => {
+    // K/L/M + 7 dígitos + letra de control calculada sobre los 7 dígitos (1234567 → L).
+    expect(validateEsTaxId('K1234567L')).toEqual({
+      valid: true,
+      kind: TaxIdKind.NIF,
+      normalized: 'K1234567L',
+    });
+    expect(validateEsTaxId('M1234567L')).toEqual({
+      valid: true,
+      kind: TaxIdKind.NIF,
+      normalized: 'M1234567L',
+    });
+    expect(validateEsTaxId('K1234567A')).toEqual({ valid: false }); // letra de control incorrecta
+  });
+
   it('valida un CIF cuyo dígito de control es 0 (suma múltiplo de 10)', () => {
     // Dígitos 0000000 → suma 0 → dígito de control 0 (rama unit===0). Org 'A' exige dígito.
     expect(validateEsTaxId('A00000000')).toEqual({
@@ -90,5 +105,26 @@ describe('validateDoTaxId', () => {
   it('rejects Dominican identifiers with invalid check digit', () => {
     expect(validateDoTaxId('101010100')).toEqual({ valid: false });
     expect(validateDoTaxId('00112345678')).toEqual({ valid: false });
+  });
+});
+
+describe('validateForeignDoc (pasaporte / otro documento, validación ligera)', () => {
+  it('acepta un documento alfanumérico y lo normaliza (mayúsculas, sin espacios)', () => {
+    expect(validateForeignDoc('ab 1234', TaxIdKind.PASSPORT)).toEqual({
+      valid: true,
+      kind: TaxIdKind.PASSPORT,
+      normalized: 'AB1234',
+    });
+    expect(validateForeignDoc('X1234567', TaxIdKind.OTHER)).toEqual({
+      valid: true,
+      kind: TaxIdKind.OTHER,
+      normalized: 'X1234567',
+    });
+  });
+
+  it('rechaza documentos demasiado cortos o con caracteres inválidos', () => {
+    expect(validateForeignDoc('AB12', TaxIdKind.PASSPORT)).toEqual({ valid: false }); // < 5
+    expect(validateForeignDoc('AB_123', TaxIdKind.PASSPORT)).toEqual({ valid: false }); // símbolo
+    expect(validateForeignDoc('', TaxIdKind.OTHER)).toEqual({ valid: false });
   });
 });
