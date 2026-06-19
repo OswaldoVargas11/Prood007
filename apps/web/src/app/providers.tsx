@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
+import { toast } from 'sonner';
 import { AuthProvider } from '@/lib/auth';
+import { ApiError } from '@/lib/api';
 
 /**
  * Providers de cliente: estado de servidor (TanStack Query), tema claro/oscuro (next-themes con
@@ -13,6 +15,19 @@ export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
     () =>
       new QueryClient({
+        // Feedback global: ninguna acción (crear/guardar/borrar/aprobar) falla en silencio. El mensaje
+        // de la API ya viene legible; para errores de red/desconocidos, un aviso genérico. Una mutación
+        // puede desactivarlo con `meta: { skipErrorToast: true }` si gestiona su propio error en la UI.
+        mutationCache: new MutationCache({
+          onError: (error, _vars, _ctx, mutation) => {
+            if (mutation.meta?.skipErrorToast) return;
+            const msg =
+              error instanceof ApiError
+                ? error.message
+                : 'No se pudo completar la acción. Revisa tu conexión e inténtalo de nuevo.';
+            toast.error(msg);
+          },
+        }),
         defaultOptions: {
           queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },
         },
