@@ -1,4 +1,4 @@
-import { Jurisdiction } from '@legalflow/domain';
+import { Jurisdiction, TaxIdKind } from '@legalflow/domain';
 import { ComplianceProviderFactory } from './factory';
 import { SpainComplianceProvider } from './providers/spain.provider';
 import { DominicanComplianceProvider } from './providers/dominican.provider';
@@ -42,6 +42,15 @@ describe('SpainComplianceProvider', () => {
     const r = es.validateTaxId('???');
     expect(r.valid).toBe(false);
     expect(r.error?.messageKey).toBe('compliance.es.taxId.invalid');
+  });
+
+  it('acepta pasaporte (validación ligera) y rechaza uno malformado', () => {
+    const ok = es.validateTaxId('AB1234567', TaxIdKind.PASSPORT);
+    expect(ok.valid).toBe(true);
+    expect(ok.kind).toBe(TaxIdKind.PASSPORT);
+    const bad = es.validateTaxId('A!', TaxIdKind.PASSPORT);
+    expect(bad.valid).toBe(false);
+    expect(bad.error?.messageKey).toBe('compliance.doc.invalid');
   });
 
   it('expone IVA 21% y retención IRPF', () => {
@@ -116,6 +125,15 @@ describe('DominicanComplianceProvider', () => {
     const r = dom.validateTaxId('001-1234567-8');
     expect(r.valid).toBe(false);
     expect(r.error?.messageKey).toBe('compliance.do.taxId.invalid');
+  });
+
+  it('acepta pasaporte/otro (validación ligera) y rechaza uno malformado', () => {
+    const ok = dom.validateTaxId('P0123456', TaxIdKind.OTHER);
+    expect(ok.valid).toBe(true);
+    expect(ok.kind).toBe(TaxIdKind.OTHER);
+    const bad = dom.validateTaxId('A!', TaxIdKind.PASSPORT);
+    expect(bad.valid).toBe(false);
+    expect(bad.error?.messageKey).toBe('compliance.doc.invalid');
   });
 
   it('expone ITBIS 18%', () => {
