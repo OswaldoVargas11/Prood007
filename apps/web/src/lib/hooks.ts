@@ -627,6 +627,7 @@ export function useRetainerDeposit(matterId: string) {
       amount: string;
       kind: Exclude<ProvisionKind, 'ANTICIPO'>;
       note?: string;
+      currency?: 'EUR' | 'USD' | 'DOP';
     }) => api.post<{ balance: string }>('/retainer/deposit', { ...body, matterId }),
     onSuccess: () => invalidateRetainer(qc, matterId),
   });
@@ -636,7 +637,12 @@ export function useRetainerDeposit(matterId: string) {
 export function useRetainerAnticipo(matterId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { amount: string; withholdingTaxCode?: string; description?: string }) =>
+    mutationFn: (body: {
+      amount: string;
+      withholdingTaxCode?: string;
+      description?: string;
+      currency?: 'EUR' | 'USD' | 'DOP';
+    }) =>
       api.post<{ invoiceId: string; number: string; total: string; balance: string }>(
         '/retainer/anticipo',
         { ...body, matterId },

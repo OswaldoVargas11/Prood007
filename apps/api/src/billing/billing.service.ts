@@ -97,7 +97,8 @@ export class BillingService {
    */
   async createSchedule(user: RequestUser, dto: CreateBillingScheduleDto) {
     const matter = await this.getMatterOrThrow(user, dto.matterId);
-    const currency = matter.tenant.currency;
+    // Moneda del plan: la elegida o, por defecto, la del despacho. Todas sus facturas van en ella.
+    const currency = dto.currency ?? matter.tenant.currency;
     const lines = dto.lines.map((l) => ({
       description: l.description,
       quantity: l.quantity,
@@ -239,7 +240,8 @@ export class BillingService {
       tenant: {
         name: matter.tenant.name,
         taxId: matter.tenant.taxId,
-        currency: matter.tenant.currency,
+        // Las facturas del plan se emiten en la moneda DEL PLAN (no necesariamente la del despacho).
+        currency: schedule.currency as Currency,
       },
       client: { name: matter.client.name, taxId: matter.client.taxId as string },
     };

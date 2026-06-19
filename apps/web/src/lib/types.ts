@@ -358,6 +358,7 @@ export interface CreateBillingScheduleBody {
   occurrences?: number;
   installmentCount?: number;
   startDate: string;
+  currency?: 'EUR' | 'USD' | 'DOP';
   withholdingTaxCode?: string;
   note?: string;
   lines: BillingScheduleLine[];

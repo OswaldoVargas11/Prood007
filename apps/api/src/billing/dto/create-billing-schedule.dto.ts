@@ -13,7 +13,12 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import { BillingFiscalMode, BillingInterval, BillingScheduleType } from '@legalflow/domain';
+import {
+  BillingFiscalMode,
+  BillingInterval,
+  BillingScheduleType,
+  Currency,
+} from '@legalflow/domain';
 
 /** Línea de la plantilla de facturación (concepto/cantidad/precio/taxCode). El provider calcula impuestos. */
 export class BillingLineDto {
@@ -76,6 +81,11 @@ export class CreateBillingScheduleDto {
 
   @IsDateString()
   startDate!: string;
+
+  /** Moneda del plan (EUR/USD/DOP). Por defecto, la del despacho. Todas sus facturas van en ella. */
+  @IsOptional()
+  @IsEnum(Currency)
+  currency?: Currency;
 
   /** Retención (p. ej. IRPF_GENERAL en ES) aplicable a cada emisión, si procede. */
   @IsOptional()

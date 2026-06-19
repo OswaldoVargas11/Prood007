@@ -91,6 +91,10 @@ export function WhatsNewDialog() {
                   </li>
                 ))}
               </ul>
+              {/* Cambios técnicos resumidos en una línea (no se detallan al usuario). */}
+              {r.improvements && (
+                <p className="text-[13px] text-muted-foreground">{r.improvements}</p>
+              )}
             </div>
           ))}
         </div>
