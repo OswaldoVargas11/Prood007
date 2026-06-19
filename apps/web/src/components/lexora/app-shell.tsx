@@ -13,6 +13,7 @@ import { NotificationsBell } from './notifications-bell';
 import { RealtimeToasts } from './realtime-toasts';
 import { ForcePasswordChange } from './force-password-change';
 import { FirmBadge } from './firm-badge';
+import { WhatsNewDialog } from './whats-new-dialog';
 import { UserMenu } from './user-menu';
 import { ThemeToggle } from './theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -105,6 +106,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <CommandMenu open={open} onOpenChange={setOpen} />
       <Toaster />
       <RealtimeToasts />
+      <WhatsNewDialog />
     </div>
   );
 }
