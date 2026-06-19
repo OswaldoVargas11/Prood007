@@ -12,6 +12,7 @@ import { AiPanel } from './ai-panel';
 import { NotificationsBell } from './notifications-bell';
 import { RealtimeToasts } from './realtime-toasts';
 import { ForcePasswordChange } from './force-password-change';
+import { FirmBadge } from './firm-badge';
 import { UserMenu } from './user-menu';
 import { ThemeToggle } from './theme-toggle';
 import { Button } from '@/components/ui/button';
@@ -91,6 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Command className="size-2.5" />K
             </kbd>
           </Button>
+          <FirmBadge />
           <div className="ml-auto flex items-center gap-2">
             <AiPanel />
             <NotificationsBell />

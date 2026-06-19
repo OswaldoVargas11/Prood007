@@ -215,6 +215,17 @@ export class AuthService {
     }
   }
 
+  /** Perfil del usuario autenticado + su despacho (id + nombre) para el header y el soporte de login. */
+  async getProfile(
+    user: RequestUser,
+  ): Promise<RequestUser & { tenant: { id: string; name: string } }> {
+    const tenant = await this.system.tenant.findUnique({
+      where: { id: user.tenantId },
+      select: { id: true, name: true },
+    });
+    return { ...user, tenant: tenant ?? { id: user.tenantId, name: '' } };
+  }
+
   /** Login correcto: resetea contador/bloqueo, audita y emite el par de tokens. */
   private async issueForUser(user: {
     id: string;

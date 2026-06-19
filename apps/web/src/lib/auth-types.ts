@@ -16,6 +16,8 @@ export interface AuthUser {
   roles: string[];
   /** Si true, el backend exige cambiar la contraseña antes de operar (cuenta creada por admin/reset). */
   mustChangePassword?: boolean;
+  /** Despacho del usuario: nombre (para el header) e id (para dar a soporte al iniciar sesión). */
+  tenant?: { id: string; name: string };
 }
 
 export type Role = 'FIRM_ADMIN' | 'LAWYER' | 'CLIENT';
