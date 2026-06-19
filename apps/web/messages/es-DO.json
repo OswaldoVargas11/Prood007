@@ -1030,6 +1030,11 @@
     "copyId": "Copiar ID del despacho",
     "idCopied": "ID del despacho copiado"
   },
+  "whatsNew": {
+    "title": "Novedades",
+    "subtitle": "Versión {version} — esto es lo nuevo:",
+    "gotIt": "Entendido"
+  },
   "subscription": {
     "title": "Tu suscripción",
     "subtitle": "Producto completo. Pagas por plaza, con descuento por volumen.",
