@@ -23,11 +23,20 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
+interface TenantChoice {
+  tenantId: string;
+  tenantName: string;
+}
+
 export default function LoginPage() {
   const t = useTranslations('login');
   const { login } = useAuth();
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
+  // Si el email existe en varios despachos con la misma contraseña, el backend devuelve la lista
+  // (409 auth.chooseTenant) y mostramos un selector en vez de exigir el ID a ciegas.
+  const [choices, setChoices] = useState<TenantChoice[] | null>(null);
+  const [pending, setPending] = useState<FormValues | null>(null);
 
   const {
     register,
@@ -35,14 +44,31 @@ export default function LoginPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
-  async function onSubmit(values: FormValues) {
+  async function doLogin(values: FormValues) {
     setServerError(null);
     try {
       await login(values.email, values.password, values.tenantId);
       router.replace('/dashboard');
     } catch (err) {
+      if (err instanceof ApiError && err.status === 409) {
+        const payload = err.payload as { code?: string; choices?: TenantChoice[] } | undefined;
+        if (payload?.code === 'auth.chooseTenant' && payload.choices?.length) {
+          setPending(values);
+          setChoices(payload.choices);
+          return;
+        }
+      }
       setServerError(err instanceof ApiError ? err.message : t('genericError'));
     }
+  }
+
+  async function onSubmit(values: FormValues) {
+    await doLogin(values);
+  }
+
+  async function pickTenant(tenantId: string) {
+    if (!pending) return;
+    await doLogin({ ...pending, tenantId });
   }
 
   return (
@@ -68,57 +94,105 @@ export default function LoginPage() {
           <CardDescription>{t('subtitle')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-            <div className="space-y-1.5">
-              <Label htmlFor="email">{t('email')}</Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                autoFocus
-                {...register('email')}
-              />
-              {errors.email && <p className="text-xs text-[var(--danger)]">{t('invalidEmail')}</p>}
+          {choices ? (
+            <div className="space-y-4">
+              <div className="space-y-1 text-center">
+                <h2 className="text-base font-semibold">{t('chooseTenantTitle')}</h2>
+                <p className="text-sm text-muted-foreground">{t('chooseTenantHint')}</p>
+              </div>
+              <div className="space-y-2">
+                {choices.map((c) => (
+                  <button
+                    key={c.tenantId}
+                    type="button"
+                    onClick={() => void pickTenant(c.tenantId)}
+                    disabled={isSubmitting}
+                    className="flex w-full items-center justify-between rounded-lg border bg-card px-4 py-3 text-left text-sm font-medium transition hover:border-[var(--brand)] hover:bg-[var(--brand-soft)] disabled:opacity-60"
+                  >
+                    {c.tenantName}
+                    {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+                  </button>
+                ))}
+              </div>
+              {serverError && (
+                <p role="alert" className="text-sm text-[var(--danger)]">
+                  {serverError}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setChoices(null);
+                  setPending(null);
+                  setServerError(null);
+                }}
+                className="w-full text-center text-xs font-medium text-muted-foreground hover:text-[var(--brand)] hover:underline"
+              >
+                {t('chooseTenantBack')}
+              </button>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="password">{t('password')}</Label>
-              <PasswordInput
-                id="password"
-                autoComplete="current-password"
-                {...register('password')}
-              />
-              {errors.password && <p className="text-xs text-[var(--danger)]">{t('required')}</p>}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="tenantId" className="text-muted-foreground">
-                {t('tenantOptional')}
-              </Label>
-              <Input id="tenantId" autoComplete="off" {...register('tenantId')} />
-            </div>
-            {serverError && (
-              <p role="alert" className="text-sm text-[var(--danger)]">
-                {serverError}
+          ) : (
+            <>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+                <div className="space-y-1.5">
+                  <Label htmlFor="email">{t('email')}</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    autoFocus
+                    {...register('email')}
+                  />
+                  {errors.email && (
+                    <p className="text-xs text-[var(--danger)]">{t('invalidEmail')}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="password">{t('password')}</Label>
+                  <PasswordInput
+                    id="password"
+                    autoComplete="current-password"
+                    {...register('password')}
+                  />
+                  {errors.password && (
+                    <p className="text-xs text-[var(--danger)]">{t('required')}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="tenantId" className="text-muted-foreground">
+                    {t('tenantOptional')}
+                  </Label>
+                  <Input id="tenantId" autoComplete="off" {...register('tenantId')} />
+                </div>
+                {serverError && (
+                  <p role="alert" className="text-sm text-[var(--danger)]">
+                    {serverError}
+                  </p>
+                )}
+                <Button type="submit" className="w-full" disabled={isSubmitting}>
+                  {isSubmitting && <Loader2 className="animate-spin" />}
+                  {isSubmitting ? t('signingIn') : t('signIn')}
+                </Button>
+              </form>
+              <p className="mt-3 text-center text-xs">
+                <Link
+                  href="/forgot-password"
+                  className="font-medium text-muted-foreground hover:text-[var(--brand)] hover:underline"
+                >
+                  {t('forgotPassword')}
+                </Link>
               </p>
-            )}
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="animate-spin" />}
-              {isSubmitting ? t('signingIn') : t('signIn')}
-            </Button>
-          </form>
-          <p className="mt-3 text-center text-xs">
-            <Link
-              href="/forgot-password"
-              className="font-medium text-muted-foreground hover:text-[var(--brand)] hover:underline"
-            >
-              {t('forgotPassword')}
-            </Link>
-          </p>
-          <p className="mt-4 text-center text-xs text-muted-foreground">
-            {t('noAccount')}{' '}
-            <Link href="/onboarding" className="font-medium text-[var(--brand)] hover:underline">
-              {t('createFirm')}
-            </Link>
-          </p>
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                {t('noAccount')}{' '}
+                <Link
+                  href="/onboarding"
+                  className="font-medium text-[var(--brand)] hover:underline"
+                >
+                  {t('createFirm')}
+                </Link>
+              </p>
+            </>
+          )}
         </CardContent>
       </Card>
     </main>

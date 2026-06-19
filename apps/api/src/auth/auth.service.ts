@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { Currency, Jurisdiction, Role } from '@legalflow/domain';
 import { SystemPrismaService } from '../prisma/prisma.service';
@@ -131,24 +137,71 @@ export class AuthService {
       this.logger.warn(`Login fallido: email desconocido (${email}).`);
       throw new UnauthorizedException(apiError('auth.invalidCredentials'));
     }
-    if (candidates.length > 1) {
-      throw new BadRequestException(apiError('auth.ambiguousTenant'));
+
+    // Caso normal: un único candidato (email único, o tenantId explícito). Flujo con lockout completo.
+    if (candidates.length === 1) {
+      const user = candidates[0]!;
+      await this.verifyOrFail(user, dto.password);
+      return this.issueForUser(user);
     }
 
-    const user = candidates[0]!;
+    // El email existe en VARIOS despachos y no se indicó tenantId. En lugar de exigirlo a ciegas
+    // (el cliente de portal no lo conoce), RESOLVEMOS por contraseña: probamos las cuentas activas y
+    //  - 1 coincide  → entramos a ese despacho;
+    //  - 0 coinciden → credenciales inválidas;
+    //  - >1 coinciden (misma contraseña en varios) → devolvemos la lista para que ELIJA el despacho.
+    const matches: typeof candidates = [];
+    for (const c of candidates) {
+      if (!c.isActive) continue;
+      if (c.lockedUntil && c.lockedUntil.getTime() > Date.now()) continue;
+      if (await argon2.verify(c.passwordHash, dto.password)) matches.push(c);
+    }
+
+    if (matches.length === 0) {
+      this.logger.warn(`Login fallido: sin coincidencia entre despachos (${email}).`);
+      throw new UnauthorizedException(apiError('auth.invalidCredentials'));
+    }
+    if (matches.length === 1) {
+      return this.issueForUser(matches[0]!);
+    }
+
+    // Ambigüedad real: misma contraseña en varios despachos. Pedimos elegir (payload con opciones).
+    const tenants = await this.system.tenant.findMany({
+      where: { id: { in: matches.map((m) => m.tenantId) } },
+      select: { id: true, name: true },
+    });
+    throw new ConflictException({
+      message: apiError('auth.chooseTenant'),
+      code: 'auth.chooseTenant',
+      choices: tenants.map((t) => ({ tenantId: t.id, tenantName: t.name })),
+    });
+  }
+
+  /**
+   * Verifica credenciales de un usuario concreto aplicando el lockout (SEC4): cuenta desactivada,
+   * bloqueo activo, y contador de fallos con bloqueo a los `MAX_FAILED_ATTEMPTS`. Lanza en caso de
+   * fallo (y audita). En éxito no toca contadores: de eso se encarga `issueForUser`.
+   */
+  private async verifyOrFail(
+    user: {
+      id: string;
+      tenantId: string;
+      isActive: boolean;
+      lockedUntil: Date | null;
+      failedLoginAttempts: number;
+      passwordHash: string;
+    },
+    password: string,
+  ): Promise<void> {
     if (!user.isActive) {
       throw new UnauthorizedException(apiError('auth.accountDisabled'));
     }
-
-    // Bloqueo activo: no se intenta siquiera verificar la contraseña.
     if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
       await this.auditLogin(user.tenantId, user.id, false, 'locked');
       throw new UnauthorizedException(apiError('auth.accountLocked'));
     }
-
-    const ok = await argon2.verify(user.passwordHash, dto.password);
+    const ok = await argon2.verify(user.passwordHash, password);
     if (!ok) {
-      // Incrementa el contador; al alcanzar el umbral, bloquea y reinicia el contador.
       const attempts = user.failedLoginAttempts + 1;
       const locks = attempts >= MAX_FAILED_ATTEMPTS;
       await this.system.user.update({
@@ -160,8 +213,15 @@ export class AuthService {
       await this.auditLogin(user.tenantId, user.id, false, locks ? 'locked_now' : 'bad_password');
       throw new UnauthorizedException(apiError('auth.invalidCredentials'));
     }
+  }
 
-    // Login correcto: resetea contador y bloqueo.
+  /** Login correcto: resetea contador/bloqueo, audita y emite el par de tokens. */
+  private async issueForUser(user: {
+    id: string;
+    tenantId: string;
+    failedLoginAttempts: number;
+    lockedUntil: Date | null;
+  }): Promise<TokenPair> {
     if (user.failedLoginAttempts !== 0 || user.lockedUntil) {
       await this.system.user.update({
         where: { id: user.id },
@@ -169,7 +229,6 @@ export class AuthService {
       });
     }
     await this.auditLogin(user.tenantId, user.id, true);
-
     const userForToken = await this.tokens.loadUserForToken(user.id);
     return this.tokens.issuePair(userForToken);
   }

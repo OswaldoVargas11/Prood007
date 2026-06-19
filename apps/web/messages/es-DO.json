@@ -82,7 +82,10 @@
     "required": "Este campo es obligatorio",
     "noAccount": "¿Aún no tienes un despacho?",
     "createFirm": "Crea uno nuevo",
-    "forgotPassword": "¿Olvidaste tu contraseña?"
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "chooseTenantTitle": "Elige tu despacho",
+    "chooseTenantHint": "Tu cuenta existe en varios despachos. Selecciona con cuál quieres entrar.",
+    "chooseTenantBack": "Volver"
   },
   "onboarding": {
     "setup": "Configuración",

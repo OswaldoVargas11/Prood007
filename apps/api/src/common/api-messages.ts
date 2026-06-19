@@ -27,9 +27,9 @@ export const API_MESSAGES = {
     'es-ES': 'Credenciales inválidas.',
     'es-DO': 'Credenciales inválidas.',
   },
-  'auth.ambiguousTenant': {
-    'es-ES': 'El email existe en varios despachos; indica el tenantId para iniciar sesión.',
-    'es-DO': 'El email existe en varios despachos; indica el tenantId para iniciar sesión.',
+  'auth.chooseTenant': {
+    'es-ES': 'Tu cuenta existe en varios despachos. Elige con cuál quieres iniciar sesión.',
+    'es-DO': 'Tu cuenta existe en varios despachos. Elige con cuál quieres iniciar sesión.',
   },
   'auth.accountDisabled': {
     'es-ES': 'Cuenta deshabilitada.',
