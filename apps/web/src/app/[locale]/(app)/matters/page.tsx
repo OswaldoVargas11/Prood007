@@ -329,61 +329,68 @@ function CreateMatterDialog({ open, onClose }: { open: boolean; onClose: () => v
           <DialogTitle>{t('newTitle')}</DialogTitle>
           <DialogDescription>{t('newDesc')}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>{t('newClient')}</Label>
-            <select
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="">{t('newClientPlaceholder')}</option>
-              {clients.data?.items.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} · {c.taxId}
-                </option>
-              ))}
-            </select>
-            {clients.data?.items.length === 0 && (
-              <p className="text-[11px] text-[var(--warning)]">{t('newNoClients')}</p>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('col.title')}</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('col.type')}</Label>
-            <Input value={type} onChange={(e) => setType(e.target.value)} placeholder="civil" />
-          </div>
-          {isAdmin && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (valid && !create.isPending) submit();
+          }}
+        >
+          <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>{t('newLawyer')}</Label>
+              <Label>{t('newClient')}</Label>
               <select
-                value={lawyerId}
-                onChange={(e) => setLawyerId(e.target.value)}
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
                 className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <option value="">{t('newLawyerPlaceholder')}</option>
-                {assignees.data?.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.fullName}
+                <option value="">{t('newClientPlaceholder')}</option>
+                {clients.data?.items.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} · {c.taxId}
                   </option>
                 ))}
               </select>
+              {clients.data?.items.length === 0 && (
+                <p className="text-[11px] text-[var(--warning)]">{t('newNoClients')}</p>
+              )}
             </div>
-          )}
-          {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>
-            {t('cancel')}
-          </Button>
-          <Button size="sm" onClick={submit} disabled={!valid || create.isPending}>
-            {create.isPending && <Loader2 className="animate-spin" />}
-            {t('create')}
-          </Button>
-        </DialogFooter>
+            <div className="space-y-1.5">
+              <Label>{t('col.title')}</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('col.type')}</Label>
+              <Input value={type} onChange={(e) => setType(e.target.value)} placeholder="civil" />
+            </div>
+            {isAdmin && (
+              <div className="space-y-1.5">
+                <Label>{t('newLawyer')}</Label>
+                <select
+                  value={lawyerId}
+                  onChange={(e) => setLawyerId(e.target.value)}
+                  className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <option value="">{t('newLawyerPlaceholder')}</option>
+                  {assignees.data?.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.fullName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+          </div>
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+              {t('cancel')}
+            </Button>
+            <Button type="submit" size="sm" disabled={!valid || create.isPending}>
+              {create.isPending && <Loader2 className="animate-spin" />}
+              {t('create')}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

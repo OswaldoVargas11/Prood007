@@ -186,33 +186,40 @@ function NewTaskDialog({ matterId }: { matterId?: string }) {
         <DialogHeader>
           <DialogTitle>{t('new')}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="task-title">{t('titleField')}</Label>
-            <Input
-              id="task-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              autoFocus
-            />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!create.isPending && title.trim()) submit();
+          }}
+        >
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="task-title">{t('titleField')}</Label>
+              <Input
+                id="task-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="task-due">{t('dueField')}</Label>
+              <Input
+                id="task-due"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
+            {create.isError && <p className="text-sm text-[var(--danger)]">{t('createError')}</p>}
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="task-due">{t('dueField')}</Label>
-            <Input
-              id="task-due"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-            />
-          </div>
-          {create.isError && <p className="text-sm text-[var(--danger)]">{t('createError')}</p>}
-        </div>
-        <DialogFooter>
-          <Button onClick={submit} disabled={create.isPending || !title.trim()}>
-            {create.isPending && <Loader2 className="animate-spin" />}
-            {t('create')}
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="mt-4">
+            <Button type="submit" disabled={create.isPending || !title.trim()}>
+              {create.isPending && <Loader2 className="animate-spin" />}
+              {t('create')}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -257,61 +264,68 @@ function DeadlineDialog({ matterId }: { matterId?: string }) {
           <DialogTitle>{t('fromDeadline')}</DialogTitle>
           <DialogDescription>{t('deadlineHelp')}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="dl-type">{t('deadlineType')}</Label>
-            <Input
-              id="dl-type"
-              value={deadlineType}
-              onChange={(e) => setDeadlineType(e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!fromDeadline.isPending && deadlineType.trim() && startDate && days) submit();
+          }}
+        >
+          <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="dl-start">{t('startDate')}</Label>
+              <Label htmlFor="dl-type">{t('deadlineType')}</Label>
               <Input
-                id="dl-start"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                id="dl-type"
+                value={deadlineType}
+                onChange={(e) => setDeadlineType(e.target.value)}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="dl-days">{t('days')}</Label>
-              <Input
-                id="dl-days"
-                type="number"
-                min={1}
-                value={days}
-                onChange={(e) => setDays(e.target.value)}
-              />
-            </div>
-          </div>
-          {result && (
-            <div className="rounded-md border border-[var(--brand-line)] bg-[var(--brand-soft)] p-3 text-sm">
-              <div className="font-medium text-[var(--brand)]">
-                {t('computed')}: {formatDate(result.dueDate, locale)}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="dl-start">{t('startDate')}</Label>
+                <Input
+                  id="dl-start"
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
               </div>
-              {result.holidaysApplied && result.holidaysApplied.length > 0 && (
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {t('holidays')}: {result.holidaysApplied.length}
-                </div>
-              )}
+              <div className="space-y-1.5">
+                <Label htmlFor="dl-days">{t('days')}</Label>
+                <Input
+                  id="dl-days"
+                  type="number"
+                  min={1}
+                  value={days}
+                  onChange={(e) => setDays(e.target.value)}
+                />
+              </div>
             </div>
-          )}
-          {fromDeadline.isError && (
-            <p className="text-sm text-[var(--danger)]">{t('createError')}</p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button
-            onClick={submit}
-            disabled={fromDeadline.isPending || !deadlineType.trim() || !startDate || !days}
-          >
-            {fromDeadline.isPending && <Loader2 className="animate-spin" />}
-            {result ? t('createAnother') : t('compute')}
-          </Button>
-        </DialogFooter>
+            {result && (
+              <div className="rounded-md border border-[var(--brand-line)] bg-[var(--brand-soft)] p-3 text-sm">
+                <div className="font-medium text-[var(--brand)]">
+                  {t('computed')}: {formatDate(result.dueDate, locale)}
+                </div>
+                {result.holidaysApplied && result.holidaysApplied.length > 0 && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {t('holidays')}: {result.holidaysApplied.length}
+                  </div>
+                )}
+              </div>
+            )}
+            {fromDeadline.isError && (
+              <p className="text-sm text-[var(--danger)]">{t('createError')}</p>
+            )}
+          </div>
+          <DialogFooter className="mt-4">
+            <Button
+              type="submit"
+              disabled={fromDeadline.isPending || !deadlineType.trim() || !startDate || !days}
+            >
+              {fromDeadline.isPending && <Loader2 className="animate-spin" />}
+              {result ? t('createAnother') : t('compute')}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

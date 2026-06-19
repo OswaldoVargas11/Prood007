@@ -67,75 +67,82 @@ export function LogTimeDialog({ defaultMatterId }: { defaultMatterId?: string })
         <DialogHeader>
           <DialogTitle>{t('log')}</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="lt-matter">{t('matter')}</Label>
-            {matters.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('noMatters')}</p>
-            ) : (
-              <select
-                id="lt-matter"
-                value={matterId}
-                onChange={(e) => setMatterId(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="" disabled>
-                  {t('matterPlaceholder')}
-                </option>
-                {matters.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.reference} · {m.title}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+        >
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="lt-matter">{t('matter')}</Label>
+              {matters.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t('noMatters')}</p>
+              ) : (
+                <select
+                  id="lt-matter"
+                  value={matterId}
+                  onChange={(e) => setMatterId(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <option value="" disabled>
+                    {t('matterPlaceholder')}
                   </option>
-                ))}
-              </select>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="lt-desc">{t('description')}</Label>
-            <Input
-              id="lt-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="lt-min">{t('minutes')}</Label>
-              <Input
-                id="lt-min"
-                type="number"
-                min={1}
-                value={minutes}
-                onChange={(e) => setMinutes(e.target.value)}
-              />
+                  {matters.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.reference} · {m.title}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="lt-rate">{t('hourlyRate')}</Label>
+              <Label htmlFor="lt-desc">{t('description')}</Label>
               <Input
-                id="lt-rate"
-                inputMode="decimal"
-                value={hourlyRate}
-                onChange={(e) => setHourlyRate(e.target.value)}
+                id="lt-desc"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="lt-date">{t('workedAt')}</Label>
-              <Input
-                id="lt-date"
-                type="date"
-                value={workedAt}
-                onChange={(e) => setWorkedAt(e.target.value)}
-              />
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="lt-min">{t('minutes')}</Label>
+                <Input
+                  id="lt-min"
+                  type="number"
+                  min={1}
+                  value={minutes}
+                  onChange={(e) => setMinutes(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="lt-rate">{t('hourlyRate')}</Label>
+                <Input
+                  id="lt-rate"
+                  inputMode="decimal"
+                  value={hourlyRate}
+                  onChange={(e) => setHourlyRate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="lt-date">{t('workedAt')}</Label>
+                <Input
+                  id="lt-date"
+                  type="date"
+                  value={workedAt}
+                  onChange={(e) => setWorkedAt(e.target.value)}
+                />
+              </div>
             </div>
+            {log.isError && <p className="text-sm text-[var(--danger)]">{t('error')}</p>}
           </div>
-          {log.isError && <p className="text-sm text-[var(--danger)]">{t('error')}</p>}
-        </div>
-        <DialogFooter>
-          <Button onClick={submit} disabled={log.isPending || !valid}>
-            {log.isPending && <Loader2 className="animate-spin" />}
-            {t('save')}
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="mt-4">
+            <Button type="submit" disabled={log.isPending || !valid}>
+              {log.isPending && <Loader2 className="animate-spin" />}
+              {t('save')}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

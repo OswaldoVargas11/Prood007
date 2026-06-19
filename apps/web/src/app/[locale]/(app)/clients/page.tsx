@@ -196,76 +196,85 @@ function CreateClientDialog({ open, onClose }: { open: boolean; onClose: () => v
           <DialogTitle>{t('newTitle')}</DialogTitle>
           <DialogDescription>{t('newDesc')}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>{t('name')}</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-            {conflictMatches.length > 0 && (
-              <div className="rounded-lg border border-[var(--warning)] bg-[var(--warning-soft)] p-2.5 text-[12px]">
-                <div className="flex items-center gap-1.5 font-semibold text-[var(--warning)]">
-                  <AlertTriangle className="size-3.5" />
-                  {t('conflictTitle')}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (valid && !create.isPending) submit();
+          }}
+        >
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>{t('name')}</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+              {conflictMatches.length > 0 && (
+                <div className="rounded-lg border border-[var(--warning)] bg-[var(--warning-soft)] p-2.5 text-[12px]">
+                  <div className="flex items-center gap-1.5 font-semibold text-[var(--warning)]">
+                    <AlertTriangle className="size-3.5" />
+                    {t('conflictTitle')}
+                  </div>
+                  <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                    {conflictMatches.map((m) => (
+                      <li key={m.id}>
+                        <span className="font-medium text-foreground">{m.name}</span> ·{' '}
+                        {t('conflictMatters', { n: m.matters.length })}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <ul className="mt-1 space-y-0.5 text-muted-foreground">
-                  {conflictMatches.map((m) => (
-                    <li key={m.id}>
-                      <span className="font-medium text-foreground">{m.name}</span> ·{' '}
-                      {t('conflictMatters', { n: m.matters.length })}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-          <div className="space-y-1.5">
-            <div className="grid grid-cols-[10rem_1fr] gap-3">
-              <div className="space-y-1.5">
-                <Label>{t('docType')}</Label>
-                <select
-                  value={docType}
-                  onChange={(e) => setDocType(e.target.value as 'FISCAL' | 'PASSPORT' | 'OTHER')}
-                  className="flex h-9 w-full rounded-md border border-input bg-[var(--surface-1)] px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <option value="FISCAL">{t('docFiscal')}</option>
-                  <option value="PASSPORT">{t('docPassport')}</option>
-                  <option value="OTHER">{t('docOther')}</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label>{docType === 'FISCAL' ? t('fiscalId') : t('docId')}</Label>
-                <Input
-                  value={taxId}
-                  onChange={(e) => setTaxId(e.target.value)}
-                  className="font-mono"
-                  placeholder={docType === 'FISCAL' ? t('fiscalPlaceholder') : t('docPlaceholder')}
-                />
-              </div>
-            </div>
-            <p className="text-[11px] text-[var(--text-subtle)]">
-              {docType === 'FISCAL' ? t('fiscalHint') : t('docHint')}
-            </p>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>{t('email')}</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              )}
             </div>
             <div className="space-y-1.5">
-              <Label>{t('phone')}</Label>
-              <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <div className="grid grid-cols-[10rem_1fr] gap-3">
+                <div className="space-y-1.5">
+                  <Label>{t('docType')}</Label>
+                  <select
+                    value={docType}
+                    onChange={(e) => setDocType(e.target.value as 'FISCAL' | 'PASSPORT' | 'OTHER')}
+                    className="flex h-9 w-full rounded-md border border-input bg-[var(--surface-1)] px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <option value="FISCAL">{t('docFiscal')}</option>
+                    <option value="PASSPORT">{t('docPassport')}</option>
+                    <option value="OTHER">{t('docOther')}</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>{docType === 'FISCAL' ? t('fiscalId') : t('docId')}</Label>
+                  <Input
+                    value={taxId}
+                    onChange={(e) => setTaxId(e.target.value)}
+                    className="font-mono"
+                    placeholder={
+                      docType === 'FISCAL' ? t('fiscalPlaceholder') : t('docPlaceholder')
+                    }
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-[var(--text-subtle)]">
+                {docType === 'FISCAL' ? t('fiscalHint') : t('docHint')}
+              </p>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>{t('email')}</Label>
+                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t('phone')}</Label>
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+              </div>
+            </div>
+            {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
           </div>
-          {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>
-            {t('cancel')}
-          </Button>
-          <Button size="sm" onClick={submit} disabled={!valid || create.isPending}>
-            {create.isPending && <Loader2 className="animate-spin" />}
-            {t('create')}
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+              {t('cancel')}
+            </Button>
+            <Button type="submit" size="sm" disabled={!valid || create.isPending}>
+              {create.isPending && <Loader2 className="animate-spin" />}
+              {t('create')}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

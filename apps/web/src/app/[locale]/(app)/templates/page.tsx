@@ -183,49 +183,56 @@ function TemplateDialog({
           <DialogTitle>{isNew ? t('newTitle') : t('editTitle')}</DialogTitle>
           <DialogDescription>{t('dialogDesc')}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>{t('name')}</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('description')}</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('body')}</Label>
-            <Textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={10}
-              className="font-mono text-[12.5px]"
-              placeholder={t('bodyPlaceholder')}
-            />
-            <p className="text-[11px] text-muted-foreground">{t('tokensHelp')}</p>
-            <div className="flex flex-wrap gap-1">
-              {TOKENS.map((tok) => (
-                <button
-                  key={tok}
-                  type="button"
-                  onClick={() => setBody((b) => `${b}{{${tok}}}`)}
-                  className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-[10.5px] text-muted-foreground hover:text-foreground"
-                >
-                  {`{{${tok}}}`}
-                </button>
-              ))}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (valid && !pending) submit();
+          }}
+        >
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>{t('name')}</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
             </div>
+            <div className="space-y-1.5">
+              <Label>{t('description')}</Label>
+              <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('body')}</Label>
+              <Textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                rows={10}
+                className="font-mono text-[12.5px]"
+                placeholder={t('bodyPlaceholder')}
+              />
+              <p className="text-[11px] text-muted-foreground">{t('tokensHelp')}</p>
+              <div className="flex flex-wrap gap-1">
+                {TOKENS.map((tok) => (
+                  <button
+                    key={tok}
+                    type="button"
+                    onClick={() => setBody((b) => `${b}{{${tok}}}`)}
+                    className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-[10.5px] text-muted-foreground hover:text-foreground"
+                  >
+                    {`{{${tok}}}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
           </div>
-          {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>
-            {t('cancel')}
-          </Button>
-          <Button size="sm" onClick={submit} disabled={!valid || pending}>
-            {pending && <Loader2 className="animate-spin" />}
-            {t('save')}
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+              {t('cancel')}
+            </Button>
+            <Button type="submit" size="sm" disabled={!valid || pending}>
+              {pending && <Loader2 className="animate-spin" />}
+              {t('save')}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

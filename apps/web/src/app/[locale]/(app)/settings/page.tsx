@@ -416,46 +416,53 @@ function AddStaffDialog({
           <DialogTitle>{t('staff.addTitle')}</DialogTitle>
           <DialogDescription>{t('staff.addDesc')}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>{t('staff.fullName')}</Label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (valid && !noSeat && !create.isPending) submit();
+          }}
+        >
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>{t('staff.fullName')}</Label>
+              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('staff.email')}</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('staff.password')}</Label>
+              <PasswordInput
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('staff.role')}</Label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as StaffRole)}
+                className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="LAWYER">{t('staff.lawyer')}</option>
+                <option value="FIRM_ADMIN">{t('staff.admin')}</option>
+              </select>
+            </div>
+            {noSeat && <p className="text-xs text-[var(--warning)]">{t('staff.noSeat')}</p>}
+            {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
           </div>
-          <div className="space-y-1.5">
-            <Label>{t('staff.email')}</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('staff.password')}</Label>
-            <PasswordInput
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>{t('staff.role')}</Label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as StaffRole)}
-              className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="LAWYER">{t('staff.lawyer')}</option>
-              <option value="FIRM_ADMIN">{t('staff.admin')}</option>
-            </select>
-          </div>
-          {noSeat && <p className="text-xs text-[var(--warning)]">{t('staff.noSeat')}</p>}
-          {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" size="sm" onClick={onClose}>
-            {t('cancel')}
-          </Button>
-          <Button size="sm" onClick={submit} disabled={!valid || noSeat || create.isPending}>
-            {create.isPending && <Loader2 className="animate-spin" />}
-            {t('staff.create')}
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="mt-4">
+            <Button type="button" variant="outline" size="sm" onClick={onClose}>
+              {t('cancel')}
+            </Button>
+            <Button type="submit" size="sm" disabled={!valid || noSeat || create.isPending}>
+              {create.isPending && <Loader2 className="animate-spin" />}
+              {t('staff.create')}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
