@@ -31,6 +31,7 @@ enum Jurisdiction {
 
 enum Currency {
   EUR
+  USD
   DOP
 }
 
@@ -696,7 +697,11 @@ model Invoice {
   dueDate   DateTime?
   // Momento en que la factura quedó cobrada por completo (status = PAID).
   paidAt    DateTime?
+  // Moneda de ESTA factura (elegible por el despacho: EUR/USD/DOP). Por defecto, la del tenant.
   currency  Currency
+  // Formato fiscal/presentación de ESTA factura (es = España/Verifactu · do = RD/e-CF). Lo elige el
+  // despacho por factura, DESACOPLADO de la jurisdicción del tenant. Por defecto, la del tenant.
+  invoiceFormat Jurisdiction
 
   // Totales neutrales calculados por el provider (Decimal, no float).
   taxableBase        Decimal @db.Decimal(18, 2)

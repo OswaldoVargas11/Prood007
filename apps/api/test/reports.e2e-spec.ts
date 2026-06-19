@@ -48,9 +48,9 @@ describe('Reports (e2e)', () => {
       .get('/api/reports/aged-receivables')
       .set(auth())
       .expect(200);
-    expect(res.body.totalOutstanding).toBe(0);
-    expect(res.body.buckets).toEqual({ current: 0, d1_30: 0, d31_60: 0, d60plus: 0 });
-    expect(Array.isArray(res.body.items)).toBe(true);
+    // Agrupado por moneda: despacho nuevo sin facturas → sin grupos.
+    expect(Array.isArray(res.body.byCurrency)).toBe(true);
+    expect(res.body.byCurrency).toHaveLength(0);
   });
 
   it('tiempo por letrado: devuelve un array', async () => {

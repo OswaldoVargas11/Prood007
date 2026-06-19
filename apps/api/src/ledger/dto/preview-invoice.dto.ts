@@ -1,11 +1,13 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
+  IsEnum,
   IsNumberString,
   IsOptional,
   IsString,
   ValidateNested,
 } from 'class-validator';
+import { Jurisdiction } from '@legalflow/domain';
 
 /**
  * Línea para el pre-cálculo fiscal. A diferencia de la línea de emisión, NO exige descripción:
@@ -32,6 +34,11 @@ export class PreviewInvoiceDto {
   @IsOptional()
   @IsString()
   withholdingTaxCode?: string;
+
+  /** Formato fiscal a previsualizar (es/do). Si se omite, la jurisdicción del despacho. */
+  @IsOptional()
+  @IsEnum(Jurisdiction)
+  invoiceFormat?: Jurisdiction;
 
   @ValidateNested({ each: true })
   @ArrayMinSize(1)

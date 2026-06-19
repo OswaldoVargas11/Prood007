@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsDateString,
+  IsEnum,
   IsNumberString,
   IsOptional,
   IsString,
@@ -9,6 +10,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { Currency, Jurisdiction } from '@legalflow/domain';
 
 export class InvoiceLineDto {
   @IsString()
@@ -44,6 +46,16 @@ export class CreateInvoiceDto {
   @IsOptional()
   @IsString()
   withholdingTaxCode?: string;
+
+  /** Moneda de la factura (EUR/USD/DOP). Si se omite, la moneda por defecto del despacho. */
+  @IsOptional()
+  @IsEnum(Currency)
+  currency?: Currency;
+
+  /** Formato fiscal de la factura (es = España · do = RD). Si se omite, la jurisdicción del despacho. */
+  @IsOptional()
+  @IsEnum(Jurisdiction)
+  invoiceFormat?: Jurisdiction;
 
   @ValidateNested({ each: true })
   @ArrayMinSize(1)

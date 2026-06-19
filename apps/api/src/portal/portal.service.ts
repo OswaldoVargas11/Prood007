@@ -132,7 +132,7 @@ export class PortalService {
       },
     });
     if (!invoice) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
-    const buffer = await buildInvoicePdf(invoiceRowToPdfData(invoice, user.jurisdiction));
+    const buffer = await buildInvoicePdf(invoiceRowToPdfData(invoice));
     return { buffer, number: invoice.number };
   }
 

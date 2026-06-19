@@ -217,7 +217,10 @@ export class LedgerService {
    * que la emisión real (`buildInvoiceRecord`): preview y factura emitida nunca divergen.
    */
   previewInvoice(user: RequestUser, dto: PreviewInvoiceDto) {
-    const provider = this.compliance.forTenant({ jurisdiction: user.jurisdiction });
+    // El formato elegido (si lo hay) decide el provider; por defecto, la jurisdicción del tenant.
+    const provider = this.compliance.forTenant({
+      jurisdiction: dto.invoiceFormat ?? user.jurisdiction,
+    });
     // La descripción no interviene en la matemática fiscal; se completa neutra para el tipo de línea.
     const lines = dto.lines.map((l) => ({
       description: '',
@@ -249,6 +252,8 @@ export class LedgerService {
         matter,
         lines: dto.lines,
         withholdingTaxCode: dto.withholdingTaxCode,
+        currency: dto.currency,
+        invoiceFormat: dto.invoiceFormat,
         issueDate,
         dueDate,
       }),
@@ -283,6 +288,14 @@ export class LedgerService {
       };
       lines: { description: string; quantity: string; unitPrice: string; taxCode: string }[];
       withholdingTaxCode?: string;
+      /** Moneda de la factura. Por defecto, la del tenant. */
+      currency?: Currency;
+      /**
+       * Formato fiscal de la factura (es = Verifactu/ES · do = e-CF/RD), elegible por el despacho y
+       * DESACOPLADO de la jurisdicción del tenant: selecciona el provider y la presentación del PDF.
+       * Por defecto, la jurisdicción del tenant.
+       */
+      invoiceFormat?: RequestUser['jurisdiction'];
       /**
        * Facturas de anticipo deducidas en esta factura (solo la factura final de cierre, D-027 (b)).
        * Las líneas negativas que neutralizan base+impuesto van en `lines`; este bloque referencia los
@@ -308,7 +321,11 @@ export class LedgerService {
     invoice: Prisma.InvoiceGetPayload<{ include: { lines: true } }>;
     record: InvoiceRecord;
   }> {
-    const provider = this.compliance.forTenant({ jurisdiction: user.jurisdiction });
+    // Moneda y formato EFECTIVOS: lo elegido en la factura o, por defecto, lo del tenant. El formato
+    // (no la jurisdicción) selecciona el provider fiscal y la presentación del PDF.
+    const currency = p.currency ?? p.matter.tenant.currency;
+    const invoiceFormat = p.invoiceFormat ?? user.jurisdiction;
+    const provider = this.compliance.forTenant({ jurisdiction: invoiceFormat });
     // Serie consumida dentro de la tx (count+1) → atómica con el resto: si algo revierte, no hay hueco.
     const count = await tx.invoice.count({ where: { tenantId: user.tenantId } });
     const tenantRow = await tx.tenant.findUniqueOrThrow({
@@ -325,7 +342,7 @@ export class LedgerService {
     const record = await provider.buildInvoiceRecord({
       invoiceNumber: number,
       issueDate: p.issueDate,
-      currency: p.matter.tenant.currency,
+      currency,
       seller: { name: p.matter.tenant.name, taxId: p.matter.tenant.taxId as string },
       buyer: { name: p.matter.client.name, taxId: p.matter.client.taxId },
       lines: p.lines,
@@ -353,7 +370,8 @@ export class LedgerService {
         status: InvoiceStatus.ISSUED,
         issueDate: new Date(p.issueDate),
         dueDate: p.dueDate,
-        currency: p.matter.tenant.currency,
+        currency,
+        invoiceFormat,
         taxableBase: record.totals.taxableBase,
         taxAmount: record.totals.taxAmount,
         withholdingAmount: record.totals.withholdingAmount,
@@ -388,7 +406,7 @@ export class LedgerService {
         type: LedgerEntryType.INVOICE,
         description: `Factura ${number}`,
         amount: record.totals.total,
-        currency: p.matter.tenant.currency,
+        currency,
         invoiceId: invoice.id,
       },
     });
@@ -418,7 +436,7 @@ export class LedgerService {
       },
     });
     if (!invoice) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
-    const buffer = await buildInvoicePdf(invoiceRowToPdfData(invoice, user.jurisdiction));
+    const buffer = await buildInvoicePdf(invoiceRowToPdfData(invoice));
     return { buffer, number: invoice.number };
   }
 

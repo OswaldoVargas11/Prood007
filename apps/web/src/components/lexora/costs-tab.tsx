@@ -324,14 +324,28 @@ function InvoiceDialog({ matterId, currency }: { matterId: string; currency?: st
   const { user } = useAuth();
   const router = useRouter();
   const create = useCreateInvoice(matterId);
-  const codes = defaultTaxCodes(user?.jurisdiction ?? 'es');
   const [open, setOpen] = useState(false);
+  // El despacho elige formato fiscal (es/do) y moneda POR FACTURA. El formato fija los códigos de
+  // impuesto de las líneas (IVA/IRPF en ES · ITBIS en RD); por defecto, los del propio despacho.
+  const [format, setFormatState] = useState<'es' | 'do'>(user?.jurisdiction ?? 'es');
+  const [selectedCurrency, setSelectedCurrency] = useState<'EUR' | 'USD' | 'DOP'>(
+    (currency as 'EUR' | 'USD' | 'DOP') ?? 'EUR',
+  );
+  const codes = defaultTaxCodes(format);
   const [lines, setLines] = useState<InvoiceLineInput[]>([
     { description: '', quantity: '1', unitPrice: '', taxCode: codes.taxCode },
   ]);
   const [withholding, setWithholding] = useState(Boolean(codes.withholdingTaxCode));
 
   const withholdingTaxCode = withholding ? codes.withholdingTaxCode : undefined;
+
+  // Cambiar de formato reescribe los códigos de impuesto de todas las líneas al del nuevo formato.
+  function changeFormat(next: 'es' | 'do') {
+    const nc = defaultTaxCodes(next);
+    setFormatState(next);
+    setLines((ls) => ls.map((l) => ({ ...l, taxCode: nc.taxCode })));
+    setWithholding(Boolean(nc.withholdingTaxCode));
+  }
 
   function setLine(i: number, patch: Partial<InvoiceLineInput>) {
     setLines((ls) => ls.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
@@ -344,6 +358,8 @@ function InvoiceDialog({ matterId, currency }: { matterId: string; currency?: st
       {
         lines: valid,
         withholdingTaxCode,
+        currency: selectedCurrency,
+        invoiceFormat: format,
       },
       { onSuccess: (data) => router.push(`/invoices/${data.invoice.id}`) },
     );
@@ -360,6 +376,32 @@ function InvoiceDialog({ matterId, currency }: { matterId: string; currency?: st
           <DialogTitle>{t('newInvoice')}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
+          {/* Formato fiscal + moneda de la factura (elegibles por el despacho). */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs">{t('invoiceFormat')}</Label>
+              <select
+                value={format}
+                onChange={(e) => changeFormat(e.target.value as 'es' | 'do')}
+                className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="es">{t('formatES')}</option>
+                <option value="do">{t('formatDO')}</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{t('invoiceCurrency')}</Label>
+              <select
+                value={selectedCurrency}
+                onChange={(e) => setSelectedCurrency(e.target.value as 'EUR' | 'USD' | 'DOP')}
+                className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="EUR">EUR €</option>
+                <option value="USD">USD $</option>
+                <option value="DOP">DOP RD$</option>
+              </select>
+            </div>
+          </div>
           {lines.map((line, i) => (
             <div key={i} className="grid grid-cols-12 items-end gap-2">
               <div className="col-span-6 space-y-1">
@@ -422,7 +464,12 @@ function InvoiceDialog({ matterId, currency }: { matterId: string; currency?: st
             </label>
           )}
 
-          <LivePreview lines={lines} withholdingTaxCode={withholdingTaxCode} currency={currency} />
+          <LivePreview
+            lines={lines}
+            withholdingTaxCode={withholdingTaxCode}
+            currency={selectedCurrency}
+            invoiceFormat={format}
+          />
           {create.isError && <p className="text-sm text-[var(--danger)]">{t('invoiceError')}</p>}
         </div>
         <DialogFooter>
@@ -454,10 +501,12 @@ function LivePreview({
   lines,
   withholdingTaxCode,
   currency,
+  invoiceFormat,
 }: {
   lines: InvoiceLineInput[];
   withholdingTaxCode?: string;
   currency?: string;
+  invoiceFormat?: 'es' | 'do';
 }) {
   const t = useTranslations('billing');
   const locale = useLocale();
@@ -484,6 +533,7 @@ function LivePreview({
     parsed.previewLines,
     parsed.withholdingTaxCode ?? undefined,
     parsed.previewLines.length > 0,
+    invoiceFormat,
   );
 
   const money = (v: string) => (currency ? formatMoney(v, currency, locale) : v);

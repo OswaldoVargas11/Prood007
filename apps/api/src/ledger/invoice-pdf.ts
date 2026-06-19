@@ -11,7 +11,8 @@ import { toBuffer } from 'qrcode';
 import { Jurisdiction } from '@legalflow/domain';
 
 export interface InvoicePdfData {
-  jurisdiction: Jurisdiction;
+  /** Formato fiscal/presentación de la factura (es = España/Verifactu · do = RD/e-CF). */
+  format: Jurisdiction;
   seller: { name: string; taxId: string | null };
   buyer: { name: string; taxId: string | null };
   invoice: {
@@ -39,6 +40,8 @@ export interface InvoiceRow {
   complianceRecord: unknown;
   complianceFormat: string | null;
   recordHash: string | null;
+  /** Formato elegido para esta factura (es/do), desacoplado de la jurisdicción del tenant. */
+  invoiceFormat: string;
   tenant: { name: string; taxId: string | null };
   client: { name: string; taxId: string | null };
   lines: { description: string; quantity: unknown; unitPrice: unknown; lineTotal: unknown }[];
@@ -53,9 +56,9 @@ function extractQrUrl(record: unknown): string | null {
 }
 
 /** Mapea la fila de Prisma (Decimals incluidos) a la entrada neutral del builder. */
-export function invoiceRowToPdfData(inv: InvoiceRow, jurisdiction: Jurisdiction): InvoicePdfData {
+export function invoiceRowToPdfData(inv: InvoiceRow): InvoicePdfData {
   return {
-    jurisdiction,
+    format: inv.invoiceFormat as Jurisdiction,
     seller: { name: inv.tenant.name, taxId: inv.tenant.taxId },
     buyer: { name: inv.client.name, taxId: inv.client.taxId },
     invoice: {
@@ -92,7 +95,7 @@ function money(value: string, currency: string, locale: string): string {
 
 /** Construye el PDF de la factura y resuelve con su Buffer. */
 export async function buildInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
-  const isES = data.jurisdiction === Jurisdiction.ES;
+  const isES = data.format === Jurisdiction.ES;
   const locale = isES ? 'es-ES' : 'es-DO';
   const taxIdLabel = isES ? 'NIF / CIF' : 'RNC / Cédula';
   const taxLabel = isES ? 'IVA' : 'ITBIS';
