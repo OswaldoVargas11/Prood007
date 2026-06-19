@@ -75,15 +75,19 @@ export class RetainerService {
     if (!(amount > 0)) throw new BadRequestException(apiError('retainer.amountPositive'));
 
     const matter = await this.getMatterOrThrow(user, dto.matterId);
-    const tenantCurrency = matter.tenant.currency;
-    if (dto.currency && dto.currency !== tenantCurrency) {
-      throw new BadRequestException(apiError('retainer.currencyMismatch'));
-    }
-
     // La cuenta se asegura FUERA de la transacción del movimiento (operaciones autocommit): así un
     // primer depósito concurrente del mismo expediente no choca con una fila aún sin confirmar. La
     // transacción del movimiento ya solo bloquea (FOR UPDATE) una cuenta que existe y está confirmada.
-    const account = await this.ensureAccount(user.tenantId, matter.id, tenantCurrency);
+    // Moneda del retainer: la elegida (primera operación) o, por defecto, la del tenant. Un retainer
+    // tiene UNA moneda; si la cuenta ya existe, su moneda manda y un depósito en otra moneda se rechaza.
+    const account = await this.ensureAccount(
+      user.tenantId,
+      matter.id,
+      dto.currency ?? matter.tenant.currency,
+    );
+    if (dto.currency && dto.currency !== account.currency) {
+      throw new BadRequestException(apiError('retainer.currencyMismatch'));
+    }
     const result = await tenantTransaction(this.prisma, async (tx) =>
       this.postMovement(tx, user.tenantId, account.id, {
         type: RetainerMovementType.DEPOSIT,
@@ -120,12 +124,16 @@ export class RetainerService {
     const matter = await this.getMatterOrThrow(user, dto.matterId);
     if (!matter.tenant.taxId) throw new BadRequestException(apiError('ledger.firmNoTaxId'));
     if (!matter.client.taxId) throw new BadRequestException(apiError('clients.taxIdInvalid'));
-    const tenantCurrency = matter.tenant.currency;
-    if (dto.currency && dto.currency !== tenantCurrency) {
+    // Moneda del retainer (elegible). El anticipo, su factura, el cobro y el saldo van en ESTA moneda.
+    const account = await this.ensureAccount(
+      user.tenantId,
+      matter.id,
+      dto.currency ?? matter.tenant.currency,
+    );
+    if (dto.currency && dto.currency !== account.currency) {
       throw new BadRequestException(apiError('retainer.currencyMismatch'));
     }
-
-    const account = await this.ensureAccount(user.tenantId, matter.id, tenantCurrency);
+    const retainerCurrency = account.currency;
     const issueDate = new Date().toISOString().slice(0, 10);
     const now = new Date();
     // Impuesto de línea por jurisdicción (sale del provider; aquí solo el código estándar).
@@ -140,12 +148,13 @@ export class RetainerService {
           tenant: {
             name: matter.tenant.name,
             taxId: matter.tenant.taxId,
-            currency: tenantCurrency,
+            currency: retainerCurrency,
           },
           client: { name: matter.client.name, taxId: matter.client.taxId as string },
         },
         lines: [{ description, quantity: '1', unitPrice: base.toFixed(2), taxCode }],
         withholdingTaxCode: dto.withholdingTaxCode,
+        currency: retainerCurrency,
         issueDate,
         dueDate: new Date(issueDate), // cobrada de inmediato (el anticipo ya se recibió)
       });
@@ -157,7 +166,7 @@ export class RetainerService {
           tenantId: user.tenantId,
           invoiceId: invoice.id,
           amount: total.toFixed(2),
-          currency: tenantCurrency,
+          currency: retainerCurrency,
           status: PaymentStatus.SUCCEEDED,
           method: PaymentMethod.MANUAL,
           note: 'Anticipo de provisión',
@@ -175,7 +184,7 @@ export class RetainerService {
           type: LedgerEntryType.PAYMENT,
           description: `Cobro factura ${invoice.number}`,
           amount: total.toFixed(2),
-          currency: tenantCurrency,
+          currency: retainerCurrency,
           invoiceId: invoice.id,
         },
       });
@@ -391,12 +400,13 @@ export class RetainerService {
     const matter = await this.getMatterOrThrow(user, dto.matterId);
     if (!matter.tenant.taxId) throw new BadRequestException(apiError('ledger.firmNoTaxId'));
     if (!matter.client.taxId) throw new BadRequestException(apiError('clients.taxIdInvalid'));
-    const tenantCurrency = matter.tenant.currency;
 
     const account = await this.prisma.retainerAccount.findFirst({
       where: { matterId: dto.matterId, tenantId: user.tenantId },
     });
     if (!account) throw new BadRequestException(apiError('retainer.noAnticipoToDeduct'));
+    // La factura final se emite en la moneda del retainer (la misma de los anticipos que deduce).
+    const retainerCurrency = account.currency;
 
     // Anticipos del expediente (DEPOSIT kind=ANTICIPO, cada uno con su factura emitida en R2b).
     const anticipoEntries = await this.prisma.retainerEntry.findMany({
@@ -501,13 +511,14 @@ export class RetainerService {
           tenant: {
             name: matter.tenant.name,
             taxId: matter.tenant.taxId,
-            currency: tenantCurrency,
+            currency: retainerCurrency,
           },
           client: { name: matter.client.name, taxId: matter.client.taxId as string },
         },
         lines: [...serviceLines, ...deductionLines],
         withholdingTaxCode: dto.withholdingTaxCode,
         deductedAdvances,
+        currency: retainerCurrency,
         issueDate,
         dueDate,
       });
@@ -557,7 +568,6 @@ export class RetainerService {
     const matter = await this.getMatterOrThrow(user, dto.matterId);
     if (!matter.tenant.taxId) throw new BadRequestException(apiError('ledger.firmNoTaxId'));
     if (!matter.client.taxId) throw new BadRequestException(apiError('clients.taxIdInvalid'));
-    const tenantCurrency = matter.tenant.currency;
 
     const account = await this.prisma.retainerAccount.findFirst({
       where: { matterId: dto.matterId, tenantId: user.tenantId },
@@ -630,12 +640,14 @@ export class RetainerService {
           tenant: {
             name: matter.tenant.name,
             taxId: matter.tenant.taxId,
-            currency: tenantCurrency,
+            currency: anticipo.currency,
           },
           client: { name: matter.client.name, taxId: matter.client.taxId as string },
         },
         lines: reversalLines,
         withholdingTaxCode: anticipo.withholdingTaxCode ?? undefined,
+        currency: anticipo.currency,
+        invoiceFormat: anticipo.invoiceFormat as Jurisdiction,
         rectification: {
           rectifiedInvoiceId: anticipo.id,
           rectifiedNumber: anticipo.number,

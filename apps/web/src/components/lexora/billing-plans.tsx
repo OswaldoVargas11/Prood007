@@ -321,6 +321,9 @@ function CreatePlanDialog({ matterId }: { matterId: string }) {
   const [occurrences, setOccurrences] = useState('');
   const [installmentCount, setInstallmentCount] = useState('3');
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [currency, setCurrency] = useState<'EUR' | 'USD' | 'DOP'>(
+    (user?.tenant?.currency as 'EUR' | 'USD' | 'DOP') ?? 'EUR',
+  );
   const [note, setNote] = useState('');
   const [withholding, setWithholding] = useState(false);
   const [lines, setLines] = useState<BillingScheduleLine[]>([
@@ -343,6 +346,7 @@ function CreatePlanDialog({ matterId }: { matterId: string }) {
     setOccurrences('');
     setInstallmentCount('3');
     setStartDate(new Date().toISOString().slice(0, 10));
+    setCurrency((user?.tenant?.currency as 'EUR' | 'USD' | 'DOP') ?? 'EUR');
     setNote('');
     setWithholding(false);
     setLines([{ description: '', quantity: '1', unitPrice: '', taxCode: codes.taxCode }]);
@@ -357,6 +361,7 @@ function CreatePlanDialog({ matterId }: { matterId: string }) {
         intervalUnit,
         intervalCount: Number.isFinite(ic) && ic >= 1 ? ic : 1,
         startDate,
+        currency,
         lines: validLines,
         withholdingTaxCode: withholding ? codes.withholdingTaxCode : undefined,
         note: note.trim() || undefined,
@@ -487,14 +492,29 @@ function CreatePlanDialog({ matterId }: { matterId: string }) {
             {type === 'RECURRING' ? t('occurrencesHint') : t('installmentCountHint')}
           </p>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="bp-start">{t('startDate')}</Label>
-            <Input
-              id="bp-start"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-            />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="bp-start">{t('startDate')}</Label>
+              <Input
+                id="bp-start"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="bp-currency">{t('currency')}</Label>
+              <select
+                id="bp-currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value as 'EUR' | 'USD' | 'DOP')}
+                className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="EUR">EUR €</option>
+                <option value="USD">USD $</option>
+                <option value="DOP">DOP RD$</option>
+              </select>
+            </div>
           </div>
 
           {/* Líneas de la plantilla */}

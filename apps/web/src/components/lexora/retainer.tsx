@@ -63,8 +63,8 @@ export function RetainerTab({ matterId }: { matterId: string }) {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
         <div className="flex flex-wrap gap-2">
-          <DepositDialog matterId={matterId} />
-          <AnticipoDialog matterId={matterId} />
+          <DepositDialog matterId={matterId} lockedCurrency={data?.currency ?? undefined} />
+          <AnticipoDialog matterId={matterId} lockedCurrency={data?.currency ?? undefined} />
           <ApplyDialog matterId={matterId} hasAnticipo={hasAnticipo} />
         </div>
       </div>
@@ -175,19 +175,61 @@ export function RetainerTab({ matterId }: { matterId: string }) {
   );
 }
 
-/** Cobro de provisión NO fiscal: SUPLIDO (gasto por cuenta del cliente) o GENERICO (sin servicio aún). */
-function DepositDialog({ matterId }: { matterId: string }) {
+type RetainerCurrency = 'EUR' | 'USD' | 'DOP';
+
+/** Selector de moneda del retainer. Bloqueado si la cuenta ya existe (un retainer = una moneda). */
+function CurrencyField({
+  value,
+  onChange,
+  locked,
+}: {
+  value: RetainerCurrency;
+  onChange: (c: RetainerCurrency) => void;
+  locked?: boolean;
+}) {
   const t = useTranslations('retainer');
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor="ret-currency">{t('currency')}</Label>
+      <select
+        id="ret-currency"
+        value={value}
+        disabled={locked}
+        onChange={(e) => onChange(e.target.value as RetainerCurrency)}
+        className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+      >
+        <option value="EUR">EUR €</option>
+        <option value="USD">USD $</option>
+        <option value="DOP">DOP RD$</option>
+      </select>
+      {locked && <p className="text-[11px] text-muted-foreground">{t('currencyLocked')}</p>}
+    </div>
+  );
+}
+
+/** Cobro de provisión NO fiscal: SUPLIDO (gasto por cuenta del cliente) o GENERICO (sin servicio aún). */
+function DepositDialog({
+  matterId,
+  lockedCurrency,
+}: {
+  matterId: string;
+  lockedCurrency?: string;
+}) {
+  const t = useTranslations('retainer');
+  const { user } = useAuth();
   const deposit = useRetainerDeposit(matterId);
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<'SUPLIDO' | 'GENERICO'>('SUPLIDO');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [currency, setCurrency] = useState<RetainerCurrency>(
+    (lockedCurrency as RetainerCurrency) ?? (user?.tenant?.currency as RetainerCurrency) ?? 'EUR',
+  );
 
   function submit() {
     if (!amount) return;
     deposit.mutate(
-      { amount, kind, note: note.trim() || undefined },
+      { amount, kind, note: note.trim() || undefined, currency },
       {
         onSuccess: () => {
           setAmount('');
@@ -240,6 +282,7 @@ function DepositDialog({ matterId }: { matterId: string }) {
               onChange={(e) => setAmount(e.target.value)}
             />
           </div>
+          <CurrencyField value={currency} onChange={setCurrency} locked={Boolean(lockedCurrency)} />
           <div className="space-y-1.5">
             <Label htmlFor="dep-note">{t('noteOptional')}</Label>
             <Input id="dep-note" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -262,7 +305,13 @@ function DepositDialog({ matterId }: { matterId: string }) {
 }
 
 /** Cobro de ANTICIPO de honorarios: emite la factura de anticipo (Verifactu/e-CF) y acredita el saldo. */
-function AnticipoDialog({ matterId }: { matterId: string }) {
+function AnticipoDialog({
+  matterId,
+  lockedCurrency,
+}: {
+  matterId: string;
+  lockedCurrency?: string;
+}) {
   const t = useTranslations('retainer');
   const { user } = useAuth();
   const router = useRouter();
@@ -272,6 +321,9 @@ function AnticipoDialog({ matterId }: { matterId: string }) {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [withholding, setWithholding] = useState(false);
+  const [currency, setCurrency] = useState<RetainerCurrency>(
+    (lockedCurrency as RetainerCurrency) ?? (user?.tenant?.currency as RetainerCurrency) ?? 'EUR',
+  );
 
   function submit() {
     if (!amount) return;
@@ -280,6 +332,7 @@ function AnticipoDialog({ matterId }: { matterId: string }) {
         amount,
         description: description.trim() || undefined,
         withholdingTaxCode: withholding ? codes.withholdingTaxCode : undefined,
+        currency,
       },
       {
         onSuccess: () => {
@@ -312,6 +365,7 @@ function AnticipoDialog({ matterId }: { matterId: string }) {
               onChange={(e) => setAmount(e.target.value)}
             />
           </div>
+          <CurrencyField value={currency} onChange={setCurrency} locked={Boolean(lockedCurrency)} />
           <div className="space-y-1.5">
             <Label htmlFor="ant-desc">{t('descriptionOptional')}</Label>
             <Input
