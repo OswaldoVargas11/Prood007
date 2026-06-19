@@ -28,7 +28,11 @@ export class SubscriptionController {
   @Roles(Role.FIRM_ADMIN)
   @Post('checkout')
   checkout(@CurrentUser() user: RequestUser, @Body() dto: CheckoutDto) {
-    return this.stripe.createCheckout(user, dto.seats);
+    return this.stripe.createCheckout(user, {
+      seats: dto.seats,
+      cycle: dto.cycle ?? 'MONTHLY',
+      founder: dto.founder ?? false,
+    });
   }
 
   /** Abre el portal de Stripe para gestionar/cancelar la suscripción. Solo el admin del despacho. */

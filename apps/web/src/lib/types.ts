@@ -497,6 +497,8 @@ export interface SignatureRequest {
 // ── Suscripción (SaaS de plataforma) ──────────────────────────────────────────
 export type SubscriptionStatusValue = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELED';
 
+export type BillingCycle = 'MONTHLY' | 'ANNUAL';
+
 export interface SubscriptionTier {
   upTo: number | null;
   pricePerSeatEur: number;
@@ -511,9 +513,24 @@ export interface SubscriptionInfo {
   seats: number;
   seatsUsed: number;
   seatCap: number;
+  billingCycle: BillingCycle;
+  isFounder: boolean;
+  founderNumber: number | null;
+  founderSlotsLeft: number;
+  founderCap: number;
+  annualFreeMonths: number;
   pricePerSeatEur: number;
   monthlyTotalEur: number;
+  annualTotalEur: number;
+  currentTotalEur: number;
   tiers: SubscriptionTier[];
+}
+
+/** Payload de inicio de pago: plazas, ciclo y si solicita Plan Fundador. */
+export interface CheckoutRequest {
+  seats: number;
+  cycle: BillingCycle;
+  founder: boolean;
 }
 
 /** Despacho visto por el super-admin de plataforma (consola). */

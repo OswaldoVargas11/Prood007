@@ -41,6 +41,7 @@ import type {
   MatterStatus,
   Message,
   Notification,
+  CheckoutRequest,
   Paginated,
   PaymentConfig,
   SignatureRequest,
@@ -1199,10 +1200,10 @@ export function useSubscription() {
   });
 }
 
-/** Inicia el Checkout de Stripe para N plazas y devuelve la URL de pago. */
+/** Inicia el Checkout de Stripe (plazas + ciclo + fundador) y devuelve la URL de pago. */
 export function useCheckout() {
   return useMutation({
-    mutationFn: (seats: number) => api.post<{ url: string }>('/subscription/checkout', { seats }),
+    mutationFn: (req: CheckoutRequest) => api.post<{ url: string }>('/subscription/checkout', req),
   });
 }
 

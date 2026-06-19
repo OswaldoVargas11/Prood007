@@ -217,6 +217,14 @@ model Tenant {
   seats                 Int          @default(0)
   trialEndsAt           DateTime?
   currentPeriodEnd      DateTime?
+  // Ciclo de facturación de la suscripción: MONTHLY | ANNUAL (anual = 2 meses gratis, ver plans.ts).
+  billingCycle          String       @default("MONTHLY")
+  // Plan Fundador (primeros N despachos): el precio POR PLAZA queda bloqueado de por vida según los
+  // tramos de volumen vigentes al darse de alta. `lockedSeatTiers` = snapshot [{upTo, pricePerSeatEur}].
+  // El precio por plaza sigue dependiendo del nº de plazas (volumen); lo que se congela es la tarifa.
+  isFounder             Boolean      @default(false)
+  founderNumber         Int?
+  lockedSeatTiers       Json?
   // Serie fiscal: prefijo de la numeración de facturas (p. ej. "FAC", "A").
   invoiceSeries         String       @default("FAC")
   // Festivos locales del despacho: array JSON [{ date: "yyyy-mm-dd", name }] que afina el cómputo de

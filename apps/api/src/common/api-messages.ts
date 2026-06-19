@@ -183,6 +183,10 @@ export const API_MESSAGES = {
     'es-ES': 'No se pudo iniciar el pago de la suscripción.',
     'es-DO': 'No se pudo iniciar el pago de la suscripción.',
   },
+  'subscription.annualNotConfigured': {
+    'es-ES': 'El pago anual no está configurado todavía.',
+    'es-DO': 'El pago anual no está configurado todavía.',
+  },
   'subscription.noCustomer': {
     'es-ES': 'El despacho aún no tiene una suscripción que gestionar.',
     'es-DO': 'El despacho aún no tiene una suscripción que gestionar.',
