@@ -2,9 +2,11 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import { BadgeCheck, Check, Loader2, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useApprovals, useResolveCost } from '@/lib/hooks';
+import { toastMsg } from '@/lib/toasts';
 import { formatMoney, formatDateTime } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,6 +31,7 @@ export default function ApprovalsPage() {
     setBusyId(id);
     try {
       await resolve.mutateAsync({ id, action });
+      toast.success(action === 'approve' ? toastMsg.costApproved : toastMsg.costRejected);
     } finally {
       setBusyId(null);
     }
