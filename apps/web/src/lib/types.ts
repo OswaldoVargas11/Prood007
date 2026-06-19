@@ -66,7 +66,14 @@ export interface ClientsPage extends Paginated<Client> {
   currency: string;
 }
 
+/** Importe agregado en una moneda concreta (desglose multi-moneda). */
+export interface MoneyByCurrency {
+  currency: string;
+  amount: string;
+}
+
 export interface DashboardSummary {
+  /** Moneda principal del despacho (la del gráfico de tendencia y el desglose primero). */
   currency: string;
   kpis: {
     activeMatters: number;
@@ -76,9 +83,13 @@ export interface DashboardSummary {
     upcomingDeadlines: number;
     urgentDeadlines: number;
     pendingReviews: number;
-    billableThisMonth: string;
-    outstanding: string;
+    /** Facturado este mes, DESGLOSADO por moneda (principal primero). */
+    billableThisMonth: MoneyByCurrency[];
+    /** Pendiente de cobro, DESGLOSADO por moneda (principal primero). */
+    outstanding: MoneyByCurrency[];
   };
+  /** true si hay facturas en monedas distintas de la principal (el gráfico solo refleja la principal). */
+  hasOtherCurrencies: boolean;
   revenueByMonth: { month: string; total: string }[];
   deadlines: {
     taskId: string;

@@ -59,31 +59,53 @@ export class DashboardService {
       (d) => d.dueDate && new Date(d.dueDate).getTime() - now.getTime() <= ONE_WEEK_MS,
     ).length;
 
-    // Facturación: importes del mes, pendiente de cobro y serie por mes (últimos 6).
+    // Facturación MULTI-MONEDA: NO se pueden sumar EUR/USD/DOP en un único total (sería una cifra sin
+    // sentido). Los KPIs de "facturado este mes" y "pendiente de cobro" se DESGLOSAN por moneda; el
+    // gráfico de tendencia, al ser una sola línea, usa la moneda principal del despacho.
+    const primaryCurrency = tenant?.currency ?? 'EUR';
     const invoices = await this.prisma.invoice.findMany({
       where: { tenantId },
-      select: { total: true, status: true, issueDate: true },
+      select: { total: true, status: true, issueDate: true, currency: true },
     });
-    let billableThisMonth = 0;
-    let outstanding = 0;
-    const byMonth = new Map<string, number>();
+    const billableByCcy = new Map<string, number>();
+    const outstandingByCcy = new Map<string, number>();
+    const byMonth = new Map<string, number>(); // serie mensual, solo moneda principal
     for (let i = 5; i >= 0; i -= 1) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       byMonth.set(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, 0);
     }
+    let hasOtherCurrencies = false;
     for (const inv of invoices) {
       const total = Number(inv.total);
-      if (inv.issueDate >= monthStart) billableThisMonth += total;
-      if (inv.status === InvoiceStatus.ISSUED || inv.status === InvoiceStatus.SENT) {
-        outstanding += total;
+      const ccy = inv.currency as string;
+      if (ccy !== primaryCurrency) hasOtherCurrencies = true;
+      if (inv.issueDate >= monthStart) {
+        billableByCcy.set(ccy, (billableByCcy.get(ccy) ?? 0) + total);
       }
-      const key = `${inv.issueDate.getFullYear()}-${String(inv.issueDate.getMonth() + 1).padStart(2, '0')}`;
-      if (byMonth.has(key)) byMonth.set(key, (byMonth.get(key) ?? 0) + total);
+      if (inv.status === InvoiceStatus.ISSUED || inv.status === InvoiceStatus.SENT) {
+        outstandingByCcy.set(ccy, (outstandingByCcy.get(ccy) ?? 0) + total);
+      }
+      if (ccy === primaryCurrency) {
+        const key = `${inv.issueDate.getFullYear()}-${String(inv.issueDate.getMonth() + 1).padStart(2, '0')}`;
+        if (byMonth.has(key)) byMonth.set(key, (byMonth.get(key) ?? 0) + total);
+      }
     }
     const revenueByMonth = [...byMonth.entries()].map(([month, total]) => ({
       month,
       total: round2(total).toFixed(2),
     }));
+    // Desglose por moneda: la principal primero (aunque sea 0, para que el KPI siempre muestre algo),
+    // luego el resto con importe ≠ 0 en orden estable.
+    const toBreakdown = (m: Map<string, number>): { currency: string; amount: string }[] => {
+      const out: { currency: string; amount: string }[] = [
+        { currency: primaryCurrency, amount: round2(m.get(primaryCurrency) ?? 0).toFixed(2) },
+      ];
+      for (const ccy of [...m.keys()].sort()) {
+        if (ccy === primaryCurrency) continue;
+        out.push({ currency: ccy, amount: round2(m.get(ccy) ?? 0).toFixed(2) });
+      }
+      return out;
+    };
 
     // Actividad reciente (auditoría) con el nombre del actor.
     const logs = await this.prisma.auditLog.findMany({
@@ -119,9 +141,10 @@ export class DashboardService {
         upcomingDeadlines: deadlines.length,
         urgentDeadlines: urgentCount,
         pendingReviews,
-        billableThisMonth: round2(billableThisMonth).toFixed(2),
-        outstanding: round2(outstanding).toFixed(2),
+        billableThisMonth: toBreakdown(billableByCcy),
+        outstanding: toBreakdown(outstandingByCcy),
       },
+      hasOtherCurrencies,
       revenueByMonth,
       deadlines,
       urgentCount,
