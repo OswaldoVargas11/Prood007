@@ -1,8 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
 import type { RequestUser } from '../auth/auth.types';
-import { SEAT_TIERS, hasAppAccess, monthlyTotalEur, pricePerSeatEur, trialDaysLeft } from './plans';
+import type { BillingCycle, SeatTier } from './plans';
+import {
+  ANNUAL_FREE_MONTHS,
+  FOUNDER_CAP,
+  annualTotalFromTiers,
+  cycleTotalEur,
+  effectiveTiers,
+  hasAppAccess,
+  monthlyTotalFromTiers,
+  pricePerSeatFromTiers,
+  trialDaysLeft,
+} from './plans';
 
 /**
  * Suscripción de PLATAFORMA del despacho (Lawzora SaaS, modelo POR USUARIO). Estado para el banner de
@@ -10,7 +21,16 @@ import { SEAT_TIERS, hasAppAccess, monthlyTotalEur, pricePerSeatEur, trialDaysLe
  */
 @Injectable()
 export class SubscriptionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly system: SystemPrismaService,
+  ) {}
+
+  /** Plazas de Fundador disponibles (cupo global). >0 ⇒ aún se puede contratar el Plan Fundador. */
+  private async founderSlotsLeft(): Promise<number> {
+    const taken = await this.system.tenant.count({ where: { isFounder: true } });
+    return Math.max(0, FOUNDER_CAP - taken);
+  }
 
   /** Plazas de staff ACTIVAS (letrados + admins) del despacho. */
   private async usedSeats(tenantId: string): Promise<number> {
@@ -34,11 +54,19 @@ export class SubscriptionService {
         seats: true,
         maxAdmins: true,
         maxLawyers: true,
+        billingCycle: true,
+        isFounder: true,
+        founderNumber: true,
+        lockedSeatTiers: true,
       },
     });
     const used = await this.usedSeats(user.tenantId);
     // Plazas "de referencia" para mostrar precio: las contratadas o, en prueba, las usadas.
-    const refSeats = t.seats > 0 ? t.seats : used;
+    const refSeats = Math.max(1, t.seats > 0 ? t.seats : used);
+    // Tramos efectivos: si es fundador con tarifa bloqueada, su snapshot; si no, la tarifa pública.
+    const tiers: SeatTier[] = effectiveTiers(t);
+    const cycle = (t.billingCycle as BillingCycle) ?? 'MONTHLY';
+    const founderSlotsLeft = await this.founderSlotsLeft();
 
     return {
       status: t.subscriptionStatus,
@@ -49,10 +77,18 @@ export class SubscriptionService {
       seats: t.seats, // contratadas (0 en prueba)
       seatsUsed: used, // staff activo
       seatCap: t.maxAdmins + t.maxLawyers, // tope operativo de plazas
-      pricePerSeatEur: pricePerSeatEur(Math.max(1, refSeats)),
-      monthlyTotalEur: monthlyTotalEur(t.seats),
-      // Tabla de tramos (mismo producto completo; sólo cambia el precio por plaza por volumen).
-      tiers: SEAT_TIERS.map((tier) => ({ upTo: tier.upTo, pricePerSeatEur: tier.pricePerSeatEur })),
+      billingCycle: cycle,
+      isFounder: t.isFounder,
+      founderNumber: t.founderNumber,
+      founderSlotsLeft, // cupo de Plan Fundador que queda (0 = agotado)
+      founderCap: FOUNDER_CAP,
+      annualFreeMonths: ANNUAL_FREE_MONTHS,
+      pricePerSeatEur: pricePerSeatFromTiers(tiers, refSeats),
+      monthlyTotalEur: monthlyTotalFromTiers(tiers, t.seats),
+      annualTotalEur: annualTotalFromTiers(tiers, t.seats),
+      currentTotalEur: cycleTotalEur(cycle, tiers, t.seats),
+      // Tabla de tramos APLICABLES (mismo producto completo; sólo cambia el precio por plaza por volumen).
+      tiers: tiers.map((tier) => ({ upTo: tier.upTo, pricePerSeatEur: tier.pricePerSeatEur })),
     };
   }
 }

@@ -1051,7 +1051,36 @@
     "wallTitle": "Tu prueba ha finalizado",
     "wallSubtitle": "Suscríbete para seguir usando Lawzora. Tus datos están intactos.",
     "pageTitle": "Suscripción",
-    "pageSubtitle": "Gestiona tu plan y tus plazas."
+    "pageSubtitle": "Gestiona tu plan y tus plazas.",
+    "cycleMonthly": "Mensual",
+    "cycleAnnual": "Anual",
+    "annualBadge": "{months} meses gratis",
+    "year": "año",
+    "planPro": "Profesional",
+    "planProDesc": "Producto completo. Pagas por plaza, con descuento por volumen.",
+    "planFounder": "Fundador",
+    "planFounderDesc": "Para los primeros despachos que confían en Lawzora.",
+    "founderSlots": "Quedan {n} de {cap}",
+    "founderClosed": "El cupo del Plan Fundador se ha agotado.",
+    "founderYours": "Ya disfrutas del Plan Fundador.",
+    "founderActive": "Eres Fundador nº {n}",
+    "chooseFounder": "Unirme como Fundador",
+    "annualSave": "Ahorras €{amount} al año",
+    "annualEquiv": "≈ €{amount}/mes",
+    "founderLockNote": "Mismo precio que hoy, bloqueado de por vida según tus plazas.",
+    "proBenefits": [
+      "Todas las funciones incluidas",
+      "Descuento por volumen de plazas",
+      "Soporte estándar",
+      "Cancela cuando quieras"
+    ],
+    "founderBenefits": [
+      "Precio por plaza bloqueado de por vida",
+      "Todas las funciones presentes y futuras",
+      "Soporte prioritario y canal directo",
+      "Insignia de Fundador",
+      "2 meses gratis al pagar anual"
+    ]
   },
   "reports": {
     "title": "Informes",
