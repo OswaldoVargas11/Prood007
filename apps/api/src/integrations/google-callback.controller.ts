@@ -1,0 +1,27 @@
+import { Controller, Get, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { GoogleService } from './google.service';
+import { Public } from '../auth/decorators/public.decorator';
+
+/**
+ * Callback OAuth de Google (público: el redirect del navegador desde Google no trae nuestra sesión).
+ * Intercambia el `code` y redirige de vuelta a Ajustes del web. La URL exacta debe estar registrada
+ * como "Authorized redirect URI" en la consola de Google.
+ */
+@Public()
+@Controller('integrations/google')
+export class GoogleCallbackController {
+  constructor(private readonly google: GoogleService) {}
+
+  @Get('callback')
+  async callback(
+    @Query('code') code: string | undefined,
+    @Query('state') state: string | undefined,
+    @Res() res: Response,
+  ) {
+    const appUrl = process.env.APP_PUBLIC_URL ?? 'https://lawzora.com';
+    if (!code || !state) return res.redirect(`${appUrl}/es/settings?google=error`);
+    const { webRedirect } = await this.google.handleCallback(code, state);
+    return res.redirect(webRedirect);
+  }
+}

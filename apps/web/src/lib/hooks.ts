@@ -1027,6 +1027,35 @@ export function useCalendarFeedLink() {
   });
 }
 
+// ── Integración Google (OAuth: Calendar; Gmail en breve) ──────────────────────
+export function useGoogleStatus() {
+  return useQuery({
+    queryKey: ['google-status'],
+    queryFn: () =>
+      api.get<{ configured: boolean; connected: boolean; email: string | null }>(
+        '/integrations/google/status',
+      ),
+  });
+}
+export function useGoogleConnect() {
+  return useMutation({
+    mutationFn: () => api.get<{ url: string }>('/integrations/google/connect'),
+  });
+}
+export function useGoogleDisconnect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.del('/integrations/google'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['google-status'] }),
+  });
+}
+export function useGoogleCalendarSync() {
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ pushed: number; errors: number }>('/integrations/google/calendar/sync'),
+  });
+}
+
 export function useCreateMatter() {
   const qc = useQueryClient();
   return useMutation({

@@ -800,6 +800,19 @@
       "subtitle": "Por seguridad, debes establecer una contraseña propia antes de continuar."
     }
   },
+  "integrations": {
+    "googleTitle": "Google Calendar",
+    "googleDesc": "Conecta tu Google para que tus plazos se creen como eventos en tu calendario.",
+    "notConfigured": "Integración no disponible todavía (pendiente de activar en el servidor).",
+    "connect": "Conectar Google",
+    "connectHint": "Conecta tu cuenta de Google para sincronizar la agenda.",
+    "connectError": "No se pudo conectar con Google. Inténtalo de nuevo.",
+    "connected": "Google conectado",
+    "connectedAs": "Conectado como {email}",
+    "disconnect": "Desconectar",
+    "syncNow": "Sincronizar agenda ahora",
+    "synced": "{n, plural, one {# plazo enviado a tu calendario} other {# plazos enviados a tu calendario}}"
+  },
   "leads": {
     "title": "Captación",
     "subtitle": "Embudo de prospectos: captura, cualifica y convierte en clientes.",

@@ -275,6 +275,7 @@ model Tenant {
   auditLogs           AuditLog[]
   signatureRequests   SignatureRequest[]
   leads               Lead[]
+  oauthConnections    OAuthConnection[]
 }
 
 model User {
@@ -308,6 +309,7 @@ model User {
   reviews            DocumentReview[]
   messages           Message[]
   assignedLeads      Lead[]            @relation("LeadAssignee")
+  oauthConnections   OAuthConnection[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -1081,4 +1083,26 @@ model Lead {
 
   @@index([tenantId, status])
   @@index([tenantId, createdAt])
+}
+
+// Conexión OAuth de un usuario con un proveedor externo (Google: Calendar + Gmail). Tokens CIFRADOS
+// en reposo (AES-256-GCM con DATA_ENCRYPTION_KEY). Una conexión por (usuario, proveedor).
+model OAuthConnection {
+  id            String    @id @default(cuid())
+  tenantId      String
+  userId        String
+  provider      String // 'google' | 'microsoft'
+  externalEmail String?
+  scopes        String    @default("")
+  accessToken   String // cifrado (base64 del blob)
+  refreshToken  String? // cifrado
+  expiresAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([tenantId])
 }

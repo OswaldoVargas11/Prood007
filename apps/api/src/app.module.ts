@@ -35,6 +35,7 @@ import { SettingsModule } from './settings/settings.module';
 import { ImportModule } from './import/import.module';
 import { LeadsModule } from './leads/leads.module';
 import { CalendarModule } from './calendar/calendar.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -74,6 +75,7 @@ import { HealthController } from './health.controller';
     ImportModule,
     LeadsModule,
     CalendarModule,
+    IntegrationsModule,
   ],
   controllers: [HealthController],
   providers: [

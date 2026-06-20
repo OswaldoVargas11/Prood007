@@ -1,13 +1,18 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
+import { toast } from 'sonner';
 import {
+  CalendarClock,
   CalendarOff,
   CreditCard,
   FileBadge,
+  Link2,
   Loader2,
   Plus,
+  RefreshCw,
   ShieldCheck,
   Trash2,
   Upload,
@@ -17,6 +22,10 @@ import { useAuth } from '@/lib/auth';
 import {
   useAddHoliday,
   useCreateStaff,
+  useGoogleCalendarSync,
+  useGoogleConnect,
+  useGoogleDisconnect,
+  useGoogleStatus,
   useRemoveHoliday,
   useSeats,
   useSettings,
@@ -70,6 +79,7 @@ export default function SettingsPage() {
       <StaffCard />
       <HolidaysCard />
       <CertificateCard />
+      <GoogleCard />
       <StripeCard />
     </div>
   );
@@ -114,6 +124,76 @@ function StripeCard() {
         <Badge variant={connected ? 'success' : 'warning'}>
           {connected ? t('stripe.connected') : t('stripe.pending')}
         </Badge>
+      )}
+    </Section>
+  );
+}
+
+/** Integración con Google (OAuth): conectar/desconectar y sincronizar la agenda a Google Calendar. */
+function GoogleCard() {
+  const t = useTranslations('integrations');
+  const status = useGoogleStatus();
+  const connect = useGoogleConnect();
+  const disconnect = useGoogleDisconnect();
+  const sync = useGoogleCalendarSync();
+  const params = useSearchParams();
+
+  useEffect(() => {
+    const g = params.get('google');
+    if (g === 'connected') {
+      toast.success(t('connected'));
+      status.refetch();
+    } else if (g === 'error') toast.error(t('connectError'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function doConnect() {
+    const { url } = await connect.mutateAsync();
+    window.location.href = url;
+  }
+  async function doSync() {
+    const r = await sync.mutateAsync();
+    toast.success(t('synced', { n: r.pushed }));
+  }
+
+  const data = status.data;
+  return (
+    <Section
+      icon={<CalendarClock className="size-5 text-[var(--brand)]" />}
+      title={t('googleTitle')}
+      desc={t('googleDesc')}
+      action={
+        data?.connected ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => disconnect.mutate()}
+            disabled={disconnect.isPending}
+          >
+            {t('disconnect')}
+          </Button>
+        ) : data?.configured ? (
+          <Button size="sm" onClick={doConnect} disabled={connect.isPending}>
+            {connect.isPending ? <Loader2 className="animate-spin" /> : <Link2 />}
+            {t('connect')}
+          </Button>
+        ) : undefined
+      }
+    >
+      {status.isLoading ? (
+        <Skeleton className="h-6 w-40" />
+      ) : !data?.configured ? (
+        <p className="text-sm text-muted-foreground">{t('notConfigured')}</p>
+      ) : !data.connected ? (
+        <p className="text-sm text-muted-foreground">{t('connectHint')}</p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-3">
+          <Badge variant="success">{t('connectedAs', { email: data.email ?? '' })}</Badge>
+          <Button size="sm" variant="outline" onClick={doSync} disabled={sync.isPending}>
+            {sync.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+            {t('syncNow')}
+          </Button>
+        </div>
       )}
     </Section>
   );
