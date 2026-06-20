@@ -134,6 +134,25 @@ describe('Documents & review (e2e)', () => {
     expect((res.body as Buffer).toString()).toBe('contenido del contrato v1');
   });
 
+  it('la descarga fuerza attachment para contenido no seguro (anti stored-XSS)', async () => {
+    const up = await request(app.getHttpServer())
+      .post('/api/documents')
+      .set(auth(lawyerToken))
+      .field('matterId', matterId)
+      .field('name', 'evil')
+      .attach('file', Buffer.from('<script>alert(1)</script>'), {
+        filename: 'evil.html',
+        contentType: 'text/html',
+      })
+      .expect(201);
+    const res = await request(app.getHttpServer())
+      .get(`/api/documents/versions/${up.body.version.id}/download`)
+      .set(auth(lawyerToken))
+      .expect(200);
+    expect(res.headers['content-disposition']).toContain('attachment');
+    expect(res.headers['x-content-type-options']).toBe('nosniff');
+  });
+
   it('AISLAMIENTO: el tenant B no ve el documento del tenant A (404)', async () => {
     await request(app.getHttpServer())
       .get(`/api/documents/${documentId}`)

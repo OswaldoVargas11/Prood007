@@ -17,6 +17,7 @@ import { ReviewDocumentDto } from './dto/review-document.dto';
 import { GenerateFromTemplateDto } from './dto/generate-from-template.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { safeContentDisposition } from '../common/safe-download';
 import type { RequestUser } from '../auth/auth.types';
 
 // Tipo mínimo del archivo subido por Multer (evita depender del namespace global).
@@ -80,6 +81,12 @@ export class DocumentsController {
     const { version, buffer } = await this.documents.download(user, versionId);
     res.setHeader('Content-Type', version.mimeType);
     res.setHeader('Content-Length', String(version.sizeBytes));
+    // No renderizar inline contenido subido salvo tipos seguros (anti stored-XSS) + no sniffear el tipo.
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader(
+      'Content-Disposition',
+      safeContentDisposition(version.mimeType, version.document?.name),
+    );
     res.send(buffer);
   }
 

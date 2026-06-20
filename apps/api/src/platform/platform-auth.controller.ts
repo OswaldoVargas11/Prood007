@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { Throttle } from '@nestjs/throttler';
 import { Public } from '../auth/decorators/public.decorator';
 import { apiError } from '../common/api-messages';
 import { PlatformLoginDto } from './dto/platform.dto';
@@ -35,6 +36,8 @@ export class PlatformAuthController {
     private readonly config: ConfigService,
   ) {}
 
+  // Rate-limit ESTRICTO: el super-admin concede control de plataforma; 5 intentos/min por IP.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Public()
   @HttpCode(200)
   @Post('login')

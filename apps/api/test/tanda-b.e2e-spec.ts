@@ -252,6 +252,20 @@ describe('Tanda B — usuarios/licencia, ajustes, auditoría, aprobaciones (e2e)
     expect(receipt.headers['content-type']).toContain('image/png');
   });
 
+  it('rechaza un justificante que no es imagen/PDF (anti stored-XSS, 400)', async () => {
+    await request(app.getHttpServer())
+      .post('/api/ledger/costs/propose')
+      .set(auth(lawyerToken))
+      .field('matterId', matterId)
+      .field('description', 'Con HTML')
+      .field('amount', '5.00')
+      .attach('receipt', Buffer.from('<script>alert(1)</script>'), {
+        filename: 'x.html',
+        contentType: 'text/html',
+      })
+      .expect(400);
+  });
+
   it('rechazar un coste propuesto no afecta al saldo', async () => {
     const prop = await request(app.getHttpServer())
       .post('/api/ledger/costs/propose')

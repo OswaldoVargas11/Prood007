@@ -230,6 +230,7 @@ export class DocumentsService {
   async download(user: RequestUser, versionId: string) {
     const version = await this.prisma.documentVersion.findFirst({
       where: { id: versionId, tenantId: user.tenantId },
+      include: { document: { select: { name: true } } },
     });
     if (!version) throw new NotFoundException(apiError('documents.versionNotFound'));
     const buffer = await this.storage.get(version.storageKey);

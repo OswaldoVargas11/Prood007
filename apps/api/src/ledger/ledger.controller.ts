@@ -13,6 +13,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Role } from '@legalflow/domain';
 import { LedgerService } from './ledger.service';
 import { pdfStream } from '../common/pdf-response';
+import { safeContentDisposition } from '../common/safe-download';
 import { CreateLedgerEntryDto } from './dto/create-ledger-entry.dto';
 import { CreateTimeEntryDto } from './dto/create-time-entry.dto';
 import { ListTimeQueryDto } from './dto/list-time.dto';
@@ -53,11 +54,14 @@ export class LedgerController {
     return this.ledger.proposeCost(user, dto, receipt);
   }
 
-  /** Descarga/visualización del justificante de un suplido. */
+  /** Descarga/visualización del justificante de un suplido (inline solo para tipos seguros). */
   @Get('costs/:id/receipt')
   async receipt(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     const { buffer, mime, name } = await this.ledger.getReceipt(user, id);
-    return new StreamableFile(buffer, { type: mime, disposition: `inline; filename="${name}"` });
+    return new StreamableFile(buffer, {
+      type: mime,
+      disposition: safeContentDisposition(mime, name),
+    });
   }
 
   /** Costes propuestos pendientes (solo admin). */

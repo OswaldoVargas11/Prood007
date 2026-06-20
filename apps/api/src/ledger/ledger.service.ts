@@ -25,6 +25,7 @@ import { ProposeCostDto } from './dto/propose-cost.dto';
 import { ResolveApprovalDto } from './dto/resolve-approval.dto';
 import { apiError } from '../common/api-messages';
 import { buildInvoicePdf, invoiceRowToPdfData } from './invoice-pdf';
+import { isInlineSafeMime } from '../common/safe-download';
 import { PaymentsService } from '../payments/payments.service';
 import {
   DEFAULT_PAYMENT_TERM_DAYS,
@@ -529,6 +530,10 @@ export class LedgerService {
   ) {
     const amount = Number(dto.amount);
     if (!(amount > 0)) throw new BadRequestException(apiError('ledger.amountPositive'));
+    // Valida el tipo del justificante ANTES de crear nada (solo imagen/PDF; no HTML/SVG ejecutable).
+    if (receipt?.buffer?.length && !isInlineSafeMime(receipt.mimetype)) {
+      throw new BadRequestException(apiError('ledger.receiptType'));
+    }
     const matter = await this.getMatterOrThrow(user, dto.matterId);
 
     const entry = await this.prisma.ledgerEntry.create({

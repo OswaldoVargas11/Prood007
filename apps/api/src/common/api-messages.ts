@@ -325,6 +325,10 @@ export const API_MESSAGES = {
     'es-ES': 'Este apunte no tiene justificante.',
     'es-DO': 'Este apunte no tiene justificante.',
   },
+  'ledger.receiptType': {
+    'es-ES': 'El justificante debe ser una imagen (PNG/JPG/WEBP/GIF) o un PDF.',
+    'es-DO': 'El justificante debe ser una imagen (PNG/JPG/WEBP/GIF) o un PDF.',
+  },
   'ledger.costAlreadyResolved': {
     'es-ES': 'Este coste ya fue resuelto.',
     'es-DO': 'Este coste ya fue resuelto.',

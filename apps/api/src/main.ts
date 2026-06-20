@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -7,7 +8,13 @@ import { createValidationPipe } from './common/validation';
 
 async function bootstrap() {
   // `rawBody: true` preserva el cuerpo crudo (para verificar la firma del webhook de Stripe).
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+
+  // Límite EXPLÍCITO del tamaño del cuerpo (defensa DoS por payloads abusivos). Las subidas de fichero
+  // van por multipart/multer con sus propios límites; aquí se acota el JSON/urlencoded. `useBodyParser`
+  // conserva el rawBody del webhook de Stripe.
+  app.useBodyParser('json', { limit: '512kb' });
+  app.useBodyParser('urlencoded', { limit: '512kb', extended: true });
 
   // Cabeceras de seguridad HTTP.
   app.use(helmet());
@@ -22,7 +29,6 @@ async function bootstrap() {
     origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : true,
     credentials: true,
   });
-  // Limita el tamaño del cuerpo JSON (defensa frente a payloads abusivos).
   app.setGlobalPrefix('api');
 
   const config = app.get(ConfigService);

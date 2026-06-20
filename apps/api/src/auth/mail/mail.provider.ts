@@ -47,6 +47,10 @@ function renderEmail(opts: {
   button?: { label: string; url: string };
   note?: string;
 }): string {
+  // Defensa en profundidad: `heading` y `note` son texto plano → se escapan aquí. Los `paragraphs`
+  // mantienen su contrato HTML (los callers ya escapan el contenido de usuario antes de insertarlo).
+  const heading = escapeHtml(opts.heading);
+  const safeNote = opts.note ? escapeHtml(opts.note) : undefined;
   const para = opts.paragraphs
     .map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3f3f46;">${p}</p>`)
     .join('');
@@ -56,8 +60,8 @@ function renderEmail(opts: {
       `<a href="${opts.button.url}" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;">${opts.button.label}</a>` +
       `</td></tr></table>`
     : '';
-  const note = opts.note
-    ? `<p style="margin:14px 0 0;font-size:12.5px;line-height:1.5;color:#a1a1aa;">${opts.note}</p>`
+  const note = safeNote
+    ? `<p style="margin:14px 0 0;font-size:12.5px;line-height:1.5;color:#a1a1aa;">${safeNote}</p>`
     : '';
   return (
     `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">` +
@@ -71,7 +75,7 @@ function renderEmail(opts: {
     `<span style="font-size:17px;font-weight:bold;color:#18181b;vertical-align:middle;margin-left:8px;">Lawzora</span>` +
     `</td></tr>` +
     `<tr><td style="padding:28px;">` +
-    `<h1 style="margin:0 0 16px;font-size:19px;font-weight:bold;color:#18181b;">${opts.heading}</h1>` +
+    `<h1 style="margin:0 0 16px;font-size:19px;font-weight:bold;color:#18181b;">${heading}</h1>` +
     para +
     button +
     note +
