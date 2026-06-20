@@ -20,4 +20,9 @@ export class ReportsController {
   timeByLawyer(@CurrentUser() user: RequestUser) {
     return this.reports.timeByLawyer(user);
   }
+
+  @Get('profitability')
+  profitability(@CurrentUser() user: RequestUser) {
+    return this.reports.profitability(user);
+  }
 }

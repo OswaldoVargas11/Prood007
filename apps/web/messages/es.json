@@ -1287,6 +1287,20 @@
       "hours": "Horas",
       "billedPct": "% facturado",
       "amount": "Honorarios"
+    },
+    "profit": {
+      "title": "Rentabilidad por expediente",
+      "empty": "Aún no hay actividad económica para calcular rentabilidad.",
+      "matter": "Expediente",
+      "hours": "Horas",
+      "workValue": "Valor del trabajo",
+      "wip": "Sin facturar (WIP)",
+      "wipHint": "Trabajo registrado aún no facturado",
+      "billed": "Facturado",
+      "collected": "Cobrado",
+      "realization": "Realización",
+      "collection": "Cobro",
+      "foreignNote": "{n, plural, one {# factura en otra moneda no incluida (se muestra en la moneda base)} other {# facturas en otra moneda no incluidas (se muestran en la moneda base)}}"
     }
   }
 }

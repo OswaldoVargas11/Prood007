@@ -1,7 +1,17 @@
 import { Injectable } from '@nestjs/common';
+import { InvoiceStatus } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import { SETTLED_STATUSES, startOfTodayUtc } from '../ledger/overdue.util';
 import type { RequestUser } from '../auth/auth.types';
+
+// Facturas "emitidas" (cuentan como facturado): todo menos borrador y anulada.
+const ISSUED_STATUSES: InvoiceStatus[] = [
+  InvoiceStatus.ISSUED,
+  InvoiceStatus.SENT,
+  InvoiceStatus.PARTIAL,
+  InvoiceStatus.OVERDUE,
+  InvoiceStatus.PAID,
+];
 
 /** Informes de gestión (solo lectura, agregados sobre datos existentes). Acotados por tenant + RLS. */
 @Injectable()
@@ -126,6 +136,123 @@ export class ReportsService {
         billedPct: r.minutes > 0 ? Math.round((r.billedMinutes / r.minutes) * 100) : 0,
       }))
       .sort((a, b) => b.amount - a.amount);
+  }
+
+  /**
+   * Rentabilidad por expediente (en la MONEDA BASE del despacho `tenant.currency`). Por cada expediente
+   * con actividad: horas, valor del trabajo (minutos×tarifa), WIP (trabajo aún no facturado), facturado
+   * (facturas emitidas) y cobrado, más el % de realización (facturado/valor). Las facturas en otra moneda
+   * (caso de despachos duales) se cuentan aparte para no mezclar divisas.
+   */
+  async profitability(user: RequestUser) {
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: user.tenantId },
+      select: { currency: true },
+    });
+    const base = tenant.currency;
+
+    const [timeEntries, invoices] = await Promise.all([
+      this.prisma.timeEntry.findMany({
+        where: { tenantId: user.tenantId },
+        select: { matterId: true, minutes: true, hourlyRate: true, billed: true },
+      }),
+      this.prisma.invoice.findMany({
+        where: { tenantId: user.tenantId, status: { in: ISSUED_STATUSES } },
+        select: { matterId: true, total: true, amountPaid: true, currency: true },
+      }),
+    ]);
+
+    interface Acc {
+      hours: number;
+      workValue: number;
+      wip: number;
+      billed: number;
+      collected: number;
+    }
+    const acc = new Map<string, Acc>();
+    const bucket = (id: string): Acc => {
+      let a = acc.get(id);
+      if (!a) {
+        a = { hours: 0, workValue: 0, wip: 0, billed: 0, collected: 0 };
+        acc.set(id, a);
+      }
+      return a;
+    };
+
+    for (const e of timeEntries) {
+      const value = (e.minutes / 60) * Number(e.hourlyRate);
+      const a = bucket(e.matterId);
+      a.hours += e.minutes / 60;
+      a.workValue += value;
+      if (!e.billed) a.wip += value;
+    }
+    let foreignInvoices = 0;
+    for (const inv of invoices) {
+      if (!inv.matterId) continue;
+      if (inv.currency !== base) {
+        foreignInvoices += 1;
+        continue;
+      }
+      const a = bucket(inv.matterId);
+      a.billed += Number(inv.total);
+      a.collected += Number(inv.amountPaid);
+    }
+
+    const matters = await this.prisma.matter.findMany({
+      where: { tenantId: user.tenantId, id: { in: [...acc.keys()] } },
+      select: {
+        id: true,
+        reference: true,
+        client: { select: { name: true } },
+        lawyer: { select: { fullName: true } },
+      },
+    });
+    const meta = new Map(matters.map((m) => [m.id, m]));
+
+    const rows = [...acc.entries()]
+      .filter(([id]) => meta.has(id))
+      .map(([id, a]) => {
+        const m = meta.get(id)!;
+        return {
+          matterId: id,
+          reference: m.reference,
+          client: m.client.name,
+          lawyer: m.lawyer?.fullName ?? null,
+          hours: round2(a.hours),
+          workValue: round2(a.workValue),
+          wip: round2(a.wip),
+          billed: round2(a.billed),
+          collected: round2(a.collected),
+          realizationPct: a.workValue > 0 ? Math.round((a.billed / a.workValue) * 100) : null,
+        };
+      })
+      .sort((x, y) => y.workValue - x.workValue);
+
+    const sum = rows.reduce(
+      (t, r) => ({
+        hours: t.hours + r.hours,
+        workValue: t.workValue + r.workValue,
+        wip: t.wip + r.wip,
+        billed: t.billed + r.billed,
+        collected: t.collected + r.collected,
+      }),
+      { hours: 0, workValue: 0, wip: 0, billed: 0, collected: 0 },
+    );
+
+    return {
+      currency: base,
+      totals: {
+        hours: round2(sum.hours),
+        workValue: round2(sum.workValue),
+        wip: round2(sum.wip),
+        billed: round2(sum.billed),
+        collected: round2(sum.collected),
+        realizationPct: sum.workValue > 0 ? Math.round((sum.billed / sum.workValue) * 100) : null,
+        collectionPct: sum.billed > 0 ? Math.round((sum.collected / sum.billed) * 100) : null,
+      },
+      matters: rows,
+      foreignInvoices,
+    };
   }
 }
 

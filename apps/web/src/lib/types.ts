@@ -687,6 +687,34 @@ export interface TimeByLawyerRow {
   billedPct: number;
 }
 
+export interface ProfitabilityRow {
+  matterId: string;
+  reference: string;
+  client: string;
+  lawyer: string | null;
+  hours: number;
+  workValue: number;
+  wip: number;
+  billed: number;
+  collected: number;
+  realizationPct: number | null;
+}
+
+export interface Profitability {
+  currency: string;
+  totals: {
+    hours: number;
+    workValue: number;
+    wip: number;
+    billed: number;
+    collected: number;
+    realizationPct: number | null;
+    collectionPct: number | null;
+  };
+  matters: ProfitabilityRow[];
+  foreignInvoices: number;
+}
+
 /** Plantilla de documento del despacho (de `GET /templates`). `tokens` = marcadores del cuerpo. */
 export interface DocumentTemplate {
   id: string;

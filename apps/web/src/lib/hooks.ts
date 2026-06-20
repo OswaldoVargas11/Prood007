@@ -53,6 +53,7 @@ import type {
   SignatureRequest,
   SubscriptionInfo,
   PortalInvoice,
+  Profitability,
   ProvisionKind,
   RecentEmail,
   RetainerAccount,
@@ -301,6 +302,13 @@ export function useTimeByLawyer() {
   return useQuery({
     queryKey: ['reports', 'time-by-lawyer'],
     queryFn: () => api.get<TimeByLawyerRow[]>('/reports/time-by-lawyer'),
+  });
+}
+
+export function useProfitability() {
+  return useQuery({
+    queryKey: ['reports', 'profitability'],
+    queryFn: () => api.get<Profitability>('/reports/profitability'),
   });
 }
 
