@@ -21,6 +21,7 @@ import { SubscriptionModule } from './subscription/subscription.module';
 import { PlatformModule } from './platform/platform.module';
 import { KycModule } from './kyc/kyc.module';
 import { ReportsModule } from './reports/reports.module';
+import { SearchModule } from './search/search.module';
 import { TasksModule } from './tasks/tasks.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { PaymentsModule } from './payments/payments.module';
@@ -61,6 +62,7 @@ import { HealthController } from './health.controller';
     TemplatesModule,
     KycModule,
     ReportsModule,
+    SearchModule,
     TasksModule,
     LedgerModule,
     PaymentsModule,

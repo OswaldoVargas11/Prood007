@@ -231,4 +231,27 @@ describe('Clients & Matters (e2e)', () => {
     expect(actions).toContain('matter.created');
     expect(actions).toContain('matter.status_changed');
   });
+
+  it('búsqueda global encuentra cliente y expediente por término', async () => {
+    const c = await request(app.getHttpServer())
+      .get('/api/search?q=Cliente A')
+      .set(auth(tenants.a.token))
+      .expect(200);
+    expect(c.body.clients.some((x: { name: string }) => x.name === 'Cliente A')).toBe(true);
+    expect(Array.isArray(c.body.documents)).toBe(true);
+
+    const m = await request(app.getHttpServer())
+      .get('/api/search?q=Reclamaci')
+      .set(auth(tenants.a.token))
+      .expect(200);
+    expect(m.body.matters.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('AISLAMIENTO: la búsqueda del tenant B no ve el cliente del tenant A', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/search?q=Cliente A')
+      .set(auth(tenants.b.token))
+      .expect(200);
+    expect(res.body.clients).toHaveLength(0);
+  });
 });

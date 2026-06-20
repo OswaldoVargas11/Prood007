@@ -55,6 +55,7 @@ import type {
   PortalInvoice,
   Profitability,
   TaxSummary,
+  GlobalSearch,
   ProvisionKind,
   RecentEmail,
   RetainerAccount,
@@ -318,6 +319,17 @@ export function useTaxSummary(year: number, quarter: number) {
   return useQuery({
     queryKey: ['reports', 'tax-summary', year, quarter],
     queryFn: () => api.get<TaxSummary>(`/reports/tax-summary?year=${year}&quarter=${quarter}`),
+  });
+}
+
+/** Búsqueda global del despacho (clientes/expedientes/documentos/facturas). */
+export function useGlobalSearch(query: string) {
+  const q = query.trim();
+  return useQuery({
+    queryKey: ['search', q],
+    queryFn: () => api.get<GlobalSearch>(`/search?q=${encodeURIComponent(q)}`),
+    enabled: q.length >= 2,
+    staleTime: 15_000,
   });
 }
 

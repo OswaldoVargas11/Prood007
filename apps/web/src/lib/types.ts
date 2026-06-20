@@ -756,6 +756,14 @@ export interface TaxSummary {
   jurisdictions: TaxSummaryJurisdiction[];
 }
 
+/** Resultado de la búsqueda global (de `GET /search`). */
+export interface GlobalSearch {
+  clients: { id: string; name: string; taxId: string | null }[];
+  matters: { id: string; reference: string; title: string }[];
+  documents: { id: string; name: string; matterId: string; matterRef: string }[];
+  invoices: { id: string; number: string; clientName: string }[];
+}
+
 /** Plantilla de documento del despacho (de `GET /templates`). `tokens` = marcadores del cuerpo. */
 export interface DocumentTemplate {
   id: string;

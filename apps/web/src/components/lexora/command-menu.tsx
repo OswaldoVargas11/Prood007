@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Briefcase, Loader2, Receipt, Users } from 'lucide-react';
+import { Briefcase, FileText, Loader2, Receipt, Users } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import {
   CommandDialog,
@@ -13,14 +13,9 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { NAV_ITEMS } from '@/lib/nav';
-import { useClients, useInvoices, useMatters } from '@/lib/hooks';
+import { useGlobalSearch } from '@/lib/hooks';
 
-/** Quita acentos y baja a minúsculas para una comparación tolerante. */
-function normalize(s: string): string {
-  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-}
-
-/** Command bar (⌘K / Ctrl+K): navegación + búsqueda de clientes, expedientes y facturas. */
+/** Command bar (⌘K / Ctrl+K): navegación + búsqueda global (clientes, expedientes, documentos, facturas). */
 export function CommandMenu({
   open,
   onOpenChange,
@@ -72,49 +67,21 @@ function CommandBody({ go }: { go: (href: string) => void }) {
 
   const searching = debounced.length >= 2;
 
-  // Las consultas solo se montan con el diálogo abierto. Filtramos en cliente sobre páginas amplias.
-  const clientsQ = useClients({ pageSize: 100 });
-  const mattersQ = useMatters({ pageSize: 100 });
-  const invoicesQ = useInvoices();
+  // Búsqueda server-side (sin tope de paginación del cliente; incluye documentos).
+  const { data, isLoading } = useGlobalSearch(debounced);
+  const clients = data?.clients ?? [];
+  const matters = data?.matters ?? [];
+  const documents = data?.documents ?? [];
+  const invoices = data?.invoices ?? [];
 
-  const q = normalize(debounced);
-  const clients = useMemo(
-    () =>
-      !searching
-        ? []
-        : (clientsQ.data?.items ?? [])
-            .filter((c) => normalize(`${c.name} ${c.taxId}`).includes(q))
-            .slice(0, 6),
-    [searching, clientsQ.data, q],
-  );
-  const matters = useMemo(
-    () =>
-      !searching
-        ? []
-        : (mattersQ.data?.items ?? [])
-            .filter((m) =>
-              normalize(`${m.reference} ${m.title} ${m.client?.name ?? ''}`).includes(q),
-            )
-            .slice(0, 6),
-    [searching, mattersQ.data, q],
-  );
-  const invoices = useMemo(
-    () =>
-      !searching
-        ? []
-        : (invoicesQ.data ?? [])
-            .filter((i) =>
-              normalize(
-                `${i.number} ${i.client?.name ?? ''} ${i.matter?.reference ?? ''}`,
-              ).includes(q),
-            )
-            .slice(0, 6),
-    [searching, invoicesQ.data, q],
-  );
-
-  const loading = searching && (clientsQ.isLoading || mattersQ.isLoading || invoicesQ.isLoading);
+  const loading = searching && isLoading;
   const noMatches =
-    searching && !loading && clients.length === 0 && matters.length === 0 && invoices.length === 0;
+    searching &&
+    !loading &&
+    clients.length === 0 &&
+    matters.length === 0 &&
+    documents.length === 0 &&
+    invoices.length === 0;
 
   return (
     <>
@@ -180,6 +147,22 @@ function CommandBody({ go }: { go: (href: string) => void }) {
           </CommandGroup>
         )}
 
+        {documents.length > 0 && (
+          <CommandGroup heading={t('command.groupDocuments')}>
+            {documents.map((d) => (
+              <CommandItem
+                key={d.id}
+                value={`document-${d.id}`}
+                onSelect={() => go(`/matters/${d.matterId}/documents`)}
+              >
+                <FileText />
+                <span className="flex-1 truncate">{d.name}</span>
+                <span className="font-mono text-xs text-muted-foreground">{d.matterRef}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        )}
+
         {invoices.length > 0 && (
           <CommandGroup heading={t('command.groupInvoices')}>
             {invoices.map((i) => (
@@ -190,9 +173,7 @@ function CommandBody({ go }: { go: (href: string) => void }) {
               >
                 <Receipt />
                 <span className="flex-1 truncate font-mono">{i.number}</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  {i.client?.name ?? ''}
-                </span>
+                <span className="truncate text-xs text-muted-foreground">{i.clientName}</span>
               </CommandItem>
             ))}
           </CommandGroup>
