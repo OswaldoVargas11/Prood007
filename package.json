@@ -42,7 +42,8 @@
     "overrides": {
       "multer": "^2.2.0",
       "lodash": "^4.18.0",
-      "ws": "^8.21.0"
+      "ws": "^8.21.0",
+      "qs": ">=6.15.2"
     },
     "auditConfig": {
       "//": "Allowlist de advisories de PRODUCCIÓN alta/crítica (ver DECISIONS D-017). VACÍA: los 9 high temporales quedaron remediados — next>=15.5.16 (migración Next 14→15), multer>=2.2.0 y lodash>=4.18.0 (overrides arriba). El gate `pnpm audit --prod --audit-level high` pasa sin excepciones; cualquier high/critical de prod NUEVO vuelve a bloquear el merge.",

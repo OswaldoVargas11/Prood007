@@ -32,6 +32,17 @@ corregir, el más relevante el endurecimiento del super‑admin de plataforma y 
 
 ---
 
+## Estado de remediación (actualizado 2026-06-20)
+
+| #   | Sev | Estado                | Detalle del fix                                                                                                                                                                                                                              |
+| --- | --- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 🔴  | ✅ Corregido (código) | `@Throttle(5/min)` en `POST /platform/auth/login` (verificado en prod: 429 tras 5). **Pendiente owner:** fijar `PLATFORM_ADMIN_PASSWORD` fuerte.                                                                                             |
+| 2   | 🔴  | ⏳ Acción del owner   | Rotar secretos + purgar historial (runbook entregado).                                                                                                                                                                                       |
+| 3   | 🟠  | ✅ Corregido (código) | Descargas con `Content-Disposition: attachment` salvo imagen/PDF + `nosniff`; allowlist de tipo en el justificante. e2e que lo fija.                                                                                                         |
+| 4   | 🟠  | 🟡 Parcial            | Override `qs>=6.15.2` aplicado. **Diferido:** next-intl 3→4 y NestJS 10→11 son saltos de _major_ (breaking) → migración dedicada y probada, no en una pasada de hardening. file-type/qs mitigados además por límites de tamaño + body 512kb. |
+| 5   | 🟡  | ✅ Corregido (código) | `renderEmail` escapa `heading`/`note` de forma central.                                                                                                                                                                                      |
+| 6   | 🟡  | ✅ Corregido (código) | Límite explícito de body 512kb (`useBodyParser`, rawBody del webhook intacto; verificado 413/400).                                                                                                                                           |
+
 ## A01 · Broken Access Control — ✅ (sin hallazgos)
 
 Pruebas dinámicas (2 despachos A/B + letrado + cliente de portal):
