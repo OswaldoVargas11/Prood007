@@ -64,12 +64,18 @@ function hotp(secret: string, counter: number): string {
   return (bin % 10 ** DIGITS).toString().padStart(DIGITS, '0');
 }
 
+/** Código TOTP actual (6 dígitos) para un secreto. Útil en pruebas y para validar el alta. */
+export function generateTotp(secret: string, atMs = Date.now()): string {
+  return hotp(secret, Math.floor(atMs / 1000 / PERIOD));
+}
+
 /** Verifica un código TOTP con ventana ±1 periodo (tolerancia a desfase de reloj). Tiempo-constante. */
 export function verifyTotp(secret: string, code: string, atMs = Date.now()): boolean {
   const normalized = code.replace(/\s/g, '');
   if (!/^\d{6}$/.test(normalized)) return false;
   const counter = Math.floor(atMs / 1000 / PERIOD);
   for (let w = -1; w <= 1; w++) {
+    if (counter + w < 0) continue; // contadores negativos no existen en tiempo real (solo cerca de epoch 0)
     const expected = hotp(secret, counter + w);
     const a = Buffer.from(expected);
     const b = Buffer.from(normalized);
