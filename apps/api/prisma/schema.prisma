@@ -228,6 +228,9 @@ model Tenant {
   lockedSeatTiers       Json?
   // Serie fiscal: prefijo de la numeración de facturas (p. ej. "FAC", "A").
   invoiceSeries         String       @default("FAC")
+  // Canal de correo de los recordatorios de plazos: interruptor del DESPACHO. En false no se envía
+  // ningún recordatorio por email a nadie del despacho (el aviso in-app se mantiene siempre).
+  deadlineEmailRemindersEnabled Boolean @default(true)
   // Festivos locales del despacho: array JSON [{ date: "yyyy-mm-dd", name }] que afina el cómputo de
   // plazos procesales (se suman a los festivos nacionales de la jurisdicción).
   holidays              Json?
@@ -300,6 +303,9 @@ model User {
   // (sueldo cargado) para calcular el MARGEN real por expediente. Nullable = sin tarifa configurada.
   billRate     Decimal? @db.Decimal(18, 2)
   costRate     Decimal? @db.Decimal(18, 2)
+  // Recordatorios de plazos por correo: interruptor del USUARIO (self-service). En false, este usuario
+  // no recibe el email del recordatorio (pero sí el aviso in-app). Combina con el flag del despacho.
+  deadlineEmailRemindersEnabled Boolean @default(true)
   // MFA (2FA TOTP): secreto base32 CIFRADO (AES-256-GCM) y códigos de respaldo (hashes argon2 en JSON).
   // mfaEnabled false con mfaSecret presente = configuración a medias (pendiente de confirmar el código).
   mfaEnabled     Boolean @default(false)

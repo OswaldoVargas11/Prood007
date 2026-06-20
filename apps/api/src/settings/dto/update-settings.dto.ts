@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsInt,
   IsOptional,
   IsString,
@@ -44,4 +45,9 @@ export class UpdateSettingsDto {
   @Min(0)
   @Max(1200)
   retentionMonths?: number;
+
+  /** Interruptor del despacho: enviar (o no) los recordatorios de plazos por correo a todo el staff. */
+  @IsOptional()
+  @IsBoolean()
+  deadlineEmailRemindersEnabled?: boolean;
 }

@@ -54,4 +54,25 @@ export class NotificationsService {
     });
     return { success: true };
   }
+
+  /** Preferencias de notificación del propio usuario (canales). Self-service. */
+  async getPreferences(user: RequestUser): Promise<{ deadlineEmailRemindersEnabled: boolean }> {
+    const row = await this.prisma.user.findFirst({
+      where: { id: user.userId, tenantId: user.tenantId },
+      select: { deadlineEmailRemindersEnabled: true },
+    });
+    return { deadlineEmailRemindersEnabled: row?.deadlineEmailRemindersEnabled ?? true };
+  }
+
+  /** Actualiza la preferencia de correo de recordatorios del propio usuario (acotada a su fila). */
+  async updatePreferences(
+    user: RequestUser,
+    enabled: boolean,
+  ): Promise<{ deadlineEmailRemindersEnabled: boolean }> {
+    await this.prisma.user.updateMany({
+      where: { id: user.userId, tenantId: user.tenantId },
+      data: { deadlineEmailRemindersEnabled: enabled },
+    });
+    return { deadlineEmailRemindersEnabled: enabled };
+  }
 }

@@ -1,5 +1,15 @@
-import { Controller, DefaultValuePipe, Get, Param, ParseBoolPipe, Patch, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  DefaultValuePipe,
+  Get,
+  Param,
+  ParseBoolPipe,
+  Patch,
+  Query,
+} from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
+import { UpdateNotificationPreferencesDto } from './dto/update-preferences.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -13,6 +23,20 @@ export class NotificationsController {
     @Query('unread', new DefaultValuePipe(false), ParseBoolPipe) unread: boolean,
   ) {
     return this.notifications.listForUser(user, unread);
+  }
+
+  /** Preferencias de notificación del propio usuario (self-service, cualquier rol). */
+  @Get('preferences')
+  getPreferences(@CurrentUser() user: RequestUser) {
+    return this.notifications.getPreferences(user);
+  }
+
+  @Patch('preferences')
+  updatePreferences(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: UpdateNotificationPreferencesDto,
+  ) {
+    return this.notifications.updatePreferences(user, dto.deadlineEmailRemindersEnabled);
   }
 
   @Patch(':id/read')

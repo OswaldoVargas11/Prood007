@@ -53,6 +53,7 @@ import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -497,6 +498,18 @@ function FirmCard() {
           />
           <p className="text-[11px] text-[var(--text-subtle)]">{t('firm.seriesHint')}</p>
         </div>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-4 rounded-lg border bg-[var(--surface-1)] px-4 py-3">
+        <div className="min-w-0">
+          <div className="text-[13.5px] font-medium">{t('firm.deadlineEmail')}</div>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">{t('firm.deadlineEmailHint')}</p>
+        </div>
+        <Switch
+          checked={tenant.deadlineEmailRemindersEnabled}
+          disabled={update.isPending}
+          aria-label={t('firm.deadlineEmail')}
+          onCheckedChange={(v) => update.mutate({ deadlineEmailRemindersEnabled: v })}
+        />
       </div>
       {error && <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>}
       <div className="mt-4 flex justify-end">

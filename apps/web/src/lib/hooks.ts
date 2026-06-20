@@ -354,6 +354,24 @@ export function useMfaDisable() {
   });
 }
 
+// ── Preferencias de notificación del propio usuario (self-service) ─────────────
+type NotificationPrefs = { deadlineEmailRemindersEnabled: boolean };
+export function useNotificationPreferences() {
+  return useQuery({
+    queryKey: ['notification-preferences'],
+    queryFn: () => api.get<NotificationPrefs>('/notifications/preferences'),
+  });
+}
+export function useUpdateNotificationPreferences() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: NotificationPrefs) =>
+      api.patch<NotificationPrefs>('/notifications/preferences', body),
+    onSuccess: (data) => qc.setQueryData(['notification-preferences'], data),
+    meta: { successToast: toastMsg.settingsSaved },
+  });
+}
+
 // ── Plantillas de documento (Fase 3) ─────────────────────────────────────────
 export function useTemplates() {
   return useQuery({
@@ -1387,6 +1405,7 @@ export function useUpdateSettings() {
       taxId?: string;
       locale?: string;
       invoiceSeries?: string;
+      deadlineEmailRemindersEnabled?: boolean;
     }) => api.patch<FirmSettings>('/settings', body),
     onSuccess: (data) => qc.setQueryData(['settings'], data),
     meta: { successToast: toastMsg.settingsSaved },

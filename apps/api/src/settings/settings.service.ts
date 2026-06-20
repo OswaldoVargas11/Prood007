@@ -64,6 +64,7 @@ export class SettingsService {
         invoiceSeries: tenant.invoiceSeries,
         dataRegion: tenant.dataRegion,
         retentionMonths: tenant.retentionMonths,
+        deadlineEmailRemindersEnabled: tenant.deadlineEmailRemindersEnabled,
       },
       seats,
       counts: { clients, matters },
@@ -81,6 +82,9 @@ export class SettingsService {
     if (dto.invoiceSeries !== undefined) data.invoiceSeries = dto.invoiceSeries.toUpperCase();
     if (dto.dataRegion !== undefined) data.dataRegion = dto.dataRegion.trim() || null;
     if (dto.retentionMonths !== undefined) data.retentionMonths = dto.retentionMonths;
+    if (dto.deadlineEmailRemindersEnabled !== undefined) {
+      data.deadlineEmailRemindersEnabled = dto.deadlineEmailRemindersEnabled;
+    }
     if (dto.taxId !== undefined) {
       const provider = this.compliance.forJurisdiction(user.jurisdiction);
       const result = provider.validateTaxId(dto.taxId);

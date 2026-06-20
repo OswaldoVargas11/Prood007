@@ -804,6 +804,7 @@ export interface FirmSettings {
     maxAdmins: number;
     maxLawyers: number;
     invoiceSeries: string;
+    deadlineEmailRemindersEnabled: boolean;
   };
   seats: SeatUsage;
   counts: { clients: number; matters: number };

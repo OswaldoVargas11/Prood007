@@ -754,6 +754,12 @@
     "logout": "Cerrar sesión",
     "account": "Mi cuenta y seguridad"
   },
+  "notificationPrefs": {
+    "title": "Notificaciones",
+    "desc": "Elige cómo quieres recibir los avisos.",
+    "deadlineEmail": "Recordatorios de plazos por correo",
+    "deadlineEmailHint": "Recibe un correo cuando un plazo o tarea tuya se acerca, además del aviso dentro de la app."
+  },
   "security": {
     "title": "Mi cuenta",
     "passwordTitle": "Contraseña",
@@ -1003,7 +1009,9 @@
       "jurisdiction": "Jurisdicción",
       "currency": "Moneda",
       "series": "Serie de facturación",
-      "seriesHint": "Prefijo del número de factura (p. ej. A → A-2026-0001)."
+      "seriesHint": "Prefijo del número de factura (p. ej. A → A-2026-0001).",
+      "deadlineEmail": "Recordatorios de plazos por correo",
+      "deadlineEmailHint": "Envía un correo al letrado cuando un plazo se acerca. Si lo apagas, nadie del despacho recibe estos correos (el aviso dentro de la app se mantiene)."
     },
     "holidays": {
       "title": "Festivos locales",

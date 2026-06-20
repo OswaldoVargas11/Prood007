@@ -94,10 +94,17 @@ export class DeadlineRemindersService {
     });
     summary.evaluated = tasks.length;
 
-    // Mapa de email/nombre del staff activo del despacho, para el canal de correo (una sola consulta).
+    // Interruptor del DESPACHO para el canal de correo (el aviso in-app no depende de esto).
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { deadlineEmailRemindersEnabled: true },
+    });
+    const firmEmailOn = tenant?.deadlineEmailRemindersEnabled ?? true;
+
+    // Mapa de email/nombre/preferencia del staff activo del despacho, para el canal de correo.
     const staff = await this.prisma.user.findMany({
       where: { tenantId, isActive: true },
-      select: { id: true, email: true, fullName: true },
+      select: { id: true, email: true, fullName: true, deadlineEmailRemindersEnabled: true },
     });
     const staffById = new Map(staff.map((u) => [u.id, u]));
 
@@ -139,8 +146,9 @@ export class DeadlineRemindersService {
           },
         });
         // Canal email (fail-soft): avisa fuera de la app. NoopMailProvider en dev/CI = no-op.
+        // Solo si el despacho lo tiene activo Y el usuario no se ha dado de baja.
         const u = staffById.get(userId);
-        if (u?.email) {
+        if (firmEmailOn && u?.email && u.deadlineEmailRemindersEnabled) {
           try {
             const link = task.matterId
               ? `${this.appBase()}/es/matters/${task.matterId}`
