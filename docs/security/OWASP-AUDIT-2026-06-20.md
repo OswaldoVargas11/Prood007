@@ -43,6 +43,44 @@ corregir, el más relevante el endurecimiento del super‑admin de plataforma y 
 | 5   | 🟡  | ✅ Corregido (código) | `renderEmail` escapa `heading`/`note` de forma central.                                                                                                                                                                                      |
 | 6   | 🟡  | ✅ Corregido (código) | Límite explícito de body 512kb (`useBodyParser`, rawBody del webhook intacto; verificado 413/400).                                                                                                                                           |
 
+## Segunda pasada — auditoría profunda (OWASP + API Top 10 + ASVS + CWE-25)
+
+7 revisores especializados en paralelo (authz/JWT, aislamiento/IDOR, inyección, ficheros, lógica de
+negocio, web/sesión, config/secretos) + batería dinámica. La arquitectura base se reconfirmó **sólida**;
+afloraron hallazgos nuevos no vistos en la 1ª pasada. **Corregidos y desplegados (CI verde):**
+
+| Sev | Hallazgo                                                                                                                          | Fix                                                        |
+| --- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 🔴  | **IDOR en WebSocket** (`matter:subscribe` solo validaba tenant) → un cliente escuchaba el chat de otro cliente del mismo despacho | `assertMatterAccess` en el gateway + test de IDOR          |
+| 🔴  | **Path traversal** en la clave de storage del justificante y del certificado (usaba `originalname`) → escritura cross-tenant      | claves solo con ids de servidor; nombre real como metadato |
+| 🔴  | **Auto-aprobación de costes** (un admin aprobaba su propio suplido)                                                               | rechazo de self-approval (segregación de funciones) + test |
+| 🔴  | **Carrera de plazas** (`count`+`create` sin lock → exceder licencia pagada)                                                       | `pg_advisory_xact_lock` por tenant en `createStaff`        |
+| 🟠  | JWT sin algoritmo fijado (confusión de algoritmo)                                                                                 | `algorithms:['HS256']` en strategy + 8 verifyAsync         |
+| 🟠  | Fallback `'dev-secret'` en google/microsoft/calendar                                                                              | `getOrThrow`                                               |
+| 🟠  | **Web sin CSP/X-Frame-Options/HSTS** (clickjacking)                                                                               | cabeceras en `next.config.mjs` (verificado en prod)        |
+| 🟠  | CORS reflejante si falta `CORS_ORIGINS`                                                                                           | fail-closed en producción (aborta el arranque)             |
+| 🟠  | BFF refresh/logout sin defensa CSRF extra                                                                                         | verificación de `Origin` (anti-CSRF)                       |
+| 🟡  | Enumeración de usuarios por timing en login                                                                                       | verify señuelo argon2                                      |
+| 🟡  | Paginación sin cota inferior                                                                                                      | clamp `page/pageSize ≥ 1`                                  |
+| 🟡  | Clave AES real en `.env.example`                                                                                                  | placeholder                                                |
+
+**Deferidos (documentados, NO corregidos — requieren cambio mayor / migración / prueba dedicada):**
+
+- 🟠 **Anti-replay de TOTP** (registrar `lastTotpCounter`) + lockout en el paso MFA. Requiere migración.
+- 🟠 **Serialización de la numeración de factura** (huecos + bifurcación de la cadena de huellas bajo
+  concurrencia en Read Committed). FISCAL → cambio de alto riesgo, hacerlo con prueba dedicada (lock
+  `FOR UPDATE`/contador por tenant). **Prioridad alta del backlog.**
+- 🟠 **Validación de magic bytes** en subidas (hoy se confía en el `mimetype` declarado).
+- 🟠 **Token de super-admin en sessionStorage** (web) → migrar a BFF (mitigado por CSP+headers nuevos).
+- 🟡 Saneo defensivo de clave en `S3StorageProvider` (red de seguridad; el vector real ya está cerrado).
+- 🟡 CSP completa con nonces en el web (hoy solo `frame-ancestors`); `validationSchema` de entorno;
+  salt por usuario en el feed iCal; sanitización de cabeceras en el servicio de Gmail; store Redis para
+  el throttler en multi-instancia; `@@unique([tenantId, providerRef])` en Payment.
+
+> Conclusión 2ª pasada: **sin brecha crítica anónima**; los 4 hallazgos ALTOS (IDOR WS, path traversal,
+> self-approval, carrera de plazas) están corregidos. Los deferidos no son explotables de forma trivial
+> y/o están mitigados; el más importante a planificar es la serialización de la numeración fiscal.
+
 ## A01 · Broken Access Control — ✅ (sin hallazgos)
 
 Pruebas dinámicas (2 despachos A/B + letrado + cliente de portal):
