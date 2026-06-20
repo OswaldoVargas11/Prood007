@@ -29,6 +29,8 @@ export interface Matter {
 /** `GET /matters/:id` incluye un extracto del cliente y el letrado responsable. */
 export interface MatterDetail extends Matter {
   client: { id: string; name: string; taxId: string };
+  budgetAmount: string | null;
+  budgetConsumed: number;
 }
 
 /** Letrado asignable a un expediente (`GET /matters/assignees`, solo admin). */
@@ -695,21 +697,29 @@ export interface ProfitabilityRow {
   hours: number;
   workValue: number;
   wip: number;
+  cost: number;
   billed: number;
   collected: number;
+  margin: number;
   realizationPct: number | null;
+  marginPct: number | null;
 }
 
 export interface Profitability {
   currency: string;
+  costRatesSet: boolean;
+  entriesMissingCost: number;
   totals: {
     hours: number;
     workValue: number;
     wip: number;
+    cost: number;
     billed: number;
     collected: number;
+    margin: number;
     realizationPct: number | null;
     collectionPct: number | null;
+    marginPct: number | null;
   };
   matters: ProfitabilityRow[];
   foreignInvoices: number;
@@ -763,6 +773,8 @@ export interface StaffUser {
   fullName: string;
   isActive: boolean;
   role: StaffRole;
+  billRate: string | null;
+  costRate: string | null;
   isSelf: boolean;
   createdAt: string;
 }

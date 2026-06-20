@@ -52,6 +52,7 @@
     "description": "Concepto",
     "minutes": "Minutos",
     "hourlyRate": "Tarifa/hora",
+    "hourlyRateAuto": "Tu tarifa por defecto",
     "workedAt": "Fecha",
     "save": "Guardar",
     "error": "No se pudo registrar el tiempo.",
@@ -801,6 +802,20 @@
       "subtitle": "Por seguridad, debes establecer una contraseña propia antes de continuar."
     }
   },
+  "matterBudget": {
+    "title": "Presupuesto",
+    "none": "Sin presupuesto definido.",
+    "set": "Definir",
+    "edit": "Editar",
+    "save": "Guardar",
+    "remove": "Quitar",
+    "cancel": "Cancelar",
+    "saved": "Presupuesto guardado",
+    "cleared": "Presupuesto quitado",
+    "consumed": "Consumido",
+    "near": "cerca del límite",
+    "over": "presupuesto superado"
+  },
   "matterEmails": {
     "title": "Correspondencia",
     "connectHint": "Conecta tu cuenta de Google o Microsoft para enviar y archivar correos en este expediente.",
@@ -989,7 +1004,12 @@
       "password": "Contraseña",
       "role": "Rol",
       "noSeat": "No quedan plazas libres para este rol en tu licencia.",
-      "create": "Crear usuario"
+      "create": "Crear usuario",
+      "billRate": "Tarifa de facturación (€/h)",
+      "costRate": "Tarifa de coste (€/h)",
+      "costRateHint": "Coste interno por hora; habilita el margen real",
+      "saveRates": "Guardar tarifas",
+      "ratesSaved": "Tarifas actualizadas"
     }
   },
   "audit": {
@@ -1298,8 +1318,14 @@
       "wipHint": "Trabajo registrado aún no facturado",
       "billed": "Facturado",
       "collected": "Cobrado",
+      "cost": "Coste",
+      "costHint": "Horas × tarifa de coste del letrado",
+      "margin": "Margen",
+      "marginHint": "Facturado − coste",
       "realization": "Realización",
       "collection": "Cobro",
+      "noCostRates": "Configura las tarifas de coste de los letrados en Ajustes para ver el margen real (rentabilidad).",
+      "missingCost": "{n, plural, one {# parte de horas sin tarifa de coste (margen infravalorado)} other {# partes de horas sin tarifa de coste (margen infravalorado)}}",
       "foreignNote": "{n, plural, one {# factura en otra moneda no incluida (se muestra en la moneda base)} other {# facturas en otra moneda no incluidas (se muestran en la moneda base)}}"
     }
   }

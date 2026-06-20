@@ -493,12 +493,69 @@ function StaffCard() {
               >
                 {u.isActive ? t('staff.deactivate') : t('staff.activate')}
               </Button>
+              <RateEditor user={u} />
             </div>
           ))}
         </div>
       )}
       <AddStaffDialog open={adding} onClose={() => setAdding(false)} seatsFull={seats} />
     </Section>
+  );
+}
+
+/** Editor de tarifas (rate card) de un letrado: facturación (autorellena partes) y coste (margen real). */
+function RateEditor({ user }: { user: StaffUser }) {
+  const t = useTranslations('settings');
+  const update = useUpdateStaff();
+  const [bill, setBill] = useState(user.billRate ?? '');
+  const [cost, setCost] = useState(user.costRate ?? '');
+  const dirty = bill !== (user.billRate ?? '') || cost !== (user.costRate ?? '');
+
+  async function save() {
+    await update.mutateAsync({ id: user.id, billRate: bill, costRate: cost });
+    toast.success(t('staff.ratesSaved'));
+  }
+
+  return (
+    <div className="flex w-full basis-full flex-wrap items-end gap-3 border-t pt-3">
+      <RateField label={t('staff.billRate')} value={bill} onChange={setBill} />
+      <RateField
+        label={t('staff.costRate')}
+        value={cost}
+        onChange={setCost}
+        hint={t('staff.costRateHint')}
+      />
+      <Button size="sm" variant="outline" disabled={!dirty || update.isPending} onClick={save}>
+        {update.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+        {t('staff.saveRates')}
+      </Button>
+    </div>
+  );
+}
+
+function RateField({
+  label,
+  value,
+  onChange,
+  hint,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  hint?: string;
+}) {
+  return (
+    <div>
+      <Label className="text-[11px] text-muted-foreground">{label}</Label>
+      <Input
+        value={value}
+        inputMode="decimal"
+        placeholder="—"
+        onChange={(e) => onChange(e.target.value.replace(/[^\d.]/g, ''))}
+        className="h-8 w-28"
+      />
+      {hint && <div className="mt-0.5 text-[10px] text-muted-foreground">{hint}</div>}
+    </div>
   );
 }
 

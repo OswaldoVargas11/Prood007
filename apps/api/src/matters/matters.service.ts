@@ -141,14 +141,32 @@ export class MattersService {
       },
     });
     if (!matter) throw new NotFoundException(apiError('matters.notFound'));
-    return matter;
+    // Consumido del presupuesto = valor del trabajo registrado (honorarios incurridos) del expediente.
+    const entries = await this.prisma.timeEntry.findMany({
+      where: { tenantId: user.tenantId, matterId: id },
+      select: { minutes: true, hourlyRate: true },
+    });
+    const budgetConsumed =
+      Math.round(entries.reduce((s, e) => s + (e.minutes / 60) * Number(e.hourlyRate), 0) * 100) /
+      100;
+    return { ...matter, budgetConsumed };
   }
 
   async update(user: RequestUser, id: string, dto: UpdateMatterDto) {
     await this.findOne(user, id);
     await this.prisma.matter.updateMany({
       where: { id, tenantId: user.tenantId },
-      data: { title: dto.title, type: dto.type },
+      data: {
+        title: dto.title,
+        type: dto.type,
+        // "" quita el presupuesto; undefined lo deja como está.
+        budgetAmount:
+          dto.budgetAmount === undefined
+            ? undefined
+            : dto.budgetAmount === ''
+              ? null
+              : dto.budgetAmount,
+      },
     });
     await this.audit.log(user, 'matter.updated', 'Matter', id);
     return this.findOne(user, id);

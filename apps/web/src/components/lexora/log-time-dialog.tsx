@@ -34,7 +34,8 @@ export function LogTimeDialog({ defaultMatterId }: { defaultMatterId?: string })
   const [hourlyRate, setHourlyRate] = useState('');
   const [workedAt, setWorkedAt] = useState(new Date().toISOString().slice(0, 10));
 
-  const valid = Boolean(matterId && description.trim() && minutes && hourlyRate);
+  // La tarifa es opcional: si se deja vacía, el backend usa la tarifa de facturación del letrado.
+  const valid = Boolean(matterId && description.trim() && minutes);
 
   function submit() {
     if (!valid) return;
@@ -43,7 +44,7 @@ export function LogTimeDialog({ defaultMatterId }: { defaultMatterId?: string })
         matterId,
         description: description.trim(),
         minutes: Number(minutes),
-        hourlyRate,
+        hourlyRate: hourlyRate || undefined,
         workedAt,
       },
       {
@@ -121,6 +122,7 @@ export function LogTimeDialog({ defaultMatterId }: { defaultMatterId?: string })
                   id="lt-rate"
                   inputMode="decimal"
                   value={hourlyRate}
+                  placeholder={t('hourlyRateAuto')}
                   onChange={(e) => setHourlyRate(e.target.value)}
                 />
               </div>

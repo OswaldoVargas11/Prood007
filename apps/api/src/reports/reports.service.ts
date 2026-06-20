@@ -154,7 +154,13 @@ export class ReportsService {
     const [timeEntries, invoices] = await Promise.all([
       this.prisma.timeEntry.findMany({
         where: { tenantId: user.tenantId },
-        select: { matterId: true, minutes: true, hourlyRate: true, billed: true },
+        select: {
+          matterId: true,
+          minutes: true,
+          hourlyRate: true,
+          billed: true,
+          user: { select: { costRate: true } },
+        },
       }),
       this.prisma.invoice.findMany({
         where: { tenantId: user.tenantId, status: { in: ISSUED_STATUSES } },
@@ -166,6 +172,7 @@ export class ReportsService {
       hours: number;
       workValue: number;
       wip: number;
+      cost: number;
       billed: number;
       collected: number;
     }
@@ -173,18 +180,29 @@ export class ReportsService {
     const bucket = (id: string): Acc => {
       let a = acc.get(id);
       if (!a) {
-        a = { hours: 0, workValue: 0, wip: 0, billed: 0, collected: 0 };
+        a = { hours: 0, workValue: 0, wip: 0, cost: 0, billed: 0, collected: 0 };
         acc.set(id, a);
       }
       return a;
     };
 
+    // ¿Hay tarifas de coste configuradas? Si faltan en algunos letrados, el coste/margen queda incompleto.
+    let costRatesSet = false;
+    let entriesMissingCost = 0;
     for (const e of timeEntries) {
-      const value = (e.minutes / 60) * Number(e.hourlyRate);
+      const hours = e.minutes / 60;
+      const value = hours * Number(e.hourlyRate);
       const a = bucket(e.matterId);
-      a.hours += e.minutes / 60;
+      a.hours += hours;
       a.workValue += value;
       if (!e.billed) a.wip += value;
+      const costRate = e.user.costRate;
+      if (costRate != null) {
+        costRatesSet = true;
+        a.cost += hours * Number(costRate);
+      } else {
+        entriesMissingCost += 1;
+      }
     }
     let foreignInvoices = 0;
     for (const inv of invoices) {
@@ -213,6 +231,7 @@ export class ReportsService {
       .filter(([id]) => meta.has(id))
       .map(([id, a]) => {
         const m = meta.get(id)!;
+        const margin = a.billed - a.cost;
         return {
           matterId: id,
           reference: m.reference,
@@ -221,9 +240,12 @@ export class ReportsService {
           hours: round2(a.hours),
           workValue: round2(a.workValue),
           wip: round2(a.wip),
+          cost: round2(a.cost),
           billed: round2(a.billed),
           collected: round2(a.collected),
+          margin: round2(margin),
           realizationPct: a.workValue > 0 ? Math.round((a.billed / a.workValue) * 100) : null,
+          marginPct: a.billed > 0 ? Math.round((margin / a.billed) * 100) : null,
         };
       })
       .sort((x, y) => y.workValue - x.workValue);
@@ -233,22 +255,31 @@ export class ReportsService {
         hours: t.hours + r.hours,
         workValue: t.workValue + r.workValue,
         wip: t.wip + r.wip,
+        cost: t.cost + r.cost,
         billed: t.billed + r.billed,
         collected: t.collected + r.collected,
       }),
-      { hours: 0, workValue: 0, wip: 0, billed: 0, collected: 0 },
+      { hours: 0, workValue: 0, wip: 0, cost: 0, billed: 0, collected: 0 },
     );
+    const totalMargin = sum.billed - sum.cost;
 
     return {
       currency: base,
+      // Margen (rentabilidad real) = facturado − coste del tiempo (horas × tarifa de coste del letrado).
+      // Solo es fiable si hay tarifas de coste configuradas (costRatesSet); si faltan, está infravalorado.
+      costRatesSet,
+      entriesMissingCost,
       totals: {
         hours: round2(sum.hours),
         workValue: round2(sum.workValue),
         wip: round2(sum.wip),
+        cost: round2(sum.cost),
         billed: round2(sum.billed),
         collected: round2(sum.collected),
+        margin: round2(totalMargin),
         realizationPct: sum.workValue > 0 ? Math.round((sum.billed / sum.workValue) * 100) : null,
         collectionPct: sum.billed > 0 ? Math.round((sum.collected / sum.billed) * 100) : null,
+        marginPct: sum.billed > 0 ? Math.round((totalMargin / sum.billed) * 100) : null,
       },
       matters: rows,
       foreignInvoices,

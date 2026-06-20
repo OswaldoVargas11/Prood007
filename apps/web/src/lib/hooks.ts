@@ -454,7 +454,7 @@ export function useAddTimeEntry(matterId: string) {
     mutationFn: (body: {
       description: string;
       minutes: number;
-      hourlyRate: string;
+      hourlyRate?: string;
       workedAt: string;
     }) => api.post('/ledger/time', { ...body, matterId }),
     onSuccess: () => {
@@ -491,7 +491,7 @@ export function useLogTime() {
       matterId: string;
       description: string;
       minutes: number;
-      hourlyRate: string;
+      hourlyRate?: string;
       workedAt: string;
     }) => api.post('/ledger/time', body),
     onSuccess: (_data, vars) => {
@@ -1191,12 +1191,33 @@ export function useCreateStaff() {
 export function useUpdateStaff() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; isActive?: boolean; role?: StaffRole }) =>
-      api.patch(`/users/${id}`, body),
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      isActive?: boolean;
+      role?: StaffRole;
+      billRate?: string;
+      costRate?: string;
+    }) => api.patch(`/users/${id}`, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['staff'] });
       void qc.invalidateQueries({ queryKey: ['seats'] });
       void qc.invalidateQueries({ queryKey: ['settings'] });
+    },
+  });
+}
+
+/** Actualiza campos del expediente (título, tipo, presupuesto). PATCH /matters/:id. */
+export function useUpdateMatter(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { title?: string; type?: string; budgetAmount?: string }) =>
+      api.patch<MatterDetail>(`/matters/${id}`, body),
+    onSuccess: (data) => {
+      qc.setQueryData(['matter', id], data);
+      void qc.invalidateQueries({ queryKey: ['matters'] });
     },
   });
 }

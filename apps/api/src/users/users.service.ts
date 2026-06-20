@@ -81,6 +81,8 @@ export class UsersService {
       fullName: u.fullName,
       isActive: u.isActive,
       role: this.staffRoleOf(u.roles.map((r) => r.role.code)),
+      billRate: u.billRate?.toString() ?? null,
+      costRate: u.costRate?.toString() ?? null,
       isSelf: u.id === user.userId,
       createdAt: u.createdAt,
     }));
@@ -205,6 +207,13 @@ export class UsersService {
             data: { revokedAt: new Date() },
           });
         }
+      }
+      // Tarifas (rate card): "" borra la tarifa; undefined la deja como está.
+      const rateData: { billRate?: string | null; costRate?: string | null } = {};
+      if (dto.billRate !== undefined) rateData.billRate = dto.billRate === '' ? null : dto.billRate;
+      if (dto.costRate !== undefined) rateData.costRate = dto.costRate === '' ? null : dto.costRate;
+      if (Object.keys(rateData).length > 0) {
+        await tx.user.update({ where: { id }, data: rateData });
       }
     });
 

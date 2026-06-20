@@ -227,6 +227,29 @@ export default function ReportsPage() {
                   value={formatMoney(profit.data.totals.collected, profit.data.currency, locale)}
                 />
               </div>
+              {profit.data.costRatesSet ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Kpi
+                    label={t('profit.cost')}
+                    value={formatMoney(profit.data.totals.cost, profit.data.currency, locale)}
+                    hint={t('profit.costHint')}
+                  />
+                  <Kpi
+                    label={t('profit.margin')}
+                    value={formatMoney(profit.data.totals.margin, profit.data.currency, locale)}
+                    hint={`${profit.data.totals.marginPct ?? '—'}% · ${t('profit.marginHint')}`}
+                  />
+                </div>
+              ) : (
+                <p className="rounded-md border border-dashed border-border px-3 py-2 text-[12.5px] text-muted-foreground">
+                  {t('profit.noCostRates')}
+                </p>
+              )}
+              {profit.data.costRatesSet && profit.data.entriesMissingCost > 0 && (
+                <p className="text-[12px] text-[var(--warning,#b45309)]">
+                  {t('profit.missingCost', { n: profit.data.entriesMissingCost })}
+                </p>
+              )}
               <div className="flex flex-wrap gap-2 text-[12.5px]">
                 <span className="rounded-md border border-border px-2.5 py-1">
                   {t('profit.realization')}:{' '}
@@ -240,6 +263,12 @@ export default function ReportsPage() {
                     {profit.data.totals.collectionPct ?? '—'}%
                   </strong>
                 </span>
+                {profit.data.costRatesSet && (
+                  <span className="rounded-md border border-border px-2.5 py-1">
+                    {t('profit.margin')}:{' '}
+                    <strong className="tabular-nums">{profit.data.totals.marginPct ?? '—'}%</strong>
+                  </span>
+                )}
               </div>
               {profit.data.foreignInvoices > 0 && (
                 <p className="text-[12px] text-muted-foreground">
@@ -257,6 +286,12 @@ export default function ReportsPage() {
                       <th className="px-3 py-2 text-right">{t('profit.wip')}</th>
                       <th className="px-3 py-2 text-right">{t('profit.billed')}</th>
                       <th className="px-3 py-2 text-right">{t('profit.collected')}</th>
+                      {profit.data.costRatesSet && (
+                        <>
+                          <th className="px-3 py-2 text-right">{t('profit.cost')}</th>
+                          <th className="px-3 py-2 text-right">{t('profit.margin')}</th>
+                        </>
+                      )}
                       <th className="px-3 py-2 text-right">{t('profit.realization')}</th>
                     </tr>
                   </thead>
@@ -278,6 +313,18 @@ export default function ReportsPage() {
                         <td className="px-3 py-2 text-right tabular-nums">
                           {formatMoney(r.collected, profit.data!.currency, locale)}
                         </td>
+                        {profit.data!.costRatesSet && (
+                          <>
+                            <td className="px-3 py-2 text-right tabular-nums">
+                              {formatMoney(r.cost, profit.data!.currency, locale)}
+                            </td>
+                            <td
+                              className={`px-3 py-2 text-right tabular-nums ${r.margin < 0 ? 'text-[var(--danger)]' : ''}`}
+                            >
+                              {formatMoney(r.margin, profit.data!.currency, locale)}
+                            </td>
+                          </>
+                        )}
                         <td className="px-3 py-2 text-right tabular-nums">
                           {r.realizationPct ?? '—'}%
                         </td>

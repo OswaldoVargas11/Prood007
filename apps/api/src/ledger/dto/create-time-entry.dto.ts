@@ -1,4 +1,13 @@
-import { IsDateString, IsInt, IsNumberString, IsString, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsInt,
+  IsNumberString,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class CreateTimeEntryDto {
   @IsString()
@@ -14,9 +23,13 @@ export class CreateTimeEntryDto {
   @Max(24 * 60)
   minutes!: number;
 
-  /** Tarifa por hora como string decimal (p. ej. "120.00"). */
+  /**
+   * Tarifa por hora como string decimal (p. ej. "120.00"). Opcional: si se omite, se autorellena con la
+   * tarifa de facturación (billRate) del letrado configurada en su rate card.
+   */
+  @IsOptional()
   @IsNumberString()
-  hourlyRate!: string;
+  hourlyRate?: string;
 
   @IsDateString()
   workedAt!: string;

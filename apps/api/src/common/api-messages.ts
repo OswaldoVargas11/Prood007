@@ -257,6 +257,10 @@ export const API_MESSAGES = {
     'es-ES': 'El importe debe ser positivo.',
     'es-DO': 'El importe debe ser positivo.',
   },
+  'ledger.rateRequired': {
+    'es-ES': 'Indica una tarifa o configura la tarifa de facturación del letrado en Ajustes.',
+    'es-DO': 'Indica una tarifa o configura la tarifa de facturación del letrado en Ajustes.',
+  },
   'ledger.firmNoTaxId': {
     'es-ES': 'El despacho no tiene identificador fiscal configurado; no se puede facturar.',
     'es-DO': 'El despacho no tiene identificador fiscal configurado; no se puede facturar.',

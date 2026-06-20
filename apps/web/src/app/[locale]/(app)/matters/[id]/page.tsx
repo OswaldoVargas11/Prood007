@@ -19,6 +19,7 @@ import { RetainerTab } from '@/components/lexora/retainer';
 import { BillingPlansTab } from '@/components/lexora/billing-plans';
 import { ChatTab } from '@/components/lexora/chat-tab';
 import { MatterEmails } from '@/components/lexora/matter-emails';
+import { MatterBudget } from '@/components/lexora/matter-budget';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -152,7 +153,10 @@ export default function MatterDetailPage() {
                 />
               </CardContent>
             </Card>
-            <MatterRail matterId={id} onOpenLedger={() => setTab('costs')} />
+            <div className="space-y-4">
+              <MatterRail matterId={id} onOpenLedger={() => setTab('costs')} />
+              <MatterBudget matter={matter} />
+            </div>
           </div>
         </TabsContent>
 

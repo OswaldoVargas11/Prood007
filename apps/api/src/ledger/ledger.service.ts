@@ -97,7 +97,17 @@ export class LedgerService {
   // ── Horas con tarifa ────────────────────────────────────────────────────
   async addTimeEntry(user: RequestUser, dto: CreateTimeEntryDto) {
     const matter = await this.getMatterOrThrow(user, dto.matterId);
-    const feeAmount = round2((dto.minutes / 60) * Number(dto.hourlyRate));
+    // Tarifa: la del parte si viene; si no, la tarifa de facturación (billRate) del letrado (rate card).
+    let rate = dto.hourlyRate;
+    if (rate == null || rate === '') {
+      const me = await this.prisma.user.findUnique({
+        where: { id: user.userId },
+        select: { billRate: true },
+      });
+      if (!me?.billRate) throw new BadRequestException(apiError('ledger.rateRequired'));
+      rate = me.billRate.toString();
+    }
+    const feeAmount = round2((dto.minutes / 60) * Number(rate));
 
     const result = await tenantTransaction(this.prisma, async (tx) => {
       const time = await tx.timeEntry.create({
@@ -107,7 +117,7 @@ export class LedgerService {
           userId: user.userId,
           description: dto.description,
           minutes: dto.minutes,
-          hourlyRate: dto.hourlyRate,
+          hourlyRate: rate,
           workedAt: new Date(dto.workedAt),
         },
       });
