@@ -3,9 +3,11 @@
 import { useState, type ReactNode } from 'react';
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
+import { MotionConfig } from 'framer-motion';
 import { toast } from 'sonner';
 import { AuthProvider } from '@/lib/auth';
 import { ApiError } from '@/lib/api';
+import { EASE_STANDARD } from '@/lib/motion';
 
 /**
  * Providers de cliente: estado de servidor (TanStack Query), tema claro/oscuro (next-themes con
@@ -41,9 +43,12 @@ export function Providers({ children }: { children: ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-        <AuthProvider>{children}</AuthProvider>
-      </ThemeProvider>
+      {/* `reducedMotion="user"`: TODA animación de framer-motion respeta prefers-reduced-motion. */}
+      <MotionConfig reducedMotion="user" transition={{ ease: EASE_STANDARD }}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
+      </MotionConfig>
     </QueryClientProvider>
   );
 }

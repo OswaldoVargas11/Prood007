@@ -86,6 +86,15 @@
     --font-sans:
       var(--font-geist-sans), 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
     --font-mono: var(--font-geist-mono), 'Geist Mono', ui-monospace, 'SF Mono', monospace;
+
+    /* ---- motion (espejo de lib/motion.ts; para que las transiciones CSS usen los mismos valores) ---- */
+    --ease-standard: cubic-bezier(0.22, 0.8, 0.2, 1);
+    --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+    --dur-micro: 150ms;
+    --dur-base: 220ms;
+    --dur-expand: 260ms;
+    --dur-overlay: 320ms;
   }
 
   .dark {
@@ -172,5 +181,18 @@
   .tabular,
   [data-numeric] {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Accesibilidad: si el usuario pide menos movimiento, anulamos transiciones/animaciones CSS. El
+     movimiento de framer-motion ya lo desactiva `<MotionConfig reducedMotion="user">` globalmente. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
