@@ -293,6 +293,9 @@ model User {
   lockedUntil         DateTime?
   // Obliga a cambiar la contraseña en el próximo acceso (alta por staff/portal o reset por admin, SEC4).
   mustChangePassword  Boolean   @default(false)
+  // Email verificado: anti-bots. Auto-registro (registerTenant) nace false y se bloquea hasta confirmar;
+  // los invitados quedan verificados al activar su cuenta por el enlace del correo (prueba de posesión).
+  emailVerified       Boolean   @default(false)
   // Tarifas del letrado (rate card): facturación (autorellena el parte de horas) y coste/hora interno
   // (sueldo cargado) para calcular el MARGEN real por expediente. Nullable = sin tarifa configurada.
   billRate     Decimal? @db.Decimal(18, 2)

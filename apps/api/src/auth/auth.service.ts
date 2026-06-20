@@ -12,6 +12,7 @@ import { AuditService } from '../audit/audit.service';
 import { TokensService } from './tokens.service';
 import { HibpService } from './hibp.service';
 import { MfaService } from './mfa.service';
+import { EmailVerificationService } from './email-verification.service';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -42,6 +43,7 @@ export class AuthService {
     private readonly audit: AuditService,
     private readonly hibp: HibpService,
     private readonly mfa: MfaService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   private hashPassword(plain: string): Promise<string> {
@@ -119,6 +121,9 @@ export class AuthService {
       return { tenant, userId: user.id };
     });
 
+    // Anti-bots: el admin recién registrado nace sin verificar; se le envía el correo de confirmación
+    // (fail-soft) y el front lo bloquea hasta confirmar. Sesión emitida igualmente (para poder reenviar).
+    await this.emailVerification.sendFor(result.userId);
     const userForToken = await this.tokens.loadUserForToken(result.userId);
     const tokens = await this.tokens.issuePair(userForToken);
     return { tenantId: result.tenant.id, tokens };

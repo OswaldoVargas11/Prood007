@@ -31,6 +31,8 @@ export interface RequestUser {
   roles: string[];
   /** El usuario debe cambiar su contraseña en el próximo acceso (alta/reset por admin, SEC4). */
   mustChangePassword?: boolean;
+  /** El email está confirmado (anti-bots). Si es false, el front bloquea hasta verificar. */
+  emailVerified?: boolean;
 }
 
 /** Par de tokens devuelto al cliente. */

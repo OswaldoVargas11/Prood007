@@ -46,13 +46,15 @@ export default function middleware(req: NextRequest) {
     return intlMiddleware(req);
   }
 
-  // Recuperación de contraseña: accesible SIEMPRE (con o sin sesión, cualquier rol). Un enlace de reset
-  // NO debe rebotar a un usuario con sesión activa (p. ej. atrapado en "cambia tu contraseña").
+  // Recuperación de contraseña y confirmación de email: accesibles SIEMPRE (con o sin sesión, cualquier
+  // rol). Un enlace de correo NO debe rebotar a un usuario con sesión (p. ej. atrapado en un bloqueo).
   if (
     rest === '/forgot-password' ||
     rest.startsWith('/forgot-password/') ||
     rest === '/reset-password' ||
-    rest.startsWith('/reset-password/')
+    rest.startsWith('/reset-password/') ||
+    rest === '/verify-email' ||
+    rest.startsWith('/verify-email/')
   ) {
     return intlMiddleware(req);
   }

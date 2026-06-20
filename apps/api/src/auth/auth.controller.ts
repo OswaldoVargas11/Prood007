@@ -18,6 +18,8 @@ import { MfaService } from './mfa.service';
 import { MfaCodeDto, MfaLoginDto } from './dto/mfa.dto';
 import { SocialAuthService, type SocialProvider } from './social-auth.service';
 import { SocialExchangeDto } from './dto/social.dto';
+import { EmailVerificationService } from './email-verification.service';
+import { VerifyEmailDto } from './dto/verify-email.dto';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -40,7 +42,26 @@ export class AuthController {
     private readonly passwordReset: PasswordResetService,
     private readonly mfa: MfaService,
     private readonly social: SocialAuthService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
+
+  // ── Verificación de email (anti-bots) ────────────────────────────────────────
+  /** Confirma el email a partir del token del correo. */
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('verify-email')
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.emailVerification.verify(dto.token);
+  }
+
+  /** Reenvía el correo de verificación al usuario autenticado (si aún no está verificado). */
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('resend-verification')
+  resendVerification(@CurrentUser() user: RequestUser) {
+    return this.emailVerification.resend(user);
+  }
 
   // ── Login social (Google/Microsoft) ─────────────────────────────────────────
   /** Proveedores de login social habilitados en el servidor (para mostrar los botones). */

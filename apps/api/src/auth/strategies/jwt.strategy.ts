@@ -40,7 +40,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     const user = await this.system.user.findUnique({
       where: { id: payload.sub },
-      select: { isActive: true, passwordChangedAt: true, mustChangePassword: true },
+      select: {
+        isActive: true,
+        passwordChangedAt: true,
+        mustChangePassword: true,
+        emailVerified: true,
+      },
     });
     if (!user || !user.isActive) {
       throw new UnauthorizedException(apiError('auth.invalidUser'));
@@ -65,6 +70,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       email: payload.email,
       roles: payload.roles ?? [],
       mustChangePassword: user.mustChangePassword,
+      emailVerified: user.emailVerified,
     };
   }
 }

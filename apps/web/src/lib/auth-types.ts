@@ -16,6 +16,8 @@ export interface AuthUser {
   roles: string[];
   /** Si true, el backend exige cambiar la contraseña antes de operar (cuenta creada por admin/reset). */
   mustChangePassword?: boolean;
+  /** Si false, el email no está confirmado: el front bloquea hasta verificar (anti-bots). */
+  emailVerified?: boolean;
   /** Despacho del usuario: nombre (header), id (soporte de login) y moneda base (informes). */
   tenant?: { id: string; name: string; currency: string };
 }

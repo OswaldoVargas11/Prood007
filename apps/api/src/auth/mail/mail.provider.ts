@@ -23,19 +23,7 @@ export interface MailProvider {
   sendPasswordReset(to: string, resetLink: string): Promise<void>;
 }
 
-/** Plantilla simple (es) del correo de recuperación de contraseña, reutilizada por todos los providers. */
-export function passwordResetMessage(to: string, resetLink: string): MailMessage {
-  const subject = 'Restablece tu contraseña';
-  const text =
-    `Hemos recibido una solicitud para restablecer tu contraseña.\n\n` +
-    `Abre este enlace para elegir una nueva (caduca en 1 hora):\n${resetLink}\n\n` +
-    `Si no solicitaste el cambio, ignora este mensaje.`;
-  const html =
-    `<p>Hemos recibido una solicitud para restablecer tu contraseña.</p>` +
-    `<p><a href="${resetLink}">Elegir una nueva contraseña</a> (el enlace caduca en 1 hora).</p>` +
-    `<p>Si no solicitaste el cambio, ignora este mensaje.</p>`;
-  return { to, subject, html, text };
-}
+const BRAND = '#534AB7';
 
 /** Escapa texto del despacho/usuario para insertarlo de forma segura en el HTML del correo. */
 function escapeHtml(value: string): string {
@@ -48,19 +36,84 @@ function escapeHtml(value: string): string {
 }
 
 /**
- * Plantilla (es) del correo de BIENVENIDA/INVITACIÓN al crear una cuenta (cliente de portal o
- * personal del despacho). Lleva un enlace de ACTIVACIÓN (reutiliza la página de reset) para que el
- * invitado fije su propia contraseña, de modo que el despacho no tenga que comunicarla a mano.
+ * Envoltura HTML de marca para los correos transaccionales. Diseño table-based con estilos inline para
+ * máxima compatibilidad con clientes de correo (Gmail/Outlook). Cabecera con la marca Lawzora, cuerpo,
+ * botón "a prueba de balas" y pie. Los `paragraphs` se insertan como HTML (el caller escapa el contenido
+ * de usuario); las URLs son enlaces generados por nosotros.
+ */
+function renderEmail(opts: {
+  heading: string;
+  paragraphs: string[];
+  button?: { label: string; url: string };
+  note?: string;
+}): string {
+  const para = opts.paragraphs
+    .map((p) => `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3f3f46;">${p}</p>`)
+    .join('');
+  const button = opts.button
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 18px;"><tr>` +
+      `<td style="border-radius:8px;background:${BRAND};">` +
+      `<a href="${opts.button.url}" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none;">${opts.button.label}</a>` +
+      `</td></tr></table>`
+    : '';
+  const note = opts.note
+    ? `<p style="margin:14px 0 0;font-size:12.5px;line-height:1.5;color:#a1a1aa;">${opts.note}</p>`
+    : '';
+  return (
+    `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">` +
+    `<meta name="viewport" content="width=device-width,initial-scale=1"></head>` +
+    `<body style="margin:0;padding:0;background:#f4f4f5;font-family:Arial,Helvetica,sans-serif;">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:32px 12px;">` +
+    `<tr><td align="center">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:14px;border:1px solid #e4e4e7;">` +
+    `<tr><td style="padding:18px 28px;border-bottom:1px solid #f0f0f1;">` +
+    `<span style="display:inline-block;width:22px;height:22px;border-radius:6px;background:${BRAND};vertical-align:middle;"></span>` +
+    `<span style="font-size:17px;font-weight:bold;color:#18181b;vertical-align:middle;margin-left:8px;">Lawzora</span>` +
+    `</td></tr>` +
+    `<tr><td style="padding:28px;">` +
+    `<h1 style="margin:0 0 16px;font-size:19px;font-weight:bold;color:#18181b;">${opts.heading}</h1>` +
+    para +
+    button +
+    note +
+    `</td></tr>` +
+    `<tr><td style="padding:16px 28px;border-top:1px solid #f0f0f1;">` +
+    `<p style="margin:0;font-size:12px;color:#a1a1aa;">Lawzora · Software de gestión para despachos de abogados</p>` +
+    `</td></tr>` +
+    `</table></td></tr></table></body></html>`
+  );
+}
+
+/** Plantilla del correo de recuperación de contraseña, reutilizada por todos los providers. */
+export function passwordResetMessage(to: string, resetLink: string): MailMessage {
+  const subject = 'Restablece tu contraseña';
+  const text =
+    `Hemos recibido una solicitud para restablecer tu contraseña.\n\n` +
+    `Abre este enlace para elegir una nueva (caduca en 1 hora):\n${resetLink}\n\n` +
+    `Si no solicitaste el cambio, ignora este mensaje.`;
+  const html = renderEmail({
+    heading: 'Restablece tu contraseña',
+    paragraphs: ['Hemos recibido una solicitud para restablecer la contraseña de tu cuenta.'],
+    button: { label: 'Elegir una nueva contraseña', url: resetLink },
+    note: 'El enlace caduca en 1 hora. Si no solicitaste el cambio, ignora este mensaje.',
+  });
+  return { to, subject, html, text };
+}
+
+/**
+ * Plantilla del correo de BIENVENIDA/INVITACIÓN al crear una cuenta (cliente de portal o personal del
+ * despacho). Lleva un enlace de ACTIVACIÓN (reutiliza la página de reset) para que el invitado fije su
+ * propia contraseña; al hacerlo se considera además verificado su email.
  */
 export function accountInviteMessage(
   to: string,
   opts: { fullName?: string; firmName: string; activationLink: string; portal: boolean },
 ): MailMessage {
-  const greeting = opts.fullName ? `Hola ${escapeHtml(opts.fullName)},` : 'Hola,';
+  const name = opts.fullName ? escapeHtml(opts.fullName) : null;
   const firm = escapeHtml(opts.firmName);
+  const greeting = name ? `Hola ${name},` : 'Hola,';
   const intro = opts.portal
-    ? `${firm} te ha dado acceso a su portal de cliente.`
-    : `Se ha creado tu cuenta en ${firm}.`;
+    ? `<strong>${firm}</strong> te ha dado acceso a su portal de cliente.`
+    : `Se ha creado tu cuenta en <strong>${firm}</strong>.`;
   const subject = opts.portal
     ? `Acceso a tu portal de cliente — ${opts.firmName}`
     : `Tu cuenta en ${opts.firmName}`;
@@ -73,12 +126,39 @@ export function accountInviteMessage(
     }\n\n` +
     `Activa tu cuenta y elige tu contraseña (el enlace caduca en 7 días):\n${opts.activationLink}\n\n` +
     `Una vez activada, inicia sesión con tu email.`;
-  const html =
-    `<p>${greeting}</p>` +
-    `<p>${intro}</p>` +
-    `<p><a href="${opts.activationLink}">Activar mi cuenta y elegir contraseña</a> ` +
-    `(el enlace caduca en 7 días).</p>` +
-    `<p>Una vez activada, inicia sesión con tu email.</p>`;
+  const html = renderEmail({
+    heading: opts.portal ? 'Acceso a tu portal de cliente' : '¡Bienvenido a Lawzora!',
+    paragraphs: [greeting, intro, 'Activa tu cuenta y elige tu propia contraseña para empezar.'],
+    button: { label: 'Activar mi cuenta', url: opts.activationLink },
+    note: 'El enlace caduca en 7 días. Una vez activada, inicia sesión con tu correo.',
+  });
+  return { to, subject, html, text };
+}
+
+/**
+ * Plantilla del correo de VERIFICACIÓN de email (anti-bots). Se envía al auto-registrar un despacho;
+ * el usuario debe confirmar antes de poder operar en la web.
+ */
+export function verificationMessage(
+  to: string,
+  opts: { fullName?: string; verifyLink: string },
+): MailMessage {
+  const name = opts.fullName ? escapeHtml(opts.fullName) : null;
+  const subject = 'Confirma tu correo electrónico — Lawzora';
+  const text =
+    `${opts.fullName ? `Hola ${opts.fullName},` : 'Hola,'}\n\n` +
+    `Confirma tu correo electrónico para activar tu cuenta de Lawzora (el enlace caduca en 24 horas):\n` +
+    `${opts.verifyLink}\n\n` +
+    `Si no creaste esta cuenta, ignora este mensaje.`;
+  const html = renderEmail({
+    heading: 'Confirma tu correo electrónico',
+    paragraphs: [
+      name ? `Hola ${name},` : 'Hola,',
+      'Gracias por crear tu cuenta en Lawzora. Confirma tu correo para empezar a usar la plataforma.',
+    ],
+    button: { label: 'Confirmar mi correo', url: opts.verifyLink },
+    note: 'El enlace caduca en 24 horas. Si no creaste esta cuenta, ignora este mensaje.',
+  });
   return { to, subject, html, text };
 }
 

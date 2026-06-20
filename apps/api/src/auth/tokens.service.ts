@@ -74,6 +74,27 @@ export class TokensService {
     }
   }
 
+  /** Token de verificación de email (24 h). No da acceso; solo identifica al usuario a confirmar. */
+  signEmailVerify(userId: string): Promise<string> {
+    return this.jwt.signAsync(
+      { sub: userId, typ: 'email_verify' },
+      { secret: this.accessSecret, expiresIn: 24 * 60 * 60 },
+    );
+  }
+
+  /** Valida el token de verificación de email y devuelve el userId. Lanza si es inválido/caducado. */
+  async verifyEmailToken(token: string): Promise<string> {
+    try {
+      const payload = await this.jwt.verifyAsync<{ sub: string; typ?: string }>(token, {
+        secret: this.accessSecret,
+      });
+      if (payload.typ !== 'email_verify' || !payload.sub) throw new Error('bad verify token');
+      return payload.sub;
+    } catch {
+      throw new UnauthorizedException(apiError('verify.invalidToken'));
+    }
+  }
+
   private signAccessToken(user: UserForToken): Promise<string> {
     const payload: AccessTokenPayload = {
       sub: user.id,

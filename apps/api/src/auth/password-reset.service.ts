@@ -151,8 +151,14 @@ export class PasswordResetService {
     const passwordHash = await argon2.hash(newPassword);
     await this.system.user.update({
       where: { id: row.userId },
-      // Fijar la contraseña propia limpia la obligación de cambio (SEC4).
-      data: { passwordHash, passwordChangedAt: new Date(), mustChangePassword: false },
+      // Fijar la contraseña propia limpia la obligación de cambio (SEC4) y verifica el email: haber
+      // abierto el enlace del correo prueba la posesión de la dirección (cubre el alta por invitación).
+      data: {
+        passwordHash,
+        passwordChangedAt: new Date(),
+        mustChangePassword: false,
+        emailVerified: true,
+      },
     });
     await this.system.passwordReset.update({
       where: { id: row.id },

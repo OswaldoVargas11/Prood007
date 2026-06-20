@@ -835,6 +835,25 @@
       "confirmDisable": "Desactivar"
     }
   },
+  "verify": {
+    "title": "Confirma tu correo",
+    "subtitle": "Para evitar bots, confirma tu correo antes de continuar.",
+    "hint": "Te hemos enviado un enlace de confirmación. Ábrelo y luego pulsa «Ya lo confirmé».",
+    "alreadyDone": "Ya lo confirmé",
+    "resend": "Reenviar correo",
+    "resentShort": "Correo reenviado",
+    "resent": "Te hemos reenviado el correo de confirmación",
+    "error": "No se pudo reenviar. Inténtalo de nuevo.",
+    "logout": "Cerrar sesión"
+  },
+  "verifyPage": {
+    "title": "Confirmación de correo",
+    "subtitle": "Estamos confirmando tu dirección de correo.",
+    "verifying": "Confirmando…",
+    "success": "¡Correo confirmado! Ya puedes usar Lawzora.",
+    "error": "El enlace no es válido o ha caducado. Inicia sesión y reenvía la confirmación.",
+    "goToLogin": "Ir a iniciar sesión"
+  },
   "matterBudget": {
     "title": "Presupuesto",
     "none": "Sin presupuesto definido.",

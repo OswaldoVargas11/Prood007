@@ -12,6 +12,7 @@ import { AiPanel } from './ai-panel';
 import { NotificationsBell } from './notifications-bell';
 import { RealtimeToasts } from './realtime-toasts';
 import { ForcePasswordChange } from './force-password-change';
+import { ConfirmEmail } from './confirm-email';
 import { FirmBadge } from './firm-badge';
 import { WhatsNewDialog } from './whats-new-dialog';
 import { UserMenu } from './user-menu';
@@ -59,6 +60,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </div>
     );
+  }
+
+  // Bloqueo anti-bots: el email debe estar confirmado antes de operar.
+  if (user.emailVerified === false) {
+    return <ConfirmEmail />;
   }
 
   // Bloqueo: cuenta creada por admin / tras reset → debe fijar su contraseña antes de operar.

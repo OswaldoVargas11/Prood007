@@ -312,6 +312,11 @@ export function useProfitability() {
   });
 }
 
+/** Reenvía el correo de verificación al usuario autenticado pero sin confirmar. */
+export function useResendVerification() {
+  return useMutation({ mutationFn: () => api.post('/auth/resend-verification') });
+}
+
 /** Proveedores de login social habilitados en el servidor (Google/Microsoft). */
 export function useSocialProviders() {
   return useQuery({
@@ -1328,6 +1333,25 @@ export function useResetPassword() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => undefined);
+      if (!res.ok) {
+        const raw = (data as { message?: string | string[] } | undefined)?.message;
+        const message = Array.isArray(raw) ? raw.join(', ') : (raw ?? `Error ${res.status}`);
+        throw new ApiError(res.status, message, data);
+      }
+    },
+  });
+}
+
+/** Confirma el email a partir del token del correo (público; no requiere sesión). */
+export function useVerifyEmail() {
+  return useMutation({
+    mutationFn: async (token: string) => {
+      const res = await fetch(publicApiUrl('/auth/verify-email'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
       });
       const data = await res.json().catch(() => undefined);
       if (!res.ok) {

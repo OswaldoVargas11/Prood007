@@ -63,6 +63,10 @@ export const API_MESSAGES = {
     'es-ES': 'El acceso ha caducado. Vuelve a iniciar sesión.',
     'es-DO': 'El acceso ha caducado. Vuelve a iniciar sesión.',
   },
+  'verify.invalidToken': {
+    'es-ES': 'El enlace de confirmación no es válido o ha caducado.',
+    'es-DO': 'El enlace de confirmación no es válido o ha caducado.',
+  },
   'auth.accountDisabled': {
     'es-ES': 'Cuenta deshabilitada.',
     'es-DO': 'Cuenta deshabilitada.',
