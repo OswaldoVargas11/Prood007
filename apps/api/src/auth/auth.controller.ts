@@ -1,10 +1,23 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
+import type { Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { Role } from '@legalflow/domain';
 import { AuthService } from './auth.service';
 import { PasswordResetService } from './password-reset.service';
 import { MfaService } from './mfa.service';
 import { MfaCodeDto, MfaLoginDto } from './dto/mfa.dto';
+import { SocialAuthService, type SocialProvider } from './social-auth.service';
+import { SocialExchangeDto } from './dto/social.dto';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -26,7 +39,59 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly passwordReset: PasswordResetService,
     private readonly mfa: MfaService,
+    private readonly social: SocialAuthService,
   ) {}
+
+  // ── Login social (Google/Microsoft) ─────────────────────────────────────────
+  /** Proveedores de login social habilitados en el servidor (para mostrar los botones). */
+  @Public()
+  @Get('social/providers')
+  socialProviders() {
+    return this.social.providers();
+  }
+
+  /** Inicia el login social: redirige al consentimiento del proveedor. */
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Get('social/:provider')
+  async socialStart(@Param('provider') provider: string, @Res() res: Response) {
+    if (provider !== 'google' && provider !== 'microsoft') {
+      return res.redirect(`${this.webBase()}/es/login?social_error=provider`);
+    }
+    const url = await this.social.authUrl(provider as SocialProvider);
+    return res.redirect(url);
+  }
+
+  /** Callback del proveedor: resuelve el usuario y redirige al web con un ticket de un solo uso. */
+  @Public()
+  @Get('social/:provider/callback')
+  async socialCallback(
+    @Param('provider') provider: string,
+    @Query('code') code: string | undefined,
+    @Query('state') state: string | undefined,
+    @Res() res: Response,
+  ) {
+    const web = this.webBase();
+    if ((provider !== 'google' && provider !== 'microsoft') || !code || !state) {
+      return res.redirect(`${web}/es/login?social_error=callback`);
+    }
+    const result = await this.social.handleCallback(provider as SocialProvider, code, state);
+    if ('error' in result) return res.redirect(`${web}/es/login?social_error=${result.error}`);
+    return res.redirect(`${web}/es/login?social_ticket=${result.ticket}`);
+  }
+
+  /** Canjea el ticket de un solo uso por una sesión (lo llama el BFF del web). */
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('social/exchange')
+  socialExchange(@Body() dto: SocialExchangeDto) {
+    return this.social.exchangeTicket(dto.ticket);
+  }
+
+  private webBase(): string {
+    return process.env.APP_PUBLIC_URL ?? 'https://lawzora.com';
+  }
 
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })

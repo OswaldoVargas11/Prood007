@@ -13,11 +13,15 @@ Esto lo tienes que hacer **tú** (Claude no puede registrar apps en Azure).
 2. Nombre: `Lawzora`.
 3. Tipos de cuenta admitidos: **Cuentas en cualquier directorio organizativo y cuentas
    personales de Microsoft** (corresponde al tenant `common`).
-4. **URI de redireccionamiento** → plataforma **Web**:
+4. **URIs de redireccionamiento** → plataforma **Web** — añade LOS DOS:
 
    ```
    https://api.lawzora.com/api/integrations/microsoft/callback
+   https://api.lawzora.com/api/auth/social/microsoft/callback
    ```
+
+   El primero es para Outlook Calendar/correo; el segundo, para **"Iniciar sesión con
+   Microsoft"** (login social).
 
 5. Registrar. Copia el **Id. de aplicación (cliente)**.
 

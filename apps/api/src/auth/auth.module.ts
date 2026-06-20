@@ -8,6 +8,7 @@ import { TokensService } from './tokens.service';
 import { PasswordResetService } from './password-reset.service';
 import { HibpService } from './hibp.service';
 import { MfaService } from './mfa.service';
+import { SocialAuthService } from './social-auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -24,6 +25,7 @@ import { SmtpMailProvider } from './mail/smtp-mail.provider';
     PasswordResetService,
     HibpService,
     MfaService,
+    SocialAuthService,
     JwtStrategy,
     // Proveedor de correo elegido en runtime: si SMTP_HOST está configurado → SMTP real; si no, el
     // stub Noop (dev/CI no necesitan SMTP). El transporte SMTP es perezoso, no conecta en el arranque.

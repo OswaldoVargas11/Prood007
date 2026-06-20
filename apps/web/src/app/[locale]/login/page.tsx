@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { useSocialProviders } from '@/lib/hooks';
 import { useRouter, Link } from '@/i18n/navigation';
 import { ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -30,8 +32,10 @@ interface TenantChoice {
 
 export default function LoginPage() {
   const t = useTranslations('login');
-  const { login, mfaLogin } = useAuth();
+  const { login, mfaLogin, socialFinish } = useAuth();
   const router = useRouter();
+  const params = useSearchParams();
+  const socialProviders = useSocialProviders();
   const [serverError, setServerError] = useState<string | null>(null);
   // Si el email existe en varios despachos con la misma contraseña, el backend devuelve la lista
   // (409 auth.chooseTenant) y mostramos un selector en vez de exigir el ID a ciegas.
@@ -92,6 +96,25 @@ export default function LoginPage() {
     if (!pending) return;
     await doLogin({ ...pending, tenantId });
   }
+
+  // Vuelta del proveedor social: canjeamos el ticket (o mostramos el error) y limpiamos la URL.
+  useEffect(() => {
+    const ticket = params.get('social_ticket');
+    const error = params.get('social_error');
+    if (!ticket && !error) return;
+    window.history.replaceState(null, '', window.location.pathname);
+    if (error) {
+      setServerError(t('socialError'));
+      return;
+    }
+    socialFinish(ticket!)
+      .then((result) => {
+        if (result?.mfaRequired) setMfaToken(result.mfaToken);
+        else router.replace('/dashboard');
+      })
+      .catch((err) => setServerError(err instanceof ApiError ? err.message : t('genericError')));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-6">
@@ -237,6 +260,23 @@ export default function LoginPage() {
                   {isSubmitting ? t('signingIn') : t('signIn')}
                 </Button>
               </form>
+
+              {(socialProviders.data?.google || socialProviders.data?.microsoft) && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                    <span className="h-px flex-1 bg-border" />
+                    {t('orContinue')}
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
+                  {socialProviders.data?.google && (
+                    <SocialButton provider="google" label={t('withGoogle')} />
+                  )}
+                  {socialProviders.data?.microsoft && (
+                    <SocialButton provider="microsoft" label={t('withMicrosoft')} />
+                  )}
+                </div>
+              )}
+
               <p className="mt-3 text-center text-xs">
                 <Link
                   href="/forgot-password"
@@ -268,5 +308,18 @@ export default function LoginPage() {
         </Link>
       </p>
     </main>
+  );
+}
+
+/** Botón de login social: navega (página completa) al inicio del flujo OAuth en la API. */
+function SocialButton({ provider, label }: { provider: 'google' | 'microsoft'; label: string }) {
+  const href = `${process.env.NEXT_PUBLIC_API_URL ?? ''}/api/auth/social/${provider}`;
+  return (
+    <a
+      href={href}
+      className="flex w-full items-center justify-center gap-2 rounded-md border bg-card px-4 py-2 text-sm font-medium transition hover:bg-accent"
+    >
+      {label}
+    </a>
   );
 }

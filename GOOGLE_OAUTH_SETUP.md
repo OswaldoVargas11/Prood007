@@ -46,11 +46,15 @@ Si prefieres no publicar todavía, deja la app en **"Pruebas"** y añade los cor
 
 1. **APIs y servicios → Credenciales → Crear credenciales → ID de cliente OAuth**.
 2. Tipo de aplicación: **Aplicación web**.
-3. **URI de redireccionamiento autorizado** (exacto, sin barra final):
+3. **URIs de redireccionamiento autorizados** (exactos, sin barra final) — añade LOS DOS:
 
    ```
    https://api.lawzora.com/api/integrations/google/callback
+   https://api.lawzora.com/api/auth/social/google/callback
    ```
+
+   El primero es para conectar Calendar/Gmail; el segundo, para **"Iniciar sesión con
+   Google"** (login social). Si solo añades el primero, el botón de login social fallará.
 
 4. Guarda y copia el **ID de cliente** y el **Secreto de cliente**.
 

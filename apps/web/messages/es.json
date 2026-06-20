@@ -100,7 +100,11 @@
     "mfaTitle": "Verificación en dos pasos",
     "mfaHint": "Introduce el código de tu app de autenticación (o un código de respaldo).",
     "mfaVerify": "Verificar",
-    "mfaBack": "Volver"
+    "mfaBack": "Volver",
+    "orContinue": "o continúa con",
+    "withGoogle": "Continuar con Google",
+    "withMicrosoft": "Continuar con Microsoft",
+    "socialError": "No se pudo iniciar sesión con ese proveedor. Usa tu correo y contraseña, o asegúrate de que tu cuenta existe en Lawzora."
   },
   "onboarding": {
     "setup": "Configuración",

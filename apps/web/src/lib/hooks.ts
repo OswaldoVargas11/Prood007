@@ -312,6 +312,15 @@ export function useProfitability() {
   });
 }
 
+/** Proveedores de login social habilitados en el servidor (Google/Microsoft). */
+export function useSocialProviders() {
+  return useQuery({
+    queryKey: ['social-providers'],
+    queryFn: () => api.get<{ google: boolean; microsoft: boolean }>('/auth/social/providers'),
+    staleTime: Infinity,
+  });
+}
+
 // ── MFA / 2FA ─────────────────────────────────────────────────────────────────
 export function useMfaStatus() {
   return useQuery({

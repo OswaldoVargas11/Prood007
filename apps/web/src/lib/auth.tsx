@@ -27,6 +27,8 @@ interface AuthContextValue {
   login: (email: string, password: string, tenantId?: string) => Promise<MfaChallenge | undefined>;
   /** Segundo paso del login con MFA: completa la sesión con el token de desafío + el código. */
   mfaLogin: (mfaToken: string, code: string) => Promise<void>;
+  /** Canjea el ticket del login social por una sesión (o devuelve un desafío MFA). */
+  socialFinish: (ticket: string) => Promise<MfaChallenge | undefined>;
   register: (input: RegisterTenantInput) => Promise<void>;
   logout: () => Promise<void>;
   /** Recarga el usuario desde /auth/me (p. ej. tras un cambio de contraseña forzado). */
@@ -105,6 +107,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(await api.get<AuthUser>('/auth/me'));
   }, []);
 
+  const socialFinish = useCallback(async (ticket: string) => {
+    const res = await fetch('/api/auth/social/finish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ticket }),
+    });
+    const data = await res.json().catch(() => undefined);
+    if (!res.ok)
+      throw new ApiError(res.status, errorMessage(data, 'No se pudo iniciar sesión'), data);
+    if (data && (data as MfaChallenge).mfaRequired) {
+      return data as MfaChallenge;
+    }
+    setAccessToken((data as { accessToken: string }).accessToken);
+    setUser(await api.get<AuthUser>('/auth/me'));
+  }, []);
+
   const register = useCallback(async (input: RegisterTenantInput) => {
     const res = await fetch('/api/auth/register-tenant', {
       method: 'POST',
@@ -134,12 +152,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       login,
       mfaLogin,
+      socialFinish,
       register,
       logout,
       refreshUser,
       hasRole: (r) => user?.roles.includes(r) ?? false,
     }),
-    [user, loading, login, mfaLogin, register, logout, refreshUser],
+    [user, loading, login, mfaLogin, socialFinish, register, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -55,6 +55,14 @@ export const API_MESSAGES = {
     'es-ES': 'La verificación en dos pasos no está disponible en el servidor.',
     'es-DO': 'La verificación en dos pasos no está disponible en el servidor.',
   },
+  'social.notConfigured': {
+    'es-ES': 'El inicio de sesión con este proveedor no está disponible.',
+    'es-DO': 'El inicio de sesión con este proveedor no está disponible.',
+  },
+  'social.invalidTicket': {
+    'es-ES': 'El acceso ha caducado. Vuelve a iniciar sesión.',
+    'es-DO': 'El acceso ha caducado. Vuelve a iniciar sesión.',
+  },
   'auth.accountDisabled': {
     'es-ES': 'Cuenta deshabilitada.',
     'es-DO': 'Cuenta deshabilitada.',
