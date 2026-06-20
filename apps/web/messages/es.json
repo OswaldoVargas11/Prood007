@@ -751,6 +751,25 @@
       "earlier": "Anterior"
     }
   },
+  "quickAdd": {
+    "open": "Crear",
+    "logTime": "Imputar horas",
+    "newTask": "Nueva tarea",
+    "logTimeDesc": "Registra tiempo en un expediente sin salir de donde estás.",
+    "newTaskDesc": "Crea una tarea rápida.",
+    "matter": "Expediente",
+    "matterPlaceholder": "Busca un expediente…",
+    "minutes": "Minutos",
+    "date": "Fecha",
+    "description": "Descripción",
+    "taskTitle": "Título",
+    "due": "Vencimiento",
+    "optional": "opcional",
+    "save": "Guardar",
+    "create": "Crear",
+    "cancel": "Cancelar",
+    "error": "No se pudo guardar."
+  },
   "command": {
     "placeholder": "Buscar o ejecutar una acción…",
     "empty": "Sin resultados.",

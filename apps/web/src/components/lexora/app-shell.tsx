@@ -8,6 +8,7 @@ import { useRouter } from '@/i18n/navigation';
 import { AppSidebar, MobileSidebar } from './app-sidebar';
 import { PageTransition } from './page-transition';
 import { CommandMenu, useCommandMenu } from './command-menu';
+import { QuickAdd } from './quick-add';
 import { AiPanel } from './ai-panel';
 import { NotificationsBell } from './notifications-bell';
 import { RealtimeToasts } from './realtime-toasts';
@@ -99,6 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Command className="size-2.5" />K
             </kbd>
           </Button>
+          <QuickAdd />
           <FirmBadge />
           <div className="ml-auto flex items-center gap-2">
             <AiPanel />
