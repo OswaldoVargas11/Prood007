@@ -14,6 +14,7 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { apiError } from '../common/api-messages';
 import { renderTemplate, type TemplateContext } from '../templates/render';
+import { buildDocumentPdf } from './document-pdf';
 import type { RequestUser } from '../auth/auth.types';
 
 interface UploadedFile {
@@ -21,16 +22,6 @@ interface UploadedFile {
   mimetype: string;
   size: number;
   buffer: Buffer;
-}
-
-/** Escapa caracteres HTML para insertar texto del despacho en el `<title>` de forma segura. */
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 /** Convierte un nombre en un slug seguro para el nombre de archivo. */
@@ -121,7 +112,10 @@ export class DocumentsService {
 
     const matter = await this.prisma.matter.findFirst({
       where: { id: input.matterId, tenantId: user.tenantId },
-      include: { client: { select: { name: true, taxId: true, email: true, address: true } } },
+      include: {
+        client: { select: { name: true, taxId: true, email: true, address: true } },
+        lawyer: { select: { fullName: true } },
+      },
     });
     if (!matter) throw new BadRequestException(apiError('matters.notInFirm'));
     const tenant = await this.prisma.tenant.findFirst({ where: { id: user.tenantId } });
@@ -134,21 +128,32 @@ export class DocumentsService {
       'expediente.referencia': matter.reference,
       'expediente.titulo': matter.title,
       'expediente.tipo': matter.type,
+      'expediente.abogado': matter.lawyer?.fullName ?? '',
       'despacho.nombre': tenant?.name ?? '',
       'despacho.nif': tenant?.taxId ?? '',
       fecha: new Date().toLocaleDateString('es-ES'),
+      'fecha.larga': new Date().toLocaleDateString('es-ES', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }),
     };
 
     const rendered = renderTemplate(template.body, context);
-    const html = `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${escapeHtml(
-      template.name,
-    )}</title></head><body>${rendered}</body></html>`;
-    const buffer = Buffer.from(html, 'utf8');
+    const title = input.name?.trim() || template.name;
+    // PDF con membrete del despacho (estética consistente con las facturas), no un HTML pelado.
+    const pdf = await buildDocumentPdf({
+      firmName: tenant?.name ?? 'Despacho',
+      firmTaxId: tenant?.taxId ?? null,
+      title,
+      bodyText: rendered,
+      generatedAt: new Date(),
+    });
     const file: UploadedFile = {
-      originalname: `${slugify(input.name?.trim() || template.name)}.html`,
-      mimetype: 'text/html',
-      size: buffer.length,
-      buffer,
+      originalname: `${slugify(title)}.pdf`,
+      mimetype: 'application/pdf',
+      size: pdf.length,
+      buffer: pdf,
     };
 
     const document = await this.prisma.document.create({

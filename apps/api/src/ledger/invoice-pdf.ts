@@ -9,6 +9,7 @@
 import PDFDocument from 'pdfkit';
 import { toBuffer } from 'qrcode';
 import { Jurisdiction } from '@legalflow/domain';
+import { drawBrandFooter, drawBrandHeader, PDF_MARGIN } from '../common/pdf-brand';
 
 export interface InvoicePdfData {
   /** Formato fiscal/presentación de la factura (es = España/Verifactu · do = RD/e-CF). */
@@ -84,7 +85,7 @@ export function invoiceRowToPdfData(inv: InvoiceRow): InvoicePdfData {
   };
 }
 
-const PAGE_MARGIN = 50;
+const PAGE_MARGIN = PDF_MARGIN;
 
 function money(value: string, currency: string, locale: string): string {
   const n = Number(value);
@@ -108,7 +109,7 @@ export async function buildInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
       : null;
 
   return new Promise<Buffer>((resolve, reject) => {
-    const doc = new PDFDocument({ size: 'A4', margin: PAGE_MARGIN });
+    const doc = new PDFDocument({ size: 'A4', margin: PAGE_MARGIN, bufferPages: true });
     const chunks: Buffer[] = [];
     doc.on('data', (c: Buffer) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
@@ -118,19 +119,16 @@ export async function buildInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
     const right = doc.page.width - PAGE_MARGIN;
     const width = right - left;
 
-    // ── Cabecera ──────────────────────────────────────────────────────────
-    doc.fontSize(20).font('Helvetica-Bold').text('FACTURA', left, PAGE_MARGIN);
-    doc.fontSize(10).font('Helvetica').fillColor('#555');
-    doc.text(`Nº ${data.invoice.number}`, left, PAGE_MARGIN + 26);
-    doc.text(
-      `Fecha de emisión: ${data.invoice.issueDate.toISOString().slice(0, 10)}`,
-      left,
-      PAGE_MARGIN + 40,
-    );
-    doc.fillColor('#000');
+    // ── Membrete de marca ─────────────────────────────────────────────────
+    const headerY = drawBrandHeader(doc, {
+      firmName: data.seller.name,
+      firmTaxId: data.seller.taxId ? `${taxIdLabel}: ${data.seller.taxId}` : null,
+      label: 'Factura',
+      sublabel: `Nº ${data.invoice.number} · ${data.invoice.issueDate.toISOString().slice(0, 10)}`,
+    });
 
     // ── Emisor / Receptor ─────────────────────────────────────────────────
-    const blockY = PAGE_MARGIN + 70;
+    const blockY = headerY + 4;
     const colW = width / 2 - 10;
     party(doc, 'Emisor (despacho)', data.seller, taxIdLabel, left, blockY, colW);
     party(doc, 'Receptor (cliente)', data.buyer, taxIdLabel, left + colW + 20, blockY, colW);
@@ -222,6 +220,7 @@ export async function buildInvoicePdf(data: InvoicePdfData): Promise<Buffer> {
         .fillColor('#000');
     }
 
+    drawBrandFooter(doc, { note: `${data.seller.name} · Factura ${data.invoice.number}` });
     doc.end();
   });
 }
