@@ -32,4 +32,25 @@ export class CreateTaskFromDeadlineDto {
   @IsOptional()
   @IsString()
   assigneeId?: string;
+
+  /** Referencia/acuse de la notificación (LexNET, nº de notificación…). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  notificationRef?: string;
+}
+
+/** Solo cálculo del plazo (preview), sin crear la tarea. */
+export class PreviewDeadlineDto {
+  @IsString()
+  @MaxLength(80)
+  deadlineType!: string;
+
+  @IsDateString()
+  startDate!: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  days!: number;
 }

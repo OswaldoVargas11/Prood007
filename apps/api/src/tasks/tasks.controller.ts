@@ -3,7 +3,7 @@ import { Role, TaskStatus } from '@legalflow/domain';
 import { TasksService } from './tasks.service';
 import { DeadlineRemindersService } from './deadline-reminders.service';
 import { CreateTaskDto } from './dto/create-task.dto';
-import { CreateTaskFromDeadlineDto } from './dto/create-task-from-deadline.dto';
+import { CreateTaskFromDeadlineDto, PreviewDeadlineDto } from './dto/create-task-from-deadline.dto';
 import { UpdateTaskDto } from './dto/update-task.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -30,6 +30,12 @@ export class TasksController {
   @Post('run-reminders')
   runReminders(@CurrentUser() user: RequestUser) {
     return this.reminders.runForTenant(user);
+  }
+
+  /** Preview del plazo: calcula la fecha límite sin crear la tarea (para mostrarla en vivo). */
+  @Post('deadline-preview')
+  previewDeadline(@CurrentUser() user: RequestUser, @Body() dto: PreviewDeadlineDto) {
+    return this.tasks.previewDeadline(user, dto);
   }
 
   /** Crea una tarea a partir de un plazo procesal calculado por el provider de la jurisdicción. */

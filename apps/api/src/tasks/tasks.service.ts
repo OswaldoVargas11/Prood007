@@ -68,11 +68,11 @@ export class TasksService {
     return task;
   }
 
-  /** Crea una tarea con la fecha límite calculada por el ComplianceProvider (plazo procesal). */
-  async createFromDeadline(user: RequestUser, dto: CreateTaskFromDeadlineDto) {
-    if (dto.matterId) await this.assertMatterInTenant(user, dto.matterId);
-    if (dto.assigneeId) await this.assertUserInTenant(user, dto.assigneeId);
-
+  /** Calcula el plazo procesal (días hábiles + festivos del despacho) sin crear nada. Reusable. */
+  private async computeDeadline(
+    user: RequestUser,
+    input: { deadlineType: string; startDate: string; days: number },
+  ) {
     // Festivos locales del despacho (se suman a los nacionales en el cómputo del plazo).
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
       where: { id: user.tenantId },
@@ -83,13 +83,32 @@ export class TasksService {
           .map((h) => h?.date)
           .filter((d): d is string => typeof d === 'string')
       : [];
-
     const provider = this.compliance.forJurisdiction(user.jurisdiction);
-    const deadline = provider.getProceduralDeadlines({
+    return provider.getProceduralDeadlines({
+      deadlineType: input.deadlineType,
+      startDate: input.startDate,
+      days: input.days,
+      extraHolidays,
+    });
+  }
+
+  /** Preview del plazo (LexNET-lite): calcula la fecha límite para mostrarla antes de crear la tarea. */
+  async previewDeadline(
+    user: RequestUser,
+    input: { deadlineType: string; startDate: string; days: number },
+  ) {
+    return this.computeDeadline(user, input);
+  }
+
+  /** Crea una tarea con la fecha límite calculada por el ComplianceProvider (plazo procesal). */
+  async createFromDeadline(user: RequestUser, dto: CreateTaskFromDeadlineDto) {
+    if (dto.matterId) await this.assertMatterInTenant(user, dto.matterId);
+    if (dto.assigneeId) await this.assertUserInTenant(user, dto.assigneeId);
+
+    const deadline = await this.computeDeadline(user, {
       deadlineType: dto.deadlineType,
       startDate: dto.startDate,
       days: dto.days,
-      extraHolidays,
     });
 
     const task = await this.prisma.task.create({
@@ -99,6 +118,9 @@ export class TasksService {
         dueDate: new Date(deadline.dueDate),
         deadlineType: dto.deadlineType,
         isProcedural: true,
+        // Registro de la notificación de la que nace el plazo (LexNET-lite).
+        notificationRef: dto.notificationRef?.trim() || null,
+        notifiedAt: new Date(dto.startDate),
         matterId: dto.matterId,
         assigneeId: dto.assigneeId,
       },

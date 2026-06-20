@@ -647,6 +647,10 @@ model Task {
   deadlineType String?
   // true si dueDate proviene de getProceduralDeadlines (vínculo a plazo procesal).
   isProcedural Boolean    @default(false)
+  // LexNET-lite: registro de la notificación de la que nace el plazo — referencia (acuse/nº) y fecha
+  // de notificación (inicio del cómputo). Nullable: solo en plazos creados desde una notificación.
+  notificationRef String?
+  notifiedAt      DateTime?
   assigneeId   String?
   // Deduplicación de recordatorios de plazo: la fecha límite para la que ya se avisó y la ventana
   // más urgente (días de antelación) ya notificada. Si dueDate cambia, el avisador detecta el desfase

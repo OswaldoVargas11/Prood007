@@ -80,6 +80,32 @@ describe('Tasks & procedural deadlines (e2e)', () => {
     expect(res.body.task.deadlineType).toBe('APELACION');
   });
 
+  it('preview del plazo calcula la misma fecha SIN crear tarea', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/tasks/deadline-preview')
+      .set(auth())
+      .send({ deadlineType: 'APELACION', startDate: '2025-12-23', days: 3 })
+      .expect(201);
+    expect(res.body.dueDate).toBe('2025-12-29');
+    expect(res.body.holidaysApplied).toContain('2025-12-25');
+  });
+
+  it('registra la notificación (referencia + fecha) al crear el plazo (LexNET-lite)', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/tasks/from-deadline')
+      .set(auth())
+      .send({
+        deadlineType: 'APELACION',
+        startDate: '2025-12-23',
+        days: 3,
+        matterId,
+        notificationRef: 'LEXNET-2025-999',
+      })
+      .expect(201);
+    expect(res.body.task.notificationRef).toBe('LEXNET-2025-999');
+    expect(res.body.task.notifiedAt).toContain('2025-12-23');
+  });
+
   it('lista tareas del expediente (incluye la simple y la procesal)', async () => {
     const res = await request(app.getHttpServer())
       .get('/api/tasks')

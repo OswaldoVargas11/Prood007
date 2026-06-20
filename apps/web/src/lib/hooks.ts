@@ -484,8 +484,21 @@ export function useCreateTaskFromDeadline() {
       days: number;
       title?: string;
       matterId?: string;
+      notificationRef?: string;
     }) => api.post<{ task: Task; deadline: DeadlineResult }>('/tasks/from-deadline', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),
+  });
+}
+
+/** Preview del plazo (LexNET-lite): calcula la fecha límite en vivo, sin crear la tarea. */
+export function useDeadlinePreview(
+  input: { deadlineType: string; startDate: string; days: number } | null,
+) {
+  return useQuery({
+    queryKey: ['deadline-preview', input],
+    queryFn: () => api.post<DeadlineResult>('/tasks/deadline-preview', input!),
+    enabled: Boolean(input && input.startDate && input.days > 0 && input.deadlineType),
+    staleTime: 60_000,
   });
 }
 

@@ -1,9 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { CalendarClock, Check, Loader2, Plus } from 'lucide-react';
-import { useCreateTask, useCreateTaskFromDeadline, useTasks, useUpdateTask } from '@/lib/hooks';
+import {
+  useCreateTask,
+  useCreateTaskFromDeadline,
+  useDeadlinePreview,
+  useTasks,
+  useUpdateTask,
+} from '@/lib/hooks';
+import { useAuth } from '@/lib/auth';
+import { DEADLINE_PRESETS } from '@/lib/deadline-types';
 import { isOverdue, TASK_STATUSES, taskStatusVariant } from '@/lib/task-status';
 import { formatDate } from '@/lib/format';
 import type { DeadlineResult, TaskStatus } from '@/lib/types';
@@ -228,28 +236,68 @@ function NewTaskDialog({ matterId }: { matterId?: string }) {
 function DeadlineDialog({ matterId }: { matterId?: string }) {
   const t = useTranslations('tasks');
   const locale = useLocale();
+  const { user } = useAuth();
+  const presets =
+    DEADLINE_PRESETS[(user?.jurisdiction as 'es' | 'do') ?? 'es'] ?? DEADLINE_PRESETS.es;
   const fromDeadline = useCreateTaskFromDeadline();
   const [open, setOpen] = useState(false);
   const [deadlineType, setDeadlineType] = useState('');
   const [startDate, setStartDate] = useState('');
   const [days, setDays] = useState('');
-  const [result, setResult] = useState<DeadlineResult | null>(null);
+  const [notificationRef, setNotificationRef] = useState('');
+  const [created, setCreated] = useState<DeadlineResult | null>(null);
+
+  // Preview en vivo (debounced) mientras se rellena, antes de crear nada.
+  const [debounced, setDebounced] = useState<{
+    deadlineType: string;
+    startDate: string;
+    days: number;
+  } | null>(null);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const d = Number(days);
+      setDebounced(
+        deadlineType.trim() && startDate && d > 0
+          ? { deadlineType: deadlineType.trim(), startDate, days: d }
+          : null,
+      );
+    }, 300);
+    return () => clearTimeout(id);
+  }, [deadlineType, startDate, days]);
+  const preview = useDeadlinePreview(created ? null : debounced);
+  const shown = created ?? preview.data ?? null;
+
+  function applyPreset(label: string) {
+    const p = presets.find((x) => x.label === label);
+    if (p) {
+      setDeadlineType(p.label);
+      setDays(String(p.days));
+    }
+  }
 
   function submit() {
     if (!deadlineType.trim() || !startDate || !days) return;
     fromDeadline.mutate(
-      { deadlineType: deadlineType.trim(), startDate, days: Number(days), matterId },
-      { onSuccess: (data) => setResult(data.deadline) },
+      {
+        deadlineType: deadlineType.trim(),
+        startDate,
+        days: Number(days),
+        matterId,
+        notificationRef: notificationRef.trim() || undefined,
+      },
+      { onSuccess: (data) => setCreated(data.deadline) },
     );
   }
 
   function close(o: boolean) {
     setOpen(o);
     if (!o) {
-      setResult(null);
+      setCreated(null);
       setDeadlineType('');
       setStartDate('');
       setDays('');
+      setNotificationRef('');
+      setDebounced(null);
     }
   }
 
@@ -272,11 +320,35 @@ function DeadlineDialog({ matterId }: { matterId?: string }) {
         >
           <div className="space-y-3">
             <div className="space-y-1.5">
+              <Label>{t('preset')}</Label>
+              <select
+                value=""
+                onChange={(e) => applyPreset(e.target.value)}
+                className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">{t('presetPlaceholder')}</option>
+                {presets.map((p) => (
+                  <option key={p.label} value={p.label}>
+                    {p.label} ({p.days} d)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="dl-type">{t('deadlineType')}</Label>
               <Input
                 id="dl-type"
                 value={deadlineType}
                 onChange={(e) => setDeadlineType(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="dl-ref">{t('notificationRef')}</Label>
+              <Input
+                id="dl-ref"
+                value={notificationRef}
+                onChange={(e) => setNotificationRef(e.target.value)}
+                placeholder={t('notificationRefPlaceholder')}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -300,16 +372,17 @@ function DeadlineDialog({ matterId }: { matterId?: string }) {
                 />
               </div>
             </div>
-            {result && (
+            {shown && (
               <div className="rounded-md border border-[var(--brand-line)] bg-[var(--brand-soft)] p-3 text-sm">
                 <div className="font-medium text-[var(--brand)]">
-                  {t('computed')}: {formatDate(result.dueDate, locale)}
+                  {t('computed')}: {formatDate(shown.dueDate, locale)}
                 </div>
-                {result.holidaysApplied && result.holidaysApplied.length > 0 && (
+                {shown.holidaysApplied && shown.holidaysApplied.length > 0 && (
                   <div className="mt-1 text-xs text-muted-foreground">
-                    {t('holidays')}: {result.holidaysApplied.length}
+                    {t('holidays')}: {shown.holidaysApplied.length}
                   </div>
                 )}
+                {created && <div className="mt-1 text-xs text-[var(--success)]">{t('saved')}</div>}
               </div>
             )}
             {fromDeadline.isError && (
@@ -322,7 +395,7 @@ function DeadlineDialog({ matterId }: { matterId?: string }) {
               disabled={fromDeadline.isPending || !deadlineType.trim() || !startDate || !days}
             >
               {fromDeadline.isPending && <Loader2 className="animate-spin" />}
-              {result ? t('createAnother') : t('compute')}
+              {created ? t('createAnother') : t('compute')}
             </Button>
           </DialogFooter>
         </form>

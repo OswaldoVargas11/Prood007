@@ -563,12 +563,17 @@
     "retry": "Reintentar",
     "empty": "No hay tareas para este filtro.",
     "fromDeadline": "Desde plazo",
-    "deadlineHelp": "La fecha límite la calcula la jurisdicción del despacho (días hábiles y festivos).",
+    "deadlineHelp": "Registra la notificación y la fecha límite la calcula la jurisdicción del despacho (días hábiles y festivos).",
     "deadlineType": "Tipo de plazo",
-    "startDate": "Fecha de inicio",
+    "preset": "Plazo común (rellena los días)",
+    "presetPlaceholder": "Elige un plazo…",
+    "notificationRef": "Referencia de la notificación (LexNET)",
+    "notificationRefPlaceholder": "Nº de notificación / acuse (opcional)",
+    "startDate": "Fecha de la notificación",
     "days": "Días",
     "computed": "Vencimiento calculado",
-    "holidays": "Festivos aplicados"
+    "holidays": "Festivos aplicados",
+    "saved": "Plazo registrado y guardado."
   },
   "retainer": {
     "subtitle": "Provisión de fondos del expediente: saldo, movimientos y cobros a cuenta.",
