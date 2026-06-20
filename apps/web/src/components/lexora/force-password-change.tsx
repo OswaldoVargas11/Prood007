@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { Link } from '@/i18n/navigation';
 import { ChangePasswordForm } from './change-password-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeToggle } from './theme-toggle';
@@ -14,7 +15,7 @@ import { ThemeToggle } from './theme-toggle';
  */
 export function ForcePasswordChange() {
   const t = useTranslations('security.force');
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-6">
@@ -40,6 +41,25 @@ export function ForcePasswordChange() {
         <CardContent>
           {/* `current` = la contraseña temporal que le facilitó el despacho. */}
           <ChangePasswordForm onSuccess={() => void refreshUser()} />
+          {/* Salida para quien no conoce la contraseña actual (p. ej. cuenta por invitación). */}
+          <div className="mt-4 space-y-2 border-t pt-4 text-center text-[12px] text-muted-foreground">
+            <p>
+              {t('forgotHint')}{' '}
+              <Link
+                href="/forgot-password"
+                className="font-medium text-[var(--brand)] hover:underline"
+              >
+                {t('forgotLink')}
+              </Link>
+            </p>
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="hover:text-foreground hover:underline"
+            >
+              {t('logout')}
+            </button>
+          </div>
         </CardContent>
       </Card>
     </main>

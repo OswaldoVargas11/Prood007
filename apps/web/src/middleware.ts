@@ -46,6 +46,17 @@ export default function middleware(req: NextRequest) {
     return intlMiddleware(req);
   }
 
+  // Recuperación de contraseña: accesible SIEMPRE (con o sin sesión, cualquier rol). Un enlace de reset
+  // NO debe rebotar a un usuario con sesión activa (p. ej. atrapado en "cambia tu contraseña").
+  if (
+    rest === '/forgot-password' ||
+    rest.startsWith('/forgot-password/') ||
+    rest === '/reset-password' ||
+    rest.startsWith('/reset-password/')
+  ) {
+    return intlMiddleware(req);
+  }
+
   const hasSession = req.cookies.has(SESSION_COOKIE);
   const scope = req.cookies.get(SCOPE_COOKIE)?.value;
   const isLogin = rest === '/login' || rest.startsWith('/login/');

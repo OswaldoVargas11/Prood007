@@ -807,7 +807,10 @@
     },
     "force": {
       "title": "Cambia tu contraseña",
-      "subtitle": "Por seguridad, debes establecer una contraseña propia antes de continuar."
+      "subtitle": "Por seguridad, debes establecer una contraseña propia antes de continuar.",
+      "forgotHint": "¿No conoces tu contraseña actual?",
+      "forgotLink": "Restablécela por correo",
+      "logout": "Cerrar sesión"
     },
     "mfa": {
       "title": "Verificación en dos pasos (2FA)",
