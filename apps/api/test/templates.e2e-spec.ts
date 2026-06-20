@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { SystemPrismaService } from '../src/prisma/prisma.service';
+import { renderTemplate } from '../src/templates/render';
 
 /**
  * E2E de plantillas de documento: CRUD, generación con sustitución de campos combinados en el
@@ -103,7 +104,7 @@ describe('Document templates (e2e)', () => {
     );
   });
 
-  it('genera un documento sustituyendo los campos en el expediente', async () => {
+  it('genera un documento (PDF con membrete) en el expediente', async () => {
     const gen = await request(app.getHttpServer())
       .post('/api/documents/from-template')
       .set(A())
@@ -116,10 +117,25 @@ describe('Document templates (e2e)', () => {
       .get(`/api/documents/versions/${versionId}/download`)
       .set(A())
       .expect(200);
-    const html = dl.text || dl.body.toString();
-    expect(html).toContain('Construcciones Demo SL');
-    expect(html).toContain('Despacho A');
-    expect(html).not.toContain('{{'); // no quedan marcadores sin sustituir
+    // El documento se entrega como PDF (no HTML pelado): cabecera %PDF y tamaño no trivial.
+    const out = dl.text || dl.body.toString();
+    expect(out.slice(0, 4)).toBe('%PDF');
+    expect(out.length).toBeGreaterThan(500);
+  });
+
+  it('renderTemplate sustituye los marcadores y no deja {{ }} sin resolver', () => {
+    const rendered = renderTemplate(
+      'Estimado {{cliente.nombre}}, exp. {{expediente.referencia}} de {{despacho.nombre}}. {{desconocido}}',
+      {
+        'cliente.nombre': 'Construcciones Demo SL',
+        'expediente.referencia': 'EXP-1',
+        'despacho.nombre': 'Despacho A',
+      },
+    );
+    expect(rendered).toContain('Construcciones Demo SL');
+    expect(rendered).toContain('Despacho A');
+    // Un marcador desconocido se sustituye por cadena vacía, sin dejar el `{{...}}`.
+    expect(rendered).not.toContain('{{');
   });
 
   it('aislamiento: el despacho B no ve la plantilla de A', async () => {
