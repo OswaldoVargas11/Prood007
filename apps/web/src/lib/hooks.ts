@@ -1094,7 +1094,9 @@ export function useMailStatus() {
   return useQuery({
     queryKey: ['mail-status'],
     queryFn: () =>
-      api.get<{ provider: 'google' | 'microsoft' | null }>('/integrations/mail/status'),
+      api.get<{ provider: 'google' | 'microsoft' | null; canAttach: boolean }>(
+        '/integrations/mail/status',
+      ),
   });
 }
 export function useMatterEmails(matterId: string) {

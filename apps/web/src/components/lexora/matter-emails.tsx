@@ -69,9 +69,11 @@ export function MatterEmails({
           <Mail className="size-4 text-muted-foreground" /> {t('title')}
         </h3>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setAttachOpen(true)}>
-            <Paperclip className="size-4" /> {t('attach')}
-          </Button>
+          {mstatus.data?.canAttach && (
+            <Button size="sm" variant="outline" onClick={() => setAttachOpen(true)}>
+              <Paperclip className="size-4" /> {t('attach')}
+            </Button>
+          )}
           <Button size="sm" onClick={() => setSendOpen(true)}>
             <Send className="size-4" /> {t('send')}
           </Button>

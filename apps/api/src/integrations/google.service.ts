@@ -8,14 +8,14 @@ import type { RequestUser } from '../auth/auth.types';
 
 const OPEN = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
 const PROVIDER = 'google';
-// Identidad + Calendar (eventos) + Gmail (enviar y leer para adjuntar al expediente). Nota: gmail.readonly
-// es scope "restringido" de Google → requiere verificación/usuarios de prueba; gmail.send es "sensible".
+// Identidad + Calendar (eventos) + Gmail SOLO enviar. Scopes "sensibles" (no restringidos) → la app se
+// puede publicar a coste 0 sin evaluación CASA. No se pide gmail.readonly (restringido): NO se lee la
+// bandeja en Gmail, así que "adjuntar de la bandeja" queda solo para Outlook (Mail.Read sí es gratis).
 const SCOPES = [
   'openid',
   'email',
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/gmail.readonly',
 ];
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';

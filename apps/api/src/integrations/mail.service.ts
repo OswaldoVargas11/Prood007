@@ -39,7 +39,17 @@ export class MailService {
   }
 
   async status(user: RequestUser) {
-    return { provider: await this.connectedProvider(user) };
+    const conn = await this.prisma.oAuthConnection.findMany({
+      where: { userId: user.userId, provider: { in: ['google', 'microsoft'] } },
+      orderBy: { updatedAt: 'desc' },
+      select: { provider: true, scopes: true },
+    });
+    const c = conn[0];
+    // ¿Puede LEER la bandeja para "adjuntar"? Gmail solo si tiene readonly (no por defecto); Outlook con Mail.Read.
+    const canAttach = Boolean(
+      c && (c.scopes.includes('gmail.readonly') || c.scopes.includes('Mail.Read')),
+    );
+    return { provider: (c?.provider as Provider) ?? null, canAttach };
   }
 
   async listRecent(user: RequestUser) {
