@@ -1,7 +1,9 @@
 'use client';
 
+import { useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
+import { Loader2, Upload } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import {
   usePortalDocuments,
@@ -9,6 +11,7 @@ import {
   usePortalMatter,
   usePortalRetainer,
   usePortalTasks,
+  useUploadPortalDocument,
 } from '@/lib/hooks';
 import { docStatusVariant } from '@/lib/doc-status';
 import { taskStatusVariant } from '@/lib/task-status';
@@ -17,6 +20,7 @@ import { formatDate, formatMoney } from '@/lib/format';
 import { StatusBadge } from '@/components/lexora/status-badge';
 import { ChatTab } from '@/components/lexora/chat-tab';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -92,27 +96,56 @@ export default function PortalMatterPage() {
 
 function PortalDocuments({ matterId }: { matterId: string }) {
   const t = useTranslations('documents');
+  const tp = useTranslations('portal');
   const tStatus = useTranslations('documents.status');
   const { data, isLoading } = usePortalDocuments(matterId);
-  if (isLoading) return <Skeleton className="h-24 w-full" />;
-  if (!data || data.length === 0) return <Empty>{t('empty')}</Empty>;
+  const upload = useUploadPortalDocument(matterId);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) await upload.mutateAsync({ file });
+  }
+
   return (
-    <div className="space-y-2">
-      {data.map((doc) => (
-        <Card key={doc.id}>
-          <CardContent className="flex items-center gap-3 p-4">
-            <span className="font-medium">{doc.name}</span>
-            {doc.versions[0] && (
-              <Badge variant={docStatusVariant(doc.versions[0].reviewStatus)}>
-                {tStatus(doc.versions[0].reviewStatus)}
-              </Badge>
-            )}
-            <span className="ml-auto text-xs text-muted-foreground">
-              {doc.versions.length} {t('newVersion')}
-            </span>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-[12.5px] text-muted-foreground">{tp('uploadHint')}</p>
+        <input ref={fileRef} type="file" className="hidden" onChange={onFile} />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => fileRef.current?.click()}
+          disabled={upload.isPending}
+        >
+          {upload.isPending ? <Loader2 className="animate-spin" /> : <Upload />}
+          {tp('upload')}
+        </Button>
+      </div>
+      {isLoading ? (
+        <Skeleton className="h-24 w-full" />
+      ) : !data || data.length === 0 ? (
+        <Empty>{tp('docsEmpty')}</Empty>
+      ) : (
+        <div className="space-y-2">
+          {data.map((doc) => (
+            <Card key={doc.id}>
+              <CardContent className="flex items-center gap-3 p-4">
+                <span className="font-medium">{doc.name}</span>
+                {doc.versions[0] && (
+                  <Badge variant={docStatusVariant(doc.versions[0].reviewStatus)}>
+                    {tStatus(doc.versions[0].reviewStatus)}
+                  </Badge>
+                )}
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {doc.versions.length} {t('newVersion')}
+                </span>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

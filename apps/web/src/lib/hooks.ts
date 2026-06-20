@@ -964,6 +964,20 @@ export function usePortalDocuments(id: string) {
     enabled: Boolean(id),
   });
 }
+/** El cliente sube un documento a su propio expediente desde el portal. */
+export function useUploadPortalDocument(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ file, name }: { file: File; name?: string }) => {
+      const form = new FormData();
+      form.append('file', file);
+      if (name) form.append('name', name);
+      return api.upload<MatterDocument>(`/portal/matters/${matterId}/documents`, form);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['portal', 'documents', matterId] }),
+    meta: { successToast: toastMsg.documentUploaded },
+  });
+}
 export function usePortalLedger(id: string) {
   return useQuery({
     queryKey: ['portal', 'ledger', id],

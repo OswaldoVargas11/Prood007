@@ -1,10 +1,31 @@
-import { Controller, Get, Param, Post, StreamableFile } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Role } from '@legalflow/domain';
 import { PortalService } from './portal.service';
 import { pdfStream } from '../common/pdf-response';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
+
+// Tipo mínimo del archivo subido por Multer.
+interface MulterFile {
+  originalname: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+}
+
+/** Límite de subida del cliente: 25 MB (igual que el staff). */
+const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 /** Portal del cliente: solo el rol CLIENT, solo lectura, solo sus propios expedientes. */
 @Roles(Role.CLIENT)
@@ -30,6 +51,18 @@ export class PortalController {
   @Get('matters/:id/documents')
   documents(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.portal.listDocuments(user, id);
+  }
+
+  /** El cliente sube un documento a su propio expediente (queda pendiente de revisión del despacho). */
+  @Post('matters/:id/documents')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } }))
+  uploadDocument(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @UploadedFile() file: MulterFile,
+    @Body('name') name?: string,
+  ) {
+    return this.portal.uploadDocument(user, id, name, file);
   }
 
   @Get('matters/:id/ledger')

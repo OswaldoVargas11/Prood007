@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { RetainerService } from '../retainer/retainer.service';
 import { PaymentsService } from '../payments/payments.service';
+import { DocumentsService } from '../documents/documents.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { assertMatterAccess } from '../messages/matter-access';
 import { apiError } from '../common/api-messages';
 import { buildInvoicePdf, invoiceRowToPdfData } from '../ledger/invoice-pdf';
@@ -21,6 +23,8 @@ export class PortalService {
     private readonly ledger: LedgerService,
     private readonly retainer: RetainerService,
     private readonly payments: PaymentsService,
+    private readonly documents: DocumentsService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async myClient(user: RequestUser) {
@@ -60,6 +64,36 @@ export class PortalService {
         },
       },
     });
+  }
+
+  /**
+   * El cliente SUBE un documento a su propio expediente (DNI, contrato…). Acotado por
+   * `assertMatterAccess` (solo sus expedientes); el documento nace PENDING de revisión y se avisa al
+   * letrado responsable. Reutiliza el pipeline cifrado de `DocumentsService.upload`.
+   */
+  async uploadDocument(
+    user: RequestUser,
+    matterId: string,
+    name: string | undefined,
+    file?: { originalname: string; mimetype: string; size: number; buffer: Buffer },
+  ) {
+    await assertMatterAccess(this.prisma, user, matterId);
+    const result = await this.documents.upload(user, matterId, name, file);
+    const matter = await this.prisma.matter.findFirst({
+      where: { id: matterId, tenantId: user.tenantId },
+      select: { lawyerId: true, reference: true },
+    });
+    if (matter?.lawyerId) {
+      await this.notifications.create({
+        tenantId: user.tenantId,
+        userId: matter.lawyerId,
+        type: 'document.client_uploaded',
+        title: 'El cliente subió un documento',
+        body: `${result.document.name} · ${matter.reference}`,
+        data: { matterId, documentId: result.document.id },
+      });
+    }
+    return result;
   }
 
   async ledgerView(user: RequestUser, matterId: string) {
