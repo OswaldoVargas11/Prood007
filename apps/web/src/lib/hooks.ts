@@ -36,6 +36,8 @@ import type {
   InvoiceListItem,
   InvoicePreview,
   InvoiceStatus,
+  Lead,
+  LeadStatus,
   LedgerEntryType,
   Matter,
   MatterDetail,
@@ -947,6 +949,72 @@ export function useImportClientsCommit() {
   return useMutation({
     mutationFn: (csv: string) => api.post<ImportResult>('/import/clients/commit', { csv }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
+  });
+}
+
+// ── Captación / mini-CRM (leads) ──────────────────────────────────────────────
+export function useLeads(status?: LeadStatus) {
+  return useQuery({
+    queryKey: ['leads', status ?? 'all'],
+    queryFn: () => api.get<Lead[]>(`/leads${status ? `?status=${status}` : ''}`),
+  });
+}
+export function useCreateLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      name: string;
+      email?: string;
+      phone?: string;
+      company?: string;
+      subject?: string;
+      notes?: string;
+      estimatedValue?: string;
+    }) => api.post<Lead>('/leads', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['leads'] }),
+    meta: { successToast: toastMsg.leadCreated },
+  });
+}
+export function useUpdateLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; status?: LeadStatus; notes?: string }) =>
+      api.patch<Lead>(`/leads/${id}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['leads'] }),
+  });
+}
+export function useConvertLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      taxId: string;
+      docType?: 'PASSPORT' | 'OTHER';
+      createMatter?: boolean;
+      matterTitle?: string;
+      matterType?: string;
+    }) => api.post<{ clientId: string; matterId?: string }>(`/leads/${id}/convert`, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['leads'] });
+      void qc.invalidateQueries({ queryKey: ['clients'] });
+      void qc.invalidateQueries({ queryKey: ['matters'] });
+    },
+  });
+}
+export function useDeleteLead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del(`/leads/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['leads'] }),
+  });
+}
+export function useIntakeLink() {
+  return useQuery({
+    queryKey: ['intake-link'],
+    queryFn: () => api.get<{ token: string }>('/leads/intake-link'),
   });
 }
 

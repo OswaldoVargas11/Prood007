@@ -5,6 +5,7 @@
   },
   "nav": {
     "dashboard": "Panel",
+    "leads": "Captación",
     "matters": "Expedientes",
     "clients": "Clientes",
     "documents": "Documentos",
@@ -791,6 +792,60 @@
       "subtitle": "Por seguridad, debes establecer una contraseña propia antes de continuar."
     }
   },
+  "leads": {
+    "title": "Captación",
+    "subtitle": "Embudo de prospectos: captura, cualifica y convierte en clientes.",
+    "loadError": "No se pudieron cargar los prospectos.",
+    "new": "Nuevo prospecto",
+    "newTitle": "Nuevo prospecto",
+    "shareIntake": "Enlace de captación",
+    "intakeLinkPending": "Aún no hay enlace; vuelve a intentarlo en un momento.",
+    "emptyColumn": "Sin prospectos",
+    "sourceIntake": "Web",
+    "sourceManual": "Manual",
+    "status": {
+      "NEW": "Nuevos",
+      "CONTACTED": "Contactados",
+      "QUALIFIED": "Cualificados",
+      "CONVERTED": "Convertidos",
+      "LOST": "Descartados"
+    },
+    "convert": "Convertir",
+    "discard": "Descartar",
+    "delete": "Eliminar",
+    "viewClient": "Ver cliente",
+    "name": "Nombre",
+    "email": "Email",
+    "phone": "Teléfono",
+    "subjectField": "Asunto / consulta",
+    "cancel": "Cancelar",
+    "create": "Añadir",
+    "convertTitle": "Convertir a {name} en cliente",
+    "convertDesc": "Indica su identificación fiscal (o documento) para crear el cliente.",
+    "convertError": "No se pudo convertir el prospecto.",
+    "docType": "Tipo",
+    "docFiscal": "Fiscal",
+    "docPassport": "Pasaporte",
+    "docOther": "Otro",
+    "taxId": "Documento",
+    "createMatter": "Crear también un expediente",
+    "matterTitle": "Título del expediente"
+  },
+  "intake": {
+    "title": "Contacta con {firm}",
+    "subtitle": "Cuéntanos tu caso y te responderemos lo antes posible.",
+    "notFound": "Este formulario no está disponible.",
+    "name": "Tu nombre",
+    "email": "Email",
+    "phone": "Teléfono",
+    "subjectField": "¿En qué podemos ayudarte?",
+    "subjectPlaceholder": "Describe brevemente tu consulta…",
+    "send": "Enviar",
+    "error": "No se pudo enviar. Inténtalo de nuevo.",
+    "privacy": "Tus datos se usarán solo para atender tu consulta.",
+    "thanksTitle": "¡Gracias!",
+    "thanksBody": "Hemos recibido tu consulta. {firm} se pondrá en contacto contigo."
+  },
   "import": {
     "title": "Importar clientes",
     "subtitle": "Migra tus clientes desde un CSV (p. ej. exportado de Excel u otro programa).",
@@ -1038,7 +1093,10 @@
     "depositRecorded": "Provisión registrada",
     "timeLogged": "Tiempo registrado",
     "portalCreated": "Acceso al portal creado",
-    "dunningRun": "Recordatorios de cobro enviados"
+    "dunningRun": "Recordatorios de cobro enviados",
+    "leadCreated": "Prospecto añadido",
+    "leadConverted": "Prospecto convertido en cliente",
+    "intakeLinkCopied": "Enlace de captación copiado"
   },
   "kyc": {
     "title": "KYC / Prevención de blanqueo",

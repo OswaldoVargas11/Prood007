@@ -51,7 +51,9 @@ export default function middleware(req: NextRequest) {
     rest.startsWith('/forgot-password/') ||
     rest === '/reset-password' ||
     rest.startsWith('/reset-password/');
-  const isPublic = isLogin || isOnboarding || isRecovery;
+  // Formulario público de captación (intake) del despacho: accesible sin sesión.
+  const isIntake = rest === '/intake' || rest.startsWith('/intake/');
+  const isPublic = isLogin || isOnboarding || isRecovery || isIntake;
   const isPortal = rest === '/portal' || rest.startsWith('/portal/');
   const home = scope === 'client' ? 'portal' : 'dashboard';
 

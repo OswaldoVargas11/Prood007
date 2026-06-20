@@ -15,6 +15,7 @@ import {
   ScrollText,
   Settings,
   ShieldCheck,
+  Target,
   Upload,
   Users,
   type LucideIcon,
@@ -47,6 +48,7 @@ export const NAV_GROUPS: NavGroup[] = [
     key: 'workspace',
     items: [
       { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard, enabled: true },
+      { key: 'leads', href: '/leads', icon: Target, enabled: true },
       { key: 'matters', href: '/matters', icon: Briefcase, enabled: true },
       { key: 'clients', href: '/clients', icon: Users, enabled: true },
       { key: 'tasks', href: '/tasks', icon: CheckSquare, enabled: true },

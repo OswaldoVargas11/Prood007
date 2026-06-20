@@ -130,6 +130,25 @@ export interface ImportResult {
   failed: { line: number; message: string }[];
 }
 
+/** Captación / mini-CRM. */
+export type LeadStatus = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'CONVERTED' | 'LOST';
+export interface Lead {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  company: string | null;
+  subject: string | null;
+  notes: string | null;
+  source: string;
+  status: LeadStatus;
+  estimatedValue: string | null;
+  convertedClientId: string | null;
+  convertedMatterId: string | null;
+  createdAt: string;
+  assignedTo?: { id: string; fullName: string } | null;
+}
+
 export interface Message {
   id: string;
   matterId: string;

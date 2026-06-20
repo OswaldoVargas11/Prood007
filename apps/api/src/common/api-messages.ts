@@ -105,6 +105,20 @@ export const API_MESSAGES = {
     'es-ES': 'Documento no válido. Usa de 5 a 20 caracteres (letras y números).',
     'es-DO': 'Documento no válido. Usa de 5 a 20 caracteres (letras y números).',
   },
+
+  // ── Captación / CRM ─────────────────────────────────────────────────────────
+  'leads.notFound': {
+    'es-ES': 'Prospecto no encontrado.',
+    'es-DO': 'Prospecto no encontrado.',
+  },
+  'leads.alreadyConverted': {
+    'es-ES': 'Este prospecto ya fue convertido en cliente.',
+    'es-DO': 'Este prospecto ya fue convertido en cliente.',
+  },
+  'leads.intakeNotFound': {
+    'es-ES': 'Formulario de captación no disponible.',
+    'es-DO': 'Formulario de captación no disponible.',
+  },
   'clients.notFound': {
     'es-ES': 'Cliente no encontrado.',
     'es-DO': 'Cliente no encontrado.',

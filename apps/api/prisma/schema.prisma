@@ -247,6 +247,8 @@ model Tenant {
   // (distinto de stripeAccountId, que es su cuenta Connect para cobrar a SUS clientes).
   stripeCustomerId      String?
   stripeSubscriptionId  String?
+  // Captación (CRM): token público del formulario de intake del despacho. Vacío hasta generarlo en Ajustes.
+  intakeToken           String?      @unique
   createdAt             DateTime     @default(now())
   updatedAt             DateTime     @updatedAt
 
@@ -272,6 +274,7 @@ model Tenant {
   messages            Message[]
   auditLogs           AuditLog[]
   signatureRequests   SignatureRequest[]
+  leads               Lead[]
 }
 
 model User {
@@ -304,6 +307,7 @@ model User {
   uploadedVersions   DocumentVersion[] @relation("VersionUploader")
   reviews            DocumentReview[]
   messages           Message[]
+  assignedLeads      Lead[]            @relation("LeadAssignee")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -1045,5 +1049,36 @@ model AuditLog {
 
   @@index([tenantId])
   @@index([tenantId, entityType, entityId])
+  @@index([tenantId, createdAt])
+}
+
+// Captación / mini-CRM: prospecto (lead) en el embudo del despacho. Se crea desde el formulario público
+// de intake o a mano; al CONVERTIR se crea su Cliente (y opcionalmente Expediente) y se enlaza aquí.
+model Lead {
+  id                String    @id @default(cuid())
+  tenantId          String
+  name              String
+  email             String?
+  phone             String?
+  company           String?
+  // Asunto/consulta del prospecto y notas internas.
+  subject           String?
+  notes             String?
+  // Origen: "intake" (formulario público) | "manual" | "referido" | "web"...
+  source            String    @default("manual")
+  // Embudo: NEW | CONTACTED | QUALIFIED | CONVERTED | LOST (ver LeadStatus en @legalflow/domain).
+  status            String    @default("NEW")
+  estimatedValue    Decimal?  @db.Decimal(18, 2)
+  assignedToId      String?
+  // Trazabilidad de conversión.
+  convertedClientId String?
+  convertedMatterId String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedTo User?  @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
   @@index([tenantId, createdAt])
 }
