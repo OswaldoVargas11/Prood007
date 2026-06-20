@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Param, Post, Query, StreamableFile } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Role } from '@legalflow/domain';
 import { LedgerService } from './ledger.service';
 import { pdfStream } from '../common/pdf-response';
@@ -14,16 +25,39 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 
+// Tipo mínimo del archivo subido por Multer (justificante del gasto).
+interface MulterFile {
+  originalname: string;
+  mimetype: string;
+  size: number;
+  buffer: Buffer;
+}
+
+/** Límite del justificante: 10 MB. */
+const MAX_RECEIPT_BYTES = 10 * 1024 * 1024;
+
 @Roles(Role.FIRM_ADMIN, Role.LAWYER)
 @Controller('ledger')
 export class LedgerController {
   constructor(private readonly ledger: LedgerService) {}
 
   // ── Aprobación de costes ──────────────────────────────────────────────
-  /** Un letrado o admin propone un coste pendiente de aprobación. */
+  /** Un letrado o admin propone un coste pendiente de aprobación, con justificante opcional. */
   @Post('costs/propose')
-  proposeCost(@CurrentUser() user: RequestUser, @Body() dto: ProposeCostDto) {
-    return this.ledger.proposeCost(user, dto);
+  @UseInterceptors(FileInterceptor('receipt', { limits: { fileSize: MAX_RECEIPT_BYTES } }))
+  proposeCost(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: ProposeCostDto,
+    @UploadedFile() receipt?: MulterFile,
+  ) {
+    return this.ledger.proposeCost(user, dto, receipt);
+  }
+
+  /** Descarga/visualización del justificante de un suplido. */
+  @Get('costs/:id/receipt')
+  async receipt(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    const { buffer, mime, name } = await this.ledger.getReceipt(user, id);
+    return new StreamableFile(buffer, { type: mime, disposition: `inline; filename="${name}"` });
   }
 
   /** Costes propuestos pendientes (solo admin). */

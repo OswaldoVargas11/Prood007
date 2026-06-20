@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { FileText, Loader2, Plus, Trash2 } from 'lucide-react';
+import { FileText, Loader2, Paperclip, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from '@/i18n/navigation';
 import { useAuth } from '@/lib/auth';
 import {
+  openReceipt,
   useAddLedgerEntry,
   useAddTimeEntry,
   useCreateInvoice,
@@ -109,6 +110,15 @@ export function CostsTab({ matterId }: { matterId: string }) {
                         <InvoiceLink invoiceId={e.invoiceId} label={e.description} />
                       ) : (
                         e.description
+                      )}
+                      {e.hasReceipt && (
+                        <button
+                          type="button"
+                          onClick={() => openReceipt(e.id)}
+                          className="ml-2 inline-flex items-center gap-1 align-middle text-[11px] font-medium text-[var(--brand)] hover:underline"
+                        >
+                          <Paperclip className="size-3" /> {t('receipt')}
+                        </button>
                       )}
                     </td>
                     <td

@@ -226,6 +226,32 @@ describe('Tanda B — usuarios/licencia, ajustes, auditoría, aprobaciones (e2e)
     expect(ledger.body.balance).toBe('-100.00'); // suplido aprobado resta saldo
   });
 
+  it('un coste con justificante adjunto se guarda (hasReceipt) y se puede descargar', async () => {
+    const prop = await request(app.getHttpServer())
+      .post('/api/ledger/costs/propose')
+      .set(auth(lawyerToken))
+      .field('matterId', matterId)
+      .field('description', 'Tasa con ticket')
+      .field('amount', '50.00')
+      .attach('receipt', Buffer.from('datos-del-ticket'), 'ticket.png')
+      .expect(201);
+    const id = prop.body.id;
+
+    const ledger = await request(app.getHttpServer())
+      .get(`/api/ledger/matter/${matterId}`)
+      .set(auth(adminToken))
+      .expect(200);
+    const entry = ledger.body.entries.find((e: { id: string }) => e.id === id);
+    expect(entry.hasReceipt).toBe(true);
+    expect(entry.receiptKey).toBeUndefined(); // la clave de almacenamiento NO se expone
+
+    const receipt = await request(app.getHttpServer())
+      .get(`/api/ledger/costs/${id}/receipt`)
+      .set(auth(adminToken))
+      .expect(200);
+    expect(receipt.headers['content-type']).toContain('image/png');
+  });
+
   it('rechazar un coste propuesto no afecta al saldo', async () => {
     const prop = await request(app.getHttpServer())
       .post('/api/ledger/costs/propose')

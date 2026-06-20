@@ -313,6 +313,7 @@
       "propose": "Proponer coste",
       "proposeConcept": "Concepto del coste…",
       "proposeAmount": "Importe",
+      "proposeReceipt": "Adjuntar justificante (foto/PDF)",
       "proposeCancel": "Cancelar",
       "proposeSend": "Proponer",
       "proposeSent": "Coste propuesto. Pendiente de aprobación.",
@@ -656,6 +657,7 @@
   "billing": {
     "subtitle": "Ledger transparente del expediente y facturación.",
     "balance": "Saldo",
+    "receipt": "Justificante",
     "loadError": "No se pudo cargar el ledger",
     "invoiceLoadError": "No se pudo cargar la factura",
     "retry": "Reintentar",

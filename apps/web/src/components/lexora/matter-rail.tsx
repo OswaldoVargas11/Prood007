@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Loader2, Pause, Play, ReceiptText } from 'lucide-react';
+import { Loader2, Paperclip, Pause, Play, ReceiptText } from 'lucide-react';
 import { useAddTimeEntry, useMatterLedger, useProposeCost, useTasks } from '@/lib/hooks';
 import { ApiError } from '@/lib/api';
 import { daysUntil, deadlineUrgency, URGENCY_COLOR } from '@/lib/calendar';
@@ -33,6 +33,7 @@ function ProposeCostCard({ matterId }: { matterId: string }) {
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
@@ -41,9 +42,10 @@ function ProposeCostCard({ matterId }: { matterId: string }) {
   async function submit() {
     setError(null);
     try {
-      await propose.mutateAsync({ description: description.trim(), amount });
+      await propose.mutateAsync({ description: description.trim(), amount, file });
       setDescription('');
       setAmount('');
+      setFile(null);
       setOpen(false);
       setDone(true);
     } catch (e) {
@@ -88,6 +90,17 @@ function ProposeCostCard({ matterId }: { matterId: string }) {
             placeholder={t('proposeAmount')}
             className="h-9 w-full rounded-[10px] border bg-[var(--surface-1)] px-3 text-[12.5px] tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
+          <label className="flex cursor-pointer items-center gap-2 rounded-[10px] border border-dashed px-3 py-2 text-[12px] text-muted-foreground transition-colors hover:text-foreground">
+            <Paperclip className="size-3.5" />
+            <span className="flex-1 truncate">{file ? file.name : t('proposeReceipt')}</span>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
           {error && <p className="text-[11px] text-[var(--danger)]">{error}</p>}
           <div className="flex gap-2">
             <button

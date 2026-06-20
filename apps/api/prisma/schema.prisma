@@ -711,6 +711,10 @@ model LedgerEntry {
   resolvedById   String?
   // Nota del proponente o del que resuelve.
   approvalNote   String?
+  // Justificante del gasto (foto del ticket/tasa): clave en el StorageProvider + metadatos. Nullable.
+  receiptKey     String?
+  receiptName    String?
+  receiptMime    String?
   occurredAt     DateTime        @default(now())
   createdAt      DateTime        @default(now())
 

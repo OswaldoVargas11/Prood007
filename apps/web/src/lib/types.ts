@@ -219,6 +219,9 @@ export interface LedgerEntry {
   approvalStatus: ApprovalStatus;
   occurredAt: string;
   createdAt: string;
+  /** Hay justificante (foto del ticket/tasa) adjunto al suplido. */
+  hasReceipt?: boolean;
+  receiptName?: string | null;
 }
 
 export interface MatterLedger {

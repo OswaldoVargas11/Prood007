@@ -321,6 +321,10 @@ export const API_MESSAGES = {
     'es-ES': 'Apunte no encontrado.',
     'es-DO': 'Apunte no encontrado.',
   },
+  'ledger.receiptNotFound': {
+    'es-ES': 'Este apunte no tiene justificante.',
+    'es-DO': 'Este apunte no tiene justificante.',
+  },
   'ledger.costAlreadyResolved': {
     'es-ES': 'Este coste ya fue resuelto.',
     'es-DO': 'Este coste ya fue resuelto.',

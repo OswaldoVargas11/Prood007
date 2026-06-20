@@ -1512,14 +1512,35 @@ export function useApprovals() {
 export function useProposeCost(matterId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { description: string; amount: string; note?: string }) =>
-      api.post('/ledger/costs/propose', { ...body, matterId }),
+    // Multipart: además del coste, un justificante opcional (foto del ticket/tasa).
+    mutationFn: (body: {
+      description: string;
+      amount: string;
+      note?: string;
+      file?: File | null;
+    }) => {
+      const form = new FormData();
+      form.append('matterId', matterId);
+      form.append('description', body.description);
+      form.append('amount', body.amount);
+      if (body.note) form.append('note', body.note);
+      if (body.file) form.append('receipt', body.file);
+      return api.upload('/ledger/costs/propose', form);
+    },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['ledger', matterId] });
       void qc.invalidateQueries({ queryKey: ['approvals'] });
     },
     meta: { successToast: toastMsg.costProposed },
   });
+}
+
+/** Abre el justificante de un suplido en una pestaña nueva (descarga con auth → object URL). */
+export async function openReceipt(entryId: string): Promise<void> {
+  const blob = await api.download(`/ledger/costs/${entryId}/receipt`);
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener');
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 export function useResolveCost() {

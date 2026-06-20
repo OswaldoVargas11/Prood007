@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type Currency } from '@prisma/client';
 import {
   ApprovalStatus,
@@ -6,7 +6,9 @@ import {
   InvoiceStatus,
   LedgerEntryType,
   RectificationMode,
+  STORAGE_PROVIDER,
 } from '@legalflow/domain';
+import type { StorageProvider } from '@legalflow/domain';
 import { InvoiceRecord, round2 } from '@legalflow/compliance';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
@@ -59,6 +61,7 @@ export class LedgerService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly payments: PaymentsService,
+    @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
   ) {}
 
   private async getMatterOrThrow(user: RequestUser, matterId: string) {
@@ -215,7 +218,26 @@ export class LedgerService {
       matterId,
       currency: matter.tenant.currency,
       balance: round2(balance).toFixed(2),
-      entries,
+      // No exponemos la clave de almacenamiento; solo si hay justificante y su nombre.
+      entries: entries.map(({ receiptKey, receiptMime, ...e }) => ({
+        ...e,
+        hasReceipt: Boolean(receiptKey),
+      })),
+    };
+  }
+
+  /** Descarga del justificante de un suplido (acotado al tenant). Lanza 404 si no hay. */
+  async getReceipt(user: RequestUser, entryId: string) {
+    const entry = await this.prisma.ledgerEntry.findFirst({
+      where: { id: entryId, tenantId: user.tenantId },
+      select: { receiptKey: true, receiptName: true, receiptMime: true },
+    });
+    if (!entry?.receiptKey) throw new NotFoundException(apiError('ledger.receiptNotFound'));
+    const buffer = await this.storage.get(entry.receiptKey);
+    return {
+      buffer,
+      mime: entry.receiptMime ?? 'application/octet-stream',
+      name: entry.receiptName ?? 'justificante',
     };
   }
 
@@ -500,7 +522,11 @@ export class LedgerService {
 
   // ── Aprobación de costes ─────────────────────────────────────────────────
   /** Un letrado (o admin) propone un coste (suplido). Nace PROPOSED: no afecta al saldo hasta aprobarse. */
-  async proposeCost(user: RequestUser, dto: ProposeCostDto) {
+  async proposeCost(
+    user: RequestUser,
+    dto: ProposeCostDto,
+    receipt?: { originalname: string; mimetype: string; size: number; buffer: Buffer },
+  ) {
     const amount = Number(dto.amount);
     if (!(amount > 0)) throw new BadRequestException(apiError('ledger.amountPositive'));
     const matter = await this.getMatterOrThrow(user, dto.matterId);
@@ -518,9 +544,19 @@ export class LedgerService {
         approvalNote: dto.note,
       },
     });
+    // Justificante opcional (foto del ticket/tasa): se guarda en el StorageProvider y se enlaza al apunte.
+    if (receipt?.buffer?.length) {
+      const key = `${user.tenantId}/receipts/${entry.id}/${receipt.originalname}`;
+      await this.storage.put(key, receipt.buffer, receipt.mimetype);
+      await this.prisma.ledgerEntry.update({
+        where: { id: entry.id },
+        data: { receiptKey: key, receiptName: receipt.originalname, receiptMime: receipt.mimetype },
+      });
+    }
     await this.audit.log(user, 'cost.proposed', 'LedgerEntry', entry.id, {
       matterId: matter.id,
       amount: dto.amount,
+      receipt: Boolean(receipt?.buffer?.length),
     });
     // Avisa a los administradores del despacho de que hay un coste pendiente de aprobar.
     await this.notifyAdmins(user.tenantId, {
