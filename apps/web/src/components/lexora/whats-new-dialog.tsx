@@ -91,6 +91,22 @@ export function WhatsNewDialog() {
                   </li>
                 ))}
               </ul>
+              {/* Correcciones contadas en superficie. */}
+              {r.fixes && r.fixes.length > 0 && (
+                <div className="space-y-1 pt-1">
+                  <div className="text-[12px] font-medium text-muted-foreground">
+                    {t('fixesTitle')}
+                  </div>
+                  <ul className="space-y-1 text-[13px] text-muted-foreground">
+                    {r.fixes.map((f, i) => (
+                      <li key={i} className="flex gap-2">
+                        <span>·</span>
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {/* Cambios técnicos resumidos en una línea (no se detallan al usuario). */}
               {r.improvements && (
                 <p className="text-[13px] text-muted-foreground">{r.improvements}</p>

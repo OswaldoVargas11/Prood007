@@ -1,6 +1,6 @@
 {
   "name": "legalflow",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "LegalFlow — SaaS de gestión legal multi-jurisdicción (ES/DO). Núcleo agnóstico + adaptadores de cumplimiento.",
   "engines": {

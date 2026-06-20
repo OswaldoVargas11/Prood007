@@ -6,10 +6,10 @@
  * package.json) en cada entrega. Las notas van en español (la app es es-ES/es-DO).
  *
  * CONVENCIÓN para el usuario final: `highlights` = SOLO cambios de EXPERIENCIA DE USUARIO (lo que el
- * usuario nota y le importa). Los cambios técnicos (seguridad, refactors, fixes internos, tests) NO se
- * detallan: se resumen en una sola línea genérica `improvements` ("Mejoras y correcciones…").
+ * usuario nota y le importa). `fixes` = correcciones de errores contadas EN SUPERFICIE (qué se arregló,
+ * sin tecnicismos). Los cambios puramente técnicos (refactors, tests) se resumen en `improvements`.
  */
-export const CURRENT_VERSION = '0.2.0';
+export const CURRENT_VERSION = '0.3.0';
 
 export interface Release {
   version: string;
@@ -17,11 +17,32 @@ export interface Release {
   date: string;
   /** Cambios de EXPERIENCIA DE USUARIO (visibles y relevantes para el usuario). */
   highlights: string[];
-  /** Resumen genérico de cambios TÉCNICOS (seguridad/bugs/mejoras internas). No detallar. */
+  /** Correcciones de errores, en superficie (qué se arregló, sin detalle técnico). */
+  fixes?: string[];
+  /** Resumen genérico de cambios TÉCNICOS (seguridad/mejoras internas). No detallar. */
   improvements?: string;
 }
 
 export const RELEASES: Release[] = [
+  {
+    version: '0.3.0',
+    date: '2026-06-20',
+    highlights: [
+      'Agenda y correo conectados: sincroniza tus plazos con Google Calendar y Outlook, y envía o archiva correos directamente en cada expediente.',
+      'Importa tu cartera de clientes desde un archivo, sin darlos de alta uno a uno.',
+      'Captación de clientes: embudo de prospectos y un formulario público para captar desde tu web.',
+      'Rentabilidad por expediente: horas, coste, margen y % de cobro; con tarifas por letrado y presupuesto por expediente.',
+      'Más seguridad para tu cuenta: verificación en dos pasos (2FA) e inicio de sesión con Google o Microsoft.',
+      'Plazas flexibles: añade o quita usuarios cuando quieras; al añadir, solo se cobra la parte proporcional del periodo.',
+      'Correos con nuevo diseño y aviso de bienvenida al crear una cuenta; confirmación del correo al registrarte.',
+    ],
+    fixes: [
+      'El restablecimiento de contraseña vuelve a funcionar y los correos (recuperación, invitaciones…) ahora llegan correctamente.',
+      'Arreglada la pantalla de inicio de sesión y un caso en el que el enlace de restablecer dejaba la cuenta atascada.',
+      'Los importes en distintas monedas y las facturas según jurisdicción se muestran correctamente.',
+    ],
+    improvements: 'Mejoras de rendimiento, accesibilidad y actualizaciones de seguridad.',
+  },
   {
     version: '0.2.0',
     date: '2026-06-19',

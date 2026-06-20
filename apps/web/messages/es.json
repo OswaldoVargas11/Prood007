@@ -1275,6 +1275,7 @@
   "whatsNew": {
     "title": "Novedades",
     "subtitle": "Versión {version} — esto es lo nuevo:",
+    "fixesTitle": "Correcciones",
     "gotIt": "Entendido"
   },
   "subscription": {
