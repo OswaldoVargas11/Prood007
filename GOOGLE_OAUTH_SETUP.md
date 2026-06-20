@@ -17,21 +17,30 @@ Esto lo tienes que hacer **tú** (Anthropic/Claude no puede crear apps en Google
 
 1. **APIs y servicios → Pantalla de consentimiento OAuth** → tipo **Externo**.
 2. Nombre de la app: `Lawzora`. Correo de asistencia y de contacto: el tuyo.
-3. **Scopes** (permisos) — añade:
+3. **Scopes** (permisos) — añade SOLO estos (todos _sensibles_, ninguno restringido):
    - `openid`, `email`
    - `https://www.googleapis.com/auth/calendar.events`
    - `https://www.googleapis.com/auth/gmail.send`
-   - `https://www.googleapis.com/auth/gmail.readonly`
-4. Deja la app en modo **"Pruebas" (Testing)** y añade como **usuarios de prueba**
-   los correos de los despachos que vayan a usarlo (hasta 100). En este modo
-   funciona ya, sin esperar a la verificación de Google.
 
-> ⚠️ **Importante sobre `gmail.readonly`**: es un scope _restringido_ de Google.
-> Para producción abierta (más de 100 usuarios) Google exige verificación de la app
-> y una evaluación de seguridad (CASA). Para el piloto/demo basta el modo "Pruebas"
-> con usuarios de prueba. `calendar.events` y `gmail.send` son _sensibles_ (solo
-> requieren verificación, sin evaluación de seguridad). Verás un aviso de "app no
-> verificada" que los usuarios de prueba pueden saltar con "Continuar".
+> ✅ **Coste 0**: la app NO usa `gmail.readonly` (scope _restringido_ que exigiría la
+> evaluación CASA de pago). Por eso se puede **publicar a producción gratis** (ver
+> sección "Publicar a coste 0"). Contrapartida: en Gmail solo se puede **enviar** desde
+> el expediente, no leer la bandeja para "adjuntar correos recibidos" (eso queda solo
+> para Outlook, cuyo `Mail.Read` sí es gratis).
+
+## 2-bis. Publicar a coste 0 (recomendado: evita reconectar cada 7 días)
+
+En modo **"Pruebas"** los tokens de Google caducan a los **7 días** (habría que volver a
+pulsar "Conectar"). Para que sea permanente y gratis:
+
+1. **Audiencia (Audience) → Publicar aplicación → "Enviar a producción"**. Con solo
+   scopes sensibles, los tokens dejan de caducar.
+2. (Opcional, gratis) **Verificación**: para quitar el aviso de "app no verificada" y el
+   tope de 100 usuarios, Google pide una **página de inicio** y una **política de
+   privacidad** en `lawzora.com`. Sin coste.
+
+Si prefieres no publicar todavía, deja la app en **"Pruebas"** y añade los correos como
+**usuarios de prueba** (hasta 100); funciona igual, pero reconectando cada ~7 días.
 
 ## 3. Crear las credenciales OAuth
 
