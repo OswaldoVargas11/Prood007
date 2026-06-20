@@ -142,7 +142,7 @@ function StripeCard() {
 
 /** Seguridad de la cuenta: verificación en dos pasos (2FA TOTP) con QR, código y códigos de respaldo. */
 function SecurityCard() {
-  const t = useTranslations('security');
+  const t = useTranslations('security.mfa');
   const status = useMfaStatus();
   const setup = useMfaSetup();
   const enable = useMfaEnable();

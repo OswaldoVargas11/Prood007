@@ -117,7 +117,7 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-6">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-6">
       {/* fondo con gradiente sutil del brand */}
       <div
         aria-hidden
@@ -130,13 +130,18 @@ export default function LoginPage() {
         <ThemeToggle />
       </div>
 
-      <Card className="w-full max-w-sm shadow-lg">
-        <CardHeader className="items-center text-center">
-          <div className="mb-2 flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--ai-from)] to-[var(--ai-to)]">
-            <div className="size-3.5 rotate-45 rounded border-2 border-white" />
+      <Card className="w-full max-w-sm border-border/60 shadow-xl shadow-black/5">
+        <CardHeader className="items-center space-y-3 pb-5 text-center">
+          <div className="flex items-center gap-2">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--ai-from)] to-[var(--ai-to)] shadow-md">
+              <div className="size-3 rotate-45 rounded-[3px] border-2 border-white" />
+            </div>
+            <span className="text-lg font-semibold tracking-tight">Lawzora</span>
           </div>
-          <CardTitle className="text-xl">{t('title')}</CardTitle>
-          <CardDescription>{t('subtitle')}</CardDescription>
+          <div className="space-y-1">
+            <CardTitle className="text-xl tracking-tight">{t('title')}</CardTitle>
+            <CardDescription>{t('subtitle')}</CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           {mfaToken ? (
@@ -317,9 +322,44 @@ function SocialButton({ provider, label }: { provider: 'google' | 'microsoft'; l
   return (
     <a
       href={href}
-      className="flex w-full items-center justify-center gap-2 rounded-md border bg-card px-4 py-2 text-sm font-medium transition hover:bg-accent"
+      className="flex h-10 w-full items-center justify-center gap-2.5 rounded-lg border bg-card text-sm font-medium text-foreground shadow-sm transition hover:bg-accent hover:shadow"
     >
+      {provider === 'google' ? <GoogleIcon /> : <MicrosoftIcon />}
       {label}
     </a>
+  );
+}
+
+/** Logos de marca (colores oficiales, intencionadamente fijos). */
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
+      <path
+        fill="#FFC107"
+        d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"
+      />
+      <path
+        fill="#FF3D00"
+        d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
+      />
+      <path
+        fill="#4CAF50"
+        d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238C29.211 35.091 26.715 36 24 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
+      />
+      <path
+        fill="#1976D2"
+        d="M43.611 20.083H42V20H24v8h11.303c-.792 2.237-2.231 4.166-4.087 5.571l6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"
+      />
+    </svg>
+  );
+}
+function MicrosoftIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 23 23" aria-hidden>
+      <path fill="#F35325" d="M1 1h10v10H1z" />
+      <path fill="#81BC06" d="M12 1h10v10H12z" />
+      <path fill="#05A6F0" d="M1 12h10v10H1z" />
+      <path fill="#FFBA08" d="M12 12h10v10H12z" />
+    </svg>
   );
 }
