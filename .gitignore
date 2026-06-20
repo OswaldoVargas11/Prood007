@@ -57,3 +57,6 @@ apps/web/e2e/.auth/
 
 # QA exploratorio (capturas de trabajo)
 qa-screenshots/
+
+# Scripts de prueba locales (pueden contener credenciales de entorno)
+scripts/test-*.mjs
