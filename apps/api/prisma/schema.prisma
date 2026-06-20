@@ -276,6 +276,7 @@ model Tenant {
   signatureRequests   SignatureRequest[]
   leads               Lead[]
   oauthConnections    OAuthConnection[]
+  matterEmails        MatterEmail[]
 }
 
 model User {
@@ -481,6 +482,7 @@ model Matter {
   messages         Message[]
   retainerAccount  RetainerAccount?
   billingSchedules BillingSchedule[]
+  emails           MatterEmail[]
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -1105,4 +1107,26 @@ model OAuthConnection {
 
   @@unique([userId, provider])
   @@index([tenantId])
+}
+
+// Correo de un expediente: enviado desde la app (OUT) o adjuntado desde la bandeja (IN), vía Gmail.
+// La correspondencia queda en el expediente. `gmailId` evita adjuntar dos veces el mismo mensaje.
+model MatterEmail {
+  id        String   @id @default(cuid())
+  tenantId  String
+  matterId  String
+  userId    String? // quién lo envió/adjuntó
+  direction String // 'IN' | 'OUT'
+  gmailId   String?
+  fromAddr  String
+  toAddr    String
+  subject   String?
+  snippet   String?  @db.Text
+  sentAt    DateTime
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, matterId])
 }

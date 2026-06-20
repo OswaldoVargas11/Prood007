@@ -18,6 +18,7 @@ import { CostsTab } from '@/components/lexora/costs-tab';
 import { RetainerTab } from '@/components/lexora/retainer';
 import { BillingPlansTab } from '@/components/lexora/billing-plans';
 import { ChatTab } from '@/components/lexora/chat-tab';
+import { MatterEmails } from '@/components/lexora/matter-emails';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,6 +46,7 @@ export default function MatterDetailPage() {
     'provision',
     'billing',
     'chat',
+    'emails',
     'activity',
   ];
   const initialTab = searchParams.get('tab');
@@ -128,6 +130,7 @@ export default function MatterDetailPage() {
           <TabsTrigger value="provision">{t('tabs.provision')}</TabsTrigger>
           <TabsTrigger value="billing">{t('tabs.billing')}</TabsTrigger>
           <TabsTrigger value="chat">{t('tabs.chat')}</TabsTrigger>
+          <TabsTrigger value="emails">{t('tabs.emails')}</TabsTrigger>
           <TabsTrigger value="activity">{t('tabs.activity')}</TabsTrigger>
         </TabsList>
 
@@ -183,6 +186,10 @@ export default function MatterDetailPage() {
 
         <TabsContent value="chat">
           <ChatTab matterId={id} />
+        </TabsContent>
+
+        <TabsContent value="emails">
+          <MatterEmails matterId={id} />
         </TabsContent>
 
         {['activity'].map((tab) => (

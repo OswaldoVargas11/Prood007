@@ -42,6 +42,7 @@ import type {
   Matter,
   MatterDetail,
   MatterDocument,
+  MatterEmail,
   MatterLedger,
   MatterStatus,
   Message,
@@ -53,6 +54,7 @@ import type {
   SubscriptionInfo,
   PortalInvoice,
   ProvisionKind,
+  RecentEmail,
   RetainerAccount,
   StripeConnectStatus,
   SeatUsage,
@@ -1053,6 +1055,39 @@ export function useGoogleCalendarSync() {
   return useMutation({
     mutationFn: () =>
       api.post<{ pushed: number; errors: number }>('/integrations/google/calendar/sync'),
+  });
+}
+
+// ── Correspondencia (Gmail) del expediente ────────────────────────────────────
+export function useMatterEmails(matterId: string) {
+  return useQuery({
+    queryKey: ['matter-emails', matterId],
+    queryFn: () => api.get<MatterEmail[]>(`/integrations/google/matters/${matterId}/emails`),
+    enabled: Boolean(matterId),
+  });
+}
+export function useRecentGmail(enabled: boolean) {
+  return useQuery({
+    queryKey: ['gmail-recent'],
+    queryFn: () => api.get<RecentEmail[]>('/integrations/google/gmail/recent'),
+    enabled,
+    staleTime: 30_000,
+  });
+}
+export function useAttachGmail(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (gmailId: string) =>
+      api.post('/integrations/google/gmail/attach', { matterId, gmailId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['matter-emails', matterId] }),
+  });
+}
+export function useSendMatterEmail(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { to: string; subject: string; body: string }) =>
+      api.post(`/integrations/google/matters/${matterId}/email`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['matter-emails', matterId] }),
   });
 }
 

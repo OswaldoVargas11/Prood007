@@ -149,6 +149,25 @@ export interface Lead {
   assignedTo?: { id: string; fullName: string } | null;
 }
 
+export interface MatterEmail {
+  id: string;
+  direction: 'IN' | 'OUT';
+  fromAddr: string;
+  toAddr: string;
+  subject: string | null;
+  snippet: string | null;
+  sentAt: string;
+}
+
+export interface RecentEmail {
+  gmailId: string;
+  from: string;
+  to: string;
+  subject: string;
+  snippet: string;
+  date: string;
+}
+
 export interface Message {
   id: string;
   matterId: string;

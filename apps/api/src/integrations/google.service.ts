@@ -8,11 +8,19 @@ import type { RequestUser } from '../auth/auth.types';
 
 const OPEN = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
 const PROVIDER = 'google';
-// Scopes de esta fase: identidad + Calendar. Gmail (lectura/envío) se añadirá en la fase de email.
-const SCOPES = ['openid', 'email', 'https://www.googleapis.com/auth/calendar.events'];
+// Identidad + Calendar (eventos) + Gmail (enviar y leer para adjuntar al expediente). Nota: gmail.readonly
+// es scope "restringido" de Google → requiere verificación/usuarios de prueba; gmail.send es "sensible".
+const SCOPES = [
+  'openid',
+  'email',
+  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/gmail.readonly',
+];
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const CAL_BASE = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
+const GMAIL_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
 /**
  * Integración Google (OAuth) — base compartida (Calendar ahora; Gmail después). GATED por configuración:
@@ -238,5 +246,150 @@ export class GoogleService {
       else errors += 1;
     }
     return { pushed, errors };
+  }
+
+  // ── Gmail (correspondencia del expediente) ───────────────────────────────────
+  private header(msg: any, name: string): string {
+    const h = (msg?.payload?.headers ?? []).find(
+      (x: any) => x.name?.toLowerCase() === name.toLowerCase(),
+    );
+    return h?.value ?? '';
+  }
+
+  /** Bandeja reciente (metadatos) para elegir qué correo adjuntar a un expediente. */
+  async listRecentEmails(user: RequestUser) {
+    this.assertConfigured();
+    const token = await this.accessTokenFor(user.userId);
+    const headers = { Authorization: `Bearer ${token}` };
+    const list = await fetch(`${GMAIL_BASE}/messages?maxResults=15&q=in:anywhere`, { headers });
+    if (!list.ok) return [];
+    const ids = ((await list.json()) as { messages?: { id: string }[] }).messages ?? [];
+    const out = [];
+    for (const { id } of ids) {
+      const r = await fetch(
+        `${GMAIL_BASE}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`,
+        { headers },
+      );
+      if (!r.ok) continue;
+      const m: any = await r.json();
+      out.push({
+        gmailId: id,
+        from: this.header(m, 'From'),
+        to: this.header(m, 'To'),
+        subject: this.header(m, 'Subject'),
+        snippet: (m.snippet as string) ?? '',
+        date: this.header(m, 'Date'),
+      });
+    }
+    return out;
+  }
+
+  private async assertMatter(user: RequestUser, matterId: string) {
+    const m = await this.prisma.matter.findFirst({
+      where: { id: matterId, tenantId: user.tenantId },
+      select: { id: true },
+    });
+    if (!m) throw new BadRequestException({ messageKey: 'matters.notFound' });
+  }
+
+  /** Adjunta un correo de la bandeja al expediente (idempotente por gmailId+expediente). */
+  async attachEmail(user: RequestUser, matterId: string, gmailId: string) {
+    this.assertConfigured();
+    await this.assertMatter(user, matterId);
+    const existing = await this.prisma.matterEmail.findFirst({
+      where: { tenantId: user.tenantId, matterId, gmailId },
+      select: { id: true },
+    });
+    if (existing) return { id: existing.id, duplicate: true };
+    const token = await this.accessTokenFor(user.userId);
+    const r = await fetch(
+      `${GMAIL_BASE}/messages/${gmailId}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!r.ok) throw new BadRequestException({ messageKey: 'integrations.gmailFetchFailed' });
+    const m: any = await r.json();
+    const dateHdr = this.header(m, 'Date');
+    const sentAt = dateHdr ? new Date(dateHdr) : new Date();
+    const created = await this.prisma.matterEmail.create({
+      data: {
+        tenantId: user.tenantId,
+        matterId,
+        userId: user.userId,
+        direction: 'IN',
+        gmailId,
+        fromAddr: this.header(m, 'From') || '—',
+        toAddr: this.header(m, 'To') || '—',
+        subject: this.header(m, 'Subject') || null,
+        snippet: (m.snippet as string) ?? null,
+        sentAt: isNaN(sentAt.getTime()) ? new Date() : sentAt,
+      },
+      select: { id: true },
+    });
+    return { id: created.id, duplicate: false };
+  }
+
+  /** Envía un correo desde el Gmail del usuario y lo registra en el expediente (OUT). */
+  async sendEmail(user: RequestUser, matterId: string, to: string, subject: string, body: string) {
+    this.assertConfigured();
+    await this.assertMatter(user, matterId);
+    const token = await this.accessTokenFor(user.userId);
+    const conn = await this.prisma.oAuthConnection.findUnique({
+      where: { userId_provider: { userId: user.userId, provider: PROVIDER } },
+      select: { externalEmail: true },
+    });
+    const from = conn?.externalEmail ?? user.email;
+    const encSubject = `=?UTF-8?B?${Buffer.from(subject, 'utf8').toString('base64')}?=`;
+    const mime = [
+      `From: ${from}`,
+      `To: ${to}`,
+      `Subject: ${encSubject}`,
+      'MIME-Version: 1.0',
+      'Content-Type: text/plain; charset=UTF-8',
+      'Content-Transfer-Encoding: 8bit',
+      '',
+      body,
+    ].join('\r\n');
+    const raw = Buffer.from(mime, 'utf8').toString('base64url');
+    const r = await fetch(`${GMAIL_BASE}/messages/send`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raw }),
+    });
+    if (!r.ok) throw new BadRequestException({ messageKey: 'integrations.gmailSendFailed' });
+    const sent = (await r.json()) as { id?: string };
+    const created = await this.prisma.matterEmail.create({
+      data: {
+        tenantId: user.tenantId,
+        matterId,
+        userId: user.userId,
+        direction: 'OUT',
+        gmailId: sent.id ?? null,
+        fromAddr: from,
+        toAddr: to,
+        subject,
+        snippet: body.slice(0, 200),
+        sentAt: new Date(),
+      },
+      select: { id: true },
+    });
+    return { id: created.id };
+  }
+
+  /** Correspondencia registrada de un expediente (ambas direcciones), más reciente primero. */
+  async listMatterEmails(user: RequestUser, matterId: string) {
+    await this.assertMatter(user, matterId);
+    return this.prisma.matterEmail.findMany({
+      where: { tenantId: user.tenantId, matterId },
+      orderBy: { sentAt: 'desc' },
+      select: {
+        id: true,
+        direction: true,
+        fromAddr: true,
+        toAddr: true,
+        subject: true,
+        snippet: true,
+        sentAt: true,
+      },
+    });
   }
 }

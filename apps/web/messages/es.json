@@ -255,7 +255,8 @@
       "chat": "Chat",
       "activity": "Actividad",
       "soon": "Esta sección llega en un próximo slice.",
-      "billing": "Facturación"
+      "billing": "Facturación",
+      "emails": "Correos"
     },
     "openDocuments": "Abrir vista de documentos",
     "rail": {
@@ -799,6 +800,28 @@
       "title": "Cambia tu contraseña",
       "subtitle": "Por seguridad, debes establecer una contraseña propia antes de continuar."
     }
+  },
+  "matterEmails": {
+    "title": "Correspondencia",
+    "connectHint": "Conecta tu cuenta de Google para enviar y archivar correos en este expediente.",
+    "goSettings": "Ir a Ajustes",
+    "send": "Enviar correo",
+    "attach": "Adjuntar de la bandeja",
+    "empty": "Aún no hay correos en este expediente.",
+    "noSubject": "(sin asunto)",
+    "sendTitle": "Enviar correo",
+    "sendDesc": "Se envía desde tu Gmail y queda registrado en el expediente.",
+    "to": "Para (email)",
+    "subject": "Asunto",
+    "body": "Mensaje",
+    "cancel": "Cancelar",
+    "sent": "Correo enviado y archivado",
+    "sendError": "No se pudo enviar el correo.",
+    "attachTitle": "Adjuntar correo de la bandeja",
+    "attachDesc": "Elige un correo reciente de tu Gmail para archivarlo en el expediente.",
+    "inboxEmpty": "No se encontraron correos recientes.",
+    "attached": "Correo adjuntado al expediente",
+    "attachError": "No se pudo adjuntar el correo."
   },
   "integrations": {
     "googleTitle": "Google Calendar",
