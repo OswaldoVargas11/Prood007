@@ -64,22 +64,32 @@ afloraron hallazgos nuevos no vistos en la 1ª pasada. **Corregidos y desplegado
 | 🟡  | Paginación sin cota inferior                                                                                                      | clamp `page/pageSize ≥ 1`                                  |
 | 🟡  | Clave AES real en `.env.example`                                                                                                  | placeholder                                                |
 
-**Deferidos (documentados, NO corregidos — requieren cambio mayor / migración / prueba dedicada):**
+**Backlog CORREGIDO en una 3ª tanda (desplegado, CI verde):**
 
-- 🟠 **Anti-replay de TOTP** (registrar `lastTotpCounter`) + lockout en el paso MFA. Requiere migración.
-- 🟠 **Serialización de la numeración de factura** (huecos + bifurcación de la cadena de huellas bajo
-  concurrencia en Read Committed). FISCAL → cambio de alto riesgo, hacerlo con prueba dedicada (lock
-  `FOR UPDATE`/contador por tenant). **Prioridad alta del backlog.**
-- 🟠 **Validación de magic bytes** en subidas (hoy se confía en el `mimetype` declarado).
-- 🟠 **Token de super-admin en sessionStorage** (web) → migrar a BFF (mitigado por CSP+headers nuevos).
-- 🟡 Saneo defensivo de clave en `S3StorageProvider` (red de seguridad; el vector real ya está cerrado).
-- 🟡 CSP completa con nonces en el web (hoy solo `frame-ancestors`); `validationSchema` de entorno;
-  salt por usuario en el feed iCal; sanitización de cabeceras en el servicio de Gmail; store Redis para
-  el throttler en multi-instancia; `@@unique([tenantId, providerRef])` en Payment.
+- ✅ **Serialización de la numeración de factura** — `pg_advisory_xact_lock` por tenant (espacio 2) en la
+  emisión: sin huecos ni bifurcación de la cadena de huellas fiscal bajo concurrencia.
+- ✅ **Anti-replay de TOTP** — `User.lastTotpCounter`; un código TOTP usado no se reutiliza (+migración).
+- ✅ **Magic bytes** en justificantes (no se fía del `mimetype` declarado).
+- ✅ **Saneo de clave** anti path-traversal en `EncryptedStorageProvider` (red de seguridad S3/local).
+- ✅ **Gmail**: saneo CRLF del destinatario (anti header injection).
+- ✅ **Feed iCal** ligado a `passwordChangedAt` (revocable al cambiar la contraseña).
+- ✅ **Login social**: valida `aud`/`exp` del `id_token`.
+- ✅ **Payment**: índice único `(tenantId, providerRef)` coherente con el dedup del webhook.
+- ✅ **Validación de entorno fail-fast en producción** (faltantes = fatal; calidad de secretos = aviso).
 
-> Conclusión 2ª pasada: **sin brecha crítica anónima**; los 4 hallazgos ALTOS (IDOR WS, path traversal,
-> self-approval, carrera de plazas) están corregidos. Los deferidos no son explotables de forma trivial
-> y/o están mitigados; el más importante a planificar es la serialización de la numeración fiscal.
+**Deferidos FINALES (NO corregidos — refactor mayor / requieren validación en navegador / infra):**
+
+- 🟡 **CSP completa con nonces en el web** (hoy solo `frame-ancestors`). Una `script-src`/`default-src`
+  estricta puede romper el render de Next y **no es verificable sin un navegador/staging** → se deja para
+  hacer con pruebas visuales. El clickjacking ya está cerrado.
+- 🟡 **Token de super-admin de plataforma fuera de `sessionStorage`** → requiere un BFF de plataforma
+  (flujo de refresh propio). Mitigado por la CSP/headers nuevos y por ser sesión del propio owner.
+- 🟡 **Throttler con store Redis** para rate-limit efectivo entre múltiples instancias (hoy in-memory;
+  irrelevante con una sola instancia).
+  > Conclusión: **sin brecha crítica anónima**. Los 4 hallazgos ALTOS (IDOR WS, path traversal,
+  > self-approval, carrera de plazas) y todo el backlog de medios/bajos están corregidos y desplegados.
+  > Solo quedan los 3 deferidos finales de arriba (CSP completa, token de plataforma a BFF, throttler Redis),
+  > ninguno explotable de forma trivial. Pendiente de owner: rotar secretos + `PLATFORM_ADMIN_PASSWORD`.
 
 ## A01 · Broken Access Control — ✅ (sin hallazgos)
 
