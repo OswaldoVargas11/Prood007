@@ -12,7 +12,7 @@ import type { RequestUser } from '../auth/auth.types';
  */
 export async function assertMatterAccess(
   prisma: PrismaService,
-  user: RequestUser,
+  user: Pick<RequestUser, 'userId' | 'tenantId' | 'roles'>,
   matterId: string,
 ): Promise<{ id: string; clientId: string }> {
   const matter = await prisma.matter.findFirst({

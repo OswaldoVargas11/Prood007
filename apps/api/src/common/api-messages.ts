@@ -329,6 +329,10 @@ export const API_MESSAGES = {
     'es-ES': 'El justificante debe ser una imagen (PNG/JPG/WEBP/GIF) o un PDF.',
     'es-DO': 'El justificante debe ser una imagen (PNG/JPG/WEBP/GIF) o un PDF.',
   },
+  'ledger.cannotSelfApprove': {
+    'es-ES': 'No puedes aprobar un coste que tú mismo propusiste; debe aprobarlo otra persona.',
+    'es-DO': 'No puedes aprobar un coste que tú mismo propusiste; debe aprobarlo otra persona.',
+  },
   'ledger.costAlreadyResolved': {
     'es-ES': 'Este coste ya fue resuelto.',
     'es-DO': 'Este coste ya fue resuelto.',

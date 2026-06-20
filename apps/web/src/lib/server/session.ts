@@ -20,6 +20,22 @@ export function nestUrl(path: string): string {
   return `${base}/api${path}`;
 }
 
+/**
+ * Defensa anti-CSRF para los handlers BFF que mutan estado por cookie: si la petición trae cabecera
+ * `Origin` y NO coincide con el host, es una petición cross-site → bloquear. Sin `Origin` no se bloquea
+ * (clientes no-navegador); el `SameSite=Lax` de la cookie cubre el resto. Complementa, no sustituye.
+ */
+export function isCrossOrigin(req: Request): boolean {
+  const origin = req.headers.get('origin');
+  if (!origin) return false;
+  const host = req.headers.get('host');
+  try {
+    return new URL(origin).host !== host;
+  } catch {
+    return true;
+  }
+}
+
 export async function setSessionCookie(refreshToken: string): Promise<void> {
   (await cookies()).set(SESSION_COOKIE, refreshToken, {
     httpOnly: true,

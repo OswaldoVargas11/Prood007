@@ -132,7 +132,9 @@ export class SettingsService {
 
   async uploadCertificate(user: RequestUser, file?: UploadedFile) {
     if (!file) throw new BadRequestException(apiError('settings.certificateMissing'));
-    const key = `${user.tenantId}/certificate/${file.originalname}`;
+    // Clave fija con identificadores del servidor (nunca `originalname` → evita path traversal). El
+    // nombre real del fichero se guarda en `certificateName`.
+    const key = `${user.tenantId}/certificate/cert`;
     await this.storage.put(key, file.buffer, file.mimetype);
     await this.prisma.tenant.update({
       where: { id: user.tenantId },

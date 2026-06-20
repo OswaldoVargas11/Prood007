@@ -226,6 +226,18 @@ describe('Tanda B — usuarios/licencia, ajustes, auditoría, aprobaciones (e2e)
     expect(ledger.body.balance).toBe('-100.00'); // suplido aprobado resta saldo
   });
 
+  it('segregación de funciones: el admin NO puede aprobar un coste que él mismo propuso (400)', async () => {
+    const own = await request(app.getHttpServer())
+      .post('/api/ledger/costs/propose')
+      .set(auth(adminToken))
+      .send({ matterId, description: 'Coste propio del admin', amount: '25.00' })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/api/ledger/approvals/${own.body.id}/approve`)
+      .set(auth(adminToken))
+      .expect(400);
+  });
+
   it('un coste con justificante adjunto se guarda (hasReceipt) y se puede descargar', async () => {
     const prop = await request(app.getHttpServer())
       .post('/api/ledger/costs/propose')

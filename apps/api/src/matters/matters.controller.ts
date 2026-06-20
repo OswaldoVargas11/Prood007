@@ -44,7 +44,13 @@ export class MattersController {
     @Query('status') status?: MatterStatus,
     @Query('clientId') clientId?: string,
   ) {
-    return this.matters.findAll(user, page, Math.min(pageSize, 100), status, clientId);
+    return this.matters.findAll(
+      user,
+      Math.max(1, page),
+      Math.min(100, Math.max(1, pageSize)),
+      status,
+      clientId,
+    );
   }
 
   @Get(':id')

@@ -23,8 +23,18 @@ async function bootstrap() {
   // messageKey traducible 'validation.failed' + el detalle por campo para depurar/mostrar en UI.
   app.useGlobalPipes(createValidationPipe());
 
-  // CORS restringido por configuración (lista separada por comas) o reflejo en desarrollo.
-  const corsOrigins = process.env.CORS_ORIGINS?.split(',').map((s) => s.trim());
+  // CORS restringido por configuración (lista separada por comas). En PRODUCCIÓN es fail-closed: si no
+  // hay `CORS_ORIGINS`, se aborta el arranque (nunca reflejar cualquier origen con credenciales). En
+  // desarrollo se permite el reflejo para comodidad local.
+  const corsOrigins = process.env.CORS_ORIGINS?.split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const isProd = process.env.NODE_ENV === 'production';
+  if (isProd && !(corsOrigins && corsOrigins.length > 0)) {
+    throw new Error(
+      'CORS_ORIGINS es obligatorio en producción (no se permite reflejar cualquier origen).',
+    );
+  }
   app.enableCors({
     origin: corsOrigins && corsOrigins.length > 0 ? corsOrigins : true,
     credentials: true,

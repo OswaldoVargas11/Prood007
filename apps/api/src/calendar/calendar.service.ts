@@ -22,7 +22,7 @@ export class CalendarService {
   ) {}
 
   private secret(): string {
-    return this.config.get<string>('JWT_ACCESS_SECRET') ?? 'dev-secret';
+    return this.config.getOrThrow<string>('JWT_ACCESS_SECRET');
   }
 
   /** Token de feed = `<userId>.<hmac>`. Estable por usuario; se invalida al rotar el secreto. */

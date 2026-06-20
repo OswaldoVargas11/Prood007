@@ -31,6 +31,11 @@ export interface MfaChallenge {
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000; // 15 min
 
+// Hash argon2 fijo (de una cadena aleatoria descartada) para la verificación señuelo anti-enumeración
+// por temporización: cuando el email no existe, igualamos el coste de cómputo del caso normal.
+const DECOY_PASSWORD_HASH =
+  '$argon2id$v=19$m=65536,t=3,p=4$aPRtfBnmDSUUwFbcIVqdvg$Ymd/6Kie5vSDC9CHWLN4JS9V6FVohRIPEmaPut7C+/w';
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -147,6 +152,9 @@ export class AuthService {
     });
 
     if (candidates.length === 0) {
+      // Verificación señuelo contra un hash fijo: iguala el tiempo de respuesta con el caso "usuario
+      // existe + contraseña mala" (que sí ejecuta argon2), evitando enumeración de cuentas por timing.
+      await argon2.verify(DECOY_PASSWORD_HASH, dto.password).catch(() => false);
       // Mismo error que credenciales inválidas para no filtrar existencia de cuentas.
       this.logger.warn(`Login fallido: email desconocido (${email}).`);
       throw new UnauthorizedException(apiError('auth.invalidCredentials'));

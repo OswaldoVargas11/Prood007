@@ -17,6 +17,6 @@ export class AuditController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('pageSize', new DefaultValuePipe(50), ParseIntPipe) pageSize: number,
   ) {
-    return this.audit.listForTenant(user, page, Math.min(pageSize, 100));
+    return this.audit.listForTenant(user, Math.max(1, page), Math.min(100, Math.max(1, pageSize)));
   }
 }

@@ -99,40 +99,54 @@ export class UsersService {
 
   /** Alta de un usuario del despacho. Aplica el límite de plazas de la licencia. */
   async createStaff(user: RequestUser, dto: CreateStaffDto) {
-    const tenant = await this.tenant(user.tenantId);
     const email = dto.email.toLowerCase();
 
-    const existing = await this.prisma.user.findFirst({
-      where: { tenantId: user.tenantId, email },
-      select: { id: true },
-    });
-    if (existing) throw new ConflictException(apiError('users.emailExists'));
-
-    const used = await this.countActive(user.tenantId, dto.role);
-    const max = this.maxFor(tenant, dto.role);
-    if (used >= max) {
-      const role = dto.role === Role.FIRM_ADMIN ? 'administradores' : 'letrados';
-      throw new ForbiddenException(
-        apiError('users.licenseLimitReached', {
-          message: `Límite de licencia alcanzado: ${max} ${role}. Amplía el plan o desactiva un usuario.`,
-          params: { max, role, roleCode: dto.role },
-        }),
-      );
-    }
-
+    // Trabajo caro / de red FUERA del lock (no retener el lock durante HTTP a HIBP ni el hash argon2).
     await this.hibp.assertNotBreached(dto.password);
     const roleId = await this.roleId(user.tenantId, dto.role);
     const passwordHash = await argon2.hash(dto.password);
-    const created = await this.prisma.user.create({
-      data: {
-        tenantId: user.tenantId,
-        email,
-        passwordHash,
-        fullName: dto.fullName,
-        // El usuario recién creado por el admin debe fijar su propia contraseña al primer acceso (SEC4).
-        mustChangePassword: true,
-        roles: { create: [{ roleId }] },
-      },
+
+    // El conteo de plazas + la creación se serializan POR TENANT con un lock transaccional de aviso,
+    // para que dos altas simultáneas no superen la licencia (carrera check-then-act).
+    const created = await tenantTransaction(this.prisma, async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.tenantId}))`;
+
+      const existing = await tx.user.findFirst({
+        where: { tenantId: user.tenantId, email },
+        select: { id: true },
+      });
+      if (existing) throw new ConflictException(apiError('users.emailExists'));
+
+      const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: user.tenantId } });
+      const used = await tx.user.count({
+        where: {
+          tenantId: user.tenantId,
+          isActive: true,
+          roles: { some: { role: { code: dto.role } } },
+        },
+      });
+      const max = this.maxFor(tenant, dto.role);
+      if (used >= max) {
+        const role = dto.role === Role.FIRM_ADMIN ? 'administradores' : 'letrados';
+        throw new ForbiddenException(
+          apiError('users.licenseLimitReached', {
+            message: `Límite de licencia alcanzado: ${max} ${role}. Amplía el plan o desactiva un usuario.`,
+            params: { max, role, roleCode: dto.role },
+          }),
+        );
+      }
+
+      return tx.user.create({
+        data: {
+          tenantId: user.tenantId,
+          email,
+          passwordHash,
+          fullName: dto.fullName,
+          // El usuario recién creado por el admin debe fijar su contraseña al primer acceso (SEC4).
+          mustChangePassword: true,
+          roles: { create: [{ roleId }] },
+        },
+      });
     });
     await this.audit.log(user, 'user.created', 'User', created.id, {
       email,

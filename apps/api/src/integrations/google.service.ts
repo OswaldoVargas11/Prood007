@@ -40,7 +40,7 @@ export class GoogleService {
   private clientSecret = () => this.config.get<string>('GOOGLE_CLIENT_SECRET');
   private redirectUri = () => this.config.get<string>('GOOGLE_REDIRECT_URI');
   private key = () => loadEncryptionKey(this.config.get<string>('DATA_ENCRYPTION_KEY'));
-  private secret = () => this.config.get<string>('JWT_ACCESS_SECRET') ?? 'dev-secret';
+  private secret = () => this.config.getOrThrow<string>('JWT_ACCESS_SECRET');
 
   isConfigured(): boolean {
     return Boolean(this.clientId() && this.clientSecret() && this.redirectUri() && this.key());

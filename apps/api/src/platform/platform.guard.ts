@@ -26,7 +26,7 @@ export class PlatformGuard implements CanActivate {
     try {
       const payload = await this.jwt.verifyAsync<{ sub?: string; platform?: boolean }>(
         header.slice(7),
-        { secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET') },
+        { secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'), algorithms: ['HS256'] },
       );
       if (payload.platform !== true) throw new Error('not platform');
       req.platformAdmin = payload.sub;

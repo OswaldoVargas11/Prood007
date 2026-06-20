@@ -551,7 +551,9 @@ export class LedgerService {
     });
     // Justificante opcional (foto del ticket/tasa): se guarda en el StorageProvider y se enlaza al apunte.
     if (receipt?.buffer?.length) {
-      const key = `${user.tenantId}/receipts/${entry.id}/${receipt.originalname}`;
+      // Clave SOLO con identificadores del servidor (nunca `originalname`, que es controlable por el
+      // cliente y permitiría path traversal cross-tenant). El nombre real va en `receiptName`.
+      const key = `${user.tenantId}/receipts/${entry.id}/receipt`;
       await this.storage.put(key, receipt.buffer, receipt.mimetype);
       await this.prisma.ledgerEntry.update({
         where: { id: entry.id },
@@ -616,6 +618,11 @@ export class LedgerService {
     if (!entry) throw new NotFoundException(apiError('ledger.entryNotFound'));
     if (entry.approvalStatus !== ApprovalStatus.PROPOSED) {
       throw new BadRequestException(apiError('ledger.costAlreadyResolved'));
+    }
+    // Segregación de funciones: quien propone un coste NO puede aprobarlo/rechazarlo él mismo (un
+    // segundo par de ojos). Aplica también al APROBAR un suplido propuesto por uno mismo.
+    if (status === ApprovalStatus.APPROVED && entry.proposedById === user.userId) {
+      throw new BadRequestException(apiError('ledger.cannotSelfApprove'));
     }
     await this.prisma.ledgerEntry.updateMany({
       where: { id, tenantId: user.tenantId },

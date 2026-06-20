@@ -4,6 +4,7 @@ import { jurisdictionFromAccessToken, scopeFromAccessToken } from '@/lib/scope';
 import {
   clearSessionCookie,
   getSessionToken,
+  isCrossOrigin,
   nestUrl,
   setJurisdictionCookie,
   setScopeCookie,
@@ -14,7 +15,10 @@ import {
  * BFF de refresh: usa la cookie httpOnly para pedir a Nest un par nuevo (rotación), reescribe la
  * cookie con el nuevo refresh y devuelve el nuevo access. Si falla, limpia la cookie. Ver D-014.
  */
-export async function POST(): Promise<NextResponse> {
+export async function POST(req: Request): Promise<NextResponse> {
+  if (isCrossOrigin(req)) {
+    return NextResponse.json({ message: 'Origen no permitido' }, { status: 403 });
+  }
   const refreshToken = await getSessionToken();
   if (!refreshToken) {
     return NextResponse.json({ message: 'Sin sesión' }, { status: 401 });

@@ -12,6 +12,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { PrismaService } from '../prisma/prisma.service';
 import { runWithTenant } from '../prisma/tenant-context';
+import { assertMatterAccess } from '../messages/matter-access';
 import type { AccessTokenPayload } from '../auth/auth.types';
 
 /**
@@ -38,9 +39,11 @@ export class RealtimeGateway implements OnGatewayConnection {
       if (!token) throw new Error('sin token');
       const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, {
         secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
+        algorithms: ['HS256'],
       });
       client.data.userId = payload.sub;
       client.data.tenantId = payload.tid;
+      client.data.roles = payload.roles ?? [];
       await client.join(`user:${payload.sub}`);
       await client.join(`tenant:${payload.tid}`);
     } catch {
@@ -49,22 +52,28 @@ export class RealtimeGateway implements OnGatewayConnection {
     }
   }
 
-  /** Suscripción a la sala de un expediente (verifica pertenencia al tenant). */
+  /**
+   * Suscripción a la sala de un expediente. Aplica el MISMO control que el chat por HTTP
+   * (`assertMatterAccess`): staff → cualquier expediente de su tenant; CLIENTE → solo los suyos.
+   * Antes solo comprobaba el tenant, lo que permitía a un cliente escuchar el chat de otro cliente
+   * del mismo despacho (IDOR horizontal). Acotado por tenant (RLS) vía `runWithTenant`.
+   */
   @SubscribeMessage('matter:subscribe')
   async subscribeMatter(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { matterId: string },
   ): Promise<{ ok: boolean }> {
     const tenantId = client.data.tenantId as string | undefined;
-    if (!tenantId || !data?.matterId) return { ok: false };
-    // Fija el contexto de tenant también en el camino WebSocket → RLS se aplica (no fail-open).
-    const matter = await runWithTenant(tenantId, () =>
-      this.prisma.matter.findFirst({
-        where: { id: data.matterId, tenantId },
-        select: { id: true },
-      }),
-    );
-    if (!matter) return { ok: false };
+    const userId = client.data.userId as string | undefined;
+    const roles = (client.data.roles as string[] | undefined) ?? [];
+    if (!tenantId || !userId || !data?.matterId) return { ok: false };
+    try {
+      await runWithTenant(tenantId, () =>
+        assertMatterAccess(this.prisma, { userId, tenantId, roles }, data.matterId),
+      );
+    } catch {
+      return { ok: false };
+    }
     await client.join(`matter:${data.matterId}`);
     return { ok: true };
   }

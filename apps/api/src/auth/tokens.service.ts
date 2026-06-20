@@ -66,6 +66,7 @@ export class TokensService {
     try {
       const payload = await this.jwt.verifyAsync<{ sub: string; typ?: string }>(token, {
         secret: this.accessSecret,
+        algorithms: ['HS256'],
       });
       if (payload.typ !== 'mfa' || !payload.sub) throw new Error('bad mfa token');
       return payload.sub;
@@ -87,6 +88,7 @@ export class TokensService {
     try {
       const payload = await this.jwt.verifyAsync<{ sub: string; typ?: string }>(token, {
         secret: this.accessSecret,
+        algorithms: ['HS256'],
       });
       if (payload.typ !== 'email_verify' || !payload.sub) throw new Error('bad verify token');
       return payload.sub;
@@ -142,6 +144,7 @@ export class TokensService {
     try {
       payload = await this.jwt.verifyAsync<RefreshTokenPayload>(presentedToken, {
         secret: this.refreshSecret,
+        algorithms: ['HS256'],
       });
     } catch {
       throw new UnauthorizedException(apiError('auth.refreshInvalid'));
@@ -200,6 +203,7 @@ export class TokensService {
     try {
       const payload = await this.jwt.verifyAsync<RefreshTokenPayload>(presentedToken, {
         secret: this.refreshSecret,
+        algorithms: ['HS256'],
       });
       await this.prisma.refreshToken.updateMany({
         where: { id: payload.jti, revokedAt: null },

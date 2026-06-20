@@ -39,7 +39,7 @@ export class MicrosoftService {
   private redirectUri = () => this.config.get<string>('MS_REDIRECT_URI');
   private msTenant = () => this.config.get<string>('MS_TENANT') ?? 'common';
   private key = () => loadEncryptionKey(this.config.get<string>('DATA_ENCRYPTION_KEY'));
-  private secret = () => this.config.get<string>('JWT_ACCESS_SECRET') ?? 'dev-secret';
+  private secret = () => this.config.getOrThrow<string>('JWT_ACCESS_SECRET');
 
   private authBase = () =>
     `https://login.microsoftonline.com/${this.msTenant()}/oauth2/v2.0/authorize`;

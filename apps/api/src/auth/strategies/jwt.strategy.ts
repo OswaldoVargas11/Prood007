@@ -30,6 +30,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: secret,
+      // Fija el algoritmo simétrico: rechaza tokens con `alg` distinto (defensa anti algorithm-confusion).
+      algorithms: ['HS256'],
     });
   }
 

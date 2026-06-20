@@ -111,6 +111,7 @@ export class SocialAuthService {
     try {
       const s = await this.jwt.verifyAsync<{ typ?: string; p?: string }>(state, {
         secret: this.secret,
+        algorithms: ['HS256'],
       });
       if (s.typ !== 'soc_state' || s.p !== provider) return { error: 'state' };
     } catch {
@@ -158,6 +159,7 @@ export class SocialAuthService {
     try {
       const p = await this.jwt.verifyAsync<{ sub: string; typ?: string }>(ticket, {
         secret: this.secret,
+        algorithms: ['HS256'],
       });
       if (p.typ !== 'soc_ticket' || !p.sub) throw new Error('bad ticket');
       userId = p.sub;

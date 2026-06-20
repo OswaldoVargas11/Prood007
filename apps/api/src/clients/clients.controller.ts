@@ -36,7 +36,7 @@ export class ClientsController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('pageSize', new DefaultValuePipe(20), ParseIntPipe) pageSize: number,
   ) {
-    return this.clients.findAll(user, page, Math.min(pageSize, 100));
+    return this.clients.findAll(user, Math.max(1, page), Math.min(100, Math.max(1, pageSize)));
   }
 
   /** Comprobación de conflictos de interés por nombre (antes de dar de alta cliente/expediente). */
