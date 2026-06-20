@@ -160,7 +160,7 @@ export interface MatterEmail {
 }
 
 export interface RecentEmail {
-  gmailId: string;
+  externalId: string;
   from: string;
   to: string;
   subject: string;

@@ -803,7 +803,7 @@
   },
   "matterEmails": {
     "title": "Correspondencia",
-    "connectHint": "Conecta tu cuenta de Google para enviar y archivar correos en este expediente.",
+    "connectHint": "Conecta tu cuenta de Google o Microsoft para enviar y archivar correos en este expediente.",
     "goSettings": "Ir a Ajustes",
     "send": "Enviar correo",
     "attach": "Adjuntar de la bandeja",
@@ -826,6 +826,8 @@
   "integrations": {
     "googleTitle": "Google Calendar",
     "googleDesc": "Conecta tu Google para que tus plazos se creen como eventos en tu calendario.",
+    "microsoftTitle": "Microsoft 365 (Outlook)",
+    "microsoftDesc": "Conecta tu cuenta de Microsoft para que tus plazos aparezcan en tu Outlook Calendar.",
     "notConfigured": "Integración no disponible todavía (pendiente de activar en el servidor).",
     "connect": "Conectar Google",
     "connectHint": "Conecta tu cuenta de Google para sincronizar la agenda.",

@@ -6,10 +6,10 @@ import { toast } from 'sonner';
 import { ArrowDownLeft, ArrowUpRight, Loader2, Mail, Paperclip, Send } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import {
-  useAttachGmail,
-  useGoogleStatus,
+  useAttachMail,
+  useMailStatus,
   useMatterEmails,
-  useRecentGmail,
+  useRecentMail,
   useSendMatterEmail,
 } from '@/lib/hooks';
 import { ApiError } from '@/lib/api';
@@ -36,14 +36,14 @@ export function MatterEmails({
   defaultTo?: string | null;
 }) {
   const t = useTranslations('matterEmails');
-  const gstatus = useGoogleStatus();
-  const connected = Boolean(gstatus.data?.connected);
+  const mstatus = useMailStatus();
+  const connected = Boolean(mstatus.data?.provider);
   const emails = useMatterEmails(matterId);
   const [sendOpen, setSendOpen] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
 
-  // No conectado: invita a conectar Google en Ajustes (no rompemos la vista del expediente).
-  if (gstatus.isSuccess && !connected) {
+  // No conectado: invita a conectar la cuenta en Ajustes (no rompemos la vista del expediente).
+  if (mstatus.isSuccess && !connected) {
     return (
       <section className="rounded-xl border bg-card p-4">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
@@ -206,14 +206,14 @@ function AttachDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const t = useTranslations('matterEmails');
-  const recent = useRecentGmail(open);
-  const attach = useAttachGmail(matterId);
+  const recent = useRecentMail(open);
+  const attach = useAttachMail(matterId);
   const [busy, setBusy] = useState<string | null>(null);
 
-  async function pick(gmailId: string) {
-    setBusy(gmailId);
+  async function pick(externalId: string) {
+    setBusy(externalId);
     try {
-      await attach.mutateAsync(gmailId);
+      await attach.mutateAsync(externalId);
       toast.success(t('attached'));
       onOpenChange(false);
     } catch (err) {
@@ -238,13 +238,13 @@ function AttachDialog({
           ) : (
             recent.data.map((m) => (
               <button
-                key={m.gmailId}
+                key={m.externalId}
                 type="button"
                 disabled={busy !== null}
-                onClick={() => pick(m.gmailId)}
+                onClick={() => pick(m.externalId)}
                 className="flex w-full items-start gap-2 rounded-lg border p-2.5 text-left transition-colors hover:bg-accent disabled:opacity-60"
               >
-                {busy === m.gmailId ? (
+                {busy === m.externalId ? (
                   <Loader2 className="mt-0.5 size-4 shrink-0 animate-spin" />
                 ) : (
                   <Mail className="mt-0.5 size-4 shrink-0 text-muted-foreground" />

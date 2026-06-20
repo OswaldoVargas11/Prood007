@@ -1029,14 +1029,13 @@ export function useCalendarFeedLink() {
   });
 }
 
-// ── Integración Google (OAuth: Calendar; Gmail en breve) ──────────────────────
+type OAuthStatus = { configured: boolean; connected: boolean; email: string | null };
+
+// ── Integración Google (OAuth: Calendar) ──────────────────────────────────────
 export function useGoogleStatus() {
   return useQuery({
     queryKey: ['google-status'],
-    queryFn: () =>
-      api.get<{ configured: boolean; connected: boolean; email: string | null }>(
-        '/integrations/google/status',
-      ),
+    queryFn: () => api.get<OAuthStatus>('/integrations/google/status'),
   });
 }
 export function useGoogleConnect() {
@@ -1048,7 +1047,10 @@ export function useGoogleDisconnect() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api.del('/integrations/google'),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['google-status'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['google-status'] });
+      void qc.invalidateQueries({ queryKey: ['mail-status'] });
+    },
   });
 }
 export function useGoogleCalendarSync() {
@@ -1058,27 +1060,63 @@ export function useGoogleCalendarSync() {
   });
 }
 
-// ── Correspondencia (Gmail) del expediente ────────────────────────────────────
+// ── Integración Microsoft 365 (OAuth: Outlook Calendar) ───────────────────────
+export function useMicrosoftStatus() {
+  return useQuery({
+    queryKey: ['microsoft-status'],
+    queryFn: () => api.get<OAuthStatus>('/integrations/microsoft/status'),
+  });
+}
+export function useMicrosoftConnect() {
+  return useMutation({
+    mutationFn: () => api.get<{ url: string }>('/integrations/microsoft/connect'),
+  });
+}
+export function useMicrosoftDisconnect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.del('/integrations/microsoft'),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['microsoft-status'] });
+      void qc.invalidateQueries({ queryKey: ['mail-status'] });
+    },
+  });
+}
+export function useMicrosoftCalendarSync() {
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ pushed: number; errors: number }>('/integrations/microsoft/calendar/sync'),
+  });
+}
+
+// ── Correspondencia del expediente (neutral: Google o Microsoft) ──────────────
+export function useMailStatus() {
+  return useQuery({
+    queryKey: ['mail-status'],
+    queryFn: () =>
+      api.get<{ provider: 'google' | 'microsoft' | null }>('/integrations/mail/status'),
+  });
+}
 export function useMatterEmails(matterId: string) {
   return useQuery({
     queryKey: ['matter-emails', matterId],
-    queryFn: () => api.get<MatterEmail[]>(`/integrations/google/matters/${matterId}/emails`),
+    queryFn: () => api.get<MatterEmail[]>(`/integrations/mail/matters/${matterId}`),
     enabled: Boolean(matterId),
   });
 }
-export function useRecentGmail(enabled: boolean) {
+export function useRecentMail(enabled: boolean) {
   return useQuery({
-    queryKey: ['gmail-recent'],
-    queryFn: () => api.get<RecentEmail[]>('/integrations/google/gmail/recent'),
+    queryKey: ['mail-recent'],
+    queryFn: () => api.get<RecentEmail[]>('/integrations/mail/recent'),
     enabled,
     staleTime: 30_000,
   });
 }
-export function useAttachGmail(matterId: string) {
+export function useAttachMail(matterId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (gmailId: string) =>
-      api.post('/integrations/google/gmail/attach', { matterId, gmailId }),
+    mutationFn: (externalId: string) =>
+      api.post('/integrations/mail/attach', { matterId, externalId }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['matter-emails', matterId] }),
   });
 }
@@ -1086,7 +1124,7 @@ export function useSendMatterEmail(matterId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: { to: string; subject: string; body: string }) =>
-      api.post(`/integrations/google/matters/${matterId}/email`, body),
+      api.post(`/integrations/mail/matters/${matterId}/send`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['matter-emails', matterId] }),
   });
 }

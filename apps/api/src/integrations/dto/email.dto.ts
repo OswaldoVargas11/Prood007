@@ -7,7 +7,7 @@ export class AttachEmailDto {
 
   @IsString()
   @IsNotEmpty()
-  gmailId!: string;
+  externalId!: string;
 }
 
 export class SendEmailDto {

@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
+  CalendarCheck,
   CalendarClock,
   CalendarOff,
   CreditCard,
@@ -26,6 +27,10 @@ import {
   useGoogleConnect,
   useGoogleDisconnect,
   useGoogleStatus,
+  useMicrosoftCalendarSync,
+  useMicrosoftConnect,
+  useMicrosoftDisconnect,
+  useMicrosoftStatus,
   useRemoveHoliday,
   useSeats,
   useSettings,
@@ -80,6 +85,7 @@ export default function SettingsPage() {
       <HolidaysCard />
       <CertificateCard />
       <GoogleCard />
+      <MicrosoftCard />
       <StripeCard />
     </div>
   );
@@ -129,17 +135,63 @@ function StripeCard() {
   );
 }
 
-/** Integración con Google (OAuth): conectar/desconectar y sincronizar la agenda a Google Calendar. */
 function GoogleCard() {
+  return (
+    <ProviderCard
+      paramKey="google"
+      icon={<CalendarClock className="size-5 text-[var(--brand)]" />}
+      titleKey="googleTitle"
+      descKey="googleDesc"
+      status={useGoogleStatus()}
+      connect={useGoogleConnect()}
+      disconnect={useGoogleDisconnect()}
+      sync={useGoogleCalendarSync()}
+    />
+  );
+}
+
+function MicrosoftCard() {
+  return (
+    <ProviderCard
+      paramKey="microsoft"
+      icon={<CalendarCheck className="size-5 text-[var(--brand)]" />}
+      titleKey="microsoftTitle"
+      descKey="microsoftDesc"
+      status={useMicrosoftStatus()}
+      connect={useMicrosoftConnect()}
+      disconnect={useMicrosoftDisconnect()}
+      sync={useMicrosoftCalendarSync()}
+    />
+  );
+}
+
+type OAuthStatusData = { configured: boolean; connected: boolean; email: string | null };
+
+/** Tarjeta genérica de proveedor OAuth (Google/Microsoft): conectar/desconectar + sincronizar agenda. */
+function ProviderCard({
+  paramKey,
+  icon,
+  titleKey,
+  descKey,
+  status,
+  connect,
+  disconnect,
+  sync,
+}: {
+  paramKey: string;
+  icon: ReactNode;
+  titleKey: string;
+  descKey: string;
+  status: { data?: OAuthStatusData; isLoading: boolean; refetch: () => void };
+  connect: { mutateAsync: () => Promise<{ url: string }>; isPending: boolean };
+  disconnect: { mutate: () => void; isPending: boolean };
+  sync: { mutateAsync: () => Promise<{ pushed: number; errors: number }>; isPending: boolean };
+}) {
   const t = useTranslations('integrations');
-  const status = useGoogleStatus();
-  const connect = useGoogleConnect();
-  const disconnect = useGoogleDisconnect();
-  const sync = useGoogleCalendarSync();
   const params = useSearchParams();
 
   useEffect(() => {
-    const g = params.get('google');
+    const g = params.get(paramKey);
     if (g === 'connected') {
       toast.success(t('connected'));
       status.refetch();
@@ -159,9 +211,9 @@ function GoogleCard() {
   const data = status.data;
   return (
     <Section
-      icon={<CalendarClock className="size-5 text-[var(--brand)]" />}
-      title={t('googleTitle')}
-      desc={t('googleDesc')}
+      icon={icon}
+      title={t(titleKey)}
+      desc={t(descKey)}
       action={
         data?.connected ? (
           <Button

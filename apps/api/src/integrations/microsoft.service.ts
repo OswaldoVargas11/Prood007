@@ -1,46 +1,50 @@
 import { BadRequestException, Injectable, NotImplementedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { TaskStatus } from '@legalflow/domain';
 import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
 import { decryptBlob, encryptBlob, loadEncryptionKey } from '../storage/storage-crypto';
 import type { RequestUser } from '../auth/auth.types';
 
 const OPEN = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
-const PROVIDER = 'google';
-// Identidad + Calendar (eventos) + Gmail (enviar y leer para adjuntar al expediente). Nota: gmail.readonly
-// es scope "restringido" de Google → requiere verificación/usuarios de prueba; gmail.send es "sensible".
+const PROVIDER = 'microsoft';
+// Identidad + Outlook Calendar + correo (enviar y leer para adjuntar). offline_access → refresh token.
 const SCOPES = [
   'openid',
   'email',
-  'https://www.googleapis.com/auth/calendar.events',
-  'https://www.googleapis.com/auth/gmail.send',
-  'https://www.googleapis.com/auth/gmail.readonly',
+  'offline_access',
+  'https://graph.microsoft.com/Calendars.ReadWrite',
+  'https://graph.microsoft.com/Mail.Send',
+  'https://graph.microsoft.com/Mail.Read',
 ];
-const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
-const TOKEN_URL = 'https://oauth2.googleapis.com/token';
-const CAL_BASE = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
-const GMAIL_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
+const GRAPH = 'https://graph.microsoft.com/v1.0/me';
+// Propiedad extendida para marcar el evento con el id de la tarea (idempotencia del push de agenda).
+const TASK_PROP = 'String {6f3b2e10-9a4c-4b8e-9c1d-000000000001} Name lawzoraTaskId';
 
 /**
- * Integración Google (OAuth) — base compartida (Calendar ahora; Gmail después). GATED por configuración:
- * si faltan GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI o la clave de cifrado, los endpoints responden
- * "no configurado" y NO afecta a nada. Tokens cifrados en reposo (AES-256-GCM con DATA_ENCRYPTION_KEY).
- * El callback de Google llega sin sesión → upsert con el rol system; el `state` firmado porta el usuario.
+ * Integración Microsoft 365 (OAuth) — Outlook Calendar + correo, espejo de la de Google sobre Microsoft
+ * Graph. GATED: si faltan MS_CLIENT_ID/SECRET/REDIRECT_URI o la clave de cifrado responde "no configurado".
+ * Tokens cifrados (AES-256-GCM). El callback llega sin sesión → upsert con rol system; `state` firmado.
  */
 @Injectable()
-export class GoogleService {
+export class MicrosoftService {
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
     private readonly system: SystemPrismaService,
   ) {}
 
-  private clientId = () => this.config.get<string>('GOOGLE_CLIENT_ID');
-  private clientSecret = () => this.config.get<string>('GOOGLE_CLIENT_SECRET');
-  private redirectUri = () => this.config.get<string>('GOOGLE_REDIRECT_URI');
+  private clientId = () => this.config.get<string>('MS_CLIENT_ID');
+  private clientSecret = () => this.config.get<string>('MS_CLIENT_SECRET');
+  private redirectUri = () => this.config.get<string>('MS_REDIRECT_URI');
+  private msTenant = () => this.config.get<string>('MS_TENANT') ?? 'common';
   private key = () => loadEncryptionKey(this.config.get<string>('DATA_ENCRYPTION_KEY'));
   private secret = () => this.config.get<string>('JWT_ACCESS_SECRET') ?? 'dev-secret';
+
+  private authBase = () =>
+    `https://login.microsoftonline.com/${this.msTenant()}/oauth2/v2.0/authorize`;
+  private tokenBase = () =>
+    `https://login.microsoftonline.com/${this.msTenant()}/oauth2/v2.0/token`;
 
   isConfigured(): boolean {
     return Boolean(this.clientId() && this.clientSecret() && this.redirectUri() && this.key());
@@ -49,7 +53,7 @@ export class GoogleService {
     if (!this.isConfigured())
       throw new NotImplementedException({
         messageKey: 'integrations.notConfigured',
-        message: 'La integración con Google no está configurada en el servidor.',
+        message: 'La integración con Microsoft no está configurada en el servidor.',
       });
   }
 
@@ -61,7 +65,7 @@ export class GoogleService {
     return decryptBlob(this.key()!, Buffer.from(b64, 'base64')).toString('utf8');
   }
 
-  // ── State firmado (CSRF + porta el usuario hasta el callback) ─────────────────
+  // ── State firmado ─────────────────────────────────────────────────────────────
   private signState(user: RequestUser): string {
     const payload = Buffer.from(
       JSON.stringify({ u: user.userId, t: user.tenantId, n: randomBytes(8).toString('hex') }),
@@ -91,34 +95,33 @@ export class GoogleService {
     this.assertConfigured();
     const params = new URLSearchParams({
       client_id: this.clientId()!,
-      redirect_uri: this.redirectUri()!,
       response_type: 'code',
+      redirect_uri: this.redirectUri()!,
+      response_mode: 'query',
       scope: SCOPES.join(' '),
-      access_type: 'offline',
-      prompt: 'consent',
-      include_granted_scopes: 'true',
       state: this.signState(user),
+      prompt: 'consent',
     });
-    return { url: `${AUTH_URL}?${params.toString()}` };
+    return { url: `${this.authBase()}?${params.toString()}` };
   }
 
-  /** Intercambia el code por tokens y guarda la conexión (rol system: el redirect no trae sesión). */
   async handleCallback(code: string, state: string): Promise<{ webRedirect: string }> {
     const appUrl = this.config.get<string>('APP_PUBLIC_URL') ?? 'https://lawzora.com';
     const st = this.verifyState(state);
-    if (!st) return { webRedirect: `${appUrl}/es/settings?google=error` };
-    const res = await fetch(TOKEN_URL, {
+    if (!st) return { webRedirect: `${appUrl}/es/settings?microsoft=error` };
+    const res = await fetch(this.tokenBase(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
-        code,
         client_id: this.clientId()!,
         client_secret: this.clientSecret()!,
+        code,
         redirect_uri: this.redirectUri()!,
         grant_type: 'authorization_code',
+        scope: SCOPES.join(' '),
       }),
     });
-    if (!res.ok) return { webRedirect: `${appUrl}/es/settings?google=error` };
+    if (!res.ok) return { webRedirect: `${appUrl}/es/settings?microsoft=error` };
     const tok = (await res.json()) as {
       access_token: string;
       refresh_token?: string;
@@ -148,7 +151,7 @@ export class GoogleService {
         expiresAt,
       },
     });
-    return { webRedirect: `${appUrl}/es/settings?google=connected` };
+    return { webRedirect: `${appUrl}/es/settings?microsoft=connected` };
   }
 
   private emailFromIdToken(idToken?: string): string | null {
@@ -156,7 +159,7 @@ export class GoogleService {
     try {
       const part = idToken.split('.')[1]!;
       const o = JSON.parse(Buffer.from(part, 'base64url').toString('utf8'));
-      return typeof o.email === 'string' ? o.email : null;
+      return o.email ?? o.preferred_username ?? o.upn ?? null;
     } catch {
       return null;
     }
@@ -166,7 +169,7 @@ export class GoogleService {
     const conn = this.isConfigured()
       ? await this.prisma.oAuthConnection.findUnique({
           where: { userId_provider: { userId: user.userId, provider: PROVIDER } },
-          select: { externalEmail: true, scopes: true, createdAt: true },
+          select: { externalEmail: true },
         })
       : null;
     return {
@@ -183,7 +186,6 @@ export class GoogleService {
     return { success: true };
   }
 
-  /** Devuelve un access token válido (refresca si expiró). */
   private async accessTokenFor(userId: string): Promise<string> {
     const conn = await this.prisma.oAuthConnection.findUnique({
       where: { userId_provider: { userId, provider: PROVIDER } },
@@ -192,7 +194,7 @@ export class GoogleService {
     const fresh = !conn.expiresAt || conn.expiresAt.getTime() > Date.now() + 60_000;
     if (fresh) return this.dec(conn.accessToken);
     if (!conn.refreshToken) return this.dec(conn.accessToken);
-    const res = await fetch(TOKEN_URL, {
+    const res = await fetch(this.tokenBase(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -200,25 +202,31 @@ export class GoogleService {
         client_secret: this.clientSecret()!,
         refresh_token: this.dec(conn.refreshToken),
         grant_type: 'refresh_token',
+        scope: SCOPES.join(' '),
       }),
     });
     if (!res.ok) return this.dec(conn.accessToken);
-    const tok = (await res.json()) as { access_token: string; expires_in?: number };
+    const tok = (await res.json()) as {
+      access_token: string;
+      refresh_token?: string;
+      expires_in?: number;
+    };
     await this.prisma.oAuthConnection.update({
       where: { id: conn.id },
       data: {
         accessToken: this.enc(tok.access_token),
+        ...(tok.refresh_token ? { refreshToken: this.enc(tok.refresh_token) } : {}),
         expiresAt: tok.expires_in ? new Date(Date.now() + tok.expires_in * 1000) : null,
       },
     });
     return tok.access_token;
   }
 
-  // ── Calendar push (Lawzora → Google) ─────────────────────────────────────────
-  /** Empuja los plazos/tareas con vencimiento del despacho como eventos en el Google del usuario. */
+  // ── Calendar push (Lawzora → Outlook) ────────────────────────────────────────
   async syncCalendar(user: RequestUser): Promise<{ pushed: number; errors: number }> {
     this.assertConfigured();
     const token = await this.accessTokenFor(user.userId);
+    const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
     const tasks = await this.prisma.task.findMany({
       where: { tenantId: user.tenantId, status: { in: OPEN }, dueDate: { not: null } },
       include: { matter: { select: { reference: true, client: { select: { name: true } } } } },
@@ -229,59 +237,69 @@ export class GoogleService {
       if (!t.dueDate) continue;
       const date = t.dueDate.toISOString().slice(0, 10);
       const end = new Date(t.dueDate.getTime() + 86_400_000).toISOString().slice(0, 10);
-      const eventId = createHash('sha1').update(t.id).digest('hex'); // id determinista (hex = válido)
-      const body = JSON.stringify({
-        id: eventId,
-        summary: (t.isProcedural ? '⚖ ' : '') + (t.deadlineType || t.title),
-        description: [t.matter?.reference, t.matter?.client?.name].filter(Boolean).join(' · '),
-        start: { date },
-        end: { date: end },
-      });
-      const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-      // insert con id fijo; si ya existe (409) → update (PUT). Idempotente.
-      let r = await fetch(CAL_BASE, { method: 'POST', headers, body });
-      if (r.status === 409)
-        r = await fetch(`${CAL_BASE}/${eventId}`, { method: 'PUT', headers, body });
-      if (r.ok) pushed += 1;
-      else errors += 1;
+      const event = {
+        subject: (t.isProcedural ? '⚖ ' : '') + (t.deadlineType || t.title),
+        isAllDay: true,
+        start: { dateTime: `${date}T00:00:00`, timeZone: 'UTC' },
+        end: { dateTime: `${end}T00:00:00`, timeZone: 'UTC' },
+        body: {
+          contentType: 'Text',
+          content: [t.matter?.reference, t.matter?.client?.name].filter(Boolean).join(' · '),
+        },
+        singleValueExtendedProperties: [{ id: TASK_PROP, value: t.id }],
+      };
+      try {
+        // ¿Ya existe el evento de esta tarea? (filtro por la propiedad extendida) → PATCH, si no POST.
+        const q = new URLSearchParams({
+          $filter: `singleValueExtendedProperties/any(ep:ep/id eq '${TASK_PROP}' and ep/value eq '${t.id}')`,
+          $select: 'id',
+        });
+        const found = await fetch(`${GRAPH}/events?${q.toString()}`, { headers });
+        const existing = found.ok
+          ? (((await found.json()) as { value?: { id: string }[] }).value ?? [])
+          : [];
+        const r = existing.length
+          ? await fetch(`${GRAPH}/events/${existing[0]!.id}`, {
+              method: 'PATCH',
+              headers,
+              body: JSON.stringify(event),
+            })
+          : await fetch(`${GRAPH}/events`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify(event),
+            });
+        if (r.ok) pushed += 1;
+        else errors += 1;
+      } catch {
+        errors += 1;
+      }
     }
     return { pushed, errors };
   }
 
-  // ── Gmail (correspondencia del expediente) ───────────────────────────────────
-  private header(msg: any, name: string): string {
-    const h = (msg?.payload?.headers ?? []).find(
-      (x: any) => x.name?.toLowerCase() === name.toLowerCase(),
-    );
-    return h?.value ?? '';
-  }
-
-  /** Bandeja reciente (metadatos) para elegir qué correo adjuntar a un expediente. */
+  // ── Correo (Outlook) ─────────────────────────────────────────────────────────
   async listRecentEmails(user: RequestUser) {
     this.assertConfigured();
     const token = await this.accessTokenFor(user.userId);
-    const headers = { Authorization: `Bearer ${token}` };
-    const list = await fetch(`${GMAIL_BASE}/messages?maxResults=15&q=in:anywhere`, { headers });
-    if (!list.ok) return [];
-    const ids = ((await list.json()) as { messages?: { id: string }[] }).messages ?? [];
-    const out = [];
-    for (const { id } of ids) {
-      const r = await fetch(
-        `${GMAIL_BASE}/messages/${id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`,
-        { headers },
-      );
-      if (!r.ok) continue;
-      const m: any = await r.json();
-      out.push({
-        externalId: id,
-        from: this.header(m, 'From'),
-        to: this.header(m, 'To'),
-        subject: this.header(m, 'Subject'),
-        snippet: (m.snippet as string) ?? '',
-        date: this.header(m, 'Date'),
-      });
-    }
-    return out;
+    const q = new URLSearchParams({
+      $top: '15',
+      $select: 'id,subject,from,toRecipients,bodyPreview,receivedDateTime',
+      $orderby: 'receivedDateTime desc',
+    });
+    const r = await fetch(`${GRAPH}/messages?${q.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return [];
+    const msgs = ((await r.json()) as { value?: any[] }).value ?? [];
+    return msgs.map((m) => ({
+      externalId: m.id as string,
+      from: m.from?.emailAddress?.address ?? '',
+      to: m.toRecipients?.[0]?.emailAddress?.address ?? '',
+      subject: m.subject ?? '',
+      snippet: m.bodyPreview ?? '',
+      date: m.receivedDateTime ?? '',
+    }));
   }
 
   private async assertMatter(user: RequestUser, matterId: string) {
@@ -292,35 +310,35 @@ export class GoogleService {
     if (!m) throw new BadRequestException({ messageKey: 'matters.notFound' });
   }
 
-  /** Adjunta un correo de la bandeja al expediente (idempotente por gmailId+expediente). */
-  async attachEmail(user: RequestUser, matterId: string, gmailId: string) {
+  async attachEmail(user: RequestUser, matterId: string, externalId: string) {
     this.assertConfigured();
     await this.assertMatter(user, matterId);
     const existing = await this.prisma.matterEmail.findFirst({
-      where: { tenantId: user.tenantId, matterId, gmailId },
+      where: { tenantId: user.tenantId, matterId, gmailId: externalId },
       select: { id: true },
     });
     if (existing) return { id: existing.id, duplicate: true };
     const token = await this.accessTokenFor(user.userId);
-    const r = await fetch(
-      `${GMAIL_BASE}/messages/${gmailId}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
+    const q = new URLSearchParams({
+      $select: 'subject,from,toRecipients,bodyPreview,receivedDateTime',
+    });
+    const r = await fetch(`${GRAPH}/messages/${externalId}?${q.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
     if (!r.ok) throw new BadRequestException({ messageKey: 'integrations.gmailFetchFailed' });
     const m: any = await r.json();
-    const dateHdr = this.header(m, 'Date');
-    const sentAt = dateHdr ? new Date(dateHdr) : new Date();
+    const sentAt = m.receivedDateTime ? new Date(m.receivedDateTime) : new Date();
     const created = await this.prisma.matterEmail.create({
       data: {
         tenantId: user.tenantId,
         matterId,
         userId: user.userId,
         direction: 'IN',
-        gmailId,
-        fromAddr: this.header(m, 'From') || '—',
-        toAddr: this.header(m, 'To') || '—',
-        subject: this.header(m, 'Subject') || null,
-        snippet: (m.snippet as string) ?? null,
+        gmailId: externalId,
+        fromAddr: m.from?.emailAddress?.address ?? '—',
+        toAddr: m.toRecipients?.[0]?.emailAddress?.address ?? '—',
+        subject: m.subject ?? null,
+        snippet: m.bodyPreview ?? null,
         sentAt: isNaN(sentAt.getTime()) ? new Date() : sentAt,
       },
       select: { id: true },
@@ -328,7 +346,6 @@ export class GoogleService {
     return { id: created.id, duplicate: false };
   }
 
-  /** Envía un correo desde el Gmail del usuario y lo registra en el expediente (OUT). */
   async sendEmail(user: RequestUser, matterId: string, to: string, subject: string, body: string) {
     this.assertConfigured();
     await this.assertMatter(user, matterId);
@@ -338,32 +355,25 @@ export class GoogleService {
       select: { externalEmail: true },
     });
     const from = conn?.externalEmail ?? user.email;
-    const encSubject = `=?UTF-8?B?${Buffer.from(subject, 'utf8').toString('base64')}?=`;
-    const mime = [
-      `From: ${from}`,
-      `To: ${to}`,
-      `Subject: ${encSubject}`,
-      'MIME-Version: 1.0',
-      'Content-Type: text/plain; charset=UTF-8',
-      'Content-Transfer-Encoding: 8bit',
-      '',
-      body,
-    ].join('\r\n');
-    const raw = Buffer.from(mime, 'utf8').toString('base64url');
-    const r = await fetch(`${GMAIL_BASE}/messages/send`, {
+    const r = await fetch(`${GRAPH}/sendMail`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ raw }),
+      body: JSON.stringify({
+        message: {
+          subject,
+          body: { contentType: 'Text', content: body },
+          toRecipients: [{ emailAddress: { address: to } }],
+        },
+        saveToSentItems: true,
+      }),
     });
     if (!r.ok) throw new BadRequestException({ messageKey: 'integrations.gmailSendFailed' });
-    const sent = (await r.json()) as { id?: string };
     const created = await this.prisma.matterEmail.create({
       data: {
         tenantId: user.tenantId,
         matterId,
         userId: user.userId,
         direction: 'OUT',
-        gmailId: sent.id ?? null,
         fromAddr: from,
         toAddr: to,
         subject,
@@ -373,23 +383,5 @@ export class GoogleService {
       select: { id: true },
     });
     return { id: created.id };
-  }
-
-  /** Correspondencia registrada de un expediente (ambas direcciones), más reciente primero. */
-  async listMatterEmails(user: RequestUser, matterId: string) {
-    await this.assertMatter(user, matterId);
-    return this.prisma.matterEmail.findMany({
-      where: { tenantId: user.tenantId, matterId },
-      orderBy: { sentAt: 'desc' },
-      select: {
-        id: true,
-        direction: true,
-        fromAddr: true,
-        toAddr: true,
-        subject: true,
-        snippet: true,
-        sentAt: true,
-      },
-    });
   }
 }
