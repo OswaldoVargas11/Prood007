@@ -1531,3 +1531,12 @@ export function useCheckout() {
 export function usePortal() {
   return useMutation({ mutationFn: () => api.post<{ url: string }>('/subscription/portal') });
 }
+
+/** Ajusta el nº de plazas contratadas (prorrateado en la próxima factura). */
+export function useChangeSeats() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (seats: number) => api.post<{ seats: number }>('/subscription/seats', { seats }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['subscription'] }),
+  });
+}

@@ -249,6 +249,18 @@ export const API_MESSAGES = {
     'es-ES': 'Webhook de suscripción inválido (firma no verificada).',
     'es-DO': 'Webhook de suscripción inválido (firma no verificada).',
   },
+  'subscription.noSubscription': {
+    'es-ES': 'No hay una suscripción activa que ajustar. Suscríbete primero.',
+    'es-DO': 'No hay una suscripción activa que ajustar. Suscríbete primero.',
+  },
+  'subscription.seatsInvalid': {
+    'es-ES': 'Número de plazas no válido.',
+    'es-DO': 'Número de plazas no válido.',
+  },
+  'subscription.seatsBelowUsage': {
+    'es-ES': 'No puedes bajar de las plazas que ya tienes en uso.',
+    'es-DO': 'No puedes bajar de las plazas que ya tienes en uso.',
+  },
 
   // ── Plataforma (super-admin) ──────────────────────────────────────────────
   'platform.notConfigured': {

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Role } from '@legalflow/domain';
 import Stripe from 'stripe';
 import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
 import { apiError } from '../common/api-messages';
@@ -203,6 +204,54 @@ export class StripeBillingService {
       });
     }
     throw new BadRequestException(apiError('subscription.noCustomer'));
+  }
+
+  /**
+   * Cambia el número de plazas (quantity) de la suscripción. PRORRATEO con COBRO ANTICIPADO:
+   * `always_invoice` emite y cobra YA una factura por el importe proporcional de los días que faltan
+   * hasta la próxima fecha de cobro (al añadir) o aplica un crédito proporcional (al quitar). El cambio
+   * aplica al instante (la plaza queda disponible ya) y, en la fecha normal de facturación, se cobra
+   * todo junto. No se permite bajar por debajo del staff activo (nadie debe quedarse sin licencia).
+   */
+  async changeSeats(user: RequestUser, newSeats: number): Promise<{ seats: number }> {
+    const stripe = this.client();
+    if (!Number.isInteger(newSeats) || newSeats < 1) {
+      throw new BadRequestException(apiError('subscription.seatsInvalid'));
+    }
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: user.tenantId },
+      select: { id: true, stripeSubscriptionId: true },
+    });
+    if (!tenant.stripeSubscriptionId) {
+      throw new BadRequestException(apiError('subscription.noSubscription'));
+    }
+    const used = await this.prisma.user.count({
+      where: {
+        tenantId: user.tenantId,
+        isActive: true,
+        roles: { some: { role: { code: { in: [Role.FIRM_ADMIN, Role.LAWYER] } } } },
+      },
+    });
+    if (newSeats < used) {
+      throw new BadRequestException(
+        apiError('subscription.seatsBelowUsage', {
+          message: `No puedes bajar de ${used} plazas: tienes ${used} usuarios activos.`,
+          params: { used },
+        }),
+      );
+    }
+
+    const sub = await stripe.subscriptions.retrieve(tenant.stripeSubscriptionId);
+    const itemId = sub.items.data[0]?.id;
+    if (!itemId) throw new BadRequestException(apiError('subscription.noSubscription'));
+    const updated = await stripe.subscriptions.update(tenant.stripeSubscriptionId, {
+      items: [{ id: itemId, quantity: newSeats }],
+      // Cobro anticipado: factura el prorrateo al momento (no en la próxima factura).
+      proration_behavior: 'always_invoice',
+    });
+    // Sincroniza el tenant ya (sin esperar al webhook) para que la UI refleje las plazas al momento.
+    await this.applySubscription(user.tenantId, updated as unknown as SubLike);
+    return { seats: newSeats };
   }
 
   // ── Webhook ────────────────────────────────────────────────────────────────

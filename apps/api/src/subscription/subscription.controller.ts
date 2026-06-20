@@ -3,6 +3,7 @@ import { Role } from '@legalflow/domain';
 import { SubscriptionService } from './subscription.service';
 import { StripeBillingService } from './stripe-billing.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { ChangeSeatsDto } from './dto/change-seats.dto';
 import { AllowExpired } from './allow-expired.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -40,5 +41,12 @@ export class SubscriptionController {
   @Post('portal')
   portal(@CurrentUser() user: RequestUser) {
     return this.stripe.createPortal(user);
+  }
+
+  /** Ajusta el nº de plazas contratadas (prorrateado en la próxima factura). Solo el admin. */
+  @Roles(Role.FIRM_ADMIN)
+  @Post('seats')
+  changeSeats(@CurrentUser() user: RequestUser, @Body() dto: ChangeSeatsDto) {
+    return this.stripe.changeSeats(user, dto.seats);
   }
 }

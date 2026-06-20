@@ -2,13 +2,20 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, CreditCard, Crown, Loader2 } from 'lucide-react';
-import { useCheckout, usePortal, useSubscription } from '@/lib/hooks';
+import { toast } from 'sonner';
+import { Check, CreditCard, Crown, Loader2, Minus, Plus } from 'lucide-react';
+import { useChangeSeats, useCheckout, usePortal, useSubscription } from '@/lib/hooks';
+import { ApiError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { BadgeProps } from '@/components/ui/badge';
-import type { BillingCycle, SubscriptionStatusValue, SubscriptionTier } from '@/lib/types';
+import type {
+  BillingCycle,
+  SubscriptionInfo,
+  SubscriptionStatusValue,
+  SubscriptionTier,
+} from '@/lib/types';
 
 function priceForSeats(tiers: SubscriptionTier[], seats: number): number {
   for (const t of tiers) if (t.upTo === null || seats <= t.upTo) return t.pricePerSeatEur;
@@ -97,6 +104,9 @@ export function SubscribePanel() {
           <Crown className="size-4" /> {t('founderActive', { n: data.founderNumber })}
         </p>
       )}
+
+      {/* Ajustar plazas (solo suscriptores): cambia la quantity con prorrateo, sin pasar por el portal. */}
+      {hasSubscription && <ManageSeatsCard data={data} />}
 
       {/* Controles compartidos: plazas + ciclo */}
       <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border bg-card p-4">
@@ -232,6 +242,76 @@ export function SubscribePanel() {
           {portal.isPending ? <Loader2 className="animate-spin" /> : <CreditCard />}
           {t('manage')}
         </Button>
+      )}
+    </div>
+  );
+}
+
+/** Ajuste de plazas para un despacho YA suscrito: sube/baja la quantity con prorrateo. */
+function ManageSeatsCard({ data }: { data: SubscriptionInfo }) {
+  const t = useTranslations('subscription');
+  const change = useChangeSeats();
+  const min = Math.max(1, data.seatsUsed);
+  const [seats, setSeats] = useState(Math.max(min, data.seats || min));
+  const dirty = seats !== data.seats;
+  const perSeat = priceForSeats(data.tiers, seats);
+  const monthly = Math.round(seats * perSeat);
+
+  async function apply() {
+    if (seats < min || seats === data.seats) return;
+    try {
+      await change.mutateAsync(seats);
+      toast.success(t('manageSeats.updated'));
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : t('error'));
+    }
+  }
+
+  return (
+    <div className="space-y-3 rounded-xl border bg-card p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold">{t('manageSeats.title')}</h3>
+        <span className="text-[12px] text-muted-foreground">
+          {t('manageSeats.current', { seats: data.seats, used: data.seatsUsed })}
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex items-center rounded-md border bg-[var(--surface-1)]">
+          <button
+            type="button"
+            onClick={() => setSeats((s) => Math.max(min, s - 1))}
+            disabled={seats <= min}
+            className="px-3 py-2 text-muted-foreground disabled:opacity-40"
+            aria-label="−"
+          >
+            <Minus className="size-4" />
+          </button>
+          <span className="w-10 text-center text-sm font-semibold tabular-nums">{seats}</span>
+          <button
+            type="button"
+            onClick={() => setSeats((s) => Math.min(999, s + 1))}
+            className="px-3 py-2 text-muted-foreground"
+            aria-label="+"
+          >
+            <Plus className="size-4" />
+          </button>
+        </div>
+        <span className="text-[13px] text-muted-foreground">
+          {t('manageSeats.newTotal', { total: monthly })}
+        </span>
+        <Button
+          size="sm"
+          onClick={apply}
+          disabled={!dirty || seats < min || change.isPending}
+          className="ml-auto"
+        >
+          {change.isPending ? <Loader2 className="animate-spin" /> : null}
+          {t('manageSeats.apply')}
+        </Button>
+      </div>
+      <p className="text-[12px] text-muted-foreground">{t('manageSeats.prorationNote')}</p>
+      {seats < data.seats && (
+        <p className="text-[12px] text-amber-600">{t('manageSeats.decreaseNote')}</p>
       )}
     </div>
   );

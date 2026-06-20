@@ -1300,6 +1300,15 @@
     "manage": "Gestionar pago",
     "allFeatures": "Todas las funciones incluidas, sea cual sea el número de plazas.",
     "error": "No se pudo continuar. Inténtalo de nuevo.",
+    "manageSeats": {
+      "title": "Ajustar plazas",
+      "current": "Contratadas: {seats} · En uso: {used}",
+      "newTotal": "{total} €/mes",
+      "apply": "Aplicar cambio",
+      "updated": "Plazas actualizadas",
+      "prorationNote": "Al añadir plazas se cobra ahora mismo el importe proporcional de los días que faltan hasta tu próxima factura, y la plaza queda disponible al instante. Desde tu fecha de cobro habitual se factura todo junto.",
+      "decreaseNote": "Al reducir plazas se aplica un crédito proporcional que descuenta de tu próxima factura."
+    },
     "bannerTrial": "Te quedan {days} días de prueba gratis",
     "bannerCta": "Suscríbete",
     "wallTitle": "Tu prueba ha finalizado",
