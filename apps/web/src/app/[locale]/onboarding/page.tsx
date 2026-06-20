@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { ThemeToggle } from '@/components/lexora/theme-toggle';
+import { Logo } from '@/components/lexora/logo';
 import { cn, isEmailish } from '@/lib/utils';
 
 type Jur = 'es' | 'do';
@@ -116,11 +117,8 @@ export default function OnboardingPage() {
 
       {/* Rail izquierdo: pasos + resumen */}
       <aside className="hidden w-80 flex-shrink-0 flex-col border-r bg-card/50 p-8 md:flex">
-        <div className="mb-8 flex items-center gap-2.5">
-          <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--ai-from)] to-[var(--ai-to)]">
-            <div className="size-2.5 rotate-45 rounded-[3px] border-2 border-white" />
-          </div>
-          <div className="text-base font-semibold tracking-tight">Lexora</div>
+        <div className="mb-8 flex items-center">
+          <Logo size={26} />
         </div>
 
         <div className="mb-4 text-xs font-semibold uppercase tracking-wider text-[var(--text-subtle)]">

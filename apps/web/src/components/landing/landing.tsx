@@ -1,395 +1,543 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import {
   ArrowRight,
   CalendarClock,
-  CheckCircle2,
+  Check,
   CreditCard,
   FileCheck2,
+  FileLock2,
+  History,
+  Landmark,
+  Link2,
   Lock,
   PiggyBank,
   ShieldCheck,
+  Sparkles,
   Users,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Logo } from '@/components/lexora/logo';
+import { ComplianceSeal } from '@/components/lexora/compliance-seal';
 import { DURATION, EASE } from '@/lib/motion';
 import { Reveal } from './reveal';
 
 /**
- * Landing pública (BORRADOR para revisión). Misma marca/Geist/tokens que la app + sistema de movimiento.
- * Copy es-ES pendiente de revisión del owner (valor y precios marcados). i18n se aplica al fijar el copy.
- * Capturas: placeholders estilizados — se sustituyen por capturas reales de la app pulida (Parte A).
+ * Landing pública de Lawzora. Lidera con GESTIÓN (el porqué del uso diario); el cumplimiento
+ * (Verifactu/e-CF) baja a diferenciador + urgencia. Misma marca/tokens/Geist que la app, framer-motion
+ * con `Reveal` (respeta prefers-reduced-motion) y componentes reales (Button/Badge/Logo/ComplianceSeal).
+ * Copy en messages/es.json (`landing.*`). Precio 29 €/usuario/mes: pendiente de confirmación del owner.
  */
-const BENEFITS = [
-  {
-    icon: CreditCard,
-    title: 'Cobro online',
-    body: 'Cobra con tarjeta; el dinero va directo a tu cuenta.',
-  },
-  {
-    icon: PiggyBank,
-    title: 'Provisión de fondos',
-    body: 'Pide provisiones y lleva el saldo del expediente en tiempo real.',
-  },
-  {
-    icon: CalendarClock,
-    title: 'Plazos procesales',
-    body: 'Vencimientos con días hábiles y festivos; recordatorios que no fallan.',
-  },
-  {
-    icon: Users,
-    title: 'Portal del cliente',
-    body: 'Tu cliente ve sus expedientes, facturas y documentos en su espacio.',
-  },
-  {
-    icon: CheckCircle2,
-    title: 'Todo incluido',
-    body: 'Sin niveles de funciones: todas las capacidades, una tarifa por usuario.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'España + R. Dominicana',
-    body: 'Una herramienta para despachos en ES, en RD o en ambos.',
-  },
+const BENEFIT_ICONS: LucideIcon[] = [
+  CreditCard,
+  PiggyBank,
+  CalendarClock,
+  Users,
+  Sparkles,
+  ShieldCheck,
 ];
+const SECURITY_ICONS: LucideIcon[] = [ShieldCheck, FileLock2, History, Users];
 
-export function Landing() {
+/** Ventana de producto con "traffic lights" (mock con datos ilustrativos). */
+function MockWindow({ url, children }: { url: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* ── Nav ── */}
-      <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-5">
-          <div className="flex items-center gap-2">
-            <span className="flex size-6 items-center justify-center rounded-md bg-[var(--brand)] text-white">
-              <ShieldCheck className="size-3.5" />
-            </span>
-            <span className="text-[15px] font-semibold tracking-tight">Lawzora</span>
-          </div>
-          <nav className="hidden items-center gap-6 text-[13px] text-muted-foreground sm:flex">
-            <a href="#producto" className="transition-colors hover:text-foreground">
-              Producto
-            </a>
-            <a href="#cumplimiento" className="transition-colors hover:text-foreground">
-              Cumplimiento
-            </a>
-            <a href="#precios" className="transition-colors hover:text-foreground">
-              Precios
-            </a>
-          </nav>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/login"
-              className="rounded-md px-3 py-1.5 text-[13px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Iniciar sesión
-            </Link>
-            <Link
-              href="/login"
-              className="rounded-md bg-[var(--brand)] px-3.5 py-1.5 text-[13px] font-semibold text-white shadow-[var(--shadow-xs)] transition-colors hover:opacity-90"
-            >
-              Prueba gratis
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Hero ── */}
-      <section className="relative overflow-hidden">
-        {/* acento de marca MUY sutil de fondo (sin morado chillón) */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 -top-40 h-[480px] opacity-[0.5]"
-          style={{
-            background:
-              'radial-gradient(60% 60% at 50% 0%, color-mix(in oklch, var(--brand) 22%, transparent), transparent 70%)',
-          }}
-        />
-        <div className="relative mx-auto max-w-6xl px-5 pb-10 pt-20 text-center sm:pt-28">
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: DURATION.base, ease: EASE.entrance }}
-            className="text-[12.5px] font-medium uppercase tracking-wide text-muted-foreground"
-          >
-            Software de gestión para despachos · España y R. Dominicana
-          </motion.p>
-          <motion.h1
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: DURATION.base, ease: EASE.entrance, delay: 0.05 }}
-            className="mx-auto mt-4 max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-5xl"
-          >
-            El despacho, al día. La facturación, en regla.
-          </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: DURATION.base, ease: EASE.entrance, delay: 0.1 }}
-            className="mx-auto mt-4 max-w-2xl text-pretty text-[15px] leading-relaxed text-muted-foreground sm:text-base"
-          >
-            Único con <strong className="text-foreground">Verifactu (España)</strong> y{' '}
-            <strong className="text-foreground">e-CF (Rep. Dominicana)</strong> nativos: facturación
-            fiscal válida desde el primer día, sin add-ons ni integraciones a medias.
-          </motion.p>
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: DURATION.base, ease: EASE.entrance, delay: 0.15 }}
-            className="mt-7 flex flex-wrap items-center justify-center gap-3"
-          >
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 rounded-lg bg-[var(--brand)] px-5 py-2.5 text-[14px] font-semibold text-white shadow-[var(--shadow-sm)] transition-[transform,opacity] duration-150 hover:opacity-90 active:scale-[0.98]"
-            >
-              Empieza gratis 15 días <ArrowRight className="size-4" />
-            </Link>
-            <a
-              href="#contacto"
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-2.5 text-[14px] font-medium transition-colors hover:bg-accent"
-            >
-              Solicitar una demo
-            </a>
-          </motion.div>
-          <p className="mt-3 text-[12px] text-muted-foreground">
-            Sin tarjeta para empezar · Todo incluido · ES/RD
-          </p>
-
-          {/* Visual de producto (PLACEHOLDER — se sustituye por captura real de la app pulida) */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: EASE.entrance, delay: 0.2 }}
-            className="mx-auto mt-12 max-w-4xl"
-          >
-            <AppMockup />
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ── Diferenciador / foso ── */}
-      <section id="cumplimiento" className="border-t border-border/60 bg-[var(--surface-2)]/40">
-        <div className="mx-auto max-w-6xl px-5 py-16">
-          <Reveal className="mx-auto max-w-2xl text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--success-soft)] px-3 py-1 text-[12px] font-medium text-[var(--success)]">
-              <FileCheck2 className="size-3.5" /> Cumplimiento fiscal nativo
-            </span>
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
-              Cumplimiento de verdad, no una casilla
-            </h2>
-            <p className="mt-3 text-pretty text-[14.5px] leading-relaxed text-muted-foreground">
-              Verifactu y e-CF no son un extra: son la ley. Lawzora emite facturas con su registro
-              fiscal encadenado y su QR/eNCF de cotejo, listas para{' '}
-              <strong className="text-foreground">AEAT</strong> y{' '}
-              <strong className="text-foreground">DGII</strong>. Lo que otros dejan para «más
-              adelante», aquí ya funciona.
-            </p>
-          </Reveal>
-          <Reveal
-            delay={0.05}
-            className="mx-auto mt-8 flex max-w-md flex-wrap items-center justify-center gap-3"
-          >
-            <Badge ok>Verifactu · AEAT</Badge>
-            <Badge ok>e-CF · DGII</Badge>
-            <Badge ok>Huella encadenada</Badge>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── Beneficios ── */}
-      <section id="producto" className="mx-auto max-w-6xl px-5 py-16">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Todo lo que el despacho necesita
-          </h2>
-          <p className="mt-3 text-[14.5px] text-muted-foreground">
-            De la captación al cobro, pasando por los plazos y el portal del cliente.
-          </p>
-        </Reveal>
-        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {BENEFITS.map((b, i) => (
-            <Reveal key={b.title} delay={(i % 3) * 0.05}>
-              <div className="h-full rounded-xl border bg-card p-5 shadow-[var(--shadow-xs)] transition-shadow duration-200 hover:shadow-[var(--shadow-md)]">
-                <span className="flex size-9 items-center justify-center rounded-lg bg-[var(--brand-soft)] text-[var(--brand)]">
-                  <b.icon className="size-5" />
-                </span>
-                <h3 className="mt-3 text-[14.5px] font-semibold">{b.title}</h3>
-                <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{b.body}</p>
-              </div>
-            </Reveal>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Confianza ── */}
-      <section className="border-y border-border/60 bg-[var(--surface-2)]/40">
-        <div className="mx-auto max-w-6xl px-5 py-14">
-          <Reveal className="grid items-center gap-8 lg:grid-cols-[1fr_1.2fr]">
-            <div>
-              <span className="inline-flex items-center gap-1.5 text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-                <Lock className="size-3.5" /> Seguridad
-              </span>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">
-                Tus datos, blindados
-              </h2>
-              <p className="mt-3 text-[14px] leading-relaxed text-muted-foreground">
-                Construido para datos sensibles, con aislamiento total entre despachos.
-              </p>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {[
-                ['Cifrado en reposo', 'Documentos y datos sensibles cifrados (AES-256-GCM).'],
-                ['Verificación en dos pasos', '2FA para proteger cada cuenta.'],
-                ['RGPD / Ley 172-13', 'Privacidad y retención conforme a ES y RD.'],
-                ['Aislamiento por despacho', 'Cada despacho, su espacio estanco.'],
-              ].map(([t, d]) => (
-                <div key={t} className="rounded-lg border bg-card p-3.5">
-                  <div className="flex items-center gap-2 text-[13.5px] font-medium">
-                    <CheckCircle2 className="size-4 text-[var(--success)]" /> {t}
-                  </div>
-                  <p className="mt-1 pl-6 text-[12px] text-muted-foreground">{d}</p>
-                </div>
-              ))}
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── Precios (REVISAR) ── */}
-      <section id="precios" className="mx-auto max-w-6xl px-5 py-16">
-        <Reveal className="mx-auto max-w-xl text-center">
-          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Una tarifa, todo dentro
-          </h2>
-          <p className="mt-3 text-[14.5px] text-muted-foreground">
-            Por usuario activo. Sin sorpresas.
-          </p>
-          <div className="mx-auto mt-8 max-w-sm rounded-2xl border border-[var(--brand-line)] bg-card p-6 text-left shadow-[var(--shadow-md)]">
-            <div className="text-[12px] font-medium uppercase tracking-wide text-muted-foreground">
-              Plan único · todo incluido
-            </div>
-            <div className="mt-2 flex items-end gap-1">
-              <span className="text-4xl font-semibold tracking-tight tabular-nums">€—</span>
-              <span className="mb-1 text-[13px] text-muted-foreground">/ usuario / mes</span>
-            </div>
-            <p className="mt-1 text-[11.5px] font-medium text-[var(--warning)]">
-              [REVISAR PRECIOS]
-            </p>
-            <ul className="mt-4 space-y-2 text-[13px]">
-              {[
-                'Verifactu + e-CF',
-                'Cobro online + provisión',
-                'Plazos + portal del cliente',
-                'Sin niveles de funciones',
-              ].map((f) => (
-                <li key={f} className="flex items-center gap-2">
-                  <CheckCircle2 className="size-4 text-[var(--success)]" /> {f}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href="/login"
-              className="mt-5 flex items-center justify-center gap-2 rounded-lg bg-[var(--brand)] px-4 py-2.5 text-[14px] font-semibold text-white transition-opacity hover:opacity-90"
-            >
-              Empieza gratis <ArrowRight className="size-4" />
-            </Link>
-          </div>
-        </Reveal>
-      </section>
-
-      {/* ── CTA final ── */}
-      <section id="contacto" className="border-t border-border/60">
-        <div className="mx-auto max-w-3xl px-5 py-16 text-center">
-          <Reveal>
-            <h2 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
-              Pon tu despacho en regla hoy
-            </h2>
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-2 rounded-lg bg-[var(--brand)] px-5 py-2.5 text-[14px] font-semibold text-white transition-opacity hover:opacity-90"
-              >
-                Empieza gratis <ArrowRight className="size-4" />
-              </Link>
-              <a
-                href="mailto:hola@lawzora.com"
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-2.5 text-[14px] font-medium transition-colors hover:bg-accent"
-              >
-                Habla con nosotros
-              </a>
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* ── Footer ── */}
-      <footer className="border-t border-border/60 bg-[var(--surface-2)]/40">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-5 py-8 text-[12.5px] text-muted-foreground sm:flex-row">
-          <span>© {new Date().getFullYear()} Lawzora · lawzora.com</span>
-          <div className="flex items-center gap-5">
-            <Link href="/privacy" className="transition-colors hover:text-foreground">
-              Privacidad
-            </Link>
-            <Link href="/terms" className="transition-colors hover:text-foreground">
-              Términos
-            </Link>
-            <a href="mailto:hola@lawzora.com" className="transition-colors hover:text-foreground">
-              Contacto
-            </a>
-          </div>
-        </div>
-      </footer>
+    <div className="overflow-hidden rounded-2xl border bg-card text-left shadow-[var(--shadow-xl)]">
+      <div className="flex items-center gap-1.5 border-b bg-[var(--surface-2)] px-4 py-2.5">
+        <span className="size-2.5 rounded-full bg-[var(--danger)]" />
+        <span className="size-2.5 rounded-full bg-[var(--warning)]" />
+        <span className="size-2.5 rounded-full bg-[var(--success)]" />
+        <span className="ml-3 font-mono text-[11px] text-muted-foreground">{url}</span>
+      </div>
+      {children}
     </div>
   );
 }
 
-function Badge({ children, ok }: { children: React.ReactNode; ok?: boolean }) {
+function MockRow({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-[12.5px] font-medium">
-      {ok && <CheckCircle2 className="size-3.5 text-[var(--success)]" />}
+    <div className="flex items-center justify-between gap-3 rounded-md border bg-[var(--surface-1)] px-3 py-2.5 text-[13px]">
       {children}
-    </span>
+    </div>
   );
 }
 
-/** Mockup estilizado de la app (placeholder; se reemplaza por captura real de la Parte A). */
-function AppMockup() {
+export function Landing() {
+  const t = useTranslations('landing');
+  const benefits = t.raw('product.benefits') as { title: string; body: string }[];
+  const metrics = t.raw('product.metrics') as { value: string; label: string }[];
+  const bullets = t.raw('product.showcase.bullets') as string[];
+  const security = t.raw('security.items') as { title: string; body: string }[];
+  const features = t.raw('pricing.features') as string[];
+
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-xl)]">
-      <div className="flex items-center gap-1.5 border-b border-border bg-[var(--surface-2)] px-3 py-2">
-        <span className="size-2.5 rounded-full bg-[var(--danger)]/60" />
-        <span className="size-2.5 rounded-full bg-[var(--warning)]/60" />
-        <span className="size-2.5 rounded-full bg-[var(--success)]/60" />
-        <span className="ml-3 text-[11px] text-muted-foreground">
-          lawzora.com · Factura F-2026-0042
-        </span>
-      </div>
-      <div className="grid gap-3 p-4 sm:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-3">
-          <div className="h-5 w-40 rounded bg-[var(--surface-3)]" />
-          <div className="rounded-lg border bg-[var(--surface-1)] p-3">
-            <div className="mb-2 h-3 w-24 rounded bg-[var(--surface-3)]" />
-            {[80, 60, 70].map((w, i) => (
-              <div key={i} className="mb-1.5 flex items-center justify-between">
-                <div className="h-3 rounded bg-[var(--surface-3)]" style={{ width: `${w}%` }} />
-                <div className="h-3 w-10 rounded bg-[var(--surface-3)]" />
+    <div className="min-h-screen bg-background text-foreground">
+      {/* ── Nav ── */}
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex h-[60px] max-w-5xl items-center justify-between px-6">
+          <Logo size={26} />
+          <nav className="hidden items-center gap-7 text-[13px] text-muted-foreground md:flex">
+            <a href="#producto" className="transition-colors hover:text-foreground">
+              {t('nav.product')}
+            </a>
+            <a href="#cumplimiento" className="transition-colors hover:text-foreground">
+              {t('nav.compliance')}
+            </a>
+            <a href="#confianza" className="transition-colors hover:text-foreground">
+              {t('nav.security')}
+            </a>
+            <a href="#precios" className="transition-colors hover:text-foreground">
+              {t('nav.pricing')}
+            </a>
+          </nav>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/login">{t('nav.login')}</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/login">{t('nav.trial')}</Link>
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* ── Hero (gestión) ── */}
+      <section className="relative overflow-hidden">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 -top-32 h-[460px]"
+          style={{
+            background:
+              'radial-gradient(58% 60% at 50% 0%, color-mix(in oklch, var(--brand) 22%, transparent), transparent 70%)',
+          }}
+        />
+        <div className="relative mx-auto max-w-5xl px-6 pb-10 pt-20 text-center sm:pt-24">
+          <motion.p
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: DURATION.base, ease: EASE.entrance }}
+            className="font-mono text-[12px] font-semibold uppercase tracking-wide text-muted-foreground"
+          >
+            {t('hero.eyebrow')}
+          </motion.p>
+          <motion.h1
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: DURATION.base, ease: EASE.entrance, delay: 0.05 }}
+            className="mx-auto mt-4 max-w-[18ch] text-balance text-4xl font-semibold leading-[1.08] tracking-tight sm:text-5xl"
+          >
+            {t('hero.title')}
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: DURATION.base, ease: EASE.entrance, delay: 0.1 }}
+            className="mx-auto mt-4 max-w-[60ch] text-pretty text-[15px] leading-relaxed text-muted-foreground sm:text-base"
+          >
+            {t('hero.subtitle')}
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: DURATION.base, ease: EASE.entrance, delay: 0.15 }}
+            className="mt-7 flex flex-wrap items-center justify-center gap-3"
+          >
+            <Button asChild size="lg">
+              <Link href="/login">
+                {t('hero.ctaPrimary')} <ArrowRight />
+              </Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <a href="#contacto">{t('hero.ctaSecondary')}</a>
+            </Button>
+          </motion.div>
+          <p className="mt-3 text-[12px] text-muted-foreground">{t('hero.note')}</p>
+
+          {/* Mock: panel del despacho (gestión, no factura) */}
+          <motion.div
+            initial={{ opacity: 0, y: 22 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: DURATION.chart, ease: EASE.entrance, delay: 0.2 }}
+            className="mx-auto mt-12 max-w-3xl"
+          >
+            <MockWindow url={t('hero.mockUrl')}>
+              <div className="grid gap-4 p-4 md:grid-cols-[1.4fr_1fr]">
+                <div className="flex flex-col gap-2.5">
+                  {[1, 2, 3].map((n) => (
+                    <MockRow key={n}>
+                      <span className="min-w-0">
+                        <b className="font-semibold">{t(`hero.mockMatter${n}`)}</b>
+                        <br />
+                        <span className="font-mono text-[12px] text-muted-foreground">
+                          {t(`hero.mockMatter${n}Ref`)}
+                        </span>
+                      </span>
+                      <Badge variant={n === 1 ? 'success' : n === 2 ? 'info' : 'warning'}>
+                        {t(`hero.mockMatter${n}State`)}
+                      </Badge>
+                    </MockRow>
+                  ))}
+                </div>
+                <div className="flex flex-col gap-3 rounded-lg border bg-[var(--surface-2)] p-3.5">
+                  <div className="flex items-center gap-1.5 text-[13px] font-semibold text-[var(--brand)]">
+                    <CalendarClock className="size-4" /> {t('hero.mockDeadlineLabel')}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-10 shrink-0 flex-col items-center justify-center rounded-md bg-[var(--brand-soft)] text-[var(--brand)]">
+                      <b className="text-[15px] leading-none">08</b>
+                      <span className="mt-0.5 font-mono text-[8px] font-semibold">JUL</span>
+                    </div>
+                    <div>
+                      <div className="text-[13px] font-semibold">{t('hero.mockDeadlineTask')}</div>
+                      <div className="mt-0.5 font-mono text-[12px] text-[var(--warning)]">
+                        {t('hero.mockDeadlineWhen')}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between border-t pt-2.5 text-[13px] text-muted-foreground">
+                    <span>{t('hero.mockBilled')}</span>
+                    <span className="font-mono font-semibold text-foreground tabular-nums">
+                      5.936,00 €
+                    </span>
+                  </div>
+                </div>
               </div>
+            </MockWindow>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* ── Trust strip ── */}
+      <section className="border-y bg-[var(--surface-2)]/50">
+        <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-6 py-7">
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-[var(--text-subtle)]">
+            {t('trust.heading')}
+          </span>
+          <div className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-[13px] font-semibold text-muted-foreground">
+            {(
+              [
+                [Landmark, 'AEAT'],
+                [Landmark, 'DGII'],
+                [FileCheck2, 'Verifactu'],
+                [FileCheck2, 'e-CF'],
+                [CreditCard, 'Stripe'],
+                [ShieldCheck, 'RGPD · Ley 172-13'],
+              ] as [LucideIcon, string][]
+            ).map(([Icon, label]) => (
+              <span key={label} className="inline-flex items-center gap-1.5 opacity-80">
+                <Icon className="size-4" /> {label}
+              </span>
             ))}
           </div>
         </div>
-        <div className="space-y-3">
-          <div className="rounded-lg border border-[var(--success)]/30 bg-[var(--success-soft)] p-3">
-            <div className="flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--success)]">
-              <FileCheck2 className="size-3.5" /> Verifactu · AEAT
-            </div>
-            <div className="mt-2 size-16 rounded bg-[var(--surface-1)] [background-image:repeating-linear-gradient(45deg,var(--border)_0,var(--border)_2px,transparent_2px,transparent_4px)]" />
-          </div>
-          <div className="rounded-lg border bg-[var(--brand-soft)] p-3">
-            <div className="h-3 w-16 rounded bg-[var(--brand-line)]" />
-            <div className="mt-2 h-6 w-24 rounded bg-[var(--brand-line)]" />
+      </section>
+
+      {/* ── Diferenciador fiscal (el foso) ── */}
+      <section id="cumplimiento" className="border-b bg-[var(--surface-2)]/40">
+        <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
+          <div className="grid items-center gap-8 md:grid-cols-2">
+            <Reveal>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--seal-line)] bg-[var(--seal-soft)] px-3 py-1.5 text-[12px] font-semibold text-[var(--seal-strong)]">
+                <ShieldCheck className="size-3.5" /> {t('diff.badge')}
+              </span>
+              <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
+                {t('diff.title')}
+              </h2>
+              <p className="mt-3.5 text-pretty text-[15px] leading-relaxed text-muted-foreground">
+                {t('diff.body')}
+              </p>
+            </Reveal>
+            <Reveal delay={0.05}>
+              <MockWindow url={t('diff.invoiceUrl')}>
+                <div className="grid gap-4 p-4">
+                  <div className="flex flex-col gap-2.5">
+                    <MockRow>
+                      <span>{t('diff.lineFees')}</span>
+                      <span className="font-mono tabular-nums">1.700,00 €</span>
+                    </MockRow>
+                    <MockRow>
+                      <span>{t('diff.lineTax')}</span>
+                      <span className="font-mono tabular-nums">102,00 €</span>
+                    </MockRow>
+                    <MockRow>
+                      <span className="font-semibold">{t('diff.lineTotal')}</span>
+                      <span className="font-mono font-semibold tabular-nums">1.802,00 €</span>
+                    </MockRow>
+                  </div>
+                  <ComplianceSeal regime="verifactu" />
+                </div>
+              </MockWindow>
+            </Reveal>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* ── Producto ── */}
+      <section id="producto" className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
+        <Reveal className="mx-auto max-w-[60ch] text-center">
+          <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            {t('product.title')}
+          </h2>
+          <p className="mt-3.5 text-[15px] leading-relaxed text-muted-foreground">
+            {t('product.subtitle')}
+          </p>
+        </Reveal>
+
+        <div className="mt-10 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
+          {benefits.map((b, i) => {
+            const Icon = BENEFIT_ICONS[i];
+            return (
+              <Reveal key={b.title} delay={(i % 3) * 0.05}>
+                <div className="h-full rounded-xl border bg-card p-5 shadow-[var(--shadow-xs)] transition-shadow [transition-duration:var(--dur-base)] [transition-timing-function:var(--ease-standard)] hover:shadow-[var(--shadow-md)]">
+                  <span className="flex size-9 items-center justify-center rounded-lg bg-[var(--brand-soft)] text-[var(--brand)]">
+                    <Icon className="size-5" />
+                  </span>
+                  <h3 className="mt-3.5 text-[15px] font-semibold">{b.title}</h3>
+                  <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                    {b.body}
+                  </p>
+                </div>
+              </Reveal>
+            );
+          })}
+        </div>
+
+        {/* Banda de métricas */}
+        <Reveal className="mt-10 grid gap-3.5 sm:grid-cols-3">
+          {metrics.map((m) => (
+            <div key={m.label} className="px-2 py-2 text-center">
+              <div className="text-[34px] font-semibold tabular-nums tracking-tight text-[var(--brand)]">
+                {m.value}
+              </div>
+              <div className="mt-1 text-[14px] text-muted-foreground">{m.label}</div>
+            </div>
+          ))}
+        </Reveal>
+
+        {/* Showcase: cobro y caja */}
+        <div className="mt-14 grid items-center gap-8 md:grid-cols-2">
+          <Reveal>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--brand-line)] bg-[var(--brand-soft)] px-3 py-1.5 text-[12px] font-semibold text-[var(--brand)]">
+              <CreditCard className="size-3.5" /> {t('product.showcase.badge')}
+            </span>
+            <h3 className="mt-2.5 text-xl font-semibold tracking-tight">
+              {t('product.showcase.title')}
+            </h3>
+            <p className="mt-2.5 text-[15px] leading-relaxed text-muted-foreground">
+              {t('product.showcase.body')}
+            </p>
+            <ul className="mt-4 flex flex-col gap-2.5 text-[14px]">
+              {bullets.map((b) => (
+                <li key={b} className="flex items-center gap-2.5">
+                  <Check className="size-4 text-[var(--success)]" /> {b}
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+          <Reveal delay={0.05}>
+            <MockWindow url={t('product.showcase.mockUrl')}>
+              <div className="flex flex-col gap-2.5 p-4">
+                <div>
+                  <div className="text-[12px] text-muted-foreground">
+                    {t('product.showcase.mockPending')}
+                  </div>
+                  <div className="font-mono text-[30px] font-semibold tracking-tight tabular-nums">
+                    870,00 €
+                  </div>
+                </div>
+                <MockRow>
+                  <span>
+                    <b className="font-semibold">{t('product.showcase.mockProvision')}</b>
+                    <br />
+                    <span className="text-[12px] text-muted-foreground">
+                      {t('product.showcase.mockProvisionWhen')}
+                    </span>
+                  </span>
+                  <Badge variant="warning">{t('product.showcase.mockProvisionState')}</Badge>
+                </MockRow>
+                <MockRow>
+                  <span>
+                    <b className="font-semibold">{t('product.showcase.mockCard')}</b>
+                    <br />
+                    <span className="font-mono text-[12px] text-muted-foreground">
+                      {t('product.showcase.mockCardRef')}
+                    </span>
+                  </span>
+                  <Badge variant="success">{t('product.showcase.mockCardState')}</Badge>
+                </MockRow>
+                <Button className="mt-0.5 w-full">
+                  <Link2 /> {t('product.showcase.mockCta')}
+                </Button>
+              </div>
+            </MockWindow>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── Seguridad ── */}
+      <section id="confianza" className="border-y bg-[var(--surface-2)]/40">
+        <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
+          <Reveal className="mx-auto max-w-[60ch] text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--brand-line)] bg-[var(--brand-soft)] px-3 py-1.5 text-[12px] font-semibold text-[var(--brand)]">
+              <Lock className="size-3.5" /> {t('security.badge')}
+            </span>
+            <h2 className="mt-4 text-2xl font-semibold tracking-tight sm:text-3xl">
+              {t('security.title')}
+            </h2>
+            <p className="mt-3.5 text-[15px] leading-relaxed text-muted-foreground">
+              {t('security.subtitle')}
+            </p>
+          </Reveal>
+          <div className="mt-10 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+            {security.map((s, i) => {
+              const Icon = SECURITY_ICONS[i];
+              return (
+                <Reveal key={s.title} delay={(i % 4) * 0.04}>
+                  <div className="flex h-full items-start gap-3 rounded-xl border bg-card p-[18px] shadow-[var(--shadow-xs)]">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--brand-soft)] text-[var(--brand)]">
+                      <Icon className="size-[18px]" />
+                    </span>
+                    <div>
+                      <h3 className="text-[14px] font-semibold">{s.title}</h3>
+                      <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+                        {s.body}
+                      </p>
+                    </div>
+                  </div>
+                </Reveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Testimonio (ilustrativo) ── */}
+      <section className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
+        <Reveal className="mx-auto max-w-[760px] text-center">
+          <div className="font-mono text-[40px] leading-none text-[var(--seal)]">“</div>
+          <blockquote className="text-balance text-xl font-medium leading-[1.4] tracking-tight sm:text-[26px]">
+            {t('quote.text')}
+          </blockquote>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-full bg-[var(--brand-soft)] font-semibold text-[var(--brand)]">
+              MG
+            </span>
+            <div className="text-left">
+              <div className="text-[14px] font-semibold">{t('quote.name')}</div>
+              <div className="text-[12px] text-muted-foreground">{t('quote.role')}</div>
+            </div>
+          </div>
+          <span className="mt-4 inline-block font-mono text-[10.5px] text-[var(--text-subtle)] opacity-80">
+            {t('quote.flag')}
+          </span>
+        </Reveal>
+      </section>
+
+      {/* ── Precios ── */}
+      <section id="precios" className="border-t bg-[var(--surface-2)]/40">
+        <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
+          <Reveal className="mx-auto max-w-[60ch] text-center">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              {t('pricing.title')}
+            </h2>
+            <p className="mt-3.5 text-[15px] leading-relaxed text-muted-foreground">
+              {t('pricing.subtitle')}
+            </p>
+          </Reveal>
+          <Reveal delay={0.05} className="mx-auto mt-9 max-w-sm">
+            <div className="rounded-2xl border border-[var(--brand-line)] bg-card p-7 text-left shadow-[var(--shadow-md)]">
+              <div className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {t('pricing.tag')}
+              </div>
+              <div className="mt-2.5 flex items-end gap-2">
+                <span className="text-[42px] font-semibold leading-none tracking-tight tabular-nums">
+                  {t('pricing.amount')}
+                </span>
+                <span className="mb-1.5 text-[14px] text-muted-foreground">{t('pricing.per')}</span>
+              </div>
+              <ul className="mt-[18px] flex flex-col gap-2.5 text-[14px]">
+                {features.map((f) => (
+                  <li key={f} className="flex items-center gap-2.5">
+                    <Check className="size-4 text-[var(--success)]" /> {f}
+                  </li>
+                ))}
+              </ul>
+              <Button asChild size="lg" className="mt-5 w-full">
+                <Link href="/login">
+                  {t('pricing.cta')} <ArrowRight />
+                </Link>
+              </Button>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* ── CTA final ── */}
+      <section id="contacto" className="mx-auto max-w-5xl px-6 py-6 pb-14">
+        <Reveal>
+          <div
+            className="relative overflow-hidden rounded-2xl px-8 py-14 text-center text-white"
+            style={{
+              background: 'linear-gradient(150deg, var(--brand-strong), oklch(0.3 0.06 205))',
+            }}
+          >
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -bottom-36 -right-24 size-[380px] rounded-full"
+              style={{
+                background: 'radial-gradient(circle, oklch(0.72 0.13 60 / 0.35), transparent 65%)',
+              }}
+            />
+            <h2 className="relative text-2xl font-semibold tracking-tight sm:text-3xl">
+              {t('finalCta.title')}
+            </h2>
+            <p className="relative mx-auto mt-3 max-w-[48ch] text-[15px] opacity-90">
+              {t('finalCta.body')}
+            </p>
+            <div className="relative mt-6 flex flex-wrap justify-center gap-3">
+              <Button
+                asChild
+                size="lg"
+                className="bg-white text-[var(--brand-strong)] hover:bg-white/90"
+              >
+                <Link href="/login">
+                  {t('finalCta.ctaPrimary')} <ArrowRight />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                size="lg"
+                variant="outline"
+                className="border-white/50 bg-transparent text-white hover:bg-white/10 hover:text-white"
+              >
+                <a href="mailto:hola@lawzora.com">{t('finalCta.ctaSecondary')}</a>
+              </Button>
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
+      {/* ── Footer ── */}
+      <footer className="border-t bg-[var(--surface-2)]/50">
+        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 px-6 py-7 text-[12px] text-muted-foreground sm:flex-row">
+          <span>{t('footer.rights')}</span>
+          <div className="flex items-center gap-5">
+            <Link href="/privacy" className="transition-colors hover:text-foreground">
+              {t('footer.privacy')}
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-foreground">
+              {t('footer.terms')}
+            </Link>
+            <a href="mailto:hola@lawzora.com" className="transition-colors hover:text-foreground">
+              {t('footer.contact')}
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -6,15 +6,13 @@ import { NAV_GROUPS, type NavItem } from '@/lib/nav';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { Logo } from '@/components/lexora/logo';
 
 /** Marca (logo + nombre), reutilizada por el sidebar de escritorio y el Drawer móvil. */
 function Brand() {
   return (
-    <div className="flex h-14 items-center gap-2.5 px-5">
-      <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--ai-from)] to-[var(--ai-to)]">
-        <div className="size-2.5 rotate-45 rounded-[3px] border-2 border-white" />
-      </div>
-      <span className="text-sm font-semibold tracking-tight">Lexora</span>
+    <div className="flex h-14 items-center px-5">
+      <Logo size={24} />
     </div>
   );
 }
@@ -81,7 +79,7 @@ export function MobileSidebar({
         side="left"
         className="flex w-[270px] flex-col bg-card/95 p-0 backdrop-blur-xl lg:hidden"
       >
-        <SheetTitle className="sr-only">Lexora</SheetTitle>
+        <SheetTitle className="sr-only">Lawzora</SheetTitle>
         <SheetDescription className="sr-only">Navegación principal del despacho</SheetDescription>
         <Brand />
         <SidebarNav onNavigate={() => onOpenChange(false)} />
