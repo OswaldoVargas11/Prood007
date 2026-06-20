@@ -41,6 +41,11 @@ export default function middleware(req: NextRequest) {
     return intlMiddleware(req);
   }
 
+  // Páginas legales (privacidad, términos): públicas SIEMPRE, con o sin sesión (sin redirecciones).
+  if (rest === '/privacy' || rest === '/terms') {
+    return intlMiddleware(req);
+  }
+
   const hasSession = req.cookies.has(SESSION_COOKIE);
   const scope = req.cookies.get(SCOPE_COOKIE)?.value;
   const isLogin = rest === '/login' || rest.startsWith('/login/');
