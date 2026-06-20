@@ -31,3 +31,31 @@ export function safeContentDisposition(mime: string | null | undefined, filename
 export function isInlineSafeMime(mime: string | null | undefined): boolean {
   return INLINE_SAFE_MIME.has((mime || '').toLowerCase());
 }
+
+/**
+ * Detecta por MAGIC BYTES si un buffer es realmente una imagen rasterizada o un PDF (no se fía del
+ * `mimetype` declarado por el cliente, que es falsificable). Devuelve el tipo o `null`. Cubre PNG/JPEG/
+ * GIF/WEBP/PDF. Evita subir, p. ej., HTML/SVG etiquetado como `image/png`.
+ */
+export function sniffSafeUploadType(buffer: Buffer): string | null {
+  if (buffer.length < 12) return null;
+  const b = buffer;
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return 'image/png';
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'image/jpeg';
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x38) return 'image/gif';
+  if (b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return 'application/pdf';
+  // WEBP: "RIFF"...."WEBP"
+  if (
+    b[0] === 0x52 &&
+    b[1] === 0x49 &&
+    b[2] === 0x46 &&
+    b[3] === 0x46 &&
+    b[8] === 0x57 &&
+    b[9] === 0x45 &&
+    b[10] === 0x42 &&
+    b[11] === 0x50
+  ) {
+    return 'image/webp';
+  }
+  return null;
+}

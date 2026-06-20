@@ -344,10 +344,13 @@ export class GoogleService {
       select: { externalEmail: true },
     });
     const from = conn?.externalEmail ?? user.email;
+    // Defensa en profundidad contra inyección de cabeceras MIME: el asunto va codificado en base64 y al
+    // `to` se le quitan CR/LF (aunque el DTO ya valida @IsEmail, por si otro caller no lo hiciera).
+    const safeTo = to.replace(/[\r\n]/g, '');
     const encSubject = `=?UTF-8?B?${Buffer.from(subject, 'utf8').toString('base64')}?=`;
     const mime = [
       `From: ${from}`,
-      `To: ${to}`,
+      `To: ${safeTo}`,
       `Subject: ${encSubject}`,
       'MIME-Version: 1.0',
       'Content-Type: text/plain; charset=UTF-8',

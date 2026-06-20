@@ -239,13 +239,15 @@ describe('Tanda B — usuarios/licencia, ajustes, auditoría, aprobaciones (e2e)
   });
 
   it('un coste con justificante adjunto se guarda (hasReceipt) y se puede descargar', async () => {
+    // PNG real (firma de magic bytes) — el servidor valida el contenido, no solo el mime declarado.
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
     const prop = await request(app.getHttpServer())
       .post('/api/ledger/costs/propose')
       .set(auth(lawyerToken))
       .field('matterId', matterId)
       .field('description', 'Tasa con ticket')
       .field('amount', '50.00')
-      .attach('receipt', Buffer.from('datos-del-ticket'), 'ticket.png')
+      .attach('receipt', png, { filename: 'ticket.png', contentType: 'image/png' })
       .expect(201);
     const id = prop.body.id;
 

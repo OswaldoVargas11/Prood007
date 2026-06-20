@@ -40,7 +40,13 @@ describe('Login social (e2e)', () => {
       const u = String(url);
       if (u.includes('oauth2.googleapis.com/token') || u.includes('login.microsoftonline.com')) {
         if (!mockTokenOk) return Promise.resolve(new Response('nope', { status: 400 }));
-        const idToken = 'h.' + Buffer.from(JSON.stringify(mockClaims)).toString('base64url') + '.s';
+        // Los id_token reales llevan `aud` (= clientId) y `exp`; el servidor ahora los valida.
+        const claims = {
+          aud: u.includes('googleapis') ? process.env.GOOGLE_CLIENT_ID : process.env.MS_CLIENT_ID,
+          exp: Math.floor(Date.now() / 1000) + 600,
+          ...mockClaims,
+        };
+        const idToken = 'h.' + Buffer.from(JSON.stringify(claims)).toString('base64url') + '.s';
         return Promise.resolve(
           new Response(JSON.stringify({ id_token: idToken }), { status: 200 }),
         );

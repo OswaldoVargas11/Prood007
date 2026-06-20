@@ -61,18 +61,19 @@ describe('MFA / 2FA (e2e)', () => {
   // ── Unidad: TOTP (RFC 6238) ────────────────────────────────────────────────
   it('TOTP coincide con los vectores de prueba de la RFC 6238', () => {
     const secret = base32Encode(Buffer.from('12345678901234567890', 'ascii'));
-    expect(verifyTotp(secret, '287082', 59_000)).toBe(true);
-    expect(verifyTotp(secret, '050471', 1111111111_000)).toBe(true);
-    expect(verifyTotp(secret, '005924', 1234567890_000)).toBe(true);
+    // verifyTotp devuelve el contador de ventana (≥0) si valida, o -1 si no.
+    expect(verifyTotp(secret, '287082', 59_000)).toBeGreaterThanOrEqual(0);
+    expect(verifyTotp(secret, '050471', 1111111111_000)).toBeGreaterThanOrEqual(0);
+    expect(verifyTotp(secret, '005924', 1234567890_000)).toBeGreaterThanOrEqual(0);
     // generateTotp produce el mismo código que verifica el verificador.
-    expect(verifyTotp(secret, generateTotp(secret, 59_000), 59_000)).toBe(true);
+    expect(verifyTotp(secret, generateTotp(secret, 59_000), 59_000)).toBeGreaterThanOrEqual(0);
   });
 
   it('verifyTotp rechaza formatos inválidos y códigos incorrectos', () => {
     const secret = generateTotpSecret();
-    expect(verifyTotp(secret, 'abc')).toBe(false);
-    expect(verifyTotp(secret, '12345')).toBe(false);
-    expect(verifyTotp(secret, '000000', 0)).toBe(false);
+    expect(verifyTotp(secret, 'abc')).toBe(-1);
+    expect(verifyTotp(secret, '12345')).toBe(-1);
+    expect(verifyTotp(secret, '000000', 0)).toBe(-1);
     expect(otpauthUri(secret, email)).toContain('otpauth://totp/');
   });
 
@@ -208,10 +209,12 @@ describe('MFA / 2FA (e2e)', () => {
   });
 
   it('disable con código correcto desactiva MFA', async () => {
+    // Código de respaldo (no TOTP): el TOTP de esta misma ventana ya se usó en el login y el anti-replay
+    // lo rechazaría. Un código de respaldo es igualmente válido para desactivar.
     await request(server())
       .post('/api/auth/mfa/disable')
       .set(auth())
-      .send({ code: generateTotp(secret) })
+      .send({ code: backupCodes[1] })
       .expect(200);
     const st = await request(server()).get('/api/auth/mfa/status').set(auth()).expect(200);
     expect(st.body.enabled).toBe(false);

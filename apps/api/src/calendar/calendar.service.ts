@@ -25,22 +25,22 @@ export class CalendarService {
     return this.config.getOrThrow<string>('JWT_ACCESS_SECRET');
   }
 
-  /** Token de feed = `<userId>.<hmac>`. Estable por usuario; se invalida al rotar el secreto. */
-  feedToken(userId: string): string {
-    const sig = createHmac('sha256', this.secret()).update(userId).digest('base64url');
-    return `${userId}.${sig}`;
+  /**
+   * Firma `<userId>.<passwordChangedAt>`: liga el token a la contraseña, de modo que **cambiar la
+   * contraseña revoca el feed** de ese usuario (además de la rotación global del secreto).
+   */
+  private sign(userId: string, pwChangedAt: Date | null | undefined): string {
+    const stamp = pwChangedAt ? pwChangedAt.getTime().toString() : '0';
+    return createHmac('sha256', this.secret()).update(`${userId}.${stamp}`).digest('base64url');
   }
 
-  private verify(token: string): string | null {
-    const dot = token.lastIndexOf('.');
-    if (dot <= 0) return null;
-    const userId = token.slice(0, dot);
-    const sig = token.slice(dot + 1);
-    const expected = createHmac('sha256', this.secret()).update(userId).digest('base64url');
-    const a = Buffer.from(sig);
-    const b = Buffer.from(expected);
-    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-    return userId;
+  /** Token de feed = `<userId>.<hmac>`. Revocable: cambia al rotar el secreto o la contraseña del usuario. */
+  async feedToken(userId: string): Promise<string> {
+    const u = await this.system.user.findUnique({
+      where: { id: userId },
+      select: { passwordChangedAt: true },
+    });
+    return `${userId}.${this.sign(userId, u?.passwordChangedAt ?? null)}`;
   }
 
   /** Escapa texto para un campo iCal (RFC 5545). */
@@ -54,13 +54,20 @@ export class CalendarService {
 
   /** Devuelve el .ics del despacho del usuario dueño del token, o null si el token no es válido. */
   async feed(token: string): Promise<string | null> {
-    const userId = this.verify(token);
-    if (!userId) return null;
+    const dot = token.lastIndexOf('.');
+    if (dot <= 0) return null;
+    const userId = token.slice(0, dot);
+    const sig = token.slice(dot + 1);
     const user = await this.system.user.findUnique({
       where: { id: userId },
-      select: { tenantId: true, tenant: { select: { name: true } } },
+      select: { tenantId: true, passwordChangedAt: true, tenant: { select: { name: true } } },
     });
     if (!user) return null;
+    // Verifica la firma ligada a la contraseña (cambiarla revoca el feed). Tiempo constante.
+    const expected = this.sign(userId, user.passwordChangedAt);
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
 
     // Solo las tareas ASIGNADAS a este letrado (su agenda personal), no todas las del despacho.
     const tasks = await this.system.task.findMany({

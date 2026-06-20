@@ -13,7 +13,7 @@ export class CalendarController {
 
   /** Devuelve el token del feed iCal del usuario. El front construye la URL `…/api/public/calendar/:token`. */
   @Get('feed-link')
-  feedLink(@CurrentUser() user: RequestUser) {
-    return { token: this.calendar.feedToken(user.userId) };
+  async feedLink(@CurrentUser() user: RequestUser) {
+    return { token: await this.calendar.feedToken(user.userId) };
   }
 }

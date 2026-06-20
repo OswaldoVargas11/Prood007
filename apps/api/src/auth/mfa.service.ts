@@ -65,13 +65,15 @@ export class MfaService {
     });
     if (!u?.mfaSecret) throw new BadRequestException(apiError('mfa.notStarted'));
     if (u.mfaEnabled) throw new BadRequestException(apiError('mfa.alreadyEnabled'));
-    if (!verifyTotp(this.dec(u.mfaSecret), code)) {
+    const counter = verifyTotp(this.dec(u.mfaSecret), code);
+    if (counter < 0) {
       throw new BadRequestException(apiError('mfa.invalidCode'));
     }
     const backupCodes = Array.from({ length: BACKUP_CODE_COUNT }, () =>
       randomBytes(5).toString('hex'),
     );
     const hashes = await Promise.all(backupCodes.map((c) => argon2.hash(c)));
+    // El sellado anti-replay del contador se aplica en el primer login (no en la activación).
     await this.system.user.update({
       where: { id: user.userId },
       data: { mfaEnabled: true, mfaBackupCodes: JSON.stringify(hashes) },
@@ -83,10 +85,16 @@ export class MfaService {
   async disable(user: RequestUser, code: string) {
     const u = await this.system.user.findUnique({
       where: { id: user.userId },
-      select: { mfaSecret: true, mfaEnabled: true, mfaBackupCodes: true },
+      select: { mfaSecret: true, mfaEnabled: true, mfaBackupCodes: true, lastTotpCounter: true },
     });
     if (!u?.mfaEnabled || !u.mfaSecret) throw new BadRequestException(apiError('mfa.notEnabled'));
-    const ok = await this.verifySecretOrBackup(user.userId, u.mfaSecret, u.mfaBackupCodes, code);
+    const ok = await this.verifySecretOrBackup(
+      user.userId,
+      u.mfaSecret,
+      u.mfaBackupCodes,
+      code,
+      u.lastTotpCounter,
+    );
     if (!ok) throw new BadRequestException(apiError('mfa.invalidCode'));
     await this.system.user.update({
       where: { id: user.userId },
@@ -100,20 +108,36 @@ export class MfaService {
   async verifyForLogin(userId: string, code: string): Promise<boolean> {
     const u = await this.system.user.findUnique({
       where: { id: userId },
-      select: { mfaSecret: true, mfaEnabled: true, mfaBackupCodes: true },
+      select: { mfaSecret: true, mfaEnabled: true, mfaBackupCodes: true, lastTotpCounter: true },
     });
     if (!u?.mfaEnabled || !u.mfaSecret) return false;
-    return this.verifySecretOrBackup(userId, u.mfaSecret, u.mfaBackupCodes, code);
+    return this.verifySecretOrBackup(
+      userId,
+      u.mfaSecret,
+      u.mfaBackupCodes,
+      code,
+      u.lastTotpCounter,
+    );
   }
 
-  /** Acepta un código TOTP o uno de respaldo (que se consume). */
+  /** Acepta un código TOTP o uno de respaldo (que se consume). Aplica anti-replay sobre el TOTP. */
   private async verifySecretOrBackup(
     userId: string,
     encSecret: string,
     backupJson: string | null,
     code: string,
+    lastTotpCounter?: number | null,
   ): Promise<boolean> {
-    if (verifyTotp(this.dec(encSecret), code)) return true;
+    const counter = verifyTotp(this.dec(encSecret), code);
+    if (counter >= 0) {
+      // Anti-replay: un código TOTP no puede reutilizarse (contador ≤ el último aceptado).
+      if (lastTotpCounter != null && counter <= lastTotpCounter) return false;
+      await this.system.user.update({
+        where: { id: userId },
+        data: { lastTotpCounter: counter },
+      });
+      return true;
+    }
     // Código de respaldo: se compara contra cada hash y, si coincide, se elimina (un solo uso).
     const normalized = code.replace(/\s/g, '').toLowerCase();
     const hashes: string[] = backupJson ? JSON.parse(backupJson) : [];

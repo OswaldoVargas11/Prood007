@@ -25,7 +25,7 @@ import { ProposeCostDto } from './dto/propose-cost.dto';
 import { ResolveApprovalDto } from './dto/resolve-approval.dto';
 import { apiError } from '../common/api-messages';
 import { buildInvoicePdf, invoiceRowToPdfData } from './invoice-pdf';
-import { isInlineSafeMime } from '../common/safe-download';
+import { isInlineSafeMime, sniffSafeUploadType } from '../common/safe-download';
 import { PaymentsService } from '../payments/payments.service';
 import {
   DEFAULT_PAYMENT_TERM_DAYS,
@@ -359,6 +359,10 @@ export class LedgerService {
     const currency = p.currency ?? p.matter.tenant.currency;
     const invoiceFormat = p.invoiceFormat ?? user.jurisdiction;
     const provider = this.compliance.forTenant({ jurisdiction: invoiceFormat });
+    // Serializa la emisión POR TENANT (lock transaccional de aviso; espacio 2 = serie de factura, distinto
+    // del de plazas). Evita que dos emisiones concurrentes calculen el mismo `number` (→ P2002 → reversión
+    // → HUECO en la serie) o encadenen contra la MISMA huella anterior (→ bifurcación de la cadena fiscal).
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(2, hashtext(${user.tenantId}))`;
     // Serie consumida dentro de la tx (count+1) → atómica con el resto: si algo revierte, no hay hueco.
     const count = await tx.invoice.count({ where: { tenantId: user.tenantId } });
     const tenantRow = await tx.tenant.findUniqueOrThrow({
@@ -531,7 +535,11 @@ export class LedgerService {
     const amount = Number(dto.amount);
     if (!(amount > 0)) throw new BadRequestException(apiError('ledger.amountPositive'));
     // Valida el tipo del justificante ANTES de crear nada (solo imagen/PDF; no HTML/SVG ejecutable).
-    if (receipt?.buffer?.length && !isInlineSafeMime(receipt.mimetype)) {
+    // Comprueba el mime DECLARADO y además los MAGIC BYTES reales (no se fía del cliente).
+    if (
+      receipt?.buffer?.length &&
+      (!isInlineSafeMime(receipt.mimetype) || !sniffSafeUploadType(receipt.buffer))
+    ) {
       throw new BadRequestException(apiError('ledger.receiptType'));
     }
     const matter = await this.getMatterOrThrow(user, dto.matterId);

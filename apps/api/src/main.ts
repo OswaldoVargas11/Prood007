@@ -6,7 +6,38 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { createValidationPipe } from './common/validation';
 
+/**
+ * Validación fail-fast del entorno EN PRODUCCIÓN: aborta el arranque si faltan secretos críticos o son
+ * débiles (< 32 bytes). No corre en dev/test (los e2e usan TestingModule, no este bootstrap).
+ */
+function validateProdEnv(): void {
+  if (process.env.NODE_ENV !== 'production') return;
+  // FATAL: variables que DEBEN existir (su ausencia rompería la app igualmente). No tocan los valores.
+  const missing = [
+    'JWT_ACCESS_SECRET',
+    'JWT_REFRESH_SECRET',
+    'DATA_ENCRYPTION_KEY',
+    'DATABASE_URL',
+    'SYSTEM_DATABASE_URL',
+    'CORS_ORIGINS',
+    'PLATFORM_ADMIN_PASSWORD',
+  ].filter((n) => !process.env[n]);
+  if (missing.length > 0) {
+    throw new Error(`Faltan variables obligatorias en producción: ${missing.join(', ')}`);
+  }
+  // AVISO (no fatal, para no tumbar un despliegue vivo): calidad de los secretos. Surfacea en logs para
+  // que el owner los endurezca/rote sin riesgo de crash-loop.
+  const warn = (msg: string) => console.warn(`[seguridad] ${msg}`); // eslint-disable-line no-console
+  for (const n of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET', 'DATA_ENCRYPTION_KEY']) {
+    if ((process.env[n] ?? '').length < 32) warn(`${n} es corto (<32); usa un valor más fuerte.`);
+  }
+  if (process.env.JWT_ACCESS_SECRET === process.env.JWT_REFRESH_SECRET) {
+    warn('JWT_ACCESS_SECRET y JWT_REFRESH_SECRET deberían ser distintos.');
+  }
+}
+
 async function bootstrap() {
+  validateProdEnv();
   // `rawBody: true` preserva el cuerpo crudo (para verificar la firma del webhook de Stripe).
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 

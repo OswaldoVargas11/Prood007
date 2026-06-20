@@ -132,7 +132,9 @@ export class SocialAuthService {
     });
     if (!res.ok) return { error: 'exchange' };
     const tok = (await res.json()) as { id_token?: string };
-    const claims = this.decodeIdToken(tok.id_token);
+    // El id_token llega por canal directo TLS servidor→servidor desde el tokenUrl del proveedor (no del
+    // cliente), pero validamos además `aud` (== nuestro clientId) y `exp` como defensa en profundidad.
+    const claims = this.decodeIdToken(tok.id_token, c.clientId);
     const email = (claims.email ?? claims.preferred_username ?? claims.upn ?? '').toLowerCase();
     if (!email) return { error: 'no_email' };
     if (c.requireVerified && claims.email_verified !== true && claims.email_verified !== 'true') {
@@ -178,7 +180,10 @@ export class SocialAuthService {
     return this.tokens.issuePair(userForToken);
   }
 
-  private decodeIdToken(idToken?: string): {
+  private decodeIdToken(
+    idToken: string | undefined,
+    expectedAud: string,
+  ): {
     email?: string;
     email_verified?: boolean | string;
     preferred_username?: string;
@@ -186,7 +191,23 @@ export class SocialAuthService {
   } {
     if (!idToken) return {};
     try {
-      return JSON.parse(Buffer.from(idToken.split('.')[1]!, 'base64url').toString('utf8'));
+      const claims = JSON.parse(
+        Buffer.from(idToken.split('.')[1]!, 'base64url').toString('utf8'),
+      ) as {
+        email?: string;
+        email_verified?: boolean | string;
+        preferred_username?: string;
+        upn?: string;
+        aud?: string | string[];
+        exp?: number;
+      };
+      // Rechaza un id_token caducado o cuyo `aud` no sea nuestro clientId (no se confía solo en TLS).
+      const now = Math.floor(Date.now() / 1000);
+      if (typeof claims.exp === 'number' && claims.exp < now) return {};
+      const aud = claims.aud;
+      const audOk = Array.isArray(aud) ? aud.includes(expectedAud) : aud === expectedAud;
+      if (!audOk) return {};
+      return claims;
     } catch {
       return {};
     }

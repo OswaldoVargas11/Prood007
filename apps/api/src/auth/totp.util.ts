@@ -69,19 +69,23 @@ export function generateTotp(secret: string, atMs = Date.now()): string {
   return hotp(secret, Math.floor(atMs / 1000 / PERIOD));
 }
 
-/** Verifica un código TOTP con ventana ±1 periodo (tolerancia a desfase de reloj). Tiempo-constante. */
-export function verifyTotp(secret: string, code: string, atMs = Date.now()): boolean {
+/**
+ * Verifica un código TOTP con ventana ±1 periodo (tolerancia a desfase de reloj) y DEVUELVE el contador
+ * de ventana que lo validó (para anti-replay), o -1 si no coincide. Tiempo-constante.
+ */
+export function verifyTotp(secret: string, code: string, atMs = Date.now()): number {
   const normalized = code.replace(/\s/g, '');
-  if (!/^\d{6}$/.test(normalized)) return false;
+  if (!/^\d{6}$/.test(normalized)) return -1;
   const counter = Math.floor(atMs / 1000 / PERIOD);
   for (let w = -1; w <= 1; w++) {
-    if (counter + w < 0) continue; // contadores negativos no existen en tiempo real (solo cerca de epoch 0)
-    const expected = hotp(secret, counter + w);
+    const c = counter + w;
+    if (c < 0) continue; // contadores negativos no existen en tiempo real (solo cerca de epoch 0)
+    const expected = hotp(secret, c);
     const a = Buffer.from(expected);
     const b = Buffer.from(normalized);
-    if (a.length === b.length && timingSafeEqual(a, b)) return true;
+    if (a.length === b.length && timingSafeEqual(a, b)) return c;
   }
-  return false;
+  return -1;
 }
 
 /** URI otpauth:// para el QR (issuer = Lawzora, label = email del usuario). */

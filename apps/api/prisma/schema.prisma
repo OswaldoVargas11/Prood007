@@ -311,6 +311,8 @@ model User {
   mfaEnabled     Boolean @default(false)
   mfaSecret      String?
   mfaBackupCodes String?
+  // Anti-replay TOTP: último contador de ventana TOTP aceptado; se rechaza reusar un código ya usado.
+  lastTotpCounter Int?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -826,7 +828,7 @@ model Payment {
   retainerEntries     RetainerEntry[]
   billingInstallments BillingInstallment[]
 
-  @@unique([providerRef])
+  @@unique([tenantId, providerRef])
   @@index([tenantId])
   @@index([tenantId, invoiceId])
 }

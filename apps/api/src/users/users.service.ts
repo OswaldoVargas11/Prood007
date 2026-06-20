@@ -109,7 +109,8 @@ export class UsersService {
     // El conteo de plazas + la creación se serializan POR TENANT con un lock transaccional de aviso,
     // para que dos altas simultáneas no superen la licencia (carrera check-then-act).
     const created = await tenantTransaction(this.prisma, async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${user.tenantId}))`;
+      // Lock transaccional de aviso por tenant (espacio 1 = plazas/licencia, distinto del de facturas).
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(1, hashtext(${user.tenantId}))`;
 
       const existing = await tx.user.findFirst({
         where: { tenantId: user.tenantId, email },
