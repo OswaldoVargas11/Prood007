@@ -158,6 +158,100 @@ export class MattersService {
     return { ...matter, budgetConsumed };
   }
 
+  /**
+   * Línea de tiempo del expediente: un único feed cronológico que unifica documentos, tareas/plazos,
+   * movimientos del ledger, correos y mensajes de chat. Acotado por tenant; cada fuente limitada para
+   * no traer historiales enormes (se devuelven los más recientes ya mezclados).
+   */
+  async timeline(user: RequestUser, id: string) {
+    await this.findOne(user, id); // valida pertenencia/existencia
+    const where = { tenantId: user.tenantId, matterId: id };
+    const [docs, tasks, entries, emails, messages] = await Promise.all([
+      this.prisma.document.findMany({
+        where,
+        select: { id: true, name: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      this.prisma.task.findMany({
+        where,
+        select: { id: true, title: true, createdAt: true, isProcedural: true },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      this.prisma.ledgerEntry.findMany({
+        where,
+        select: {
+          id: true,
+          type: true,
+          description: true,
+          amount: true,
+          currency: true,
+          occurredAt: true,
+        },
+        orderBy: { occurredAt: 'desc' },
+        take: 50,
+      }),
+      this.prisma.matterEmail.findMany({
+        where,
+        select: {
+          id: true,
+          direction: true,
+          fromAddr: true,
+          toAddr: true,
+          subject: true,
+          sentAt: true,
+        },
+        orderBy: { sentAt: 'desc' },
+        take: 50,
+      }),
+      this.prisma.message.findMany({
+        where,
+        select: { id: true, body: true, createdAt: true, author: { select: { fullName: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+    ]);
+
+    const events = [
+      ...docs.map((d) => ({
+        type: 'document',
+        at: d.createdAt,
+        title: d.name,
+        subtitle: null as string | null,
+      })),
+      ...tasks.map((t) => ({
+        type: t.isProcedural ? 'deadline' : 'task',
+        at: t.createdAt,
+        title: t.title,
+        subtitle: null as string | null,
+      })),
+      ...entries.map((e) => ({
+        type: 'ledger',
+        at: e.occurredAt,
+        title: e.description,
+        subtitle: `${e.type} · ${e.amount} ${e.currency}`,
+      })),
+      ...emails.map((m) => ({
+        type: 'email',
+        at: m.sentAt,
+        title: m.subject || '(sin asunto)',
+        subtitle: m.direction === 'IN' ? `De ${m.fromAddr}` : `Para ${m.toAddr}`,
+      })),
+      ...messages.map((m) => ({
+        type: 'message',
+        at: m.createdAt,
+        title: m.body.length > 140 ? `${m.body.slice(0, 140)}…` : m.body,
+        subtitle: m.author.fullName,
+      })),
+    ]
+      .sort((a, b) => b.at.getTime() - a.at.getTime())
+      .slice(0, 80)
+      .map((e) => ({ ...e, at: e.at.toISOString() }));
+
+    return { events };
+  }
+
   async update(user: RequestUser, id: string, dto: UpdateMatterDto) {
     await this.findOne(user, id);
     // Para campos de texto opcionales: undefined → no tocar; "" o solo espacios → limpiar (null).

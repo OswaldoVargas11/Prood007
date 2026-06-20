@@ -21,6 +21,7 @@ import { ChatTab } from '@/components/lexora/chat-tab';
 import { MatterEmails } from '@/components/lexora/matter-emails';
 import { MatterBudget } from '@/components/lexora/matter-budget';
 import { MatterPartiesCard } from '@/components/lexora/matter-parties';
+import { MatterTimeline } from '@/components/lexora/matter-timeline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -200,15 +201,9 @@ export default function MatterDetailPage() {
           <MatterEmails matterId={id} />
         </TabsContent>
 
-        {['activity'].map((tab) => (
-          <TabsContent key={tab} value={tab}>
-            <Card>
-              <CardContent className="p-12 text-center text-sm text-muted-foreground">
-                {t('tabs.soon')}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
+        <TabsContent value="activity">
+          <MatterTimeline matterId={id} />
+        </TabsContent>
       </Tabs>
     </div>
   );

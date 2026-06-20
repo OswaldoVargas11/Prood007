@@ -759,6 +759,14 @@ export interface TaxSummary {
   jurisdictions: TaxSummaryJurisdiction[];
 }
 
+/** Evento de la línea de tiempo del expediente (de `GET /matters/:id/timeline`). */
+export interface TimelineEvent {
+  type: 'document' | 'task' | 'deadline' | 'ledger' | 'email' | 'message';
+  at: string;
+  title: string;
+  subtitle: string | null;
+}
+
 /** Resultado de la búsqueda global (de `GET /search`). */
 export interface GlobalSearch {
   clients: { id: string; name: string; taxId: string | null }[];

@@ -254,4 +254,22 @@ describe('Clients & Matters (e2e)', () => {
       .expect(200);
     expect(res.body.clients).toHaveLength(0);
   });
+
+  it('la línea de tiempo del expediente refleja la actividad (una tarea creada)', async () => {
+    await request(app.getHttpServer())
+      .post('/api/tasks')
+      .set(auth(tenants.a.token))
+      .send({ title: 'Revisar contrato', matterId: matterAId })
+      .expect(201);
+
+    const tl = await request(app.getHttpServer())
+      .get(`/api/matters/${matterAId}/timeline`)
+      .set(auth(tenants.a.token))
+      .expect(200);
+    expect(Array.isArray(tl.body.events)).toBe(true);
+    const taskEvent = tl.body.events.find(
+      (e: { type: string; title: string }) => e.type === 'task' && e.title === 'Revisar contrato',
+    );
+    expect(taskEvent).toBeDefined();
+  });
 });

@@ -56,6 +56,7 @@ import type {
   Profitability,
   TaxSummary,
   GlobalSearch,
+  TimelineEvent,
   ProvisionKind,
   RecentEmail,
   RetainerAccount,
@@ -148,6 +149,15 @@ export function useChangeMatterStatus(id: string) {
       qc.setQueryData(['matter', id], data);
       void qc.invalidateQueries({ queryKey: ['matters'] });
     },
+  });
+}
+
+/** Línea de tiempo unificada del expediente (documentos, tareas, ledger, correos, chat). */
+export function useMatterTimeline(id: string) {
+  return useQuery({
+    queryKey: ['matter-timeline', id],
+    queryFn: () => api.get<{ events: TimelineEvent[] }>(`/matters/${id}/timeline`),
+    enabled: Boolean(id),
   });
 }
 

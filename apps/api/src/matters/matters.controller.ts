@@ -52,6 +52,12 @@ export class MattersController {
     return this.matters.findOne(user, id);
   }
 
+  /** Línea de tiempo unificada del expediente (documentos, tareas, ledger, correos, chat). */
+  @Get(':id/timeline')
+  timeline(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.matters.timeline(user, id);
+  }
+
   @Patch(':id')
   update(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() dto: UpdateMatterDto) {
     return this.matters.update(user, id, dto);
