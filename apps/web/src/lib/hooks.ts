@@ -1018,6 +1018,15 @@ export function useIntakeLink() {
   });
 }
 
+/** Token del feed iCal de la agenda (para suscribirse desde Google/Outlook/Apple). */
+export function useCalendarFeedLink() {
+  return useQuery({
+    queryKey: ['calendar-feed-link'],
+    queryFn: () => api.get<{ token: string }>('/calendar/feed-link'),
+    staleTime: Infinity,
+  });
+}
+
 export function useCreateMatter() {
   const qc = useQueryClient();
   return useMutation({

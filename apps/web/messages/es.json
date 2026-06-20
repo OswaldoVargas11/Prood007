@@ -69,7 +69,15 @@
     "more": "+{n} más",
     "load": "Carga de plazos",
     "empty": "No hay plazos próximos.",
-    "loadError": "No se pudieron cargar los plazos."
+    "loadError": "No se pudieron cargar los plazos.",
+    "subscribe": "Suscribir agenda",
+    "subscribeTitle": "Suscribe tu agenda a tu calendario",
+    "subscribeDesc": "Añade esta URL a Google, Outlook o Apple Calendar y verás tus plazos y tareas, actualizados solos.",
+    "copied": "Enlace copiado",
+    "howGoogle": "Google Calendar: «Otros calendarios» → «Suscribirse a un calendario» → pega la URL.",
+    "howOutlook": "Outlook: «Agregar calendario» → «Suscribirse desde la web» → pega la URL.",
+    "howApple": "Apple Calendar: «Archivo» → «Nueva suscripción a calendario» → pega la URL.",
+    "subscribeNote": "Es de solo lectura: tus plazos aparecen en tu calendario; no se modifican desde allí."
   },
   "login": {
     "title": "Acceder a Lexora",

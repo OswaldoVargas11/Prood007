@@ -2,9 +2,19 @@
 
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
-import { useMatters, useTasks } from '@/lib/hooks';
+import { toast } from 'sonner';
+import { CalendarPlus, Check, ChevronLeft, ChevronRight, CalendarDays, Copy } from 'lucide-react';
+import { useCalendarFeedLink, useMatters, useTasks } from '@/lib/hooks';
 import { useRouter } from '@/i18n/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   buildMonthGrid,
   dayKey,
@@ -113,6 +123,7 @@ export default function CalendarPage() {
           <p className="mt-1 text-[13.5px] text-muted-foreground">{t('subtitle')}</p>
         </div>
         <div className="flex items-center gap-2.5">
+          <SubscribeAgendaButton />
           <button
             type="button"
             onClick={() => shiftMonth(-1)}
@@ -252,5 +263,58 @@ export default function CalendarPage() {
 
       {tasksQuery.isError && <p className="text-sm text-muted-foreground">{t('loadError')}</p>}
     </div>
+  );
+}
+
+/** Botón "Suscribir agenda": muestra la URL iCal para añadirla a Google/Outlook/Apple Calendar. */
+function SubscribeAgendaButton() {
+  const t = useTranslations('calendar');
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const link = useCalendarFeedLink();
+  const base = process.env.NEXT_PUBLIC_API_URL ?? '';
+  const url = link.data ? `${base}/api/public/calendar/${link.data.token}.ics` : '';
+
+  function copy() {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      toast.success(t('copied'));
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }
+
+  return (
+    <>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <CalendarPlus className="size-4" /> {t('subscribe')}
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('subscribeTitle')}</DialogTitle>
+            <DialogDescription>{t('subscribeDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                readOnly
+                value={url || '…'}
+                onFocus={(e) => e.currentTarget.select()}
+                className="font-mono text-[12px]"
+              />
+              <Button size="sm" onClick={copy} disabled={!url}>
+                {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+              </Button>
+            </div>
+            <ol className="list-decimal space-y-1 pl-5 text-[12.5px] text-muted-foreground">
+              <li>{t('howGoogle')}</li>
+              <li>{t('howOutlook')}</li>
+              <li>{t('howApple')}</li>
+            </ol>
+            <p className="text-[11.5px] text-[var(--text-subtle)]">{t('subscribeNote')}</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
