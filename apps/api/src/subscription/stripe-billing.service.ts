@@ -97,7 +97,7 @@ export class StripeBillingService {
   }
 
   private baseUrl(): string {
-    return this.config.get<string>('APP_PUBLIC_URL') ?? 'http://localhost:3000';
+    return this.config.get<string>('APP_PUBLIC_URL') ?? 'https://lawzora.com';
   }
 
   /**

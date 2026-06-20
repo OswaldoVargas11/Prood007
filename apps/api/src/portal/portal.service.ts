@@ -154,7 +154,7 @@ export class PortalService {
       select: { id: true },
     });
     if (!owned) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
-    const base = process.env.APP_PUBLIC_URL ?? 'http://localhost:3000';
+    const base = process.env.APP_PUBLIC_URL ?? 'https://lawzora.com';
     return this.payments.createCheckout(user, id, {
       successUrl: `${base}/portal?paid=1`,
       cancelUrl: `${base}/portal`,

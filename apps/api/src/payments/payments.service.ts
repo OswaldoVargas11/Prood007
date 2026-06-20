@@ -16,7 +16,7 @@ const EPSILON = 0.005;
 
 /** URL pública del web (para las URLs de retorno de Stripe). */
 function publicBaseUrl(): string {
-  return process.env.APP_PUBLIC_URL ?? 'http://localhost:3000';
+  return process.env.APP_PUBLIC_URL ?? 'https://lawzora.com';
 }
 
 /** Actor de un cobro: usuario autenticado o sistema (webhook). Solo necesita el tenant. */

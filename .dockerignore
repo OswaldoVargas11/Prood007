@@ -11,8 +11,12 @@ storage
 apps/api/storage
 qa-screenshots
 *.log
-# Secretos: nunca al contexto de build.
+# Secretos: nunca al contexto de build. Los patrones SIN `**/` solo matchean la raíz; hay que añadir
+# los anidados (p. ej. apps/api/.env) o se hornean en la imagen y ConfigModule los carga en producción.
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
 .claude

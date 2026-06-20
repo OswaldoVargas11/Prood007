@@ -54,7 +54,9 @@ export class PasswordResetService {
   }
 
   private resetLink(token: string): string {
-    const base = this.config.get<string>('WEB_APP_URL') ?? '';
+    // URL base del web. UNA sola fuente (APP_PUBLIC_URL, el mismo que usan OAuth/portal/pagos); el
+    // fallback apunta a producción para no generar nunca enlaces a localhost si la var faltara.
+    const base = this.config.get<string>('APP_PUBLIC_URL') ?? 'https://lawzora.com';
     return `${base}/reset-password?token=${token}`;
   }
 
