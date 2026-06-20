@@ -285,6 +285,121 @@ export class ReportsService {
       foreignInvoices,
     };
   }
+
+  /**
+   * Resumen fiscal para la GESTORÍA / asesor. Agrega las facturas EMITIDAS del periodo (año, o año +
+   * trimestre) y devuelve, POR JURISDICCIÓN (es/do, según el formato de la factura):
+   *  - base imponible + cuota de impuesto repercutido (IVA en ES → modelo 303 · ITBIS en RD).
+   *  - retención de IRPF practicada en las facturas (→ 130/renta y cotejo de certificados).
+   *  - desglose por cliente (base, cuota, retención, total) → modelo 347 (ES, umbral 3.005,06 €/año) y
+   *    certificados de retenciones.
+   * No es una presentación telemática: son los datos agregados que el despacho pasa a su asesor.
+   */
+  async taxSummary(user: RequestUser, year: number, quarter?: number) {
+    const q = quarter && quarter >= 1 && quarter <= 4 ? quarter : undefined;
+    const startMonth = q ? (q - 1) * 3 : 0;
+    const start = new Date(Date.UTC(year, startMonth, 1));
+    const end = q
+      ? new Date(Date.UTC(year, startMonth + 3, 1))
+      : new Date(Date.UTC(year + 1, 0, 1));
+
+    const invoices = await this.prisma.invoice.findMany({
+      where: {
+        tenantId: user.tenantId,
+        status: { in: ISSUED_STATUSES },
+        issueDate: { gte: start, lt: end },
+      },
+      select: {
+        invoiceFormat: true,
+        currency: true,
+        taxableBase: true,
+        taxAmount: true,
+        withholdingAmount: true,
+        clientId: true,
+        client: { select: { name: true, taxId: true } },
+      },
+    });
+
+    interface ClientAcc {
+      clientId: string;
+      name: string;
+      taxId: string | null;
+      base: number;
+      tax: number;
+      withheld: number;
+    }
+    interface JurAcc {
+      jurisdiction: string;
+      currency: string;
+      base: number;
+      tax: number;
+      withheld: number;
+      count: number;
+      clients: Map<string, ClientAcc>;
+    }
+    const byJur = new Map<string, JurAcc>();
+
+    for (const inv of invoices) {
+      const jur = inv.invoiceFormat;
+      const g =
+        byJur.get(jur) ??
+        ({
+          jurisdiction: jur,
+          currency: inv.currency,
+          base: 0,
+          tax: 0,
+          withheld: 0,
+          count: 0,
+          clients: new Map(),
+        } as JurAcc);
+      const base = Number(inv.taxableBase);
+      const tax = Number(inv.taxAmount);
+      const withheld = Number(inv.withholdingAmount);
+      g.base += base;
+      g.tax += tax;
+      g.withheld += withheld;
+      g.count += 1;
+      const c = g.clients.get(inv.clientId) ?? {
+        clientId: inv.clientId,
+        name: inv.client.name,
+        taxId: inv.client.taxId,
+        base: 0,
+        tax: 0,
+        withheld: 0,
+      };
+      c.base += base;
+      c.tax += tax;
+      c.withheld += withheld;
+      g.clients.set(inv.clientId, c);
+      byJur.set(jur, g);
+    }
+
+    const jurisdictions = [...byJur.values()].map((g) => ({
+      jurisdiction: g.jurisdiction,
+      currency: g.currency,
+      outputTax: { base: round2(g.base), tax: round2(g.tax), invoices: g.count },
+      withholding: { total: round2(g.withheld) },
+      byClient: [...g.clients.values()]
+        .map((c) => ({
+          clientId: c.clientId,
+          name: c.name,
+          taxId: c.taxId,
+          base: round2(c.base),
+          tax: round2(c.tax),
+          withheld: round2(c.withheld),
+          total: round2(c.base + c.tax),
+        }))
+        .sort((a, b) => b.total - a.total),
+    }));
+
+    return {
+      year,
+      quarter: q ?? null,
+      // Umbral del modelo 347 (ES): operaciones con un tercero > 3.005,06 € en el año. Informativo.
+      threshold347: 3005.06,
+      jurisdictions,
+    };
+  }
 }
 
 /** Redondeo a 2 decimales para presentación (los importes monetarios viven en Decimal en BD). */

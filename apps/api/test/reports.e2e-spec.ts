@@ -61,6 +61,26 @@ describe('Reports (e2e)', () => {
     expect(Array.isArray(res.body)).toBe(true);
   });
 
+  it('resumen fiscal: estructura correcta (despacho nuevo → sin jurisdicciones)', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/tax-summary?year=2026&quarter=2')
+      .set(auth())
+      .expect(200);
+    expect(res.body.year).toBe(2026);
+    expect(res.body.quarter).toBe(2);
+    expect(res.body.threshold347).toBeCloseTo(3005.06);
+    expect(Array.isArray(res.body.jurisdictions)).toBe(true);
+    expect(res.body.jurisdictions).toHaveLength(0);
+  });
+
+  it('resumen fiscal: sin trimestre = año completo (quarter null)', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/reports/tax-summary?year=2026')
+      .set(auth())
+      .expect(200);
+    expect(res.body.quarter).toBeNull();
+  });
+
   it('los informes exigen autenticación (sin token → 401)', async () => {
     await request(app.getHttpServer()).get('/api/reports/aged-receivables').expect(401);
   });

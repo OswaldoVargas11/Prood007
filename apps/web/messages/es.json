@@ -1377,6 +1377,23 @@
     "title": "Informes",
     "subtitle": "Indicadores de gestión del despacho. Exportables a CSV.",
     "client": "Cliente",
+    "tax": {
+      "title": "Resumen fiscal (gestoría)",
+      "desc": "Datos agregados de tus facturas emitidas para pasar a tu asesor. No es una presentación telemática oficial.",
+      "fullYear": "Año completo",
+      "empty": "Sin facturas emitidas en este periodo.",
+      "base": "Base imponible",
+      "output": "repercutido",
+      "withholding": "Retención IRPF",
+      "withholdingShort": "Retención",
+      "invoices": "Facturas",
+      "byClient": "Desglose por cliente",
+      "taxId": "NIF/CIF",
+      "total": "Total",
+      "model303": "Para el modelo 303",
+      "model130": "Para el 130 / renta",
+      "note347": "Los clientes marcados con «347» superan 3.005,06 € en el año (a incluir en el modelo 347)."
+    },
     "aged": {
       "title": "Cartera vencida",
       "current": "Corriente",

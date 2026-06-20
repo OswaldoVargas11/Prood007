@@ -732,6 +732,30 @@ export interface Profitability {
   foreignInvoices: number;
 }
 
+/** Resumen fiscal para la gestoría (de `GET /reports/tax-summary`). */
+export interface TaxSummaryClient {
+  clientId: string;
+  name: string;
+  taxId: string | null;
+  base: number;
+  tax: number;
+  withheld: number;
+  total: number;
+}
+export interface TaxSummaryJurisdiction {
+  jurisdiction: 'es' | 'do';
+  currency: string;
+  outputTax: { base: number; tax: number; invoices: number };
+  withholding: { total: number };
+  byClient: TaxSummaryClient[];
+}
+export interface TaxSummary {
+  year: number;
+  quarter: number | null;
+  threshold347: number;
+  jurisdictions: TaxSummaryJurisdiction[];
+}
+
 /** Plantilla de documento del despacho (de `GET /templates`). `tokens` = marcadores del cuerpo. */
 export interface DocumentTemplate {
   id: string;

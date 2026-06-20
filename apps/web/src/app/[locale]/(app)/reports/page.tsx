@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Download, BarChart3 } from 'lucide-react';
-import { useAgedReceivables, useProfitability, useTimeByLawyer } from '@/lib/hooks';
+import { Download, BarChart3, Receipt } from 'lucide-react';
+import { useAgedReceivables, useProfitability, useTaxSummary, useTimeByLawyer } from '@/lib/hooks';
 import { useAuth } from '@/lib/auth';
 import { formatMoney } from '@/lib/format';
+import type { TaxSummaryJurisdiction } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,6 +52,9 @@ export default function ReportsPage() {
           <p className="mt-0.5 text-[13.5px] text-muted-foreground">{t('subtitle')}</p>
         </div>
       </div>
+
+      {/* Resumen fiscal para la gestoría */}
+      <TaxSummaryCard />
 
       {/* Cartera vencida */}
       <Card>
@@ -338,6 +343,169 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+/** Resumen fiscal por periodo para pasar a la gestoría (IVA/ITBIS repercutido, retención IRPF, 347). */
+function TaxSummaryCard() {
+  const t = useTranslations('reports');
+  const locale = useLocale();
+  const thisYear = new Date().getFullYear();
+  const [year, setYear] = useState(thisYear);
+  const [quarter, setQuarter] = useState(0);
+  const { data, isLoading } = useTaxSummary(year, quarter);
+  const years = [thisYear, thisYear - 1, thisYear - 2];
+
+  function taxLabel(j: TaxSummaryJurisdiction) {
+    return j.jurisdiction === 'es' ? 'IVA' : 'ITBIS';
+  }
+  function exportCsv(j: TaxSummaryJurisdiction) {
+    downloadCsv(
+      `resumen-fiscal-${j.jurisdiction}-${year}${quarter ? `-T${quarter}` : ''}.csv`,
+      j.byClient.map((c) => ({
+        cliente: c.name,
+        nif: c.taxId ?? '',
+        base: c.base,
+        [taxLabel(j).toLowerCase()]: c.tax,
+        retencion_irpf: c.withheld,
+        total: c.total,
+      })),
+    );
+  }
+
+  const jurisdictions = data?.jurisdictions ?? [];
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <div className="flex items-center gap-2">
+          <Receipt className="size-5 text-[var(--brand)]" />
+          <CardTitle className="text-[15px]">{t('tax.title')}</CardTitle>
+        </div>
+        <div className="flex items-center gap-2">
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="h-8 rounded-md border bg-[var(--surface-1)] px-2 text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+          <select
+            value={quarter}
+            onChange={(e) => setQuarter(Number(e.target.value))}
+            className="h-8 rounded-md border bg-[var(--surface-1)] px-2 text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <option value={0}>{t('tax.fullYear')}</option>
+            <option value={1}>T1</option>
+            <option value={2}>T2</option>
+            <option value={3}>T3</option>
+            <option value={4}>T4</option>
+          </select>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <p className="text-[12.5px] text-muted-foreground">{t('tax.desc')}</p>
+        {isLoading ? (
+          <Skeleton className="h-24 w-full" />
+        ) : jurisdictions.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">{t('tax.empty')}</p>
+        ) : (
+          jurisdictions.map((j) => (
+            <div key={j.jurisdiction} className="space-y-4">
+              {jurisdictions.length > 1 && (
+                <div className="text-[13px] font-semibold text-muted-foreground">
+                  {j.jurisdiction.toUpperCase()}
+                </div>
+              )}
+              <div className="grid gap-3 sm:grid-cols-4">
+                <Kpi
+                  label={t('tax.base')}
+                  value={formatMoney(j.outputTax.base, j.currency, locale)}
+                />
+                <Kpi
+                  label={`${taxLabel(j)} ${t('tax.output')}`}
+                  value={formatMoney(j.outputTax.tax, j.currency, locale)}
+                  hint={j.jurisdiction === 'es' ? t('tax.model303') : undefined}
+                />
+                <Kpi
+                  label={t('tax.withholding')}
+                  value={formatMoney(j.withholding.total, j.currency, locale)}
+                  hint={j.jurisdiction === 'es' ? t('tax.model130') : undefined}
+                />
+                <Kpi label={t('tax.invoices')} value={String(j.outputTax.invoices)} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[12px] text-muted-foreground">{t('tax.byClient')}</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={j.byClient.length === 0}
+                  onClick={() => exportCsv(j)}
+                >
+                  <Download /> CSV
+                </Button>
+              </div>
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border text-left text-[11.5px] uppercase tracking-wide text-muted-foreground">
+                      <th className="px-3 py-2">{t('client')}</th>
+                      <th className="px-3 py-2">{t('tax.taxId')}</th>
+                      <th className="px-3 py-2 text-right">{t('tax.base')}</th>
+                      <th className="px-3 py-2 text-right">{taxLabel(j)}</th>
+                      <th className="px-3 py-2 text-right">{t('tax.withholdingShort')}</th>
+                      <th className="px-3 py-2 text-right">{t('tax.total')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {j.byClient.map((c) => {
+                      const over347 =
+                        j.jurisdiction === 'es' &&
+                        quarter === 0 &&
+                        c.total > (data?.threshold347 ?? Infinity);
+                      return (
+                        <tr key={c.clientId} className="border-b border-border last:border-0">
+                          <td className="px-3 py-2">
+                            {c.name}
+                            {over347 && (
+                              <span className="ml-2 rounded bg-[var(--brand-soft)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--brand)]">
+                                347
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 font-mono text-xs text-muted-foreground">
+                            {c.taxId ?? '—'}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {formatMoney(c.base, j.currency, locale)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {formatMoney(c.tax, j.currency, locale)}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">
+                            {formatMoney(c.withheld, j.currency, locale)}
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium tabular-nums">
+                            {formatMoney(c.total, j.currency, locale)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              {j.jurisdiction === 'es' && quarter === 0 && (
+                <p className="text-[11px] text-muted-foreground">{t('tax.note347')}</p>
+              )}
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

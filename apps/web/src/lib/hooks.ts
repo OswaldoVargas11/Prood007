@@ -54,6 +54,7 @@ import type {
   SubscriptionInfo,
   PortalInvoice,
   Profitability,
+  TaxSummary,
   ProvisionKind,
   RecentEmail,
   RetainerAccount,
@@ -309,6 +310,14 @@ export function useProfitability() {
   return useQuery({
     queryKey: ['reports', 'profitability'],
     queryFn: () => api.get<Profitability>('/reports/profitability'),
+  });
+}
+
+/** Resumen fiscal para la gestoría: año + trimestre (0 = año completo). */
+export function useTaxSummary(year: number, quarter: number) {
+  return useQuery({
+    queryKey: ['reports', 'tax-summary', year, quarter],
+    queryFn: () => api.get<TaxSummary>(`/reports/tax-summary?year=${year}&quarter=${quarter}`),
   });
 }
 
