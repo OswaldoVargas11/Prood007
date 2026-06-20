@@ -21,6 +21,13 @@ export interface Matter {
   closedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Partes y procedimiento (todo opcional; null si no se rellenó). */
+  opposingParty: string | null;
+  opposingPartyTaxId: string | null;
+  opposingCounsel: string | null;
+  court: string | null;
+  caseNumber: string | null;
+  proceduralPhase: string | null;
   /** Incluidos en `GET /matters` (lista): cliente y letrado responsable. */
   client?: { id: string; name: string };
   lawyer?: { id: string; fullName: string } | null;
@@ -815,12 +822,22 @@ export interface FirmSettings {
 /** Resultado de la comprobación de conflictos (de `GET /clients/conflict-check`). */
 export interface ConflictResult {
   query: string;
+  /** El adversario YA es cliente del despacho (coincidencia por nombre). */
   matches: {
     id: string;
     name: string;
     taxId: string;
     taxIdKind: string | null;
     matters: { id: string; reference: string; title: string; status: MatterStatus }[];
+  }[];
+  /** Esta persona YA figura como parte contraria en otro expediente. */
+  opposingMatters: {
+    id: string;
+    reference: string;
+    title: string;
+    status: MatterStatus;
+    opposingParty: string | null;
+    client: { name: string };
   }[];
 }
 

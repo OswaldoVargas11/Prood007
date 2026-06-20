@@ -11,6 +11,12 @@ import { formatDate } from '@/lib/format';
 import { ApiError } from '@/lib/api';
 import type { Matter, MatterStatus } from '@/lib/types';
 import { StatusBadge } from '@/components/lexora/status-badge';
+import {
+  MatterPartiesFields,
+  emptyParties,
+  partiesToBody,
+  type PartiesValue,
+} from '@/components/lexora/matter-parties';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -298,6 +304,7 @@ function CreateMatterDialog({ open, onClose }: { open: boolean; onClose: () => v
   const [type, setType] = useState('civil');
   const [clientId, setClientId] = useState('');
   const [lawyerId, setLawyerId] = useState('');
+  const [parties, setParties] = useState<PartiesValue>(emptyParties);
   const [error, setError] = useState<string | null>(null);
 
   const valid = title.trim().length >= 2 && type.trim().length >= 2 && clientId;
@@ -310,11 +317,13 @@ function CreateMatterDialog({ open, onClose }: { open: boolean; onClose: () => v
         type: type.trim(),
         clientId,
         ...(isAdmin && lawyerId ? { lawyerId } : {}),
+        ...partiesToBody(parties),
       });
       setTitle('');
       setType('civil');
       setClientId('');
       setLawyerId('');
+      setParties(emptyParties);
       onClose();
       router.push(`/matters/${matter.id}`);
     } catch (e) {
@@ -379,6 +388,10 @@ function CreateMatterDialog({ open, onClose }: { open: boolean; onClose: () => v
                 </select>
               </div>
             )}
+            <MatterPartiesFields
+              value={parties}
+              onChange={(p) => setParties((s) => ({ ...s, ...p }))}
+            />
             {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
           </div>
           <DialogFooter className="mt-4">

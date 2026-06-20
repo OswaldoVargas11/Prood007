@@ -25,4 +25,40 @@ export class CreateMatterDto {
   @IsString()
   @MaxLength(40)
   reference?: string;
+
+  /** Parte contraria (universal). Su nombre alimenta el chequeo de conflicto deontológico en el alta. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  opposingParty?: string;
+
+  /** Id fiscal de la contraparte (afina el conflicto). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  opposingPartyTaxId?: string;
+
+  /** Letrado de la parte contraria (litigación; opcional). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  opposingCounsel?: string;
+
+  /** Juzgado / tribunal (litigación; opcional). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  court?: string;
+
+  /** Nº de autos / procedimiento (litigación; opcional). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  caseNumber?: string;
+
+  /** Fase procesal (litigación; opcional). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  proceduralPhase?: string;
 }

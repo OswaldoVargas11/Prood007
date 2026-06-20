@@ -18,4 +18,12 @@ export class UpdateMatterDto {
   @IsString()
   @Matches(/^(\d{1,12}(\.\d{1,2})?)?$/, { message: 'budgetAmount inválido' })
   budgetAmount?: string;
+
+  // Partes y procedimiento (cadena vacía "" = limpiar el campo; undefined lo deja como está).
+  @IsOptional() @IsString() @MaxLength(200) opposingParty?: string;
+  @IsOptional() @IsString() @MaxLength(40) opposingPartyTaxId?: string;
+  @IsOptional() @IsString() @MaxLength(200) opposingCounsel?: string;
+  @IsOptional() @IsString() @MaxLength(200) court?: string;
+  @IsOptional() @IsString() @MaxLength(80) caseNumber?: string;
+  @IsOptional() @IsString() @MaxLength(80) proceduralPhase?: string;
 }

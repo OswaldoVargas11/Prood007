@@ -20,6 +20,7 @@ import { BillingPlansTab } from '@/components/lexora/billing-plans';
 import { ChatTab } from '@/components/lexora/chat-tab';
 import { MatterEmails } from '@/components/lexora/matter-emails';
 import { MatterBudget } from '@/components/lexora/matter-budget';
+import { MatterPartiesCard } from '@/components/lexora/matter-parties';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -136,27 +137,30 @@ export default function MatterDetailPage() {
         </TabsList>
 
         <TabsContent value="overview">
-          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
-            <Card>
-              <CardContent className="grid gap-4 p-5 sm:grid-cols-2">
-                <Field
-                  label={t('detail.client')}
-                  value={matter.client.name}
-                  hint={matter.client.taxId}
-                />
-                <Field label={t('detail.type')} value={matter.type} />
-                <LawyerField matter={matter} />
-                <Field label={t('detail.opened')} value={formatDate(matter.openedAt, locale)} />
-                <Field
-                  label={t('detail.closed')}
-                  value={matter.closedAt ? formatDate(matter.closedAt, locale) : '—'}
-                />
-              </CardContent>
-            </Card>
-            <div className="space-y-4">
-              <MatterRail matterId={id} onOpenLedger={() => setTab('costs')} />
-              <MatterBudget matter={matter} />
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.6fr_1fr]">
+              <Card>
+                <CardContent className="grid gap-4 p-5 sm:grid-cols-2">
+                  <Field
+                    label={t('detail.client')}
+                    value={matter.client.name}
+                    hint={matter.client.taxId}
+                  />
+                  <Field label={t('detail.type')} value={matter.type} />
+                  <LawyerField matter={matter} />
+                  <Field label={t('detail.opened')} value={formatDate(matter.openedAt, locale)} />
+                  <Field
+                    label={t('detail.closed')}
+                    value={matter.closedAt ? formatDate(matter.closedAt, locale) : '—'}
+                  />
+                </CardContent>
+              </Card>
+              <div className="space-y-4">
+                <MatterRail matterId={id} onOpenLedger={() => setTab('costs')} />
+                <MatterBudget matter={matter} />
+              </div>
             </div>
+            <MatterPartiesCard matter={matter} />
           </div>
         </TabsContent>
 

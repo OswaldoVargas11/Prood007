@@ -1199,11 +1199,27 @@ export function useSendMatterEmail(matterId: string) {
   });
 }
 
+/** Campos de partes y procedimiento (todos opcionales) que comparten alta y edición de expediente. */
+export type MatterPartiesInput = {
+  opposingParty?: string;
+  opposingPartyTaxId?: string;
+  opposingCounsel?: string;
+  court?: string;
+  caseNumber?: string;
+  proceduralPhase?: string;
+};
+
 export function useCreateMatter() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { title: string; type: string; clientId: string; lawyerId?: string }) =>
-      api.post<Matter>('/matters', body),
+    mutationFn: (
+      body: {
+        title: string;
+        type: string;
+        clientId: string;
+        lawyerId?: string;
+      } & MatterPartiesInput,
+    ) => api.post<Matter>('/matters', body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['matters'] });
       void qc.invalidateQueries({ queryKey: ['clients'] });
@@ -1273,8 +1289,9 @@ export function useUpdateStaff() {
 export function useUpdateMatter(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { title?: string; type?: string; budgetAmount?: string }) =>
-      api.patch<MatterDetail>(`/matters/${id}`, body),
+    mutationFn: (
+      body: { title?: string; type?: string; budgetAmount?: string } & MatterPartiesInput,
+    ) => api.patch<MatterDetail>(`/matters/${id}`, body),
     onSuccess: (data) => {
       qc.setQueryData(['matter', id], data);
       void qc.invalidateQueries({ queryKey: ['matters'] });

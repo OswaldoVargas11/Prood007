@@ -486,6 +486,16 @@ model Matter {
   lawyerId  String? // abogado responsable
   // Presupuesto de honorarios del expediente (moneda base del despacho). Nullable = sin presupuesto.
   budgetAmount Decimal?  @db.Decimal(18, 2)
+  // Parte contraria (UNIVERSAL, no solo litigios): nombre + id fiscal opcional. Alimenta el chequeo
+  // deontológico de conflicto en el alta (¿el adversario ya es cliente del despacho?).
+  opposingParty      String?
+  opposingPartyTaxId String?
+  // Datos del PROCEDIMIENTO judicial (solo litigación; opcionales, sección plegable en la UI). Un
+  // despacho que solo asesora los deja vacíos y no ve ruido.
+  opposingCounsel String? // letrado de la parte contraria
+  court           String? // juzgado / tribunal
+  caseNumber      String? // nº de autos / procedimiento
+  proceduralPhase String? // fase procesal (texto; catálogo en capa de app)
   openedAt  DateTime     @default(now())
   closedAt  DateTime?
   createdAt DateTime     @default(now())

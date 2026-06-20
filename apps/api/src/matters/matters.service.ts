@@ -96,6 +96,12 @@ export class MattersService {
         clientId: dto.clientId,
         lawyerId: dto.lawyerId,
         status: MatterStatus.OPEN,
+        opposingParty: dto.opposingParty?.trim() || null,
+        opposingPartyTaxId: dto.opposingPartyTaxId?.trim() || null,
+        opposingCounsel: dto.opposingCounsel?.trim() || null,
+        court: dto.court?.trim() || null,
+        caseNumber: dto.caseNumber?.trim() || null,
+        proceduralPhase: dto.proceduralPhase?.trim() || null,
       },
     });
     await this.audit.log(user, 'matter.created', 'Matter', matter.id, { reference });
@@ -154,6 +160,8 @@ export class MattersService {
 
   async update(user: RequestUser, id: string, dto: UpdateMatterDto) {
     await this.findOne(user, id);
+    // Para campos de texto opcionales: undefined → no tocar; "" o solo espacios → limpiar (null).
+    const text = (v?: string) => (v === undefined ? undefined : v.trim() || null);
     await this.prisma.matter.updateMany({
       where: { id, tenantId: user.tenantId },
       data: {
@@ -166,6 +174,12 @@ export class MattersService {
             : dto.budgetAmount === ''
               ? null
               : dto.budgetAmount,
+        opposingParty: text(dto.opposingParty),
+        opposingPartyTaxId: text(dto.opposingPartyTaxId),
+        opposingCounsel: text(dto.opposingCounsel),
+        court: text(dto.court),
+        caseNumber: text(dto.caseNumber),
+        proceduralPhase: text(dto.proceduralPhase),
       },
     });
     await this.audit.log(user, 'matter.updated', 'Matter', id);

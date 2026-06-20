@@ -91,6 +91,38 @@ describe('Tanda B (resto) — conflictos, serie fiscal, festivos, certificado (e
     expect(res.body.matches).toHaveLength(0);
   });
 
+  it('el expediente guarda contraparte y datos de procedimiento y el conflicto los encuentra', async () => {
+    const created = await request(app.getHttpServer())
+      .post('/api/matters')
+      .set(auth())
+      .send({
+        title: 'Litigio',
+        type: 'civil',
+        clientId,
+        opposingParty: 'Maquinaria Rival SA',
+        court: 'Juzgado de 1ª Instancia nº 5',
+        caseNumber: '123/2026',
+        proceduralPhase: 'Audiencia previa',
+      })
+      .expect(201);
+
+    const got = await request(app.getHttpServer())
+      .get(`/api/matters/${created.body.id}`)
+      .set(auth())
+      .expect(200);
+    expect(got.body.opposingParty).toBe('Maquinaria Rival SA');
+    expect(got.body.court).toBe('Juzgado de 1ª Instancia nº 5');
+    expect(got.body.caseNumber).toBe('123/2026');
+
+    // Conflicto bidireccional: esa contraparte ya figura como adversaria en un expediente.
+    const conflict = await request(app.getHttpServer())
+      .get('/api/clients/conflict-check?q=maquinaria rival')
+      .set(auth())
+      .expect(200);
+    expect(conflict.body.opposingMatters.length).toBeGreaterThanOrEqual(1);
+    expect(conflict.body.opposingMatters[0].reference).toBeDefined();
+  });
+
   // ── Serie fiscal ───────────────────────────────────────────────────────────
   it('la serie fiscal configurada se usa en el número de factura', async () => {
     await request(app.getHttpServer())

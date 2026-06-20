@@ -293,25 +293,41 @@ export class ClientsService {
   }
 
   /**
-   * Comprobación de conflictos de interés: busca clientes existentes cuyo nombre coincida (parcial,
-   * insensible a mayúsculas) con el de la parte que se va a dar de alta. Devuelve coincidencias con sus
-   * expedientes, para que el despacho valore si existe conflicto antes de crear cliente/expediente.
+   * Comprobación de conflictos de interés (deontológica), BIDIRECCIONAL:
+   *  - `matches`: clientes existentes cuyo nombre coincide → el adversario YA es cliente del despacho.
+   *  - `opposingMatters`: expedientes donde esa persona YA figura como parte contraria → el nuevo
+   *    cliente es adversario en otro asunto.
+   * Insensible a mayúsculas y parcial. Para valorar el conflicto antes de crear cliente/expediente.
    */
   async conflictCheck(user: RequestUser, query: string) {
     const term = (query ?? '').trim();
-    if (term.length < 2) return { query: term, matches: [] };
-    const clients = await this.prisma.client.findMany({
-      where: { tenantId: user.tenantId, name: { contains: term, mode: 'insensitive' } },
-      select: {
-        id: true,
-        name: true,
-        taxId: true,
-        taxIdKind: true,
-        matters: { select: { id: true, reference: true, title: true, status: true } },
-      },
-      take: 10,
-    });
-    return { query: term, matches: clients };
+    if (term.length < 2) return { query: term, matches: [], opposingMatters: [] };
+    const [clients, opposingMatters] = await Promise.all([
+      this.prisma.client.findMany({
+        where: { tenantId: user.tenantId, name: { contains: term, mode: 'insensitive' } },
+        select: {
+          id: true,
+          name: true,
+          taxId: true,
+          taxIdKind: true,
+          matters: { select: { id: true, reference: true, title: true, status: true } },
+        },
+        take: 10,
+      }),
+      this.prisma.matter.findMany({
+        where: { tenantId: user.tenantId, opposingParty: { contains: term, mode: 'insensitive' } },
+        select: {
+          id: true,
+          reference: true,
+          title: true,
+          status: true,
+          opposingParty: true,
+          client: { select: { name: true } },
+        },
+        take: 10,
+      }),
+    ]);
+    return { query: term, matches: clients, opposingMatters };
   }
 
   async update(user: RequestUser, id: string, dto: UpdateClientDto) {
