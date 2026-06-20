@@ -163,6 +163,49 @@ export function verificationMessage(
 }
 
 /**
+ * Plantilla del correo de RECORDATORIO DE PLAZO/TAREA. Lleva el plazo, el expediente y un botón a la
+ * tarea. Se envía además del aviso in-app, para que el abogado se entere aunque no esté en la app.
+ */
+export function deadlineReminderMessage(
+  to: string,
+  opts: {
+    fullName?: string | null;
+    taskTitle: string;
+    daysUntilDue: number;
+    matterRef?: string | null;
+    link: string;
+  },
+): MailMessage {
+  const when =
+    opts.daysUntilDue < 0
+      ? 'Plazo vencido'
+      : opts.daysUntilDue === 0
+        ? 'Plazo hoy'
+        : opts.daysUntilDue === 1
+          ? 'Plazo mañana'
+          : `Plazo en ${opts.daysUntilDue} días`;
+  const title = escapeHtml(opts.taskTitle);
+  const subject = `${when}: ${opts.taskTitle}`;
+  const paragraphs = [
+    opts.fullName ? `Hola ${escapeHtml(opts.fullName)},` : 'Hola,',
+    `Tienes un plazo próximo: <strong>${title}</strong>.`,
+  ];
+  if (opts.matterRef)
+    paragraphs.push(`Expediente: <strong>${escapeHtml(opts.matterRef)}</strong>.`);
+  const text =
+    `${when}: ${opts.taskTitle}\n` +
+    `${opts.matterRef ? `Expediente: ${opts.matterRef}\n` : ''}\n` +
+    `Abre la tarea en Lawzora:\n${opts.link}`;
+  const html = renderEmail({
+    heading: when,
+    paragraphs,
+    button: { label: 'Ver la tarea', url: opts.link },
+    note: 'Recibes este aviso porque tienes un plazo asignado en Lawzora.',
+  });
+  return { to, subject, html, text };
+}
+
+/**
  * Implementación por defecto: NO envía correo. Registra la intención para trazabilidad en dev/CI.
  * Para activar email real, regístrese `SmtpMailProvider` bajo el token MAIL_PROVIDER (ver auth.module).
  */

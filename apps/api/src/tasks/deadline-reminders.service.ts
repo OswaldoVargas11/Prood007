@@ -1,8 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { TaskStatus } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AuditService } from '../audit/audit.service';
+import {
+  MAIL_PROVIDER,
+  type MailProvider,
+  deadlineReminderMessage,
+} from '../auth/mail/mail.provider';
 import { addDaysUtc, startOfTodayUtc } from '../ledger/overdue.util';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -28,8 +34,8 @@ type ReminderActor = RequestUser | { tenantId: string };
 
 /**
  * Avisador de plazos próximos. Reutilizable por el cron diario (barrido multi-tenant) y por el
- * endpoint manual del despacho. In-app únicamente (vía `NotificationsService`); el envío por correo
- * será otro workstream — el `data` de la notificación lleva ya lo necesario para extenderlo.
+ * endpoint manual del despacho. Avisa IN-APP (vía `NotificationsService`) y POR CORREO (vía Brevo),
+ * para que el abogado se entere aunque no esté dentro de la app. El email es fail-soft.
  */
 @Injectable()
 export class DeadlineRemindersService {
@@ -39,7 +45,13 @@ export class DeadlineRemindersService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    private readonly config: ConfigService,
+    @Inject(MAIL_PROVIDER) private readonly mail: MailProvider,
   ) {}
+
+  private appBase(): string {
+    return this.config.get<string>('APP_PUBLIC_URL') ?? 'https://lawzora.com';
+  }
 
   /** Disparo manual desde el despacho ("recordar plazos ahora"), acotado al tenant del usuario. */
   async runForTenant(user: RequestUser): Promise<DeadlineReminderRunSummary> {
@@ -78,9 +90,16 @@ export class DeadlineRemindersService {
         dueDate: { not: null, lte: horizon },
         status: { notIn: CLOSED_STATUSES },
       },
-      include: { matter: { select: { lawyerId: true } } },
+      include: { matter: { select: { lawyerId: true, reference: true } } },
     });
     summary.evaluated = tasks.length;
+
+    // Mapa de email/nombre del staff activo del despacho, para el canal de correo (una sola consulta).
+    const staff = await this.prisma.user.findMany({
+      where: { tenantId, isActive: true },
+      select: { id: true, email: true, fullName: true },
+    });
+    const staffById = new Map(staff.map((u) => [u.id, u]));
 
     for (const task of tasks) {
       const dueDate = task.dueDate as Date;
@@ -119,6 +138,26 @@ export class DeadlineRemindersService {
             window,
           },
         });
+        // Canal email (fail-soft): avisa fuera de la app. NoopMailProvider en dev/CI = no-op.
+        const u = staffById.get(userId);
+        if (u?.email) {
+          try {
+            const link = task.matterId
+              ? `${this.appBase()}/es/matters/${task.matterId}`
+              : `${this.appBase()}/es/tasks`;
+            await this.mail.sendMail(
+              deadlineReminderMessage(u.email, {
+                fullName: u.fullName,
+                taskTitle: task.title,
+                daysUntilDue,
+                matterRef: task.matter?.reference ?? null,
+                link,
+              }),
+            );
+          } catch (err) {
+            this.logger.error('Fallo al enviar recordatorio de plazo por correo', err as Error);
+          }
+        }
       }
 
       await this.prisma.task.update({
