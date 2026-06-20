@@ -253,6 +253,29 @@ async function seedFirm(firm) {
     if (i % 3 === 0) await call('POST', `/ledger/invoices/${inv.invoice.id}/pay`).catch(() => {});
   }
 
+  // Prospectos del embudo (CRM): varios por fase y origen, para que la captación no salga vacía.
+  const STAGES = [
+    { source: 'intake', status: 'NEW' },
+    { source: 'manual', status: 'NEW' },
+    { source: 'intake', status: 'CONTACTED' },
+    { source: 'manual', status: 'QUALIFIED' },
+    { source: 'intake', status: 'LOST' },
+  ];
+  let leads = 0;
+  for (let i = 0; i < STAGES.length; i++) {
+    const st = STAGES[i];
+    const lead = await call('POST', '/leads', {
+      name: firm.leadPeople[i % firm.leadPeople.length],
+      email: `prospecto${i + 1}@${firm.key}.demo`,
+      phone: firm.phone(i),
+      subject: firm.leadSubjects[i % firm.leadSubjects.length],
+      source: st.source,
+    }).catch(() => null);
+    if (lead && st.status !== 'NEW')
+      await call('PATCH', `/leads/${lead.id}`, { status: st.status }).catch(() => {});
+    if (lead) leads++;
+  }
+
   // Suscripción ACTIVE (sin muro en la demo)
   const me = await prisma.user.findFirst({
     where: { email: firm.email },
@@ -264,7 +287,9 @@ async function seedFirm(firm) {
       data: { subscriptionStatus: 'ACTIVE', seats: 5, trialEndsAt: null },
     });
 
-  console.log(`  ✓ ${clients.length} clientes · ${firm.matters} expedientes · ${issued} facturas`);
+  console.log(
+    `  ✓ ${clients.length} clientes · ${firm.matters} expedientes · ${issued} facturas · ${leads} prospectos`,
+  );
 }
 
 // ── Perfiles de facturación ──────────────────────────────────────────────────
@@ -309,6 +334,8 @@ const firmsConfig = [
     phone: (i) => `+34 6${String(10000000 + i * 11111).slice(0, 8)}`,
     address: (i) => `C/ Serrano ${20 + i}, 28001 Madrid`,
     profileFor: (i) => ES_PROFILE(i),
+    leadPeople: ['Andrés Vidal Soler', 'Patricia Gómez Ruiz', 'Construcciones Nova S.L.', 'Roberto Díaz Mena', 'Marta Ruiz Crespo'],
+    leadSubjects: ['Despido y reclamación de salarios', 'Reclamación de cantidad a proveedor', 'Constitución de una S.L.', 'Divorcio de mutuo acuerdo', 'Revisión de contrato de alquiler'],
   },
   {
     key: 'do',
@@ -324,6 +351,8 @@ const firmsConfig = [
     phone: (i) => `+1 809 ${String(2000000 + i * 13131).slice(0, 7)}`,
     address: (i) => `Av. Winston Churchill ${50 + i}, Santo Domingo`,
     profileFor: (i) => DO_PROFILE(i),
+    leadPeople: ['Pedro Guerrero Lora', 'Yokasta Méndez Pérez', 'Comercial Tropical SRL', 'Luis Familia Cruz', 'Rosa Encarnación Díaz'],
+    leadSubjects: ['Cobro de pesos por pagaré', 'Desalojo por falta de pago', 'Constitución de una SRL', 'Demanda de pensión alimentaria', 'Daños y perjuicios por accidente'],
   },
   {
     key: 'dual',
@@ -345,6 +374,8 @@ const firmsConfig = [
       const isDO = /^\d{9}$|^\d{11}$/.test(taxId); // RNC (9) o Cédula (11) → dominicano
       return isDO ? DO_PROFILE(i) : ES_PROFILE(i);
     },
+    leadPeople: ['Sofía Marrero', 'Inversiones Atlántico S.L.', 'Manuel Tavárez', 'Elena Pou Vargas', 'Distribuidora Bávaro SRL'],
+    leadSubjects: ['Contrato mercantil internacional', 'Reclamación de cantidad', 'Constitución de sociedad en RD', 'Divorcio internacional', 'Cobro de pesos por pagaré'],
   },
 ];
 
