@@ -297,6 +297,11 @@ model User {
   // (sueldo cargado) para calcular el MARGEN real por expediente. Nullable = sin tarifa configurada.
   billRate     Decimal? @db.Decimal(18, 2)
   costRate     Decimal? @db.Decimal(18, 2)
+  // MFA (2FA TOTP): secreto base32 CIFRADO (AES-256-GCM) y códigos de respaldo (hashes argon2 en JSON).
+  // mfaEnabled false con mfaSecret presente = configuración a medias (pendiente de confirmar el código).
+  mfaEnabled     Boolean @default(false)
+  mfaSecret      String?
+  mfaBackupCodes String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

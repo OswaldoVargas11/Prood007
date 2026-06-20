@@ -31,6 +31,30 @@ export const API_MESSAGES = {
     'es-ES': 'Tu cuenta existe en varios despachos. Elige con cuál quieres iniciar sesión.',
     'es-DO': 'Tu cuenta existe en varios despachos. Elige con cuál quieres iniciar sesión.',
   },
+  'mfa.invalidCode': {
+    'es-ES': 'Código de verificación incorrecto.',
+    'es-DO': 'Código de verificación incorrecto.',
+  },
+  'mfa.invalidChallenge': {
+    'es-ES': 'La verificación ha caducado. Vuelve a iniciar sesión.',
+    'es-DO': 'La verificación ha caducado. Vuelve a iniciar sesión.',
+  },
+  'mfa.notStarted': {
+    'es-ES': 'No has iniciado la configuración de la verificación en dos pasos.',
+    'es-DO': 'No has iniciado la configuración de la verificación en dos pasos.',
+  },
+  'mfa.alreadyEnabled': {
+    'es-ES': 'La verificación en dos pasos ya está activada.',
+    'es-DO': 'La verificación en dos pasos ya está activada.',
+  },
+  'mfa.notEnabled': {
+    'es-ES': 'La verificación en dos pasos no está activada.',
+    'es-DO': 'La verificación en dos pasos no está activada.',
+  },
+  'mfa.notConfigured': {
+    'es-ES': 'La verificación en dos pasos no está disponible en el servidor.',
+    'es-DO': 'La verificación en dos pasos no está disponible en el servidor.',
+  },
   'auth.accountDisabled': {
     'es-ES': 'Cuenta deshabilitada.',
     'es-DO': 'Cuenta deshabilitada.',

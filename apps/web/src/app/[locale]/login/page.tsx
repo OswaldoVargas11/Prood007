@@ -30,13 +30,17 @@ interface TenantChoice {
 
 export default function LoginPage() {
   const t = useTranslations('login');
-  const { login } = useAuth();
+  const { login, mfaLogin } = useAuth();
   const router = useRouter();
   const [serverError, setServerError] = useState<string | null>(null);
   // Si el email existe en varios despachos con la misma contraseña, el backend devuelve la lista
   // (409 auth.chooseTenant) y mostramos un selector en vez de exigir el ID a ciegas.
   const [choices, setChoices] = useState<TenantChoice[] | null>(null);
   const [pending, setPending] = useState<FormValues | null>(null);
+  // 2FA: si el usuario tiene MFA, el login devuelve un token de desafío y pedimos el código.
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaBusy, setMfaBusy] = useState(false);
 
   const {
     register,
@@ -47,7 +51,11 @@ export default function LoginPage() {
   async function doLogin(values: FormValues) {
     setServerError(null);
     try {
-      await login(values.email, values.password, values.tenantId);
+      const result = await login(values.email, values.password, values.tenantId);
+      if (result?.mfaRequired) {
+        setMfaToken(result.mfaToken);
+        return;
+      }
       router.replace('/dashboard');
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
@@ -59,6 +67,20 @@ export default function LoginPage() {
         }
       }
       setServerError(err instanceof ApiError ? err.message : t('genericError'));
+    }
+  }
+
+  async function submitMfa() {
+    if (!mfaToken || mfaCode.trim().length < 6) return;
+    setServerError(null);
+    setMfaBusy(true);
+    try {
+      await mfaLogin(mfaToken, mfaCode.trim());
+      router.replace('/dashboard');
+    } catch (err) {
+      setServerError(err instanceof ApiError ? err.message : t('genericError'));
+    } finally {
+      setMfaBusy(false);
     }
   }
 
@@ -94,7 +116,48 @@ export default function LoginPage() {
           <CardDescription>{t('subtitle')}</CardDescription>
         </CardHeader>
         <CardContent>
-          {choices ? (
+          {mfaToken ? (
+            <div className="space-y-4">
+              <div className="space-y-1 text-center">
+                <h2 className="text-base font-semibold">{t('mfaTitle')}</h2>
+                <p className="text-sm text-muted-foreground">{t('mfaHint')}</p>
+              </div>
+              <Input
+                autoFocus
+                inputMode="numeric"
+                placeholder="123456"
+                value={mfaCode}
+                onChange={(e) =>
+                  setMfaCode(e.target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 12))
+                }
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void submitMfa();
+                }}
+                className="text-center text-lg tracking-[0.3em]"
+              />
+              {serverError && <p className="text-sm text-[var(--danger)]">{serverError}</p>}
+              <Button
+                type="button"
+                className="w-full"
+                onClick={() => void submitMfa()}
+                disabled={mfaBusy || mfaCode.trim().length < 6}
+              >
+                {mfaBusy ? <Loader2 className="size-4 animate-spin" /> : null}
+                {t('mfaVerify')}
+              </Button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMfaToken(null);
+                  setMfaCode('');
+                  setServerError(null);
+                }}
+                className="block w-full text-center text-xs text-muted-foreground hover:text-foreground"
+              >
+                {t('mfaBack')}
+              </button>
+            </div>
+          ) : choices ? (
             <div className="space-y-4">
               <div className="space-y-1 text-center">
                 <h2 className="text-base font-semibold">{t('chooseTenantTitle')}</h2>

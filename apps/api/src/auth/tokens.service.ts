@@ -53,6 +53,27 @@ export class TokensService {
     return { accessToken, refreshToken, tokenType: 'Bearer', expiresIn: ACCESS_TTL_SECONDS };
   }
 
+  /** Token CORTO (5 min) que identifica al usuario entre el paso de contraseña y el de MFA. No da acceso. */
+  signMfaChallenge(userId: string): Promise<string> {
+    return this.jwt.signAsync(
+      { sub: userId, typ: 'mfa' },
+      { secret: this.accessSecret, expiresIn: 300 },
+    );
+  }
+
+  /** Valida el token de desafío MFA y devuelve el userId. Lanza si es inválido/caducado. */
+  async verifyMfaChallenge(token: string): Promise<string> {
+    try {
+      const payload = await this.jwt.verifyAsync<{ sub: string; typ?: string }>(token, {
+        secret: this.accessSecret,
+      });
+      if (payload.typ !== 'mfa' || !payload.sub) throw new Error('bad mfa token');
+      return payload.sub;
+    } catch {
+      throw new UnauthorizedException(apiError('mfa.invalidChallenge'));
+    }
+  }
+
   private signAccessToken(user: UserForToken): Promise<string> {
     const payload: AccessTokenPayload = {
       sub: user.id,

@@ -312,6 +312,34 @@ export function useProfitability() {
   });
 }
 
+// ── MFA / 2FA ─────────────────────────────────────────────────────────────────
+export function useMfaStatus() {
+  return useQuery({
+    queryKey: ['mfa-status'],
+    queryFn: () => api.get<{ enabled: boolean }>('/auth/mfa/status'),
+  });
+}
+export function useMfaSetup() {
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ secret: string; otpauthUri: string; qrDataUrl: string }>('/auth/mfa/setup'),
+  });
+}
+export function useMfaEnable() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => api.post<{ backupCodes: string[] }>('/auth/mfa/enable', { code }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mfa-status'] }),
+  });
+}
+export function useMfaDisable() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) => api.post('/auth/mfa/disable', { code }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['mfa-status'] }),
+  });
+}
+
 // ── Plantillas de documento (Fase 3) ─────────────────────────────────────────
 export function useTemplates() {
   return useQuery({

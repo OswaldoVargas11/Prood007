@@ -96,7 +96,11 @@
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "chooseTenantTitle": "Elige tu despacho",
     "chooseTenantHint": "Tu cuenta existe en varios despachos. Selecciona con cuál quieres entrar.",
-    "chooseTenantBack": "Volver"
+    "chooseTenantBack": "Volver",
+    "mfaTitle": "Verificación en dos pasos",
+    "mfaHint": "Introduce el código de tu app de autenticación (o un código de respaldo).",
+    "mfaVerify": "Verificar",
+    "mfaBack": "Volver"
   },
   "onboarding": {
     "setup": "Configuración",
@@ -801,6 +805,28 @@
       "title": "Cambia tu contraseña",
       "subtitle": "Por seguridad, debes establecer una contraseña propia antes de continuar."
     }
+  },
+  "security": {
+    "title": "Verificación en dos pasos (2FA)",
+    "desc": "Añade un código de un solo uso de tu app de autenticación al iniciar sesión.",
+    "enable": "Activar 2FA",
+    "disable": "Desactivar",
+    "on": "Activada",
+    "statusOn": "Tu cuenta está protegida con verificación en dos pasos.",
+    "statusOff": "Tu cuenta solo está protegida con contraseña.",
+    "setupStep1": "1. Escanea este código QR con Google Authenticator, Authy, 1Password, etc.",
+    "setupManual": "¿No puedes escanear? Introduce esta clave a mano:",
+    "setupStep2": "2. Introduce el código de 6 dígitos que muestra la app:",
+    "activate": "Activar",
+    "cancel": "Cancelar",
+    "enabled": "Verificación en dos pasos activada",
+    "disabled": "Verificación en dos pasos desactivada",
+    "error": "No se pudo completar la operación.",
+    "backupTitle": "Guarda tus códigos de respaldo",
+    "backupHint": "Úsalos si pierdes el acceso a tu app. Cada código sirve una sola vez. No se volverán a mostrar.",
+    "backupDone": "Ya los he guardado",
+    "disablePrompt": "Introduce un código para desactivar:",
+    "confirmDisable": "Desactivar"
   },
   "matterBudget": {
     "title": "Presupuesto",

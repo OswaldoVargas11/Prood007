@@ -9,25 +9,21 @@ import {
 } from '@/lib/server/session';
 
 /**
- * BFF de login: proxya a Nest `POST /api/auth/login`, guarda el refresh en cookie httpOnly y devuelve
- * solo el access token al cliente (que lo mantiene en memoria). Ver D-014.
+ * BFF del segundo paso del login con MFA: proxya a Nest `POST /api/auth/mfa/login` (token de desafío +
+ * código), guarda el refresh en cookie httpOnly y devuelve solo el access token. Igual que /auth/login.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const body = await req.json().catch(() => ({}));
-  const res = await fetch(nestUrl('/auth/login'), {
+  const res = await fetch(nestUrl('/auth/mfa/login'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => undefined);
   if (!res.ok) {
-    return NextResponse.json(data ?? { message: 'No se pudo iniciar sesión' }, {
+    return NextResponse.json(data ?? { message: 'No se pudo verificar el código' }, {
       status: res.status,
     });
-  }
-  // MFA: aún no hay sesión; se devuelve el desafío para el segundo paso (sin cookies).
-  if (data && (data as { mfaRequired?: boolean }).mfaRequired) {
-    return NextResponse.json(data);
   }
   const pair = data as TokenPair;
   await setSessionCookie(pair.refreshToken);

@@ -11,6 +11,7 @@ import { SystemPrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { TokensService } from './tokens.service';
 import { HibpService } from './hibp.service';
+import { MfaService } from './mfa.service';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -18,6 +19,12 @@ import { PERMISSION_NAMES, PERMISSIONS, ROLE_NAMES, ROLE_PERMISSIONS } from './r
 import { apiError } from '../common/api-messages';
 import { TRIAL_DAYS } from '../subscription/plans';
 import type { RequestUser, TokenPair } from './auth.types';
+
+/** Respuesta de login cuando el usuario tiene MFA: no hay sesión todavía, hay que aportar el código. */
+export interface MfaChallenge {
+  mfaRequired: true;
+  mfaToken: string;
+}
 
 // Lockout por cuenta (SEC4): umbral de fallos consecutivos y duración del bloqueo.
 const MAX_FAILED_ATTEMPTS = 5;
@@ -34,6 +41,7 @@ export class AuthService {
     private readonly tokens: TokensService,
     private readonly audit: AuditService,
     private readonly hibp: HibpService,
+    private readonly mfa: MfaService,
   ) {}
 
   private hashPassword(plain: string): Promise<string> {
@@ -127,7 +135,7 @@ export class AuthService {
    *  - para email inexistente no se inserta AuditLog (solo log de servidor) para no crear ruido ni
    *    filtrar existencia de cuentas.
    */
-  async login(dto: LoginDto): Promise<TokenPair> {
+  async login(dto: LoginDto): Promise<TokenPair | MfaChallenge> {
     const email = dto.email.toLowerCase();
     const candidates = await this.system.user.findMany({
       where: { email, ...(dto.tenantId ? { tenantId: dto.tenantId } : {}) },
@@ -143,6 +151,7 @@ export class AuthService {
     if (candidates.length === 1) {
       const user = candidates[0]!;
       await this.verifyOrFail(user, dto.password);
+      if (user.mfaEnabled) return this.mfaChallenge(user.id);
       return this.issueForUser(user);
     }
 
@@ -163,7 +172,9 @@ export class AuthService {
       throw new UnauthorizedException(apiError('auth.invalidCredentials'));
     }
     if (matches.length === 1) {
-      return this.issueForUser(matches[0]!);
+      const u = matches[0]!;
+      if (u.mfaEnabled) return this.mfaChallenge(u.id);
+      return this.issueForUser(u);
     }
 
     // Ambigüedad real: misma contraseña en varios despachos. Pedimos elegir (payload con opciones).
@@ -176,6 +187,25 @@ export class AuthService {
       code: 'auth.chooseTenant',
       choices: tenants.map((t) => ({ tenantId: t.id, tenantName: t.name })),
     });
+  }
+
+  /** Construye el desafío MFA (token corto que el cliente devuelve junto al código). */
+  private async mfaChallenge(userId: string): Promise<MfaChallenge> {
+    return { mfaRequired: true, mfaToken: await this.tokens.signMfaChallenge(userId) };
+  }
+
+  /** Segundo paso del login con MFA: valida el desafío + el código (TOTP o de respaldo) y emite sesión. */
+  async mfaLogin(mfaToken: string, code: string): Promise<TokenPair> {
+    const userId = await this.tokens.verifyMfaChallenge(mfaToken);
+    const user = await this.system.user.findUnique({ where: { id: userId } });
+    if (!user || !user.isActive)
+      throw new UnauthorizedException(apiError('auth.invalidCredentials'));
+    const ok = await this.mfa.verifyForLogin(userId, code);
+    if (!ok) {
+      await this.auditLogin(user.tenantId, user.id, false, 'mfa_failed');
+      throw new UnauthorizedException(apiError('mfa.invalidCode'));
+    }
+    return this.issueForUser(user);
   }
 
   /**

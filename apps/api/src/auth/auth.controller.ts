@@ -3,6 +3,8 @@ import { Throttle } from '@nestjs/throttler';
 import { Role } from '@legalflow/domain';
 import { AuthService } from './auth.service';
 import { PasswordResetService } from './password-reset.service';
+import { MfaService } from './mfa.service';
+import { MfaCodeDto, MfaLoginDto } from './dto/mfa.dto';
 import { RegisterTenantDto } from './dto/register-tenant.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -23,6 +25,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly passwordReset: PasswordResetService,
+    private readonly mfa: MfaService,
   ) {}
 
   @Public()
@@ -39,6 +42,44 @@ export class AuthController {
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);
+  }
+
+  /** Segundo paso del login cuando el usuario tiene MFA: token de desafío + código. */
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('mfa/login')
+  mfaLogin(@Body() dto: MfaLoginDto) {
+    return this.auth.mfaLogin(dto.mfaToken, dto.code);
+  }
+
+  /** Estado de MFA del usuario (¿activado?). */
+  @Get('mfa/status')
+  mfaStatus(@CurrentUser() user: RequestUser) {
+    return this.mfa.status(user);
+  }
+
+  /** Inicia el alta de MFA: genera secreto + QR (aún no activa). */
+  @HttpCode(HttpStatus.OK)
+  @Post('mfa/setup')
+  mfaSetup(@CurrentUser() user: RequestUser) {
+    return this.mfa.setup(user);
+  }
+
+  /** Confirma el código y activa MFA; devuelve los códigos de respaldo (una sola vez). */
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('mfa/enable')
+  mfaEnable(@CurrentUser() user: RequestUser, @Body() dto: MfaCodeDto) {
+    return this.mfa.enable(user, dto.code);
+  }
+
+  /** Desactiva MFA tras verificar un código (TOTP o de respaldo). */
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  @Post('mfa/disable')
+  mfaDisable(@CurrentUser() user: RequestUser, @Body() dto: MfaCodeDto) {
+    return this.mfa.disable(user, dto.code);
   }
 
   @Public()

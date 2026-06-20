@@ -14,10 +14,19 @@ export interface RegisterTenantInput {
   admin: { fullName: string; email: string; password: string };
 }
 
+/** Si el usuario tiene MFA, `login` devuelve este desafío en vez de iniciar sesión. */
+export interface MfaChallenge {
+  mfaRequired: true;
+  mfaToken: string;
+}
+
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string, tenantId?: string) => Promise<void>;
+  /** Devuelve un `MfaChallenge` si el usuario tiene 2FA; si no, inicia sesión y devuelve undefined. */
+  login: (email: string, password: string, tenantId?: string) => Promise<MfaChallenge | undefined>;
+  /** Segundo paso del login con MFA: completa la sesión con el token de desafío + el código. */
+  mfaLogin: (mfaToken: string, code: string) => Promise<void>;
   register: (input: RegisterTenantInput) => Promise<void>;
   logout: () => Promise<void>;
   /** Recarga el usuario desde /auth/me (p. ej. tras un cambio de contraseña forzado). */
@@ -76,6 +85,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json().catch(() => undefined);
     if (!res.ok)
       throw new ApiError(res.status, errorMessage(data, 'No se pudo iniciar sesión'), data);
+    if (data && (data as MfaChallenge).mfaRequired) {
+      return data as MfaChallenge;
+    }
+    setAccessToken((data as { accessToken: string }).accessToken);
+    setUser(await api.get<AuthUser>('/auth/me'));
+  }, []);
+
+  const mfaLogin = useCallback(async (mfaToken: string, code: string) => {
+    const res = await fetch('/api/auth/mfa/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mfaToken, code }),
+    });
+    const data = await res.json().catch(() => undefined);
+    if (!res.ok)
+      throw new ApiError(res.status, errorMessage(data, 'No se pudo verificar el código'), data);
     setAccessToken((data as { accessToken: string }).accessToken);
     setUser(await api.get<AuthUser>('/auth/me'));
   }, []);
@@ -108,12 +133,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       loading,
       login,
+      mfaLogin,
       register,
       logout,
       refreshUser,
       hasRole: (r) => user?.roles.includes(r) ?? false,
     }),
-    [user, loading, login, register, logout, refreshUser],
+    [user, loading, login, mfaLogin, register, logout, refreshUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

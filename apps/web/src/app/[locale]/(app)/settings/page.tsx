@@ -27,6 +27,10 @@ import {
   useGoogleConnect,
   useGoogleDisconnect,
   useGoogleStatus,
+  useMfaDisable,
+  useMfaEnable,
+  useMfaSetup,
+  useMfaStatus,
   useMicrosoftCalendarSync,
   useMicrosoftConnect,
   useMicrosoftDisconnect,
@@ -83,6 +87,7 @@ export default function SettingsPage() {
       <LicenseCard />
       <StaffCard />
       <HolidaysCard />
+      <SecurityCard />
       <CertificateCard />
       <GoogleCard />
       <MicrosoftCard />
@@ -130,6 +135,156 @@ function StripeCard() {
         <Badge variant={connected ? 'success' : 'warning'}>
           {connected ? t('stripe.connected') : t('stripe.pending')}
         </Badge>
+      )}
+    </Section>
+  );
+}
+
+/** Seguridad de la cuenta: verificación en dos pasos (2FA TOTP) con QR, código y códigos de respaldo. */
+function SecurityCard() {
+  const t = useTranslations('security');
+  const status = useMfaStatus();
+  const setup = useMfaSetup();
+  const enable = useMfaEnable();
+  const disable = useMfaDisable();
+  const [setupData, setSetupData] = useState<{ secret: string; qrDataUrl: string } | null>(null);
+  const [code, setCode] = useState('');
+  const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
+  const [disabling, setDisabling] = useState(false);
+  const [disableCode, setDisableCode] = useState('');
+  const enabled = status.data?.enabled;
+
+  async function startSetup() {
+    const d = await setup.mutateAsync();
+    setSetupData({ secret: d.secret, qrDataUrl: d.qrDataUrl });
+  }
+  async function confirmEnable() {
+    try {
+      const r = await enable.mutateAsync(code.trim());
+      setBackupCodes(r.backupCodes);
+      setSetupData(null);
+      setCode('');
+      toast.success(t('enabled'));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t('error'));
+    }
+  }
+  async function confirmDisable() {
+    try {
+      await disable.mutateAsync(disableCode.trim());
+      setDisabling(false);
+      setDisableCode('');
+      toast.success(t('disabled'));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : t('error'));
+    }
+  }
+
+  const showEnableBtn = enabled === false && !setupData && !backupCodes;
+  const showDisableBtn = enabled === true && !disabling && !backupCodes;
+
+  return (
+    <Section
+      icon={<ShieldCheck className="size-5 text-[var(--brand)]" />}
+      title={t('title')}
+      desc={t('desc')}
+      action={
+        showEnableBtn ? (
+          <Button size="sm" onClick={startSetup} disabled={setup.isPending}>
+            {setup.isPending ? <Loader2 className="animate-spin" /> : null}
+            {t('enable')}
+          </Button>
+        ) : showDisableBtn ? (
+          <Button size="sm" variant="outline" onClick={() => setDisabling(true)}>
+            {t('disable')}
+          </Button>
+        ) : undefined
+      }
+    >
+      {status.isLoading ? (
+        <Skeleton className="h-6 w-40" />
+      ) : backupCodes ? (
+        <div className="space-y-2">
+          <p className="text-[13px] font-medium">{t('backupTitle')}</p>
+          <p className="text-[12.5px] text-muted-foreground">{t('backupHint')}</p>
+          <div className="grid grid-cols-2 gap-1.5 rounded-lg border bg-[var(--surface-1)] p-3 font-mono text-[12.5px]">
+            {backupCodes.map((c) => (
+              <span key={c}>{c}</span>
+            ))}
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setBackupCodes(null)}>
+            {t('backupDone')}
+          </Button>
+        </div>
+      ) : setupData ? (
+        <div className="space-y-3">
+          <p className="text-[13px]">{t('setupStep1')}</p>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={setupData.qrDataUrl}
+            alt="QR"
+            className="size-44 rounded-lg border bg-white p-1"
+          />
+          <p className="text-[12px] text-muted-foreground">
+            {t('setupManual')}{' '}
+            <code className="rounded bg-[var(--surface-1)] px-1 font-mono text-[11.5px]">
+              {setupData.secret}
+            </code>
+          </p>
+          <p className="text-[13px]">{t('setupStep2')}</p>
+          <div className="flex items-center gap-2">
+            <Input
+              inputMode="numeric"
+              placeholder="123456"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+              className="h-8 w-32 text-center tracking-[0.2em]"
+            />
+            <Button
+              size="sm"
+              onClick={confirmEnable}
+              disabled={enable.isPending || code.length < 6}
+            >
+              {enable.isPending ? <Loader2 className="animate-spin" /> : null}
+              {t('activate')}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSetupData(null)}>
+              {t('cancel')}
+            </Button>
+          </div>
+        </div>
+      ) : disabling ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[13px]">{t('disablePrompt')}</span>
+          <Input
+            inputMode="numeric"
+            placeholder="123456"
+            value={disableCode}
+            onChange={(e) =>
+              setDisableCode(e.target.value.replace(/[^0-9a-fA-F]/g, '').slice(0, 12))
+            }
+            className="h-8 w-32 text-center tracking-[0.2em]"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={confirmDisable}
+            disabled={disable.isPending || disableCode.trim().length < 6}
+          >
+            {disable.isPending ? <Loader2 className="animate-spin" /> : null}
+            {t('confirmDisable')}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => setDisabling(false)}>
+            {t('cancel')}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          {enabled && <Badge variant="success">{t('on')}</Badge>}
+          <p className="text-sm text-muted-foreground">
+            {enabled ? t('statusOn') : t('statusOff')}
+          </p>
+        </div>
       )}
     </Section>
   );
