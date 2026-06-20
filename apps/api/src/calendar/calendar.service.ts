@@ -62,8 +62,14 @@ export class CalendarService {
     });
     if (!user) return null;
 
+    // Solo las tareas ASIGNADAS a este letrado (su agenda personal), no todas las del despacho.
     const tasks = await this.system.task.findMany({
-      where: { tenantId: user.tenantId, status: { in: OPEN }, dueDate: { not: null } },
+      where: {
+        tenantId: user.tenantId,
+        assigneeId: userId,
+        status: { in: OPEN },
+        dueDate: { not: null },
+      },
       orderBy: { dueDate: 'asc' },
       include: { matter: { select: { reference: true, client: { select: { name: true } } } } },
     });

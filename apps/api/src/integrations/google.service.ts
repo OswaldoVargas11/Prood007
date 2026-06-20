@@ -219,8 +219,14 @@ export class GoogleService {
   async syncCalendar(user: RequestUser): Promise<{ pushed: number; errors: number }> {
     this.assertConfigured();
     const token = await this.accessTokenFor(user.userId);
+    // Solo las tareas ASIGNADAS a este letrado (no todas las del despacho): cada agenda es la suya.
     const tasks = await this.prisma.task.findMany({
-      where: { tenantId: user.tenantId, status: { in: OPEN }, dueDate: { not: null } },
+      where: {
+        tenantId: user.tenantId,
+        assigneeId: user.userId,
+        status: { in: OPEN },
+        dueDate: { not: null },
+      },
       include: { matter: { select: { reference: true, client: { select: { name: true } } } } },
     });
     let pushed = 0;
