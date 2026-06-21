@@ -55,6 +55,7 @@ export class SubscriptionService {
         maxAdmins: true,
         maxLawyers: true,
         billingCycle: true,
+        cancelAtPeriodEnd: true,
         isFounder: true,
         founderNumber: true,
         lockedSeatTiers: true,
@@ -73,6 +74,7 @@ export class SubscriptionService {
       trialEndsAt: t.trialEndsAt,
       trialDaysLeft: trialDaysLeft(t),
       currentPeriodEnd: t.currentPeriodEnd,
+      cancelAtPeriodEnd: t.cancelAtPeriodEnd,
       hasAccess: hasAppAccess(t),
       seats: t.seats, // contratadas (0 en prueba)
       seatsUsed: used, // staff activo

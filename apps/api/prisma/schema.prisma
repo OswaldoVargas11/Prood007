@@ -220,6 +220,10 @@ model Tenant {
   currentPeriodEnd      DateTime?
   // Ciclo de facturación de la suscripción: MONTHLY | ANNUAL (anual = 2 meses gratis, ver plans.ts).
   billingCycle          String       @default("MONTHLY")
+  // Cancelación programada: el admin canceló y la suscripción seguirá ACTIVE hasta `currentPeriodEnd`,
+  // momento en que Stripe emite `customer.subscription.deleted` y pasa a CANCELED. true = baja agendada
+  // (la UI muestra "se cancelará el …" y ofrece reanudar). Lo sincroniza el webhook de Stripe.
+  cancelAtPeriodEnd     Boolean      @default(false)
   // Plan Fundador (primeros N despachos): el precio POR PLAZA queda bloqueado de por vida según los
   // tramos de volumen vigentes al darse de alta. `lockedSeatTiers` = snapshot [{upTo, pricePerSeatEur}].
   // El precio por plaza sigue dependiendo del nº de plazas (volumen); lo que se congela es la tarifa.

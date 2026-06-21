@@ -1,11 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
-import { Check, CreditCard, Crown, Loader2, Minus, Plus } from 'lucide-react';
-import { useChangeSeats, useCheckout, usePortal, useSubscription } from '@/lib/hooks';
+import { Check, CalendarX, CreditCard, Crown, Loader2, Minus, Plus, RotateCcw } from 'lucide-react';
+import {
+  useCancelSubscription,
+  useChangeSeats,
+  useCheckout,
+  usePortal,
+  useResumeSubscription,
+  useSubscription,
+} from '@/lib/hooks';
 import { ApiError } from '@/lib/api';
+import { formatDate } from '@/lib/format';
+import { ConfirmDialog } from '@/components/lexora/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -238,12 +247,90 @@ export function SubscribePanel() {
       {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
 
       {hasSubscription && (
-        <Button variant="outline" onClick={() => go('manage')} disabled={portal.isPending}>
-          {portal.isPending ? <Loader2 className="animate-spin" /> : <CreditCard />}
-          {t('manage')}
-        </Button>
+        <div className="space-y-3 border-t pt-4">
+          <Button variant="outline" onClick={() => go('manage')} disabled={portal.isPending}>
+            {portal.isPending ? <Loader2 className="animate-spin" /> : <CreditCard />}
+            {t('manage')}
+          </Button>
+          <SubscriptionLifecycle data={data} />
+        </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Baja de la suscripción desde la web (al final del periodo). Si ya hay baja agendada, muestra el aviso
+ * "se cancelará el …" y el botón de reanudar; si no, el botón "Cancelar suscripción" con confirmación.
+ */
+function SubscriptionLifecycle({ data }: { data: SubscriptionInfo }) {
+  const t = useTranslations('subscription');
+  const locale = useLocale();
+  const cancel = useCancelSubscription();
+  const resume = useResumeSubscription();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // Solo tiene sentido cancelar con una suscripción de pago viva (no en prueba ni ya cancelada).
+  const cancelable = data.status === 'ACTIVE' || data.status === 'PAST_DUE';
+  const endDate = data.currentPeriodEnd ? formatDate(data.currentPeriodEnd, locale) : null;
+
+  async function doCancel() {
+    try {
+      await cancel.mutateAsync();
+      setConfirmOpen(false);
+      toast.success(endDate ? t('cancelScheduledOn', { date: endDate }) : t('cancelScheduled'));
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : t('error'));
+    }
+  }
+
+  async function doResume() {
+    try {
+      await resume.mutateAsync();
+      toast.success(t('resumed'));
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : t('error'));
+    }
+  }
+
+  if (data.cancelAtPeriodEnd) {
+    return (
+      <div className="space-y-3 rounded-xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+        <p className="flex items-start gap-2 text-sm text-amber-800 dark:text-amber-300">
+          <CalendarX className="mt-0.5 size-4 shrink-0" />
+          <span>{endDate ? t('cancelNoticeOn', { date: endDate }) : t('cancelNotice')}</span>
+        </p>
+        <Button size="sm" variant="outline" onClick={doResume} disabled={resume.isPending}>
+          {resume.isPending ? <Loader2 className="animate-spin" /> : <RotateCcw />}
+          {t('resume')}
+        </Button>
+      </div>
+    );
+  }
+
+  if (!cancelable) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setConfirmOpen(true)}
+        className="text-[13px] font-medium text-[var(--danger)] hover:underline"
+      >
+        {t('cancelSubscription')}
+      </button>
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title={t('cancelConfirmTitle')}
+        description={
+          endDate ? t('cancelConfirmBody', { date: endDate }) : t('cancelConfirmBodyNoDate')
+        }
+        confirmLabel={t('cancelConfirmCta')}
+        onConfirm={doCancel}
+        loading={cancel.isPending}
+      />
+    </>
   );
 }
 

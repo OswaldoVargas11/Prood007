@@ -6,6 +6,12 @@ primary_region = "fra"
 [build]
   dockerfile = "apps/api/Dockerfile"
 
+[deploy]
+  # Aplica las migraciones pendientes con el rol PROPIETARIO (DIRECT_DATABASE_URL, ver RUNBOOK) ANTES de
+  # publicar la nueva versión. Evita el desfase código↔esquema: si el código espera una columna nueva, la
+  # migración ya está aplicada cuando empieza a servir tráfico. Si la migración falla, el deploy se aborta.
+  release_command = "npx prisma migrate deploy"
+
 [http_service]
   internal_port = 4000
   force_https = true

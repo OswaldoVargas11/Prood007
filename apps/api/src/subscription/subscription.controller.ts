@@ -36,11 +36,25 @@ export class SubscriptionController {
     });
   }
 
-  /** Abre el portal de Stripe para gestionar/cancelar la suscripción. Solo el admin del despacho. */
+  /** Abre el portal de Stripe para gestionar el método de pago/facturas. Solo el admin del despacho. */
   @Roles(Role.FIRM_ADMIN)
   @Post('portal')
   portal(@CurrentUser() user: RequestUser) {
     return this.stripe.createPortal(user);
+  }
+
+  /** Cancela la suscripción al final del periodo (conserva acceso hasta entonces). Solo el admin. */
+  @Roles(Role.FIRM_ADMIN)
+  @Post('cancel')
+  cancel(@CurrentUser() user: RequestUser) {
+    return this.stripe.cancel(user);
+  }
+
+  /** Deshace una cancelación programada y reanuda la suscripción. Solo el admin. */
+  @Roles(Role.FIRM_ADMIN)
+  @Post('resume')
+  resume(@CurrentUser() user: RequestUser) {
+    return this.stripe.resume(user);
   }
 
   /** Ajusta el nº de plazas contratadas (prorrateado en la próxima factura). Solo el admin. */
