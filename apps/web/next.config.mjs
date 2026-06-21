@@ -17,12 +17,30 @@ const securityHeaders = [
   { key: 'X-DNS-Prefetch-Control', value: 'off' },
 ];
 
+// Excepción para el add-in de Office (Word/Outlook): el host de Office EMBEBE el panel en un iframe
+// (Word/Outlook en la web), así que `frame-ancestors 'none'`/`X-Frame-Options: DENY` lo romperían. Se
+// permiten solo los dominios de Office; el resto de seguridad (HSTS, nosniff, referrer) se mantiene.
+const officeAddinHeaders = [
+  {
+    key: 'Content-Security-Policy',
+    value:
+      "frame-ancestors 'self' https://*.officeapps.live.com https://*.office.com https://*.office365.com https://*.microsoft.com",
+  },
+  { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+];
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@legalflow/domain'],
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/word-addin/:path*', headers: officeAddinHeaders },
+      // Resto del sitio: cabeceras estrictas (negative-lookahead para excluir el add-in).
+      { source: '/((?!word-addin).*)', headers: securityHeaders },
+    ];
   },
 };
 

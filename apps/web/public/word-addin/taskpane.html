@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lawzora · Guardar al expediente</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <style>
+      :root {
+        --brand: #4f46e5;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        margin: 0;
+        padding: 16px;
+        color: #1f2937;
+        font-size: 13px;
+      }
+      h1 {
+        font-size: 15px;
+        margin: 0 0 12px;
+      }
+      label {
+        display: block;
+        font-size: 11px;
+        color: #6b7280;
+        margin: 10px 0 4px;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 13px;
+      }
+      button {
+        width: 100%;
+        margin-top: 12px;
+        padding: 9px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--brand);
+        color: #fff;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+      .muted {
+        color: #6b7280;
+        font-size: 11.5px;
+      }
+      .msg {
+        margin-top: 10px;
+        font-size: 12px;
+      }
+      .err {
+        color: #dc2626;
+      }
+      .ok {
+        color: #16a34a;
+      }
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Lawzora — Guardar al expediente</h1>
+
+    <div id="login">
+      <p class="muted">Inicia sesión con tu cuenta de Lawzora.</p>
+      <label for="email">Email</label>
+      <input id="email" type="email" autocomplete="username" />
+      <label for="password">Contraseña</label>
+      <input id="password" type="password" autocomplete="current-password" />
+      <button id="loginBtn">Iniciar sesión</button>
+      <div id="loginMsg" class="msg"></div>
+    </div>
+
+    <div id="app" class="hidden">
+      <label for="matter">Expediente</label>
+      <select id="matter"></select>
+      <label for="docname">Nombre del documento</label>
+      <input id="docname" type="text" placeholder="Borrador" />
+      <button id="saveBtn">Guardar el documento actual al expediente</button>
+      <div id="saveMsg" class="msg"></div>
+    </div>
+
+    <script>
+      // El add-in habla con la API de producción; el panel se sirve desde el mismo dominio (lawzora.com).
+      var API = 'https://api.lawzora.com';
+      var token = null;
+
+      function $(id) {
+        return document.getElementById(id);
+      }
+      function show(id) {
+        $(id).classList.remove('hidden');
+      }
+      function hide(id) {
+        $(id).classList.add('hidden');
+      }
+
+      Office.onReady(function () {
+        $('loginBtn').onclick = doLogin;
+        $('saveBtn').onclick = doSave;
+      });
+
+      async function doLogin() {
+        var email = $('email').value.trim();
+        var password = $('password').value;
+        $('loginMsg').textContent = 'Entrando…';
+        $('loginMsg').className = 'msg muted';
+        try {
+          var res = await fetch(API + '/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: email, password: password }),
+          });
+          var data = await res.json().catch(function () {
+            return {};
+          });
+          if (!res.ok || !data.accessToken) {
+            throw new Error(data.message || 'No se pudo iniciar sesión (¿credenciales o doble factor?).');
+          }
+          token = data.accessToken;
+          $('loginMsg').textContent = '';
+          hide('login');
+          show('app');
+          await loadMatters();
+        } catch (e) {
+          $('loginMsg').textContent = e.message;
+          $('loginMsg').className = 'msg err';
+        }
+      }
+
+      async function loadMatters() {
+        var res = await fetch(API + '/api/matters', { headers: { Authorization: 'Bearer ' + token } });
+        var body = await res.json().catch(function () {
+          return [];
+        });
+        var list = Array.isArray(body) ? body : body.items || body.data || [];
+        var sel = $('matter');
+        sel.innerHTML = '';
+        list.forEach(function (m) {
+          var o = document.createElement('option');
+          o.value = m.id;
+          o.textContent = (m.reference ? m.reference + ' — ' : '') + (m.title || m.id);
+          sel.appendChild(o);
+        });
+      }
+
+      // Lee el .docx actual de Word por slices y lo ensambla en bytes.
+      function getDocumentBytes() {
+        return new Promise(function (resolve, reject) {
+          Office.context.document.getFileAsync(
+            Office.FileType.Compressed,
+            { sliceSize: 65536 },
+            function (res) {
+              if (res.status !== Office.AsyncResultStatus.Succeeded)
+                return reject(new Error(res.error.message));
+              var file = res.value;
+              var total = file.sliceCount;
+              var slices = new Array(total);
+              var got = 0;
+              for (var i = 0; i < total; i++) {
+                file.getSliceAsync(i, function (sr) {
+                  if (sr.status !== Office.AsyncResultStatus.Succeeded) {
+                    file.closeAsync(function () {});
+                    return reject(new Error(sr.error.message));
+                  }
+                  slices[sr.value.index] = sr.value.data;
+                  got++;
+                  if (got === total) {
+                    file.closeAsync(function () {});
+                    var length = slices.reduce(function (a, s) {
+                      return a + s.length;
+                    }, 0);
+                    var bytes = new Uint8Array(length);
+                    var offset = 0;
+                    slices.forEach(function (s) {
+                      bytes.set(s, offset);
+                      offset += s.length;
+                    });
+                    resolve(bytes);
+                  }
+                });
+              }
+            },
+          );
+        });
+      }
+
+      async function doSave() {
+        var matterId = $('matter').value;
+        if (!matterId) {
+          $('saveMsg').textContent = 'Elige un expediente.';
+          $('saveMsg').className = 'msg err';
+          return;
+        }
+        var name = $('docname').value.trim() || 'Borrador';
+        $('saveBtn').disabled = true;
+        $('saveMsg').textContent = 'Guardando…';
+        $('saveMsg').className = 'msg muted';
+        try {
+          var bytes = await getDocumentBytes();
+          var blob = new Blob([bytes], {
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          });
+          var form = new FormData();
+          form.append('file', blob, name + '.docx');
+          form.append('matterId', matterId);
+          form.append('name', name);
+          var res = await fetch(API + '/api/documents', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + token },
+            body: form,
+          });
+          if (!res.ok) {
+            var err = await res.json().catch(function () {
+              return {};
+            });
+            throw new Error(err.message || 'No se pudo guardar (HTTP ' + res.status + ').');
+          }
+          $('saveMsg').textContent = 'Guardado en el expediente ✔';
+          $('saveMsg').className = 'msg ok';
+        } catch (e) {
+          $('saveMsg').textContent = e.message;
+          $('saveMsg').className = 'msg err';
+        } finally {
+          $('saveBtn').disabled = false;
+        }
+      }
+    </script>
+  </body>
+</html>
