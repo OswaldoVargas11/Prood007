@@ -1,0 +1,20 @@
+{
+  "jurisdiction": "es",
+  "invoice": {
+    "invoiceNumber": "FAC-2026-0002",
+    "issueDate": "2026-01-20",
+    "currency": "EUR",
+    "seller": { "name": "Despacho Modelo SLP", "taxId": "12345678Z" },
+    "buyer": { "name": "Cliente Ejemplo SL", "taxId": "B12345674" },
+    "lines": [
+      {
+        "description": "Anticipo de honorarios (devengo de IVA al cobro · D-026)",
+        "quantity": "1",
+        "unitPrice": "1000",
+        "taxCode": "IVA_STANDARD"
+      }
+    ],
+    "withholdingTaxCode": "IRPF_GENERAL",
+    "previousRecordHash": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

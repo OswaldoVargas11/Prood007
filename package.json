@@ -15,6 +15,7 @@
     "typecheck": "pnpm -r typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\"",
     "test": "pnpm -r test",
+    "test:fiscal-conformance": "pnpm --filter @legalflow/compliance test:fiscal-conformance",
     "api:dev": "pnpm --filter @legalflow/api start:dev",
     "web:dev": "pnpm --filter @legalflow/web dev",
     "db:migrate": "pnpm --filter @legalflow/api prisma:migrate",

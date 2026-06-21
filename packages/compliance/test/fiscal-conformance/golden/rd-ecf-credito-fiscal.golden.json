@@ -1,0 +1,18 @@
+{
+  "jurisdiction": "do",
+  "format": "ECF",
+  "totals": {
+    "taxableBase": "1000.00",
+    "taxAmount": "180.00",
+    "withholdingAmount": "0.00",
+    "total": "1180.00"
+  },
+  "payload": {
+    "ecfXml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ECF>\n  <Encabezado>\n    <IdDoc>\n      <TipoeCF>31</TipoeCF>\n      <eNCF>E310000000001</eNCF>\n      <FechaEmision>2026-02-05</FechaEmision>\n    </IdDoc>\n    <Emisor>\n      <RNCEmisor>101010101</RNCEmisor>\n    </Emisor>\n    <Comprador>\n      <RNCComprador>130000000</RNCComprador>\n    </Comprador>\n    <Totales>\n      <MontoGravadoTotal>1000.00</MontoGravadoTotal>\n      <TotalITBIS>180.00</TotalITBIS>\n      <MontoTotal>1180.00</MontoTotal>\n    </Totales>\n  </Encabezado>\n  <!-- Digital certificate signature is outside the MVP integration scope. -->\n</ECF>"
+  },
+  "recordHash": "dc173f42ca55d23f4478b2a63e4f31b79b2a454f7a8eff7e7a6f2c095cbc1f0d",
+  "submission": {
+    "status": "STUBBED",
+    "detail": "Validacion en tiempo real con DGII no implementada en MVP."
+  }
+}

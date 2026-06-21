@@ -1,0 +1,39 @@
+{
+  "jurisdiction": "es",
+  "format": "VERIFACTU",
+  "totals": {
+    "taxableBase": "-1000.00",
+    "taxAmount": "-210.00",
+    "withholdingAmount": "0.00",
+    "total": "-1210.00"
+  },
+  "payload": {
+    "idFactura": "FAC-2026-0009",
+    "fechaExpedicion": "2026-04-10",
+    "emisor": "12345678Z",
+    "receptor": "B12345674",
+    "importeTotal": "-1210.00",
+    "tipoHuella": "01",
+    "huella": "2e93130afd4795b3673e57c9b8668e271e8744bcf7fba7dc5420b5a7c57662e8",
+    "encadenamiento": {
+      "huellaAnterior": "2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    "rectificativa": {
+      "tipoFactura": "R1",
+      "tipoRectificativa": "S",
+      "facturasRectificadas": [
+        {
+          "numFactura": "FAC-2026-0002",
+          "fechaExpedicion": "2026-01-20"
+        }
+      ],
+      "causa": "Devolución del anticipo"
+    },
+    "qrUrl": "https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR?nif=12345678Z&numserie=FAC-2026-0009&fecha=10-04-2026&importe=-1210.00"
+  },
+  "recordHash": "2e93130afd4795b3673e57c9b8668e271e8744bcf7fba7dc5420b5a7c57662e8",
+  "submission": {
+    "status": "STUBBED",
+    "detail": "Envío a AEAT no implementado en MVP."
+  }
+}

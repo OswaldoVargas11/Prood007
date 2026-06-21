@@ -1,0 +1,18 @@
+{
+  "jurisdiction": "do",
+  "invoice": {
+    "invoiceNumber": "E310000000001",
+    "issueDate": "2026-02-05",
+    "currency": "DOP",
+    "seller": { "name": "Bufete Caribe SRL", "taxId": "101010101" },
+    "buyer": { "name": "Cliente RD SRL", "taxId": "130000000" },
+    "lines": [
+      {
+        "description": "Honorarios legales",
+        "quantity": "5",
+        "unitPrice": "200",
+        "taxCode": "ITBIS_STANDARD"
+      }
+    ]
+  }
+}

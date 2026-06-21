@@ -1,0 +1,19 @@
+{
+  "jurisdiction": "es",
+  "invoice": {
+    "invoiceNumber": "FAC-2026-0001",
+    "issueDate": "2026-01-15",
+    "currency": "EUR",
+    "seller": { "name": "Despacho Modelo SLP", "taxId": "12345678Z" },
+    "buyer": { "name": "Cliente Ejemplo SL", "taxId": "B12345674" },
+    "lines": [
+      {
+        "description": "Honorarios profesionales",
+        "quantity": "10",
+        "unitPrice": "100",
+        "taxCode": "IVA_STANDARD"
+      }
+    ],
+    "previousRecordHash": "0000000000000000000000000000000000000000000000000000000000000000"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "jurisdiction": "es",
+  "invoice": {
+    "invoiceNumber": "FAC-2026-0003",
+    "issueDate": "2026-03-31",
+    "currency": "EUR",
+    "seller": { "name": "Despacho Modelo SLP", "taxId": "12345678Z" },
+    "buyer": { "name": "Cliente Ejemplo SL", "taxId": "B12345674" },
+    "lines": [
+      {
+        "description": "Honorarios (servicio completo)",
+        "quantity": "1",
+        "unitPrice": "3000",
+        "taxCode": "IVA_STANDARD"
+      },
+      {
+        "description": "Deducción anticipo FAC-2026-0002",
+        "quantity": "1",
+        "unitPrice": "-1000",
+        "taxCode": "IVA_STANDARD"
+      }
+    ],
+    "deductedAdvances": [
+      { "invoiceNumber": "FAC-2026-0002", "base": "1000.00", "taxCode": "IVA_STANDARD" }
+    ],
+    "previousRecordHash": "1111111111111111111111111111111111111111111111111111111111111111"
+  }
+}
