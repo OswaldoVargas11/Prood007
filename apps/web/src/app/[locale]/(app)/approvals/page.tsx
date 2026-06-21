@@ -10,6 +10,7 @@ import { toastMsg } from '@/lib/toasts';
 import { formatMoney, formatDateTime } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ConfirmDialog } from '@/components/lexora/confirm-dialog';
 
 export default function ApprovalsPage() {
   const t = useTranslations('approvals');
@@ -18,6 +19,7 @@ export default function ApprovalsPage() {
   const { data, isLoading, isError } = useApprovals();
   const resolve = useResolveCost();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmReject, setConfirmReject] = useState<string | null>(null);
 
   if (!hasRole('FIRM_ADMIN')) {
     return (
@@ -45,7 +47,11 @@ export default function ApprovalsPage() {
       </div>
 
       {isLoading && <Skeleton className="h-48 w-full rounded-xl" />}
-      {isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
+      {isError && (
+        <p role="alert" className="text-sm text-[var(--danger)]">
+          {t('loadError')}
+        </p>
+      )}
 
       {data && data.length === 0 && (
         <div className="rounded-xl border bg-card p-12 text-center">
@@ -86,13 +92,13 @@ export default function ApprovalsPage() {
                   size="sm"
                   variant="outline"
                   disabled={busyId === a.id}
-                  onClick={() => act(a.id, 'reject')}
+                  onClick={() => setConfirmReject(a.id)}
                   className="border-[var(--danger)] text-[var(--danger)] hover:bg-[var(--danger-soft)]"
                 >
                   {busyId === a.id && resolve.variables?.action === 'reject' ? (
                     <Loader2 className="animate-spin" />
                   ) : (
-                    <X />
+                    <X aria-hidden />
                   )}
                   {t('reject')}
                 </Button>
@@ -105,7 +111,7 @@ export default function ApprovalsPage() {
                   {busyId === a.id && resolve.variables?.action === 'approve' ? (
                     <Loader2 className="animate-spin" />
                   ) : (
-                    <Check />
+                    <Check aria-hidden />
                   )}
                   {t('approve')}
                 </Button>
@@ -114,6 +120,20 @@ export default function ApprovalsPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmReject !== null}
+        onOpenChange={(o) => !o && setConfirmReject(null)}
+        title={t('rejectConfirmTitle')}
+        description={t('rejectConfirmBody')}
+        confirmLabel={t('reject')}
+        loading={busyId !== null && busyId === confirmReject}
+        onConfirm={() => {
+          const id = confirmReject;
+          setConfirmReject(null);
+          if (id) void act(id, 'reject');
+        }}
+      />
     </div>
   );
 }

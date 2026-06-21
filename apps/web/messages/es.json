@@ -1314,7 +1314,9 @@
     "empty": "No hay costes pendientes de aprobar.",
     "proposedBy": "Propuesto por {name}",
     "approve": "Aprobar",
-    "reject": "Rechazar"
+    "reject": "Rechazar",
+    "rejectConfirmTitle": "¿Rechazar este suplido?",
+    "rejectConfirmBody": "El coste propuesto quedará rechazado y no se facturará. Esta decisión no se puede deshacer."
   },
   "portal": {
     "title": "Portal del cliente",
