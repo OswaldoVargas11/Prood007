@@ -525,6 +525,32 @@ export const API_MESSAGES = {
     'es-ES': 'Límite de licencia alcanzado: {max} {role}. Amplía el plan o desactiva un usuario.',
     'es-DO': 'Límite de licencia alcanzado: {max} {role}. Amplía el plan o desactiva un usuario.',
   },
+
+  // ── Asistente de IA ───────────────────────────────────────────────────────
+  'ai.notConfigured': {
+    'es-ES': 'El asistente de IA no está configurado en el servidor todavía.',
+    'es-DO': 'El asistente de IA no está configurado en el servidor todavía.',
+  },
+  'ai.requestFailed': {
+    'es-ES': 'No se pudo completar la solicitud de IA. Inténtalo de nuevo.',
+    'es-DO': 'No se pudo completar la solicitud de IA. Inténtalo de nuevo.',
+  },
+  'ai.embeddingsFailed': {
+    'es-ES': 'No se pudo generar la indexación semántica.',
+    'es-DO': 'No se pudo generar la indexación semántica.',
+  },
+  'ai.searchDisabled': {
+    'es-ES': 'La búsqueda semántica no está disponible (faltan embeddings).',
+    'es-DO': 'La búsqueda semántica no está disponible (faltan embeddings).',
+  },
+  'ai.emailProviderRequired': {
+    'es-ES': 'Conecta tu correo (Gmail/Outlook) para redactar respuestas con IA.',
+    'es-DO': 'Conecta tu correo (Gmail/Outlook) para redactar respuestas con IA.',
+  },
+  'ai.inputTooShort': {
+    'es-ES': 'Escribe una instrucción para la IA.',
+    'es-DO': 'Escribe una instrucción para la IA.',
+  },
 } as const;
 
 export type ApiMessageKey = keyof typeof API_MESSAGES;

@@ -19,6 +19,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "@legalflow/compliance": "workspace:*",
     "@legalflow/domain": "workspace:*",
     "@nestjs/common": "^10.4.4",

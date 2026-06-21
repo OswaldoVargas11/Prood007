@@ -451,6 +451,7 @@
       "provision": "Provisión",
       "chat": "Chat",
       "activity": "Actividad",
+      "assistant": "Asistente IA",
       "soon": "Esta sección llega en un próximo slice.",
       "billing": "Facturación",
       "emails": "Correos"
@@ -1524,6 +1525,17 @@
     "subtitle": "Versión {version} — esto es lo nuevo:",
     "fixesTitle": "Correcciones",
     "gotIt": "Entendido"
+  },
+  "ai": {
+    "title": "Asistente IA",
+    "disabled": "El asistente de IA aún no está activado en este despacho. Cuando se configure, podrás preguntar y resumir aquí.",
+    "askPlaceholder": "Pregunta sobre este expediente (plazos, partes, estado…)",
+    "ask": "Preguntar",
+    "summarize": "Resumir expediente",
+    "confidence": "Confianza {pct}%",
+    "citations": "{n} fuentes citadas",
+    "disclaimer": "Borrador de apoyo generado por IA. Revísalo: la decisión y la responsabilidad son del letrado.",
+    "error": "No se pudo completar la solicitud de IA. Inténtalo de nuevo."
   },
   "subscription": {
     "title": "Tu suscripción",

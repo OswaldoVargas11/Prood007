@@ -284,6 +284,7 @@ model Tenant {
   leads               Lead[]
   oauthConnections    OAuthConnection[]
   matterEmails        MatterEmail[]
+  aiEmbeddings        AiEmbedding[]
 }
 
 model User {
@@ -1173,4 +1174,29 @@ model MatterEmail {
   matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, matterId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Índice semántico para búsqueda con IA (RAG)
+// ─────────────────────────────────────────────────────────────────────────────
+// Fragmentos de expedientes/documentos con su vector de embedding. La similitud coseno se calcula en la
+// app sobre los vectores del tenant (escala de despacho; sin pgvector, sin extensión). Tenant-scoped con
+// RLS fail-closed. Se re-indexa al cambiar el contenido o el modelo de embeddings (`model`).
+model AiEmbedding {
+  id         String   @id @default(cuid())
+  tenantId   String
+  kind       String // 'matter' | 'document'
+  refId      String // id del expediente/documento de origen
+  refLabel   String // etiqueta legible (referencia/título o nombre del documento)
+  chunkIndex Int      @default(0)
+  content    String // fragmento de texto (se devuelve como excerpt/cita)
+  embedding  Float[] // vector de embedding; similitud coseno en la app
+  model      String // modelo de embeddings usado (para invalidar al cambiarlo)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, kind, refId])
 }
