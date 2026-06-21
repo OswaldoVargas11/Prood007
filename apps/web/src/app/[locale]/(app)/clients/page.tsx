@@ -62,11 +62,21 @@ export default function ClientsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-3 font-medium">{t('name')}</th>
-              <th className="px-4 py-3 font-medium">{t('fiscalId')}</th>
-              <th className="px-4 py-3 font-medium">{t('type')}</th>
-              <th className="px-4 py-3 text-center font-medium">{t('matters')}</th>
-              <th className="px-4 py-3 text-right font-medium">{t('balance')}</th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                {t('name')}
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                {t('fiscalId')}
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium">
+                {t('type')}
+              </th>
+              <th scope="col" className="px-4 py-3 text-center font-medium">
+                {t('matters')}
+              </th>
+              <th scope="col" className="px-4 py-3 text-right font-medium">
+                {t('balance')}
+              </th>
             </tr>
           </thead>
           <tbody>

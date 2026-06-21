@@ -146,11 +146,21 @@ export default function ImportPage() {
               <table className="w-full text-[12.5px]">
                 <thead className="sticky top-0 bg-card">
                   <tr className="border-b text-left text-[10.5px] uppercase tracking-wide text-[var(--text-subtle)]">
-                    <th className="px-3 py-2">{t('colLine')}</th>
-                    <th className="px-3 py-2">{t('colName')}</th>
-                    <th className="px-3 py-2">{t('colDoc')}</th>
-                    <th className="px-3 py-2">{t('colStatus')}</th>
-                    <th className="px-3 py-2">{t('colDetail')}</th>
+                    <th scope="col" className="px-3 py-2">
+                      {t('colLine')}
+                    </th>
+                    <th scope="col" className="px-3 py-2">
+                      {t('colName')}
+                    </th>
+                    <th scope="col" className="px-3 py-2">
+                      {t('colDoc')}
+                    </th>
+                    <th scope="col" className="px-3 py-2">
+                      {t('colStatus')}
+                    </th>
+                    <th scope="col" className="px-3 py-2">
+                      {t('colDetail')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
