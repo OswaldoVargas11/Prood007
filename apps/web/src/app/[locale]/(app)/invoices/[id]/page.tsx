@@ -13,6 +13,15 @@ import { formatMoney, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function InvoiceDetailPage() {
@@ -21,6 +30,7 @@ export default function InvoiceDetailPage() {
   const locale = useLocale();
   const { data: inv, isLoading, isError, refetch } = useInvoice(id);
   const pay = usePayInvoice(id);
+  const [confirmPay, setConfirmPay] = useState(false);
 
   if (isLoading) {
     return (
@@ -69,15 +79,35 @@ export default function InvoiceDetailPage() {
         <div className="flex items-center gap-2">
           <DownloadPdfButton id={inv.id} number={inv.number} label={t('downloadPdf')} />
           {inv.status !== 'PAID' && inv.status !== 'CANCELLED' && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => pay.mutate()}
-              disabled={pay.isPending}
-            >
-              {pay.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
-              {t('markPaid')}
-            </Button>
+            <Dialog open={confirmPay} onOpenChange={setConfirmPay}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="outline" disabled={pay.isPending}>
+                  {pay.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
+                  {t('markPaid')}
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>{t('markPaidConfirmTitle')}</DialogTitle>
+                  <DialogDescription>
+                    {t('markPaidConfirmBody', { number: inv.number })}
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" size="sm" onClick={() => setConfirmPay(false)}>
+                    {t('cancel')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => pay.mutate(undefined, { onSuccess: () => setConfirmPay(false) })}
+                    disabled={pay.isPending}
+                  >
+                    {pay.isPending && <Loader2 className="animate-spin" />}
+                    {t('markPaidConfirm')}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           )}
         </div>
       </div>

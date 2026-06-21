@@ -5,6 +5,7 @@
   },
   "landing": {
     "nav": {
+      "skip": "Saltar al contenido",
       "product": "Producto",
       "compliance": "Cumplimiento",
       "security": "Seguridad",
@@ -176,6 +177,7 @@
     "portal": "Portal del cliente",
     "soon": "Pronto",
     "openMenu": "Abrir navegación",
+    "skipToContent": "Saltar al contenido",
     "groups": {
       "workspace": "Espacio de trabajo",
       "finance": "Finanzas",
@@ -658,6 +660,7 @@
     "retry": "Reintentar",
     "empty": "Aún no hay documentos en este expediente.",
     "newVersion": "Nueva versión",
+    "versionCount": "{count, plural, one {# versión} other {# versiones}}",
     "download": "Descargar",
     "review": "Revisar",
     "reviewTitle": "Revisar versión",
@@ -877,6 +880,10 @@
     "total": "Total",
     "issued": "Emitida",
     "markPaid": "Marcar como pagada",
+    "markPaidConfirmTitle": "¿Marcar la factura como pagada?",
+    "markPaidConfirmBody": "Vas a registrar el cobro de la factura {number}. Esta acción actualiza el estado contable y no se puede deshacer.",
+    "markPaidConfirm": "Sí, marcar como pagada",
+    "cancel": "Cancelar",
     "payOnline": "Pagar online",
     "amountPaid": "Cobrado",
     "outstanding": "Pendiente",
@@ -908,6 +915,7 @@
   },
   "notifications": {
     "open": "Abrir notificaciones",
+    "openWithCount": "Abrir notificaciones, {count} sin leer",
     "title": "Notificaciones",
     "empty": "No tienes notificaciones.",
     "viewAll": "Ver todas",
@@ -1316,6 +1324,11 @@
     "welcome": "Tu espacio en el despacho",
     "myMatters": "Mis expedientes",
     "myInvoices": "Mis facturas",
+    "colNumber": "Número",
+    "colStatus": "Estado",
+    "colDate": "Fecha",
+    "colAmount": "Importe",
+    "colActions": "Acciones",
     "noMatters": "Aún no tienes expedientes.",
     "noInvoices": "Aún no tienes facturas.",
     "overdueBanner": "{n, plural, one {Tienes # factura vencida} other {Tienes # facturas vencidas}}",
@@ -1571,6 +1584,8 @@
   "reports": {
     "title": "Informes",
     "subtitle": "Indicadores de gestión del despacho. Exportables a CSV.",
+    "selectYear": "Año",
+    "selectQuarter": "Trimestre",
     "client": "Cliente",
     "tax": {
       "title": "Resumen fiscal (gestoría)",

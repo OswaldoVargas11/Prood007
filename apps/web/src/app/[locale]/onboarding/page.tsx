@@ -197,6 +197,9 @@ export default function OnboardingPage() {
             <div className="mt-7">
               {step === 1 && (
                 <Input
+                  aria-label={t('step1.title')}
+                  name="organization"
+                  autoComplete="organization"
                   value={firm}
                   onChange={(e) => setFirm(e.target.value)}
                   placeholder="Bufete Aurora"
@@ -207,7 +210,11 @@ export default function OnboardingPage() {
               )}
 
               {step === 2 && (
-                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                <div
+                  role="radiogroup"
+                  aria-label={t('step2.title')}
+                  className="grid grid-cols-1 gap-3.5 sm:grid-cols-2"
+                >
                   <ChoiceCard
                     selected={jurisdiction === 'es'}
                     onClick={() => selectJurisdiction('es')}
@@ -230,7 +237,11 @@ export default function OnboardingPage() {
               )}
 
               {step === 3 && (
-                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
+                <div
+                  role="radiogroup"
+                  aria-label={t('step3.title')}
+                  className="grid grid-cols-1 gap-3.5 sm:grid-cols-2"
+                >
                   <ChoiceCard
                     selected={currency === 'EUR'}
                     onClick={() => setCurrency('EUR')}
@@ -250,15 +261,22 @@ export default function OnboardingPage() {
 
               {step === 4 && (
                 <div>
-                  <Label className="mb-2 block text-[12.5px] text-muted-foreground">
+                  <Label
+                    htmlFor="ob-taxId"
+                    className="mb-2 block text-[12.5px] text-muted-foreground"
+                  >
                     {fiscalLabel}
                   </Label>
                   <div className="relative">
                     <Input
+                      id="ob-taxId"
+                      name="taxId"
                       value={taxId}
                       onChange={(e) => setTaxId(e.target.value)}
                       placeholder={fiscalPlaceholder}
                       autoFocus
+                      autoCapitalize="characters"
+                      spellCheck={false}
                       className="h-12 pr-24 font-mono text-base"
                       onKeyDown={(e) => e.key === 'Enter' && next()}
                     />
@@ -277,25 +295,34 @@ export default function OnboardingPage() {
 
               {step === 5 && (
                 <div className="flex flex-col gap-3.5">
-                  <Field label={t('fullName')}>
+                  <Field label={t('fullName')} htmlFor="ob-fullName">
                     <Input
+                      id="ob-fullName"
+                      name="name"
+                      autoComplete="name"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       placeholder="Marco Reyes"
                       autoFocus
                     />
                   </Field>
-                  <Field label={t('email')}>
+                  <Field label={t('email')} htmlFor="ob-email">
                     <Input
+                      id="ob-email"
+                      name="email"
                       type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      autoCapitalize="none"
+                      spellCheck={false}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="marco@bufeteaurora.es"
-                      autoComplete="email"
                     />
                   </Field>
-                  <Field label={t('password')} hint={t('passwordHint')}>
+                  <Field label={t('password')} hint={t('passwordHint')} htmlFor="ob-password">
                     <PasswordInput
+                      id="ob-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       autoComplete="new-password"
@@ -377,15 +404,19 @@ function SummaryRow({ label, value, mono }: { label: string; value: string; mono
 function Field({
   label,
   hint,
+  htmlFor,
   children,
 }: {
   label: string;
   hint?: string;
+  htmlFor?: string;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <Label className="mb-1.5 block text-[12.5px] text-muted-foreground">{label}</Label>
+      <Label htmlFor={htmlFor} className="mb-1.5 block text-[12.5px] text-muted-foreground">
+        {label}
+      </Label>
       {children}
       {hint && <p className="mt-1.5 text-[11.5px] text-[var(--text-subtle)]">{hint}</p>}
     </div>
@@ -414,9 +445,11 @@ function ChoiceCard({
   return (
     <button
       type="button"
+      role="radio"
+      aria-checked={selected}
       onClick={onClick}
       className={cn(
-        'relative rounded-2xl border bg-card p-[18px] text-left transition-colors hover:border-[var(--brand-line)]',
+        'relative rounded-2xl border bg-card p-[18px] text-left transition-colors hover:border-[var(--brand-line)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         selected ? 'border-[var(--brand)] bg-[var(--brand-soft)]' : 'border-border',
       )}
     >

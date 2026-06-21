@@ -12,15 +12,17 @@ export function ThemeToggle() {
   useEffect(() => setMounted(true), []);
 
   const isDark = resolvedTheme === 'dark';
+  // Icono y etiqueta derivan del MISMO valor guardado por `mounted` para no desincronizarse en SSR.
+  const dark = mounted && isDark;
   return (
     <Button
       type="button"
       variant="ghost"
       size="icon"
-      aria-label={isDark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+      aria-label={dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
     >
-      {mounted && isDark ? <Sun /> : <Moon />}
+      {dark ? <Sun aria-hidden /> : <Moon aria-hidden />}
     </Button>
   );
 }

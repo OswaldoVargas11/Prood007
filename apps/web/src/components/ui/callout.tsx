@@ -45,7 +45,7 @@ export function Callout({
       className={cn('flex gap-2.5 rounded-lg border p-3 text-[12.5px] leading-relaxed', className)}
       style={{ background: t.bg, borderColor: `color-mix(in oklch, ${t.border} 35%, transparent)` }}
     >
-      <Icon className="mt-px size-4 shrink-0" style={{ color: t.fg }} />
+      <Icon aria-hidden className="mt-px size-4 shrink-0" style={{ color: t.fg }} />
       <div className="min-w-0">
         {title && <div className="font-semibold text-foreground">{title}</div>}
         {children && <div className="text-muted-foreground">{children}</div>}

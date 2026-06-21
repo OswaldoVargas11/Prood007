@@ -75,6 +75,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-background">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-[var(--shadow-md)] focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        {t('nav.skipToContent')}
+      </a>
       <AppSidebar />
       <MobileSidebar open={navOpen} onOpenChange={setNavOpen} />
       <div className="flex min-w-0 flex-1 flex-col">
@@ -109,7 +115,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             <UserMenu />
           </div>
         </header>
-        <PageTransition className="flex-1 p-6 lg:p-8">{children}</PageTransition>
+        <PageTransition id="main" className="flex-1 p-6 lg:p-8">
+          {children}
+        </PageTransition>
       </div>
       <CommandMenu open={open} onOpenChange={setOpen} />
       <Toaster />

@@ -386,7 +386,8 @@ function TaxSummaryCard() {
           <select
             value={year}
             onChange={(e) => setYear(Number(e.target.value))}
-            className="h-8 rounded-md border bg-[var(--surface-1)] px-2 text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={t('selectYear')}
+            className="h-8 rounded-md border bg-[var(--surface-1)] px-2 text-[12.5px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {years.map((y) => (
               <option key={y} value={y}>
@@ -397,7 +398,8 @@ function TaxSummaryCard() {
           <select
             value={quarter}
             onChange={(e) => setQuarter(Number(e.target.value))}
-            className="h-8 rounded-md border bg-[var(--surface-1)] px-2 text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-label={t('selectQuarter')}
+            className="h-8 rounded-md border bg-[var(--surface-1)] px-2 text-[12.5px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <option value={0}>{t('tax.fullYear')}</option>
             <option value={1}>T1</option>

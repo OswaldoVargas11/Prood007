@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -13,6 +13,13 @@ export const metadata: Metadata = {
   title: 'Lawzora',
   description: 'Software de gestión para despachos · España y República Dominicana',
   icons: { icon: '/lawzora-mark.svg' },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fafbfb' },
+    { media: '(prefers-color-scheme: dark)', color: '#14181b' },
+  ],
 };
 
 export function generateStaticParams() {

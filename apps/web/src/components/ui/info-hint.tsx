@@ -33,7 +33,7 @@ export function InfoHint({
           className,
         )}
       >
-        <Info className="size-3.5" />
+        <Info aria-hidden className="size-3.5" />
       </PopoverTrigger>
       <PopoverContent align="start" className="text-[12.5px] leading-relaxed">
         {title && <div className="mb-1 text-[13px] font-semibold text-foreground">{title}</div>}

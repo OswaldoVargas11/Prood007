@@ -73,7 +73,7 @@ export default function IntakePage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-4 py-12">
+    <main className="mx-auto flex min-h-screen max-w-lg flex-col justify-center px-4 py-12">
       {loading ? (
         <div className="flex justify-center">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
@@ -91,8 +91,10 @@ export default function IntakePage() {
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border bg-card p-6 shadow-sm">
-          <h1 className="text-xl font-semibold tracking-tight">{t('title', { firm: firmName })}</h1>
+        <section className="rounded-xl border bg-card p-6 shadow-sm">
+          <h1 className="text-balance break-words text-xl font-semibold tracking-tight">
+            {t('title', { firm: firmName })}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
           <form
             className="mt-5 space-y-3"
@@ -102,37 +104,68 @@ export default function IntakePage() {
             }}
           >
             <div className="space-y-1.5">
-              <Label>{t('name')}</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+              <Label htmlFor="intake-name">{t('name')}</Label>
+              <Input
+                id="intake-name"
+                name="name"
+                autoComplete="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+              />
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>{t('email')}</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Label htmlFor="intake-email">{t('email')}</Label>
+                <Input
+                  id="intake-email"
+                  name="email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
               <div className="space-y-1.5">
-                <Label>{t('phone')}</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <Label htmlFor="intake-phone">{t('phone')}</Label>
+                <Input
+                  id="intake-phone"
+                  name="tel"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label>{t('subjectField')}</Label>
+              <Label htmlFor="intake-subject">{t('subjectField')}</Label>
               <Textarea
+                id="intake-subject"
+                name="subject"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 rows={4}
                 placeholder={t('subjectPlaceholder')}
               />
             </div>
-            {error && <p className="text-sm text-[var(--danger)]">{t('error')}</p>}
+            {error && (
+              <p role="alert" className="text-sm text-[var(--danger)]">
+                {t('error')}
+              </p>
+            )}
             <Button type="submit" className="w-full" disabled={name.trim().length < 2 || sending}>
               {sending && <Loader2 className="animate-spin" />}
               {t('send')}
             </Button>
             <p className="text-center text-[11px] text-muted-foreground">{t('privacy')}</p>
           </form>
-        </div>
+        </section>
       )}
-    </div>
+    </main>
   );
 }

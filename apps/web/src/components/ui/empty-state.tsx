@@ -23,7 +23,10 @@ export function EmptyState({
       className={cn('flex flex-col items-center justify-center px-6 py-12 text-center', className)}
     >
       {Icon && (
-        <span className="mb-3 flex size-11 items-center justify-center rounded-full bg-[var(--brand-soft)] text-[var(--brand)]">
+        <span
+          aria-hidden
+          className="mb-3 flex size-11 items-center justify-center rounded-full bg-[var(--brand-soft)] text-[var(--brand)]"
+        >
           <Icon className="size-5" />
         </span>
       )}
