@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ConfirmDialog } from '@/components/lexora/confirm-dialog';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -617,7 +618,11 @@ function StaffCard() {
         </Button>
       }
     >
-      {error && <p className="mb-3 text-sm text-[var(--danger)]">{error}</p>}
+      {error && (
+        <p role="alert" className="mb-3 text-sm text-[var(--danger)]">
+          {error}
+        </p>
+      )}
       {isLoading && <Skeleton className="h-32 w-full" />}
       {data && (
         <div className="overflow-hidden rounded-lg border">
@@ -647,7 +652,8 @@ function StaffCard() {
                 value={u.role}
                 onChange={(e) => changeRole(u, e.target.value as StaffRole)}
                 disabled={update.isPending}
-                className="h-8 rounded-md border bg-[var(--surface-1)] px-2 text-[12.5px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`${t('staff.title')} · ${u.fullName}`}
+                className="h-8 rounded-md border bg-[var(--surface-1)] px-2 text-[12.5px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <option value="FIRM_ADMIN">{roleLabel('FIRM_ADMIN')}</option>
                 <option value="LAWYER">{roleLabel('LAWYER')}</option>
@@ -834,6 +840,7 @@ function HolidaysCard() {
   const [date, setDate] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [confirmDate, setConfirmDate] = useState<string | null>(null);
 
   async function submit() {
     setError(null);
@@ -856,8 +863,10 @@ function HolidaysCard() {
     >
       <div className="mb-3 flex flex-wrap items-end gap-2">
         <div className="space-y-1.5">
-          <Label>{t('holidays.date')}</Label>
+          <Label htmlFor="holiday-date">{t('holidays.date')}</Label>
           <Input
+            id="holiday-date"
+            name="holidayDate"
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
@@ -865,8 +874,14 @@ function HolidaysCard() {
           />
         </div>
         <div className="flex-1 space-y-1.5">
-          <Label>{t('holidays.name')}</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
+          <Label htmlFor="holiday-name">{t('holidays.name')}</Label>
+          <Input
+            id="holiday-name"
+            name="holidayName"
+            autoComplete="off"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
         <Button
           size="sm"
@@ -877,7 +892,11 @@ function HolidaysCard() {
           <Plus /> {t('holidays.add')}
         </Button>
       </div>
-      {error && <p className="mb-2 text-sm text-[var(--danger)]">{error}</p>}
+      {error && (
+        <p role="alert" className="mb-2 text-sm text-[var(--danger)]">
+          {error}
+        </p>
+      )}
       {holidays.length === 0 ? (
         <p className="text-[12.5px] text-muted-foreground">{t('holidays.empty')}</p>
       ) : (
@@ -890,17 +909,30 @@ function HolidaysCard() {
               <span className="flex-1">{h.name}</span>
               <button
                 type="button"
-                onClick={() => remove.mutate(h.date)}
+                onClick={() => setConfirmDate(h.date)}
                 disabled={remove.isPending}
                 aria-label={t('holidays.remove')}
-                className="text-muted-foreground transition-colors hover:text-[var(--danger)]"
+                className="rounded-sm text-muted-foreground outline-none transition-colors hover:text-[var(--danger)] focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <Trash2 className="size-4" />
+                <Trash2 aria-hidden className="size-4" />
               </button>
             </div>
           ))}
         </div>
       )}
+      <ConfirmDialog
+        open={confirmDate !== null}
+        onOpenChange={(o) => !o && setConfirmDate(null)}
+        title={t('holidays.removeConfirmTitle')}
+        description={t('holidays.removeConfirmBody')}
+        confirmLabel={t('holidays.remove')}
+        loading={remove.isPending}
+        onConfirm={() => {
+          const d = confirmDate;
+          setConfirmDate(null);
+          if (d) remove.mutate(d);
+        }}
+      />
     </Section>
   );
 }

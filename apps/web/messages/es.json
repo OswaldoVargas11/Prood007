@@ -1150,6 +1150,8 @@
     "convert": "Convertir",
     "discard": "Descartar",
     "delete": "Eliminar",
+    "deleteConfirmTitle": "¿Eliminar este lead?",
+    "deleteConfirmBody": "Se eliminará definitivamente «{name}» y sus datos de captación. No se puede deshacer.",
     "viewClient": "Ver cliente",
     "name": "Nombre",
     "email": "Email",
@@ -1238,6 +1240,8 @@
       "name": "Descripción",
       "add": "Añadir",
       "remove": "Eliminar",
+      "removeConfirmTitle": "¿Eliminar este festivo?",
+      "removeConfirmBody": "Dejará de aplicarse al cálculo de plazos procesales. Puedes volver a añadirlo después.",
       "empty": "Aún no hay festivos locales.",
       "error": "No se pudo guardar el festivo."
     },
@@ -1312,7 +1316,9 @@
     "empty": "No hay costes pendientes de aprobar.",
     "proposedBy": "Propuesto por {name}",
     "approve": "Aprobar",
-    "reject": "Rechazar"
+    "reject": "Rechazar",
+    "rejectConfirmTitle": "¿Rechazar este suplido?",
+    "rejectConfirmBody": "El coste propuesto quedará rechazado y no se facturará. Esta decisión no se puede deshacer."
   },
   "portal": {
     "title": "Portal del cliente",

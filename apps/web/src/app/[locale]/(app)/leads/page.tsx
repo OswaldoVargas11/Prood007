@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/lexora/confirm-dialog';
 import type { Lead, LeadStatus } from '@/lib/types';
 
 const ACTIVE: LeadStatus[] = ['NEW', 'CONTACTED', 'QUALIFIED'];
@@ -117,6 +118,7 @@ function LeadCard({ lead, onConvert }: { lead: Lead; onConvert: () => void }) {
   const router = useRouter();
   const update = useUpdateLead();
   const del = useDeleteLead();
+  const [confirmDel, setConfirmDel] = useState(false);
   const next = NEXT[lead.status];
   const active = ACTIVE.includes(lead.status);
 
@@ -157,12 +159,13 @@ function LeadCard({ lead, onConvert }: { lead: Lead; onConvert: () => void }) {
           </Button>
           <button
             type="button"
+            aria-label={t('discard')}
             title={t('discard')}
             disabled={update.isPending}
             onClick={() => update.mutate({ id: lead.id, status: 'LOST' })}
-            className="ml-auto rounded-md p-1 text-muted-foreground hover:text-[var(--danger)]"
+            className="ml-auto rounded-md p-1 text-muted-foreground outline-none hover:text-[var(--danger)] focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <X className="size-4" />
+            <X aria-hidden className="size-4" />
           </button>
         </div>
       )}
@@ -180,12 +183,21 @@ function LeadCard({ lead, onConvert }: { lead: Lead; onConvert: () => void }) {
         <button
           type="button"
           disabled={del.isPending}
-          onClick={() => del.mutate(lead.id)}
-          className="mt-2 text-[11px] text-muted-foreground hover:text-[var(--danger)]"
+          onClick={() => setConfirmDel(true)}
+          className="mt-2 rounded-sm text-[11px] text-muted-foreground outline-none hover:text-[var(--danger)] focus-visible:ring-2 focus-visible:ring-ring"
         >
           {t('delete')}
         </button>
       )}
+      <ConfirmDialog
+        open={confirmDel}
+        onOpenChange={setConfirmDel}
+        title={t('deleteConfirmTitle')}
+        description={t('deleteConfirmBody', { name: lead.name })}
+        confirmLabel={t('delete')}
+        loading={del.isPending}
+        onConfirm={() => del.mutate(lead.id, { onSuccess: () => setConfirmDel(false) })}
+      />
     </div>
   );
 }

@@ -149,22 +149,25 @@ export default function CalendarPage() {
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_300px]">
         {/* Rejilla del mes */}
         <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-          <div className="grid grid-cols-7 border-b">
+          <div role="row" className="grid grid-cols-7 border-b">
             {WEEKDAYS.map((w) => (
               <span
                 key={w}
+                role="columnheader"
                 className="p-2.5 text-center text-[10.5px] font-semibold uppercase text-[var(--text-subtle)]"
               >
                 {w}
               </span>
             ))}
           </div>
-          <div className="grid grid-cols-7">
+          <div role="grid" aria-label={t('title')} className="grid grid-cols-7">
             {grid.map((cell) => {
               const items = byDay.get(cell.key) ?? [];
               return (
                 <div
                   key={cell.key}
+                  role="gridcell"
+                  aria-current={cell.isToday ? 'date' : undefined}
                   className={cn(
                     'min-h-[86px] border-b border-r p-2 last:border-r-0',
                     !cell.inMonth && 'bg-[var(--surface-1)]/40',
@@ -194,7 +197,12 @@ export default function CalendarPage() {
                         type="button"
                         onClick={() => openDeadline(d)}
                         title={d.task.title}
-                        className="truncate rounded-[5px] px-1.5 py-0.5 text-left text-[9.5px] font-semibold text-white"
+                        aria-label={
+                          d.task.deadlineType
+                            ? `${d.task.deadlineType}: ${d.task.title}`
+                            : d.task.title
+                        }
+                        className="truncate rounded-[5px] px-1.5 py-0.5 text-left text-[9.5px] font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1"
                         style={{ background: d.color }}
                       >
                         {d.task.deadlineType || d.task.title}

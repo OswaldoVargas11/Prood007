@@ -59,10 +59,18 @@ export default function AmlPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-left text-[11.5px] uppercase tracking-wide text-muted-foreground">
-                <th className="px-4 py-2.5">{t('client')}</th>
-                <th className="px-4 py-2.5">{t('status')}</th>
-                <th className="px-4 py-2.5">{t('risk')}</th>
-                <th className="px-4 py-2.5">{t('flags')}</th>
+                <th scope="col" className="px-4 py-2.5">
+                  {t('client')}
+                </th>
+                <th scope="col" className="px-4 py-2.5">
+                  {t('status')}
+                </th>
+                <th scope="col" className="px-4 py-2.5">
+                  {t('risk')}
+                </th>
+                <th scope="col" className="px-4 py-2.5">
+                  {t('flags')}
+                </th>
               </tr>
             </thead>
             <tbody>

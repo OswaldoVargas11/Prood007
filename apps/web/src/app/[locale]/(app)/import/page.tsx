@@ -114,8 +114,10 @@ export default function ImportPage() {
               setResult(null);
             }}
             rows={6}
+            aria-label={t('step1')}
+            spellCheck={false}
             placeholder={t('pastePlaceholder')}
-            className="w-full rounded-md border bg-[var(--surface-1)] p-3 font-mono text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="w-full rounded-md border bg-[var(--surface-1)] p-3 font-mono text-[12px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
 
           <div className="flex items-center gap-2">
@@ -146,11 +148,21 @@ export default function ImportPage() {
               <table className="w-full text-[12.5px]">
                 <thead className="sticky top-0 bg-card">
                   <tr className="border-b text-left text-[10.5px] uppercase tracking-wide text-[var(--text-subtle)]">
-                    <th className="px-3 py-2">{t('colLine')}</th>
-                    <th className="px-3 py-2">{t('colName')}</th>
-                    <th className="px-3 py-2">{t('colDoc')}</th>
-                    <th className="px-3 py-2">{t('colStatus')}</th>
-                    <th className="px-3 py-2">{t('colDetail')}</th>
+                    <th scope="col" className="px-3 py-2">
+                      {t('colLine')}
+                    </th>
+                    <th scope="col" className="px-3 py-2">
+                      {t('colName')}
+                    </th>
+                    <th scope="col" className="px-3 py-2">
+                      {t('colDoc')}
+                    </th>
+                    <th scope="col" className="px-3 py-2">
+                      {t('colStatus')}
+                    </th>
+                    <th scope="col" className="px-3 py-2">
+                      {t('colDetail')}
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">

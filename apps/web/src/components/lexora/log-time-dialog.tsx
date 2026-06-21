@@ -84,7 +84,7 @@ export function LogTimeDialog({ defaultMatterId }: { defaultMatterId?: string })
                   id="lt-matter"
                   value={matterId}
                   onChange={(e) => setMatterId(e.target.value)}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
                   <option value="" disabled>
                     {t('matterPlaceholder')}
@@ -101,6 +101,8 @@ export function LogTimeDialog({ defaultMatterId }: { defaultMatterId?: string })
               <Label htmlFor="lt-desc">{t('description')}</Label>
               <Input
                 id="lt-desc"
+                name="description"
+                autoComplete="off"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
@@ -111,6 +113,7 @@ export function LogTimeDialog({ defaultMatterId }: { defaultMatterId?: string })
                 <Input
                   id="lt-min"
                   type="number"
+                  inputMode="numeric"
                   min={1}
                   value={minutes}
                   onChange={(e) => setMinutes(e.target.value)}
@@ -136,7 +139,11 @@ export function LogTimeDialog({ defaultMatterId }: { defaultMatterId?: string })
                 />
               </div>
             </div>
-            {log.isError && <p className="text-sm text-[var(--danger)]">{t('error')}</p>}
+            {log.isError && (
+              <p role="alert" className="text-sm text-[var(--danger)]">
+                {t('error')}
+              </p>
+            )}
           </div>
           <DialogFooter className="mt-4">
             <Button type="submit" disabled={log.isPending || !valid}>
