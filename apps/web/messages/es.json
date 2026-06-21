@@ -457,6 +457,10 @@
       "emails": "Correos"
     },
     "openDocuments": "Abrir vista de documentos",
+    "research": {
+      "title": "Investigación jurídica",
+      "hint": "Busca con los datos del expediente en jurisprudencia y legislación."
+    },
     "rail": {
       "deadlines": "Plazos procesales",
       "noDeadlines": "No hay plazos procesales próximos.",
