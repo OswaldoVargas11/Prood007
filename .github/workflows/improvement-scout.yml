@@ -24,6 +24,9 @@ jobs:
   scout:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # GH_TOKEN para que `gh issue create` autentique en el Bash del agente.
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -42,8 +45,15 @@ jobs:
             TODO/FIXME, DECISIONS.md, PLAN.md y los issues abiertos. Identifica
             candidatos de mejora de UX y de backend.
 
-            Entrega UN ÚNICO issue (etiqueta `scout`) con una lista PRIORIZADA
-            (máx. 8). Para cada candidato:
+            TU ENTREGABLE ES CREAR UN ISSUE en GitHub (no describirlo en tu
+            respuesta). Crea UN ÚNICO issue ejecutando el comando:
+              gh issue create --label scout --title "<título>" --body "<cuerpo>"
+            El token con permiso de issues ya está disponible en el entorno como
+            GH_TOKEN. Si la etiqueta `scout` no existiese, créala con
+            `gh label create scout --color 0E8A16 -f` antes. NO termines sin haber
+            creado el issue; al final imprime su URL.
+
+            El cuerpo lleva una lista PRIORIZADA (máx. 8). Para cada candidato:
               - Problema que resuelve y a quién afecta
                 (despacho / letrado / cliente del portal).
               - Esfuerzo aproximado: S / M / L.
@@ -53,7 +63,8 @@ jobs:
             Ordena por (valor / esfuerzo).
 
             REGLAS ESTRICTAS:
-              - PROPÓN, no implementes. No abras PRs. No edites código.
+              - PROPÓN, no implementes: NO edites código ni abras PRs. (Crear el
+                issue de propuestas SÍ es tu trabajo y es lo único que debes crear.)
               - No propongas nada que cambie defaults fiscales por defecto.
               - No inventes obligaciones regulatorias: si no estás seguro de una
                 norma (AEAT/Verifactu, DGII/e-CF…), márcalo como "verificar con
