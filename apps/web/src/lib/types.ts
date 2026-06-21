@@ -586,6 +586,40 @@ export interface SubscriptionTier {
   pricePerSeatEur: number;
 }
 
+// ── IA ──────────────────────────────────────────────────────────────────────
+export interface AiStatus {
+  enabled: boolean;
+  model: string | null;
+  searchEnabled: boolean;
+}
+
+export interface AiCitation {
+  sourceId: string;
+  locator?: string;
+}
+
+export interface AiResponse {
+  output: string;
+  citations: AiCitation[];
+  /** Confianza estimada [0,1]; baja + sin citas ⇒ revisar manualmente. */
+  confidence: number;
+  warnings: string[];
+  model: string | null;
+}
+
+export interface AiEmailDraft extends AiResponse {
+  subject: string;
+  body: string;
+}
+
+export interface SemanticHit {
+  kind: string;
+  refId: string;
+  refLabel: string;
+  excerpt: string;
+  score: number;
+}
+
 export interface SubscriptionInfo {
   status: SubscriptionStatusValue;
   trialEndsAt: string | null;

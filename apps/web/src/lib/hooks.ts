@@ -67,6 +67,10 @@ import type {
   Task,
   TaskStatus,
   TimeSummary,
+  AiStatus,
+  AiResponse,
+  AiEmailDraft,
+  SemanticHit,
 } from './types';
 
 export function useDashboardSummary() {
@@ -1671,5 +1675,71 @@ export function useChangeSeats() {
   return useMutation({
     mutationFn: (seats: number) => api.post<{ seats: number }>('/subscription/seats', { seats }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['subscription'] }),
+  });
+}
+
+// ── IA (asistente / resúmenes / redacción / búsqueda semántica) ──────────────
+/** ¿Está la IA habilitada y con qué modelo? Para mostrar/ocultar las features de IA. */
+export function useAiStatus() {
+  return useQuery({
+    queryKey: ['ai', 'status'],
+    queryFn: () => api.get<AiStatus>('/ai/status'),
+    staleTime: 300_000,
+  });
+}
+
+/** Pregunta libre sobre un expediente. */
+export function useAskMatter(matterId: string) {
+  return useMutation({
+    mutationFn: (question: string) =>
+      api.post<AiResponse>(`/ai/matters/${matterId}/ask`, { question }),
+  });
+}
+
+/** Resumen del expediente. */
+export function useSummarizeMatter(matterId: string) {
+  return useMutation({
+    mutationFn: () => api.post<AiResponse>(`/ai/matters/${matterId}/summary`),
+  });
+}
+
+/** Resumen/extracción de un documento. */
+export function useSummarizeDocument() {
+  return useMutation({
+    mutationFn: (documentId: string) =>
+      api.post<AiResponse>(`/ai/documents/${documentId}/summarize`),
+  });
+}
+
+/** Borrador de escrito a partir de una plantilla + contexto del expediente. */
+export function useDraftFromTemplate() {
+  return useMutation({
+    mutationFn: (v: { templateId: string; matterId: string; instructions?: string }) =>
+      api.post<AiResponse>(`/ai/templates/${v.templateId}/draft`, {
+        matterId: v.matterId,
+        instructions: v.instructions,
+      }),
+  });
+}
+
+/** Borrador de correo (asunto + cuerpo). */
+export function useDraftEmail() {
+  return useMutation({
+    mutationFn: (v: { instructions: string; matterId?: string }) =>
+      api.post<AiEmailDraft>('/ai/email/draft', v),
+  });
+}
+
+/** Búsqueda semántica en lo indexado del despacho. */
+export function useSemanticSearch() {
+  return useMutation({
+    mutationFn: (v: { query: string; limit?: number }) => api.post<SemanticHit[]>('/ai/search', v),
+  });
+}
+
+/** (Re)indexa un expediente para la búsqueda semántica. */
+export function useIndexMatter() {
+  return useMutation({
+    mutationFn: (matterId: string) => api.post<{ chunks: number }>(`/ai/index/matters/${matterId}`),
   });
 }

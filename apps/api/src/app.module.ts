@@ -37,6 +37,7 @@ import { ImportModule } from './import/import.module';
 import { LeadsModule } from './leads/leads.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { AiModule } from './ai/ai.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -78,6 +79,7 @@ import { HealthController } from './health.controller';
     LeadsModule,
     CalendarModule,
     IntegrationsModule,
+    AiModule,
   ],
   controllers: [HealthController],
   providers: [

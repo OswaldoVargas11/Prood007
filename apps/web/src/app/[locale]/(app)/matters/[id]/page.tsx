@@ -22,6 +22,7 @@ import { MatterEmails } from '@/components/lexora/matter-emails';
 import { MatterBudget } from '@/components/lexora/matter-budget';
 import { MatterPartiesCard } from '@/components/lexora/matter-parties';
 import { MatterTimeline } from '@/components/lexora/matter-timeline';
+import { AiAssistantPanel } from '@/components/lexora/ai-assistant-panel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -135,6 +136,7 @@ export default function MatterDetailPage() {
           <TabsTrigger value="chat">{t('tabs.chat')}</TabsTrigger>
           <TabsTrigger value="emails">{t('tabs.emails')}</TabsTrigger>
           <TabsTrigger value="activity">{t('tabs.activity')}</TabsTrigger>
+          <TabsTrigger value="assistant">{t('tabs.assistant')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -203,6 +205,10 @@ export default function MatterDetailPage() {
 
         <TabsContent value="activity">
           <MatterTimeline matterId={id} />
+        </TabsContent>
+
+        <TabsContent value="assistant">
+          <AiAssistantPanel matterId={id} />
         </TabsContent>
       </Tabs>
     </div>
