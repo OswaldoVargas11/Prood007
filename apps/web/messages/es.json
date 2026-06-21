@@ -1535,7 +1535,22 @@
     "confidence": "Confianza {pct}%",
     "citations": "{n} fuentes citadas",
     "disclaimer": "Borrador de apoyo generado por IA. Revísalo: la decisión y la responsabilidad son del letrado.",
-    "error": "No se pudo completar la solicitud de IA. Inténtalo de nuevo."
+    "error": "No se pudo completar la solicitud de IA. Inténtalo de nuevo.",
+    "copy": "Copiar",
+    "copied": "Copiado al portapapeles",
+    "draftTemplateTitle": "Redactar desde plantilla",
+    "draftTemplatePick": "Elige una plantilla…",
+    "draftTemplateInstructions": "Instrucciones adicionales (opcional)",
+    "draftTemplateCta": "Generar borrador",
+    "searchTitle": "Búsqueda semántica",
+    "searchPlaceholder": "Busca por significado en el despacho…",
+    "searchEmpty": "Sin resultados.",
+    "searchDisabled": "La búsqueda semántica no está activada (requiere configurar embeddings).",
+    "reindex": "Reindexar",
+    "reindexed": "Expediente reindexado ({n} fragmentos).",
+    "summarizeDoc": "Resumir con IA",
+    "draftEmail": "Redactar con IA",
+    "draftEmailInstructions": "¿Qué quieres decir? (la IA redacta asunto y cuerpo)"
   },
   "subscription": {
     "title": "Tu suscripción",
