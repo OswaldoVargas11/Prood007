@@ -19,6 +19,7 @@ export function Logo({
       <LogoMark size={size} />
       {!markOnly && (
         <span
+          translate="no"
           className="font-semibold text-foreground"
           style={{
             fontFamily: 'var(--font-wordmark)',

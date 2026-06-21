@@ -5,6 +5,7 @@
   },
   "landing": {
     "nav": {
+      "skip": "Saltar al contenido",
       "product": "Producto",
       "compliance": "Cumplimiento",
       "security": "Seguridad",

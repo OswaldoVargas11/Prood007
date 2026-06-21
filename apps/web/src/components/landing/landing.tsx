@@ -44,10 +44,13 @@ const BENEFIT_ICONS: LucideIcon[] = [
 ];
 const SECURITY_ICONS: LucideIcon[] = [ShieldCheck, FileLock2, History, Users];
 
-/** Ventana de producto con "traffic lights" (mock con datos ilustrativos). */
+/** Ventana de producto con "traffic lights" (mock con datos ilustrativos; decorativo → aria-hidden). */
 function MockWindow({ url, children }: { url: string; children: React.ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-2xl border bg-card text-left shadow-[var(--shadow-xl)]">
+    <div
+      aria-hidden
+      className="overflow-hidden rounded-2xl border bg-card text-left shadow-[var(--shadow-xl)]"
+    >
       <div className="flex items-center gap-1.5 border-b bg-[var(--surface-2)] px-4 py-2.5">
         <span className="size-2.5 rounded-full bg-[var(--danger)]" />
         <span className="size-2.5 rounded-full bg-[var(--warning)]" />
@@ -78,21 +81,39 @@ export function Landing() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <a
+        href="#contenido"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-[var(--shadow-md)] focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        {t('nav.skip')}
+      </a>
       {/* ── Nav ── */}
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-[60px] max-w-5xl items-center justify-between px-6">
           <Logo size={26} />
           <nav className="hidden items-center gap-7 text-[13px] text-muted-foreground md:flex">
-            <a href="#producto" className="transition-colors hover:text-foreground">
+            <a
+              href="#producto"
+              className="rounded-sm outline-none transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
               {t('nav.product')}
             </a>
-            <a href="#cumplimiento" className="transition-colors hover:text-foreground">
+            <a
+              href="#cumplimiento"
+              className="rounded-sm outline-none transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
               {t('nav.compliance')}
             </a>
-            <a href="#confianza" className="transition-colors hover:text-foreground">
+            <a
+              href="#confianza"
+              className="rounded-sm outline-none transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
               {t('nav.security')}
             </a>
-            <a href="#precios" className="transition-colors hover:text-foreground">
+            <a
+              href="#precios"
+              className="rounded-sm outline-none transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
               {t('nav.pricing')}
             </a>
           </nav>
@@ -108,7 +129,7 @@ export function Landing() {
       </header>
 
       {/* ── Hero (gestión) ── */}
-      <section className="relative overflow-hidden">
+      <section id="contenido" className="relative scroll-mt-20 overflow-hidden">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 -top-32 h-[460px]"
@@ -239,7 +260,7 @@ export function Landing() {
       </section>
 
       {/* ── Diferenciador fiscal (el foso) ── */}
-      <section id="cumplimiento" className="border-b bg-[var(--surface-2)]/40">
+      <section id="cumplimiento" className="scroll-mt-20 border-b bg-[var(--surface-2)]/40">
         <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
           <div className="grid items-center gap-8 md:grid-cols-2">
             <Reveal>
@@ -279,7 +300,7 @@ export function Landing() {
       </section>
 
       {/* ── Producto ── */}
-      <section id="producto" className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
+      <section id="producto" className="scroll-mt-20 mx-auto max-w-5xl px-6 py-16 sm:py-20">
         <Reveal className="mx-auto max-w-[60ch] text-center">
           <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             {t('product.title')}
@@ -385,7 +406,7 @@ export function Landing() {
       </section>
 
       {/* ── Seguridad ── */}
-      <section id="confianza" className="border-y bg-[var(--surface-2)]/40">
+      <section id="confianza" className="scroll-mt-20 border-y bg-[var(--surface-2)]/40">
         <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
           <Reveal className="mx-auto max-w-[60ch] text-center">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--brand-line)] bg-[var(--brand-soft)] px-3 py-1.5 text-[12px] font-semibold text-[var(--brand)]">
@@ -444,7 +465,7 @@ export function Landing() {
       </section>
 
       {/* ── Precios ── */}
-      <section id="precios" className="border-t bg-[var(--surface-2)]/40">
+      <section id="precios" className="scroll-mt-20 border-t bg-[var(--surface-2)]/40">
         <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
           <Reveal className="mx-auto max-w-[60ch] text-center">
             <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -513,7 +534,7 @@ export function Landing() {
       </section>
 
       {/* ── CTA final ── */}
-      <section id="contacto" className="mx-auto max-w-5xl px-6 py-6 pb-14">
+      <section id="contacto" className="scroll-mt-20 mx-auto max-w-5xl px-6 py-6 pb-14">
         <Reveal>
           <div
             className="relative overflow-hidden rounded-2xl px-8 py-14 text-center text-white"
@@ -562,13 +583,22 @@ export function Landing() {
         <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-3 px-6 py-7 text-[12px] text-muted-foreground sm:flex-row">
           <span>{t('footer.rights')}</span>
           <div className="flex items-center gap-5">
-            <Link href="/privacy" className="transition-colors hover:text-foreground">
+            <Link
+              href="/privacy"
+              className="rounded-sm outline-none transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
               {t('footer.privacy')}
             </Link>
-            <Link href="/terms" className="transition-colors hover:text-foreground">
+            <Link
+              href="/terms"
+              className="rounded-sm outline-none transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
               {t('footer.terms')}
             </Link>
-            <a href="mailto:hola@lawzora.com" className="transition-colors hover:text-foreground">
+            <a
+              href="mailto:hola@lawzora.com"
+              className="rounded-sm outline-none transition-colors hover:text-foreground focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
               {t('footer.contact')}
             </a>
           </div>

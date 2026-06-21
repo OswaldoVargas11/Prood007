@@ -226,7 +226,10 @@ export default function LoginPage() {
                   <Input
                     id="email"
                     type="email"
+                    inputMode="email"
                     autoComplete="email"
+                    autoCapitalize="none"
+                    spellCheck={false}
                     autoFocus
                     {...register('email')}
                   />

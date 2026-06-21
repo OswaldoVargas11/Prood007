@@ -18,6 +18,7 @@
    ============================================================ */
 @layer base {
   :root {
+    color-scheme: light;
     /* ---- shadcn core (LIGHT) ---- */
     --background: oklch(0.985 0.002 225);
     --foreground: oklch(0.24 0.012 232);
@@ -119,6 +120,7 @@
   }
 
   .dark {
+    color-scheme: dark;
     /* ---- shadcn core (DARK) ---- */
     --background: oklch(0.17 0.006 230);
     --foreground: oklch(0.965 0.003 225);
