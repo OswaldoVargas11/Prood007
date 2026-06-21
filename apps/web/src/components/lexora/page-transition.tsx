@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { usePathname } from 'next/navigation';
 import { screenEnter } from '@/lib/motion';
+import { cn } from '@/lib/utils';
 
 /**
  * Envuelve el `<main>` con la animación de «Entrada de pantalla» del sistema de diseño
@@ -13,9 +14,11 @@ import { screenEnter } from '@/lib/motion';
 export function PageTransition({
   children,
   className,
+  id,
 }: {
   children: ReactNode;
   className?: string;
+  id?: string;
 }) {
   const reduce = useReducedMotion();
   const pathname = usePathname();
@@ -23,7 +26,9 @@ export function PageTransition({
   return (
     <motion.main
       key={pathname}
-      className={className}
+      id={id}
+      tabIndex={-1}
+      className={cn('scroll-mt-16 outline-none', className)}
       variants={screenEnter}
       initial={reduce ? false : 'hidden'}
       animate="visible"

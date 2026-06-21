@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/lib/auth';
 import { useRouter, Link } from '@/i18n/navigation';
 import { NotificationsBell } from './notifications-bell';
@@ -21,6 +22,7 @@ import { Toaster } from '@/components/ui/sonner';
 export function PortalShell({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const t = useTranslations('nav');
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login');
@@ -48,6 +50,12 @@ export function PortalShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-card focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-[var(--shadow-md)] focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        {t('skipToContent')}
+      </a>
       <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-5 backdrop-blur-xl">
         <Link href="/portal" className="flex items-center">
           <Logo size={24} />
@@ -58,7 +66,9 @@ export function PortalShell({ children }: { children: ReactNode }) {
           <UserMenu />
         </div>
       </header>
-      <PageTransition className="mx-auto max-w-4xl p-6 lg:p-8">{children}</PageTransition>
+      <PageTransition id="main" className="mx-auto max-w-4xl p-6 lg:p-8">
+        {children}
+      </PageTransition>
       <Toaster />
       <RealtimeToasts />
     </div>

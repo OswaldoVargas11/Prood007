@@ -177,6 +177,7 @@
     "portal": "Portal del cliente",
     "soon": "Pronto",
     "openMenu": "Abrir navegación",
+    "skipToContent": "Saltar al contenido",
     "groups": {
       "workspace": "Espacio de trabajo",
       "finance": "Finanzas",
@@ -914,6 +915,7 @@
   },
   "notifications": {
     "open": "Abrir notificaciones",
+    "openWithCount": "Abrir notificaciones, {count} sin leer",
     "title": "Notificaciones",
     "empty": "No tienes notificaciones.",
     "viewAll": "Ver todas",
@@ -1582,6 +1584,8 @@
   "reports": {
     "title": "Informes",
     "subtitle": "Indicadores de gestión del despacho. Exportables a CSV.",
+    "selectYear": "Año",
+    "selectQuarter": "Trimestre",
     "client": "Cliente",
     "tax": {
       "title": "Resumen fiscal (gestoría)",

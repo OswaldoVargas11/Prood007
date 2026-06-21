@@ -42,10 +42,18 @@ export function NotificationsBell() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label={t('open')}>
-          <Bell />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          aria-label={unread > 0 ? t('openWithCount', { count: unread }) : t('open')}
+        >
+          <Bell aria-hidden />
           {unread > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-semibold text-white">
+            <span
+              aria-hidden
+              className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-semibold text-white"
+            >
               {unread > 9 ? '9+' : unread}
             </span>
           )}
@@ -54,7 +62,7 @@ export function NotificationsBell() {
       <DropdownMenuContent align="end" className="w-80">
         <DropdownMenuLabel>{t('title')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <div className="max-h-96 overflow-y-auto">
+        <div className="max-h-96 overflow-y-auto overscroll-contain">
           {(!data || data.length === 0) && (
             <p className="px-2 py-6 text-center text-sm text-muted-foreground">{t('empty')}</p>
           )}
