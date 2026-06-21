@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xsi:type="TaskPaneApp">
+  <Id>b8e1c0a2-1f3d-4c5e-9a7b-2d4e6f8a0c12</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Lawzora</ProviderName>
+  <DefaultLocale>es-ES</DefaultLocale>
+  <DisplayName DefaultValue="Lawzora — Guardar al expediente" />
+  <Description DefaultValue="Guarda el documento actual de Word en un expediente de Lawzora, sin salir de Word." />
+  <IconUrl DefaultValue="https://lawzora.com/favicon.ico" />
+  <SupportUrl DefaultValue="https://lawzora.com" />
+  <AppDomains>
+    <AppDomain>https://lawzora.com</AppDomain>
+    <AppDomain>https://api.lawzora.com</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Document" />
+  </Hosts>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://lawzora.com/word-addin/taskpane.html" />
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+</OfficeApp>
