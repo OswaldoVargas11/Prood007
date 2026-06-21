@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { MessageSquare } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useMatters } from '@/lib/hooks';
-import { useRouter } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import { relativeTime } from '@/lib/activity';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Matter, Message } from '@/lib/types';
@@ -18,7 +18,6 @@ import type { Matter, Message } from '@/lib/types';
  */
 export default function MessagesOverviewPage() {
   const t = useTranslations('messagesOverview');
-  const router = useRouter();
 
   const mattersQuery = useMatters({ pageSize: 100 });
   const matters = useMemo<Matter[]>(() => mattersQuery.data?.items ?? [], [mattersQuery.data]);
@@ -55,7 +54,11 @@ export default function MessagesOverviewPage() {
       </div>
 
       {loading && <Skeleton className="h-64 w-full rounded-xl" />}
-      {isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
+      {isError && (
+        <p role="alert" className="text-sm text-[var(--danger)]">
+          {t('loadError')}
+        </p>
+      )}
 
       {!loading && !isError && conversations.length === 0 && (
         <div className="rounded-xl border bg-card p-12 text-center">
@@ -67,10 +70,10 @@ export default function MessagesOverviewPage() {
       {!loading && !isError && conversations.length > 0 && (
         <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
           {conversations.map(({ matter, last, count }) => (
-            <button
+            <Link
               key={matter.id}
-              type="button"
-              onClick={() => router.push(`/matters/${matter.id}?tab=chat`)}
+              href={`/matters/${matter.id}?tab=chat`}
+              aria-label={`${matter.title} · ${matter.reference}`}
               className="flex w-full items-start gap-3 border-b px-4 py-3.5 text-left transition-colors last:border-b-0 hover:bg-accent/60"
             >
               <span className="flex size-9 flex-shrink-0 items-center justify-center rounded-[10px] bg-[var(--brand-soft)] text-[11px] font-semibold text-[var(--brand)]">
@@ -96,7 +99,7 @@ export default function MessagesOverviewPage() {
                   {count}
                 </span>
               </div>
-            </button>
+            </Link>
           ))}
         </div>
       )}

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useAuditLog } from '@/lib/hooks';
 import { activityLabel } from '@/lib/activity';
 import { formatDateTime } from '@/lib/format';
+import { usePathname, useRouter } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -13,8 +14,17 @@ export default function AuditPage() {
   const t = useTranslations('audit');
   const locale = useLocale();
   const { hasRole } = useAuth();
-  const [page, setPage] = useState(1);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const { data, isLoading, isError } = useAuditLog(page, 50);
+
+  function goPage(p: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', String(p));
+    router.replace(`${pathname}?${params.toString()}`);
+  }
 
   if (!hasRole('FIRM_ADMIN')) {
     return (
@@ -34,35 +44,68 @@ export default function AuditPage() {
       </div>
 
       {isLoading && <Skeleton className="h-72 w-full rounded-xl" />}
-      {isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
+      {isError && (
+        <p role="alert" className="text-sm text-[var(--danger)]">
+          {t('loadError')}
+        </p>
+      )}
 
       {data && (
         <>
           <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-            <div className="grid grid-cols-[150px_1fr_1.4fr_auto] gap-3 border-b px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-subtle)]">
-              <span>{t('colDate')}</span>
-              <span>{t('colActor')}</span>
-              <span>{t('colAction')}</span>
-              <span>{t('colEntity')}</span>
-            </div>
-            {data.items.length === 0 && (
-              <p className="px-4 py-10 text-center text-sm text-muted-foreground">{t('empty')}</p>
-            )}
-            {data.items.map((e) => (
-              <div
-                key={e.id}
-                className="grid grid-cols-[150px_1fr_1.4fr_auto] items-center gap-3 border-b px-4 py-2.5 text-[12.5px] last:border-b-0"
-              >
-                <span className="font-mono text-[11px] text-[var(--text-subtle)]">
-                  {formatDateTime(e.createdAt, locale)}
-                </span>
-                <span className="truncate font-medium">{e.actorName}</span>
-                <span className="truncate text-muted-foreground">{activityLabel(e.action)}</span>
-                <span className="truncate font-mono text-[10.5px] text-[var(--text-subtle)]">
-                  {e.entityType}
-                </span>
-              </div>
-            ))}
+            <table className="w-full table-fixed text-[12.5px]">
+              <caption className="sr-only">{t('title')}</caption>
+              <thead>
+                <tr className="border-b text-left text-[10.5px] uppercase tracking-wide text-[var(--text-subtle)]">
+                  <th scope="col" className="w-[150px] px-4 py-2.5 font-semibold">
+                    {t('colDate')}
+                  </th>
+                  <th scope="col" className="px-4 py-2.5 font-semibold">
+                    {t('colActor')}
+                  </th>
+                  <th scope="col" className="px-4 py-2.5 font-semibold">
+                    {t('colAction')}
+                  </th>
+                  <th scope="col" className="w-[160px] px-4 py-2.5 font-semibold">
+                    {t('colEntity')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="px-4 py-10 text-center text-sm text-muted-foreground"
+                    >
+                      {t('empty')}
+                    </td>
+                  </tr>
+                )}
+                {data.items.map((e) => (
+                  <tr key={e.id} className="border-b last:border-0">
+                    <td className="whitespace-nowrap px-4 py-2.5 font-mono text-[11px] tabular-nums text-[var(--text-subtle)]">
+                      {formatDateTime(e.createdAt, locale)}
+                    </td>
+                    <td className="truncate px-4 py-2.5 font-medium" title={e.actorName}>
+                      {e.actorName}
+                    </td>
+                    <td
+                      className="truncate px-4 py-2.5 text-muted-foreground"
+                      title={activityLabel(e.action)}
+                    >
+                      {activityLabel(e.action)}
+                    </td>
+                    <td
+                      className="truncate px-4 py-2.5 font-mono text-[10.5px] text-[var(--text-subtle)]"
+                      title={e.entityType}
+                    >
+                      {e.entityType}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
           <div className="flex items-center justify-between text-[12.5px] text-muted-foreground">
@@ -72,7 +115,7 @@ export default function AuditPage() {
                 size="sm"
                 variant="outline"
                 disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
+                onClick={() => goPage(page - 1)}
               >
                 {t('prev')}
               </Button>
@@ -80,7 +123,7 @@ export default function AuditPage() {
                 size="sm"
                 variant="outline"
                 disabled={page >= pages}
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => goPage(page + 1)}
               >
                 {t('next')}
               </Button>
