@@ -8,19 +8,40 @@ import type { RequestUser } from '../auth/auth.types';
 
 const OPEN = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
 const PROVIDER = 'google';
-// Identidad + Calendar (eventos) + Gmail SOLO enviar. Scopes "sensibles" (no restringidos) → la app se
-// puede publicar a coste 0 sin evaluación CASA. No se pide gmail.readonly (restringido): NO se lee la
-// bandeja en Gmail, así que "adjuntar de la bandeja" queda solo para Outlook (Mail.Read sí es gratis).
+// Identidad + Calendar (eventos) + Gmail SOLO enviar + Drive (drive.file). Todos son scopes "sensibles"
+// (NO restringidos) → la app se publica a coste 0 sin evaluación CASA. En particular NO se pide
+// `drive.readonly` (restringido, exigiría CASA): con `drive.file` la app solo accede a los ficheros que
+// el propio usuario elige en el selector de Google (Google Picker), no a todo el Drive. Tampoco se pide
+// gmail.readonly: la bandeja solo se lee en Outlook (Mail.Read sí es gratis).
 const SCOPES = [
   'openid',
   'email',
   'https://www.googleapis.com/auth/calendar.events',
   'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/drive.file',
 ];
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const CAL_BASE = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
 const GMAIL_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
+const DRIVE_BASE = 'https://www.googleapis.com/drive/v3/files';
+// Los documentos nativos de Google (Docs/Sheets/Slides…) no tienen binario descargable: hay que
+// EXPORTARLOS a un formato ofimático. Mapa tipo-nativo → formato de exportación.
+const GOOGLE_EXPORT: Record<string, { mime: string; ext: string }> = {
+  'application/vnd.google-apps.document': {
+    mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ext: 'docx',
+  },
+  'application/vnd.google-apps.spreadsheet': {
+    mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ext: 'xlsx',
+  },
+  'application/vnd.google-apps.presentation': {
+    mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    ext: 'pptx',
+  },
+  'application/vnd.google-apps.drawing': { mime: 'application/pdf', ext: 'pdf' },
+};
 
 /**
  * Integración Google (OAuth) — base compartida (Calendar ahora; Gmail después). GATED por configuración:
@@ -400,5 +421,84 @@ export class GoogleService {
         sentAt: true,
       },
     });
+  }
+
+  // ── Google Drive (importar ficheros al expediente vía Google Picker) ─────────
+  /**
+   * Config que el navegador necesita para abrir el Google Picker. NO se expone el access token del
+   * servidor: el front pide su propio token (scope drive.file) con Google Identity Services y solo nos
+   * manda el `fileId` elegido; la descarga real la hace el servidor con su token (mismo client → el
+   * fichero seleccionado queda accesible a la app). Requiere además clave de navegador (Picker API) y el
+   * número de proyecto (appId).
+   */
+  async driveConfig(user: RequestUser): Promise<{
+    configured: boolean;
+    connected: boolean;
+    clientId: string | null;
+    apiKey: string | null;
+    appId: string | null;
+    scope: string;
+  }> {
+    const apiKey = this.config.get<string>('GOOGLE_PICKER_API_KEY') ?? null;
+    const appId = this.config.get<string>('GOOGLE_PROJECT_NUMBER') ?? null;
+    const clientId = this.clientId() ?? null;
+    // El Picker necesita las tres piezas; si falta alguna, el front oculta el botón de Drive.
+    const configured = Boolean(this.isConfigured() && apiKey && appId && clientId);
+    // ¿Este usuario ya concedió Drive? (el scope drive.file está en su conexión)
+    const conn = this.isConfigured()
+      ? await this.prisma.oAuthConnection.findUnique({
+          where: { userId_provider: { userId: user.userId, provider: PROVIDER } },
+          select: { scopes: true },
+        })
+      : null;
+    return {
+      configured,
+      connected: Boolean(conn?.scopes?.includes('drive.file')),
+      clientId,
+      apiKey,
+      appId,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+    };
+  }
+
+  /**
+   * Descarga el contenido de un fichero de Drive elegido por el usuario en el Picker. Con drive.file el
+   * token del servidor solo puede leer ficheros que el usuario seleccionó con esta misma app. Los
+   * documentos nativos de Google se exportan a formato ofimático (Docs→docx, Sheets→xlsx, Slides→pptx).
+   */
+  async fetchDriveFile(
+    user: RequestUser,
+    fileId: string,
+  ): Promise<{ buffer: Buffer; mimeType: string; filename: string; sizeBytes: number }> {
+    this.assertConfigured();
+    const token = await this.accessTokenFor(user.userId);
+    const headers = { Authorization: `Bearer ${token}` };
+    const metaRes = await fetch(
+      `${DRIVE_BASE}/${encodeURIComponent(fileId)}?fields=name,mimeType,size&supportsAllDrives=true`,
+      { headers },
+    );
+    if (!metaRes.ok) throw new BadRequestException({ messageKey: 'integrations.cloudFetchFailed' });
+    const meta = (await metaRes.json()) as { name: string; mimeType: string; size?: string };
+
+    let url: string;
+    let outMime = meta.mimeType;
+    let filename = meta.name || 'documento';
+    if (meta.mimeType.startsWith('application/vnd.google-apps')) {
+      const exp = GOOGLE_EXPORT[meta.mimeType] ?? { mime: 'application/pdf', ext: 'pdf' };
+      outMime = exp.mime;
+      if (!/\.[a-z0-9]+$/i.test(filename)) filename = `${filename}.${exp.ext}`;
+      url = `${DRIVE_BASE}/${encodeURIComponent(fileId)}/export?mimeType=${encodeURIComponent(exp.mime)}`;
+    } else {
+      url = `${DRIVE_BASE}/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`;
+    }
+    const dl = await fetch(url, { headers });
+    if (!dl.ok) throw new BadRequestException({ messageKey: 'integrations.cloudFetchFailed' });
+    const buffer = Buffer.from(await dl.arrayBuffer());
+    return {
+      buffer,
+      mimeType: outMime || 'application/octet-stream',
+      filename,
+      sizeBytes: buffer.length,
+    };
   }
 }

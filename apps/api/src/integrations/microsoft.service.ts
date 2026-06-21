@@ -8,7 +8,10 @@ import type { RequestUser } from '../auth/auth.types';
 
 const OPEN = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
 const PROVIDER = 'microsoft';
-// Identidad + Outlook Calendar + correo (enviar y leer para adjuntar). offline_access → refresh token.
+// Identidad + Outlook Calendar + correo (enviar y leer para adjuntar) + ficheros (OneDrive + SharePoint).
+// offline_access → refresh token. Files.Read = OneDrive del usuario (sin consentimiento de admin).
+// Sites.Read.All = bibliotecas de SharePoint; en muchos tenants exige consentimiento de un administrador
+// (una sola vez). Ninguno es "restringido" al estilo CASA de Google.
 const SCOPES = [
   'openid',
   'email',
@@ -16,8 +19,21 @@ const SCOPES = [
   'https://graph.microsoft.com/Calendars.ReadWrite',
   'https://graph.microsoft.com/Mail.Send',
   'https://graph.microsoft.com/Mail.Read',
+  'https://graph.microsoft.com/Files.Read',
+  'https://graph.microsoft.com/Sites.Read.All',
 ];
-const GRAPH = 'https://graph.microsoft.com/v1.0/me';
+const GRAPH_ROOT = 'https://graph.microsoft.com/v1.0';
+const GRAPH = `${GRAPH_ROOT}/me`;
+
+/** Una entrada (carpeta o fichero) del explorador de OneDrive/SharePoint que ve el navegador. */
+export interface CloudEntry {
+  id: string;
+  name: string;
+  isFolder: boolean;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  driveId: string | null;
+}
 // Propiedad extendida para marcar el evento con el id de la tarea (idempotencia del push de agenda).
 const TASK_PROP = 'String {6f3b2e10-9a4c-4b8e-9c1d-000000000001} Name lawzoraTaskId';
 
@@ -389,5 +405,113 @@ export class MicrosoftService {
       select: { id: true },
     });
     return { id: created.id };
+  }
+
+  // ── OneDrive / SharePoint (importar ficheros al expediente) ──────────────────
+  /** ¿Está conectado este usuario? (para que el front muestre/oculte el explorador de ficheros). */
+  async filesStatus(user: RequestUser) {
+    const conn = this.isConfigured()
+      ? await this.prisma.oAuthConnection.findUnique({
+          where: { userId_provider: { userId: user.userId, provider: PROVIDER } },
+          select: { scopes: true },
+        })
+      : null;
+    return {
+      configured: this.isConfigured(),
+      connected: Boolean(conn?.scopes?.includes('Files.Read')),
+    };
+  }
+
+  private mapEntries(items: any[], fallbackDriveId: string | null): CloudEntry[] {
+    return (items ?? []).map((i) => ({
+      id: i.id as string,
+      name: (i.name as string) ?? '—',
+      isFolder: Boolean(i.folder),
+      mimeType: i.file?.mimeType ?? null,
+      sizeBytes: typeof i.size === 'number' ? i.size : null,
+      driveId: i.parentReference?.driveId ?? fallbackDriveId,
+    }));
+  }
+
+  /**
+   * Lista carpetas+ficheros. Sin `driveId` → raíz del OneDrive del usuario. Con `driveId` → esa unidad
+   * (p. ej. una biblioteca de SharePoint). `itemId` para entrar en una subcarpeta (si falta, la raíz).
+   */
+  async listFiles(
+    user: RequestUser,
+    opts: { driveId?: string; itemId?: string },
+  ): Promise<CloudEntry[]> {
+    this.assertConfigured();
+    const token = await this.accessTokenFor(user.userId);
+    const headers = { Authorization: `Bearer ${token}` };
+    const base = opts.driveId ? `${GRAPH_ROOT}/drives/${opts.driveId}` : `${GRAPH}/drive`;
+    const node = opts.itemId ? `items/${opts.itemId}` : 'root';
+    const q = '?$select=id,name,size,folder,file,parentReference&$top=200&$orderby=name';
+    const r = await fetch(`${base}/${node}/children${q}`, { headers });
+    if (!r.ok) throw new BadRequestException({ messageKey: 'integrations.cloudListFailed' });
+    const value = ((await r.json()) as { value?: any[] }).value ?? [];
+    return this.mapEntries(value, opts.driveId ?? null);
+  }
+
+  /** Busca sitios de SharePoint por texto; devuelve el id de la unidad (drive) de cada uno para navegar. */
+  async searchSites(user: RequestUser, query: string) {
+    this.assertConfigured();
+    const token = await this.accessTokenFor(user.userId);
+    const headers = { Authorization: `Bearer ${token}` };
+    const r = await fetch(`${GRAPH_ROOT}/sites?search=${encodeURIComponent(query)}&$top=25`, {
+      headers,
+    });
+    if (!r.ok) throw new BadRequestException({ messageKey: 'integrations.cloudListFailed' });
+    const sites = ((await r.json()) as { value?: any[] }).value ?? [];
+    // Para cada sitio resolvemos su biblioteca por defecto (drive) — así el front navega con driveId.
+    const out: { id: string; name: string; webUrl: string; driveId: string | null }[] = [];
+    for (const s of sites) {
+      let driveId: string | null = null;
+      try {
+        const dr = await fetch(`${GRAPH_ROOT}/sites/${s.id}/drive?$select=id`, { headers });
+        if (dr.ok) driveId = ((await dr.json()) as { id?: string }).id ?? null;
+      } catch {
+        driveId = null;
+      }
+      out.push({
+        id: s.id as string,
+        name: (s.displayName as string) ?? (s.name as string) ?? '—',
+        webUrl: (s.webUrl as string) ?? '',
+        driveId,
+      });
+    }
+    return out;
+  }
+
+  /** Descarga el contenido de un fichero de OneDrive/SharePoint elegido en el explorador. */
+  async fetchDriveItem(
+    user: RequestUser,
+    driveId: string,
+    itemId: string,
+  ): Promise<{ buffer: Buffer; mimeType: string; filename: string; sizeBytes: number }> {
+    this.assertConfigured();
+    const token = await this.accessTokenFor(user.userId);
+    const headers = { Authorization: `Bearer ${token}` };
+    const metaRes = await fetch(
+      `${GRAPH_ROOT}/drives/${driveId}/items/${itemId}?$select=name,size,file`,
+      { headers },
+    );
+    if (!metaRes.ok) throw new BadRequestException({ messageKey: 'integrations.cloudFetchFailed' });
+    const meta = (await metaRes.json()) as {
+      name: string;
+      size?: number;
+      file?: { mimeType?: string };
+    };
+    // /content responde 302 a una URL de descarga preautenticada en otro host; fetch sigue el redirect y
+    // (por spec) NO reenvía la cabecera Authorization a otro origen, que es justo lo que necesita esa URL.
+    const dl = await fetch(`${GRAPH_ROOT}/drives/${driveId}/items/${itemId}/content`, { headers });
+    if (!dl.ok) throw new BadRequestException({ messageKey: 'integrations.cloudFetchFailed' });
+    const buffer = Buffer.from(await dl.arrayBuffer());
+    return {
+      buffer,
+      mimeType: meta.file?.mimeType || 'application/octet-stream',
+      filename: meta.name || 'documento',
+      sizeBytes: buffer.length,
+    };
   }
 }

@@ -33,4 +33,10 @@ export class IntegrationsController {
   syncCalendar(@CurrentUser() user: RequestUser) {
     return this.google.syncCalendar(user);
   }
+
+  /** Config para abrir el Google Picker (clientId/apiKey/appId) + si el usuario ya concedió Drive. */
+  @Get('drive/config')
+  driveConfig(@CurrentUser() user: RequestUser) {
+    return this.google.driveConfig(user);
+  }
 }

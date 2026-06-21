@@ -687,7 +687,25 @@
     "noTemplates": "Aún no hay plantillas. Créalas en la sección «Plantillas».",
     "generate": "Generar",
     "generateError": "No se pudo generar el documento.",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "cloud": {
+      "button": "Importar de la nube",
+      "title": "Importar desde la nube",
+      "subtitle": "Elige un fichero de tu almacenamiento en la nube. Se descarga y se guarda cifrado en el expediente, como una subida normal.",
+      "googleDrive": "Google Drive",
+      "oneDrive": "OneDrive",
+      "sharePoint": "SharePoint",
+      "notConfigured": "No disponible en el servidor.",
+      "connectHint": "Conecta {provider} en Ajustes para usarlo.",
+      "searchSites": "Buscar sitios de SharePoint…",
+      "searchSitesHint": "Escribe el nombre de un sitio de SharePoint para buscarlo.",
+      "noSites": "No se encontraron sitios.",
+      "back": "Volver",
+      "listError": "No se pudieron cargar los ficheros.",
+      "emptyFolder": "Esta carpeta está vacía.",
+      "importing": "Importando archivo…",
+      "importError": "No se pudo importar el archivo."
+    }
   },
   "templates": {
     "title": "Plantillas de documentos",
