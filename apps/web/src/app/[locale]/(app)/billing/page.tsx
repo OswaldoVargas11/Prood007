@@ -5,7 +5,7 @@ import { useQueries } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { useClients, useMatters } from '@/lib/hooks';
-import { useRouter } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,7 +19,6 @@ import type { Matter, MatterLedger } from '@/lib/types';
 export default function BillingOverviewPage() {
   const t = useTranslations('billingOverview');
   const locale = useLocale();
-  const router = useRouter();
 
   const mattersQuery = useMatters({ pageSize: 100 });
   const clientsQuery = useClients({ pageSize: 100 });
@@ -106,7 +105,11 @@ export default function BillingOverviewPage() {
       </div>
 
       {loading && <Skeleton className="h-64 w-full rounded-xl" />}
-      {isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
+      {isError && (
+        <p role="alert" className="text-sm text-[var(--danger)]">
+          {t('loadError')}
+        </p>
+      )}
 
       {!loading && !isError && (
         <>
@@ -124,36 +127,59 @@ export default function BillingOverviewPage() {
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-              <div className="grid grid-cols-[1.6fr_1fr_1fr_1fr] gap-3 border-b px-4 py-2.5 text-[10.5px] font-semibold uppercase tracking-wide text-[var(--text-subtle)]">
-                <span>{t('colMatter')}</span>
-                <span>{t('colClient')}</span>
-                <span className="text-right">{t('colBilled')}</span>
-                <span className="text-right">{t('colBalance')}</span>
-              </div>
-              {rows.map((r) => (
-                <button
-                  key={r.matter.id}
-                  type="button"
-                  onClick={() => router.push(`/matters/${r.matter.id}`)}
-                  className="grid w-full grid-cols-[1.6fr_1fr_1fr_1fr] items-center gap-3 border-b px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-accent/60"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-[13px] font-medium">{r.matter.title}</div>
-                    <div className="font-mono text-[11px] text-[var(--text-subtle)]">
-                      {r.matter.reference}
-                    </div>
-                  </div>
-                  <span className="truncate text-[12.5px] text-muted-foreground">
-                    {clientName.get(r.matter.clientId) ?? '—'}
-                  </span>
-                  <span className="text-right text-[12.5px] tabular-nums">
-                    {rowBilled(r.billedByCcy)}
-                  </span>
-                  <span className="text-right text-[12.5px] font-semibold tabular-nums">
-                    {formatMoney(r.balance, r.currency, locale)}
-                  </span>
-                </button>
-              ))}
+              <table className="w-full table-fixed text-[12.5px]">
+                <caption className="sr-only">{t('title')}</caption>
+                <thead>
+                  <tr className="border-b text-[10.5px] uppercase tracking-wide text-[var(--text-subtle)]">
+                    <th scope="col" className="w-[40%] px-4 py-2.5 text-left font-semibold">
+                      {t('colMatter')}
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 text-left font-semibold">
+                      {t('colClient')}
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 text-right font-semibold">
+                      {t('colBilled')}
+                    </th>
+                    <th scope="col" className="px-4 py-2.5 text-right font-semibold">
+                      {t('colBalance')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r) => (
+                    <tr
+                      key={r.matter.id}
+                      className="border-b transition-colors last:border-0 hover:bg-accent/60"
+                    >
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/matters/${r.matter.id}`}
+                          className="block min-w-0 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <div className="truncate text-[13px] font-medium hover:underline">
+                            {r.matter.title}
+                          </div>
+                          <div className="font-mono text-[11px] text-[var(--text-subtle)]">
+                            {r.matter.reference}
+                          </div>
+                        </Link>
+                      </td>
+                      <td
+                        className="truncate px-4 py-3 text-muted-foreground"
+                        title={clientName.get(r.matter.clientId) ?? '—'}
+                      >
+                        {clientName.get(r.matter.clientId) ?? '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {rowBilled(r.billedByCcy)}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold tabular-nums">
+                        {formatMoney(r.balance, r.currency, locale)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
           <p className="text-[11.5px] text-[var(--text-subtle)]">{t('hint')}</p>
