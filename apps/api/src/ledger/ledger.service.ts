@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, type Currency } from '@prisma/client';
+import { EcfStatus, Prisma, type Currency } from '@prisma/client';
 import {
   ApprovalStatus,
   InvoiceDocumentType,
@@ -27,6 +27,7 @@ import { apiError } from '../common/api-messages';
 import { buildInvoicePdf, invoiceRowToPdfData } from './invoice-pdf';
 import { isInlineSafeMime, sniffSafeUploadType } from '../common/safe-download';
 import { PaymentsService } from '../payments/payments.service';
+import { EcfTransmissionService } from '../dgii/ecf-transmission.service';
 import {
   DEFAULT_PAYMENT_TERM_DAYS,
   addDaysUtc,
@@ -62,6 +63,7 @@ export class LedgerService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly payments: PaymentsService,
+    private readonly ecfTransmission: EcfTransmissionService,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
   ) {}
 
@@ -297,6 +299,15 @@ export class LedgerService {
       total: record.totals.total,
       format: record.format,
     });
+    // e-CF (RD): tras emitir (ya commiteada), transmitir a la DGII FUERA de la transacción y best-effort.
+    // Si la DGII está apagada o falla, la factura queda con su estado (STUBBED/REJECTED) para reintentar
+    // desde el endpoint; la emisión NUNCA se rompe por la transmisión.
+    if (record.format === 'ECF') {
+      const result = await this.ecfTransmission
+        .transmit(user.tenantId, invoice.id)
+        .catch(() => null);
+      if (result) invoice.ecfStatus = result.status;
+    }
     return { invoice, compliance: record };
   }
 
@@ -418,6 +429,9 @@ export class LedgerService {
         complianceRecord: record.payload as object,
         recordHash: record.recordHash,
         previousRecordHash: previous?.recordHash ?? null,
+        // Estado inicial del e-CF: STUBBED para RD (lo transmite createInvoice tras emitir, si está
+        // activado); NOT_APPLICABLE para ES/Verifactu. La transmisión real nunca va dentro de la tx.
+        ecfStatus: record.format === 'ECF' ? EcfStatus.STUBBED : EcfStatus.NOT_APPLICABLE,
         documentType: p.rectification
           ? InvoiceDocumentType.RECTIFICATIVA
           : InvoiceDocumentType.NORMAL,

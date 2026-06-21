@@ -40,13 +40,18 @@ Entornos (`DGII_ENV`): `test` (TesteCF, pruebas libres) · `cert` (CerteCF, **ce
 ## Fases
 
 - **Fase 1 (HECHA):** motor de transmisión (config por entorno, cliente semilla/token/recepción/estado,
-  firma con certificado, servicio orquestador gated) + test unitario de la firma. Aún **no cableado** a la
-  emisión → cero efecto en producción.
-- **Fase 2:** cablear a la emisión de facturas DO (al emitir un e-CF se transmite/queda PENDING), columnas
-  de estado en `Invoice` (`ecfStatus`, `ecfTrackId`, …), endpoints de transmitir/consultar acuse y un cron
-  de reintentos. La emisión **no** se romperá si la DGII falla (se registra el estado para reintento).
-- **Fase 3:** subida del **certificado `.p12` por despacho** desde Ajustes, **cifrado** en reposo
-  (AES-256-GCM, misma clave `DATA_ENCRYPTION_KEY`); cada despacho transmite con su propio RNC/certificado.
+  firma con certificado, servicio orquestador gated) + test unitario de la firma.
+- **Fase 2 (HECHA — flujo end-to-end):** cableado a la emisión de facturas DO (al emitir un e-CF se
+  **transmite automáticamente** tras commit; la emisión nunca se rompe si la DGII falla), **estado** en
+  `Invoice` (`ecfStatus`/`ecfTrackId`/`ecfStatusDetail`/`ecfSubmittedAt`), **custodia del certificado
+  `.p12` por despacho** (cifrado en reposo AES-256-GCM, contraseña cifrada aparte) y **endpoints**:
+  - `GET /api/dgii/status` — ¿transmisión activada? + estado del certificado.
+  - `POST /api/dgii/certificate` (multipart `file` = .p12 + `password`) — sube el certificado (solo admin).
+  - `POST /api/dgii/invoices/:id/transmit` — (re)transmite el e-CF de una factura.
+  - `POST /api/dgii/invoices/:id/refresh` — consulta el acuse/estado en la DGII.
+    Todo **gated**: sin `DGII_ENV` o sin certificado, las facturas quedan en `STUBBED` (no se transmite).
+- **Pendiente menor:** UI (badge de estado e-CF en facturas + subida de certificado en Ajustes desde el
+  web) y un cron de reintentos automáticos de los `PENDING`. El flujo backend ya está completo.
 
 ## Qué tienes que hacer tú (cuando tengas el certificado)
 
