@@ -7,8 +7,8 @@ webhooks). Sin esto, un cron que falla en prod pasa desapercibido.
 Está **gated por `SENTRY_DSN`**: sin DSN el SDK queda **inerte** (no envía nada, no afecta a nada), igual
 que las integraciones OAuth o Stripe. Por eso CI y dev no necesitan ninguna clave.
 
-> Alcance de esta versión: **solo la API (backend)**, que es donde están los errores que importan. La
-> instrumentación del **web** (errores de cliente) y los **logs estructurados** (pino) son el siguiente paso.
+> Cableado: **API** (este doc, abajo), **web** (errores de cliente, sección «Web» más abajo — opcional,
+> requiere un segundo proyecto Sentry) y **logs estructurados** con pino en la API (activos sin config).
 
 ---
 
@@ -37,6 +37,30 @@ Eso es todo. Opcionalmente:
 2. En Sentry → _Issues_ debe aparecer el evento con su stack trace y el entorno `production`.
 3. Configura una **alerta** en Sentry (_Alerts → Create Alert_) para que te avise por email/Slack cuando
    entren errores nuevos — eso es lo que cierra el bucle de "enterarme cuando algo falla".
+
+---
+
+## Web (errores de cliente) — OPCIONAL
+
+La instrumentación de Sentry en el **web** ya está cableada (gated). Para activarla:
+
+1. **Crea un SEGUNDO proyecto** en Sentry con plataforma **Next.js** (p. ej. `lawzora-web`). Es otro
+   proyecto distinto al de la API (Node) porque son entornos separados → copia **su** DSN.
+2. El DSN del web es `NEXT_PUBLIC_*` → se **hornea en build** (no es un secret de runtime). Hay que pasarlo
+   como **build-arg** al desplegar el web:
+   ```powershell
+   flyctl deploy -c fly.web.toml --remote-only --build-arg NEXT_PUBLIC_SENTRY_DSN="https://...dsn-del-web..."
+   ```
+   Sin DSN, el SDK de Sentry **ni entra en el bundle** (coste cero para los usuarios).
+3. (Opcional, para source maps legibles) en build: `SENTRY_ORG`, `SENTRY_PROJECT` y `SENTRY_AUTH_TOKEN`.
+   Sin token no falla; solo no sube source maps.
+
+## Logs estructurados (pino) — ya activos
+
+La API emite logs en **JSON** (pino): una línea por request con id, método, status y latencia, más los
+logs de la app. No requiere configuración. Variable opcional `LOG_LEVEL` (`trace|debug|info|warn|error`,
+default `info` en prod). En local puedes verlos bonitos con `... | npx pino-pretty`. Se **redactan**
+las cabeceras `Authorization`/`Cookie` para no filtrar tokens ni sesiones.
 
 ## Privacidad (RGPD / datos de despachos)
 

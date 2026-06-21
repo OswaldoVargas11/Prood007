@@ -1,4 +1,5 @@
 import createNextIntlPlugin from 'next-intl/plugin';
+import { withSentryConfig } from '@sentry/nextjs';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
@@ -25,4 +26,19 @@ const nextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+const config = withNextIntl(nextConfig);
+
+// Sentry SOLO se aplica si hay DSN en build → sin DSN, coste cero (ni plugin de build ni SDK de cliente
+// en el bundle). Con DSN, envuelve para inyectar la instrumentación y (si hay SENTRY_AUTH_TOKEN +
+// org/project) subir los source maps; sin esas variables no falla, solo no sube source maps.
+export default process.env.NEXT_PUBLIC_SENTRY_DSN
+  ? withSentryConfig(config, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      silent: true,
+      disableLogger: true,
+      widenClientFileUpload: true,
+    })
+  : config;
+

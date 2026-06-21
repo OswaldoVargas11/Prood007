@@ -4,6 +4,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { createValidationPipe } from './common/validation';
@@ -41,7 +42,15 @@ function validateProdEnv(): void {
 async function bootstrap() {
   validateProdEnv();
   // `rawBody: true` preserva el cuerpo crudo (para verificar la firma del webhook de Stripe).
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
+  // `bufferLogs: true` retiene los logs de arranque hasta enganchar el logger pino (líneas abajo).
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+    bufferLogs: true,
+  });
+
+  // Logs estructurados (JSON) con pino: cada request queda logueada con su id, método, status y latencia.
+  // Sustituye al logger por defecto de Nest. Redacta cabeceras sensibles (ver LoggerModule en AppModule).
+  app.useLogger(app.get(Logger));
 
   // Límite EXPLÍCITO del tamaño del cuerpo (defensa DoS por payloads abusivos). Las subidas de fichero
   // van por multipart/multer con sus propios límites; aquí se acota el JSON/urlencoded. `useBodyParser`
