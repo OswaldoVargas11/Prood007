@@ -9,6 +9,7 @@ import { downloadVersion, useDocument, useReviewVersion } from '@/lib/hooks';
 import { docStatusVariant, formatBytes, mimeLabel } from '@/lib/doc-status';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { relativeTime } from '@/lib/activity';
+import { AiDocumentSummary } from '@/components/lexora/ai-document-summary';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
@@ -128,6 +129,8 @@ export default function DocumentReviewPage() {
           {tStatus(right.reviewStatus)}
         </Badge>
       </div>
+
+      <AiDocumentSummary documentId={docId} />
 
       {/* Selector de versiones a comparar */}
       {versions.length > 1 && (
