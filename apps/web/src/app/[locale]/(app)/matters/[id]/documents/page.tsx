@@ -85,14 +85,24 @@ export default function MatterDocumentsPage() {
         )}
       >
         {upload.isPending ? (
-          <Loader2 className="size-[18px] animate-spin" />
+          <Loader2 aria-hidden className="size-[18px] animate-spin" />
         ) : (
-          <Upload className="size-[18px]" />
+          <Upload aria-hidden className="size-[18px]" />
         )}
         <span className="text-[13px] font-medium">{dragging ? t('dropHere') : t('dropzone')}</span>
       </button>
-      <input ref={fileRef} type="file" className="hidden" onChange={onFile} />
-      {upload.isError && <p className="text-sm text-[var(--danger)]">{t('uploadError')}</p>}
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.txt"
+        className="hidden"
+        onChange={onFile}
+      />
+      {upload.isError && (
+        <p role="alert" className="text-sm text-[var(--danger)]">
+          {t('uploadError')}
+        </p>
+      )}
 
       {isLoading && <Skeleton className="h-64 w-full rounded-xl" />}
       {isError && (

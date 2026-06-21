@@ -191,16 +191,31 @@ function TemplateDialog({
         >
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>{t('name')}</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+              <Label htmlFor="tpl-name">{t('name')}</Label>
+              <Input
+                id="tpl-name"
+                name="templateName"
+                autoComplete="off"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+              />
             </div>
             <div className="space-y-1.5">
-              <Label>{t('description')}</Label>
-              <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+              <Label htmlFor="tpl-desc">{t('description')}</Label>
+              <Input
+                id="tpl-desc"
+                name="templateDescription"
+                autoComplete="off"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
-              <Label>{t('body')}</Label>
+              <Label htmlFor="tpl-body">{t('body')}</Label>
               <Textarea
+                id="tpl-body"
+                name="templateBody"
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={10}
@@ -214,14 +229,18 @@ function TemplateDialog({
                     key={tok}
                     type="button"
                     onClick={() => setBody((b) => `${b}{{${tok}}}`)}
-                    className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-[10.5px] text-muted-foreground hover:text-foreground"
+                    className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-[10.5px] text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {`{{${tok}}}`}
                   </button>
                 ))}
               </div>
             </div>
-            {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+            {error && (
+              <p role="alert" className="text-sm text-[var(--danger)]">
+                {error}
+              </p>
+            )}
           </div>
           <DialogFooter className="mt-4">
             <Button type="button" variant="outline" size="sm" onClick={onClose}>
