@@ -1,0 +1,28 @@
+{
+  "jurisdiction": "es",
+  "format": "VERIFACTU",
+  "totals": {
+    "taxableBase": "1000.00",
+    "taxAmount": "210.00",
+    "withholdingAmount": "0.00",
+    "total": "1210.00"
+  },
+  "payload": {
+    "idFactura": "FAC-2026-0001",
+    "fechaExpedicion": "2026-01-15",
+    "emisor": "12345678Z",
+    "receptor": "B12345674",
+    "importeTotal": "1210.00",
+    "tipoHuella": "01",
+    "huella": "241f24ed6eb546b449db6f63f9ff919b192f3f616e994715856ceb4f4ebc4d38",
+    "encadenamiento": {
+      "huellaAnterior": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "qrUrl": "https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR?nif=12345678Z&numserie=FAC-2026-0001&fecha=15-01-2026&importe=1210.00"
+  },
+  "recordHash": "241f24ed6eb546b449db6f63f9ff919b192f3f616e994715856ceb4f4ebc4d38",
+  "submission": {
+    "status": "STUBBED",
+    "detail": "Envío a AEAT no implementado en MVP."
+  }
+}

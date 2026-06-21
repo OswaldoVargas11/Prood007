@@ -1,0 +1,54 @@
+name: Fiscal Conformance (golden-file)
+
+# Gatekeeper DETERMINISTA. No interviene ningún LLM aquí.
+# Regenera la huella fiscal actual con inputs FIJOS (número de factura, fecha de
+# emisión y semilla de encadenamiento `previousRecordHash` congelados) y la
+# compara contra los golden files committeados. Si algo en base / IVA / ITBIS /
+# retención IRPF / numeración / huella SHA-256 / encadenamiento / QR / e-CF
+# cambia, este check FALLA y bloquea el merge.
+#
+# Harness: packages/compliance/test/fiscal-conformance (jest.conformance.cjs).
+# Builders reales: @legalflow/compliance (Spain/Dominican provider, funciones puras).
+
+on:
+  # Corre en TODO PR (sin filtro de paths) a propósito: como es un REQUIRED CHECK
+  # de branch protection, un filtro de paths lo dejaría "pending" eterno en los PRs
+  # que no tocan fiscalidad y bloquearía su merge. El harness es determinista y
+  # rápido (~30s), así que correrlo siempre es barato y lo hace fiable como gate.
+  pull_request:
+  schedule:
+    - cron: '0 3 * * *' # 03:00 UTC, control nocturno (deriva por dependencias o datos)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read # este job NUNCA escribe en el repo
+
+concurrency:
+  group: fiscal-conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conformance:
+    name: Fiscal Conformance (golden-file)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      # Instala pnpm + Node 20 (caché del store) y compila @legalflow/domain +
+      # @legalflow/compliance, que es lo que el harness necesita.
+      - uses: ./.github/actions/setup
+
+      - name: Run golden-file conformance
+        run: pnpm --filter @legalflow/compliance test:fiscal-conformance
+
+      # Si falla, sube los pares golden/actual para que el triaje (otro workflow)
+      # o tú podáis ver exactamente qué campo fiscal derivó.
+      - name: Upload diff on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fiscal-conformance-diff
+          path: packages/compliance/test/fiscal-conformance/.diff/
+          if-no-files-found: ignore
+          retention-days: 14

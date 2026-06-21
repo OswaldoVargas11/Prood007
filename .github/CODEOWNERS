@@ -14,6 +14,10 @@
 /apps/api/src/prisma/               @OswaldoVargas11
 # Capa de cumplimiento fiscal (IVA/IRPF/ITBIS, Verifactu/e-CF, validación fiscal).
 /packages/compliance/               @OswaldoVargas11
+# Golden files de conformidad fiscal: la huella esperada SOLO se actualiza con tu
+# ratificación (UPDATE_GOLDENS en local + revisión a mano; ver runbook de loops).
+# Un agente NUNCA los regenera por su cuenta — frontera "nunca-autónomo".
+/packages/compliance/test/fiscal-conformance/golden/   @OswaldoVargas11
 # Gate de rol y cliente de API del web (sesión httpOnly).
 /apps/web/src/middleware.ts         @OswaldoVargas11
 /apps/web/src/lib/api.ts            @OswaldoVargas11

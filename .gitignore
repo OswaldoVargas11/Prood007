@@ -37,6 +37,10 @@ coverage/
 coverage-e2e/
 .nyc_output/
 
+# Diff efímero del harness de conformidad fiscal (se sube como artifact en CI,
+# nunca se committea). Los golden files SÍ se versionan; el .diff/ no.
+packages/compliance/test/fiscal-conformance/.diff/
+
 # Playwright
 test-results/
 playwright-report/

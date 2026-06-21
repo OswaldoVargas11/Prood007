@@ -1,0 +1,81 @@
+name: Fiscal Conformance Triage (Claude)
+
+# Se dispara SOLO cuando el gatekeeper determinista falla. El LLM nunca decide
+# si algo es conforme: solo explica QUÉ campo fiscal derivó y, si es una
+# regresión mecánica y fuera de paths prohibidos, PROPONE un fix en un PR que tú
+# debes aprobar. Nunca mergea. Nunca actualiza un golden por su cuenta.
+
+on:
+  workflow_run:
+    workflows: ['Fiscal Conformance (golden-file)']
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+concurrency:
+  group: fiscal-conformance-triage-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Download conformance diff
+        uses: actions/download-artifact@v7
+        with:
+          name: fiscal-conformance-diff
+          path: packages/compliance/test/fiscal-conformance/.diff
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          # Auth por SUSCRIPCIÓN (Pro/Max), no por API key de pago. Genera el token
+          # con `claude setup-token` y guárdalo como secret CLAUDE_CODE_OAUTH_TOKEN.
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            El harness de conformidad fiscal (golden-file) de LegalFlow/Lawzora ha
+            fallado. En packages/compliance/test/fiscal-conformance/.diff/ tienes
+            pares *.golden.json (esperado) y *.actual.json (generado por el código
+            actual). Los builders son los providers de @legalflow/compliance
+            (SpainComplianceProvider / DominicanComplianceProvider), funciones
+            puras: misma entrada ⇒ misma huella.
+
+            Tu tarea:
+            1) Identifica con precisión QUÉ campo fiscal cambió: base imponible,
+               cuota (IVA/ITBIS), retención (IRPF), numeración, huella SHA-256,
+               encadenamiento (huellaAnterior), QR de la AEAT o el XML e-CF.
+               Cita el caso afectado (es-factura-simple, rd-ecf-credito-fiscal, …).
+            2) Clasifica la deriva:
+               (A) regresión accidental, o
+               (B) cambio fiscal INTENCIONADO que requiere actualizar el golden
+                   + ratificación por ADR (ver DECISIONS.md, p. ej. D-026/D-027).
+            3) Si y SOLO si es (A), el fix es mecánico, y NO toca ningún path
+               prohibido: abre un PR con la corrección, etiqueta `fiscal-triage`,
+               y explica el cambio. En cualquier otro caso abre un issue
+               explicativo y NO modifiques código.
+
+            PROHIBIDO modificar bajo cualquier circunstancia:
+              - apps/api/prisma/migrations/** ni apps/api/prisma/schema.prisma
+              - cualquier policy/lógica RLS (apps/api/src/prisma/, *.policy.sql)
+              - los defaults fiscales de los ComplianceProvider
+                (packages/compliance/src/providers/**, tax-math.ts)
+              - los golden files (packages/compliance/test/fiscal-conformance/golden/**)
+              - secretos o credenciales
+            Si la causa raíz vive ahí, descríbela y escala con un issue. No
+            mergees nada. No actualices ningún golden por tu cuenta.
+          claude_args: |
+            --max-turns 12
+            --model claude-sonnet-4-6
