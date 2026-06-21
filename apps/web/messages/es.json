@@ -582,6 +582,12 @@
     "colBalance": "Saldo",
     "hint": "El detalle y la emisión de facturas se gestionan dentro de cada expediente (pestaña Costes)."
   },
+  "savedViews": {
+    "saveCurrent": "Guardar vista",
+    "save": "Guardar",
+    "namePlaceholder": "Nombre de la vista…",
+    "delete": "Eliminar vista"
+  },
   "invoicesOverview": {
     "title": "Facturas",
     "subtitle": "Todas las facturas emitidas por el despacho.",

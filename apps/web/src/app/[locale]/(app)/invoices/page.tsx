@@ -9,6 +9,7 @@ import { formatDate, formatMoney } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DunningRunButton } from '@/components/lexora/dunning';
+import { SavedViews } from '@/components/lexora/saved-views';
 import { cn } from '@/lib/utils';
 import type { InvoiceStatus } from '@/lib/types';
 
@@ -64,6 +65,12 @@ export default function InvoicesOverviewPage() {
           </button>
         ))}
       </div>
+
+      <SavedViews
+        scope="invoices"
+        current={{ filter }}
+        onApply={(f) => setFilter((f.filter as FilterKey) ?? 'all')}
+      />
 
       {query.isLoading && <Skeleton className="h-64 w-full rounded-xl" />}
       {query.isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
