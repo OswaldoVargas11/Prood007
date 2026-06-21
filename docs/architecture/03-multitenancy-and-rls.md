@@ -52,7 +52,7 @@ flowchart TB
 > Sutileza documentada en la migración: `app.tenant_id` es un GUC "placeholder" (con punto), válido
 > sin declararlo en `postgresql.conf`.
 
-## Estado RLS por modelo (16 con política / 4 sin)
+## Estado RLS por modelo (30 con política / 5 sin)
 
 | Modelo             | RLS | Motivo                                                                            |
 | ------------------ | --- | --------------------------------------------------------------------------------- |
@@ -72,19 +72,37 @@ flowchart TB
 | Notification       | ✅  | tenant-scoped                                                                     |
 | Message            | ✅  | tenant-scoped                                                                     |
 | AuditLog           | ✅  | tenant-scoped (append-only)                                                       |
+| KycProfile         | ✅  | tenant-scoped (perfil AML)                                                        |
+| DocumentTemplate   | ✅  | tenant-scoped                                                                     |
+| SignatureRequest   | ✅  | tenant-scoped                                                                     |
+| Lead               | ✅  | tenant-scoped (captación)                                                         |
+| Payment            | ✅  | tenant-scoped (cobros)                                                            |
+| DunningRule        | ✅  | tenant-scoped (reglas de impago)                                                  |
+| DunningReminder    | ✅  | tenant-scoped (recordatorios)                                                     |
+| RetainerAccount    | ✅  | tenant-scoped (provisión)                                                         |
+| RetainerEntry      | ✅  | tenant-scoped (movimientos)                                                       |
+| BillingSchedule    | ✅  | tenant-scoped (planes)                                                            |
+| BillingInstallment | ✅  | tenant-scoped (cuotas)                                                            |
+| OAuthConnection    | ✅  | tenant-scoped (tokens cifrados Google/MS)                                         |
+| MatterEmail        | ✅  | tenant-scoped (correspondencia)                                                   |
+| AiEmbedding        | ✅  | tenant-scoped (índice RAG)                                                        |
 | **Permission**     | ❌  | **Catálogo RBAC global** (definiciones compartidas entre tenants)                 |
 | **RolePermission** | ❌  | Join Role↔Permission del catálogo RBAC                                            |
 | **UserRole**       | ❌  | Join User↔Role; el `Role` ya está RLS-scoped, no expone datos de negocio          |
 | **RefreshToken**   | ❌  | Almacén de tokens; solo lo toca el rol **de sistema** (BYPASSRLS) en auth         |
+| **PasswordReset**  | ❌  | Token de reset; solo lo toca el rol **de sistema** (BYPASSRLS) en auth            |
 
 - Las **14** primeras se activan en `20260614120000_enable_rls` (bucle `FOREACH` sobre un `text[]` de
   tablas: `ENABLE` + `FORCE ROW LEVEL SECURITY`). `Tenant` e `InvoiceLine` se añaden en
   `20260615120000_rls_fail_closed` → **16** en este bloque.
 - Las **migraciones de cada feature posterior** añaden sus propias tablas tenant-scoped con la MISMA
   política `tenant_isolation` (`USING`/`WITH CHECK` por `app_current_tenant()`) y su e2e-RLS: `Payment`
-  (payments), `DunningRule`/`DunningReminder` (dunning), `RetainerAccount`/`RetainerEntry` (retainer) y
-  **`BillingSchedule`/`BillingInstallment`** (facturación programada, `20260616155957_billing_schedules`;
-  e2e `billing-rls`).
+  (payments), `DunningRule`/`DunningReminder` (dunning), `RetainerAccount`/`RetainerEntry` (retainer),
+  `BillingSchedule`/`BillingInstallment` (facturación programada), `KycProfile` (AML), `DocumentTemplate`
+  y `SignatureRequest` (documentos/firmas), `Lead` (captación), `OAuthConnection`/`MatterEmail`
+  (integraciones) y `AiEmbedding` (RAG) → **30** tablas con política en total.
+- `InvoiceLine` no lleva `tenantId` propio: su política se ancla al `tenantId` de la `Invoice` padre por
+  subconsulta `EXISTS`.
 - `FORCE ROW LEVEL SECURITY` hace que RLS aplique **incluso al propietario** de la tabla, cerrando la
   vía de escape por ownership.
 

@@ -1,38 +1,45 @@
 # 10 · Inventario de tecnología
 
-> Derivado de los 6 `package.json` del monorepo: **96 paquetes únicos**. Aquí los relevantes por rol.
+> Derivado de los 6 `package.json` del monorepo: **103 paquetes únicos**. Aquí los relevantes por rol.
 > Monorepo **pnpm workspaces** (raíz + `apps/*` + `packages/*`).
 
 ## Estructura del monorepo
 
-| Workspace                 | Rol                                                                      | deps / dev |
-| ------------------------- | ------------------------------------------------------------------------ | ---------- |
-| **`apps/api`**            | API NestJS (REST + WebSocket)                                            | 25 / 22    |
-| **`apps/web`**            | Frontend Next.js                                                         | 26 / 18    |
-| **`packages/compliance`** | Proveedores fiscales (Verifactu/e-CF) + cálculo                          | 1 / 6      |
-| **`packages/domain`**     | Tipos y **contratos** compartidos (incl. `AiAssistantProvider` diferido) | 0 / 3      |
-| **`packages/config`**     | Config compartida de ESLint/TS                                           | 5 / 0      |
-| **raíz**                  | Tooling de repo                                                          | 0 / 7      |
+| Workspace                 | Rol                                                             | deps / dev |
+| ------------------------- | --------------------------------------------------------------- | ---------- |
+| **`apps/api`**            | API NestJS (REST + WebSocket + cron)                            | 29 / 23    |
+| **`apps/web`**            | Frontend Next.js                                                | 28 / 18    |
+| **`packages/compliance`** | Proveedores fiscales (Verifactu/e-CF) + cálculo                 | 1 / 6      |
+| **`packages/domain`**     | Tipos y **contratos** compartidos (incl. `AiAssistantProvider`) | 0 / 3      |
+| **`packages/config`**     | Config compartida de ESLint/TS                                  | 5 / 0      |
+| **raíz**                  | Tooling de repo                                                 | 0 / 7      |
 
 ## Backend (`apps/api`)
 
-| Paquete                                               | Rol                                          |
-| ----------------------------------------------------- | -------------------------------------------- |
-| `@nestjs/common·core·platform-express`                | Framework HTTP (NestJS 10)                   |
-| `@nestjs/websockets·platform-socket.io` + `socket.io` | Gateway de tiempo real                       |
-| `@nestjs/jwt·passport` + `passport-jwt·passport`      | Emisión/validación de JWT, estrategia auth   |
-| `@nestjs/config`                                      | Carga de configuración / env                 |
-| `@nestjs/throttler`                                   | Rate limiting (guard global)                 |
-| `@nestjs/mapped-types`                                | DTOs derivados                               |
-| `@prisma/client`                                      | ORM (cliente; rol app NOBYPASSRLS)           |
-| `argon2`                                              | Hash de contraseñas                          |
-| `class-validator·class-transformer`                   | Validación y transformación de DTOs          |
-| `helmet`                                              | Cabeceras de seguridad HTTP                  |
-| `minio`                                               | Cliente S3 para el almacén de objetos        |
-| `pdfkit`                                              | Generación de PDF (factura)                  |
-| `qrcode`                                              | QR del registro fiscal (Verifactu) en el PDF |
-| `reflect-metadata·rxjs`                               | Runtime de NestJS                            |
-| `@legalflow/compliance·@legalflow/domain`             | Paquetes internos                            |
+| Paquete                                               | Rol                                           |
+| ----------------------------------------------------- | --------------------------------------------- |
+| `@nestjs/common·core·platform-express`                | Framework HTTP (NestJS 10)                    |
+| `@nestjs/websockets·platform-socket.io` + `socket.io` | Gateway de tiempo real                        |
+| `@nestjs/jwt·passport` + `passport-jwt·passport`      | Emisión/validación de JWT, estrategia auth    |
+| `@nestjs/config`                                      | Carga de configuración / env                  |
+| `@nestjs/throttler`                                   | Rate limiting (guard global)                  |
+| `@nestjs/schedule`                                    | Cron interno (dunning · billing 06:00)        |
+| `@nestjs/mapped-types`                                | DTOs derivados                                |
+| `@prisma/client`                                      | ORM (cliente; rol app NOBYPASSRLS)            |
+| `@anthropic-ai/sdk`                                   | IA (Claude): asistente, resúmenes, correos    |
+| `stripe`                                              | Pagos (Connect) + suscripción SaaS + webhooks |
+| `nodemailer`                                          | Envío de email (SMTP Brevo)                   |
+| `argon2`                                              | Hash de contraseñas                           |
+| `class-validator·class-transformer`                   | Validación y transformación de DTOs           |
+| `helmet`                                              | Cabeceras de seguridad HTTP                   |
+| `minio`                                               | Cliente S3 para el almacén de objetos         |
+| `pdfkit`                                              | Generación de PDF (factura)                   |
+| `qrcode`                                              | QR del registro fiscal (Verifactu) en el PDF  |
+| `reflect-metadata·rxjs`                               | Runtime de NestJS                             |
+| `@legalflow/compliance·@legalflow/domain`             | Paquetes internos                             |
+
+> Google/Microsoft (Calendar, Gmail/Graph) y Voyage (embeddings RAG) se consumen por **fetch directo**
+> a sus APIs REST, sin SDK dedicado.
 
 ## Frontend (`apps/web`)
 
@@ -48,7 +55,7 @@
 | `framer-motion`                                                                 | Animaciones                                  |
 | `geist`                                                                         | Tipografía                                   |
 | `next-themes`                                                                   | Modo claro/oscuro                            |
-| `next-intl`                                                                     | i18n (`es-ES`/`es-DO`)                       |
+| `next-intl`                                                                     | i18n (`es` + overrides por jurisdicción)     |
 | `react-hook-form·@hookform/resolvers·zod`                                       | Formularios + validación                     |
 | `socket.io-client`                                                              | Tiempo real                                  |
 | `qrcode.react`                                                                  | QR Verifactu escaneable en detalle/portal    |
@@ -56,8 +63,8 @@
 ## Paquetes internos
 
 - **`@legalflow/domain`** — tipos y **contratos** de dominio neutrales. Incluye el contrato
-  `AiAssistantProvider` (**solo interfaz**, sin implementar; D-011) con `sources`/`citations`/señales de
-  confianza alineadas con la futura trazabilidad del AI Act.
+  `AiAssistantProvider` (D-011) con `sources`/`citations`/señales de confianza alineadas con la
+  trazabilidad del AI Act; **implementado** en `apps/api/src/ai/` con Anthropic (gateado por API key).
 - **`@legalflow/compliance`** — interfaz `ComplianceProvider` + `SpainComplianceProvider` y
   `DominicanComplianceProvider` + `ComplianceProviderFactory`. Tests con gate de cobertura ≥90%
   ([09](09-infrastructure-cicd.md)). Ver [05](05-compliance-providers.md).
@@ -81,4 +88,4 @@
 | pnpm workspaces       | —                            | Monorepo con paquetes internos `@legalflow/*`                                                                                  |
 
 > La fijación exacta de cada versión debe leerse en cada `package.json`; arriba se listan las
-> notables. El recuento total (96 únicos) incluye devDependencies.
+> notables. El recuento total (103 únicos) incluye devDependencies.

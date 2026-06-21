@@ -1,9 +1,9 @@
 # 09 · Infraestructura y CI/CD
 
 > Pipeline de integración continua con **gates** que codifican las invariantes del sistema (aislamiento
-> RLS, cobertura fiscal, gating de rol, seguridad). La **entrega continua (CD)** está **cableada pero
-> desconectada** hasta elegir hosting (D-018). Derivado de `.github/workflows/ci.yml`, `CODEOWNERS`,
-> `RUNBOOK.md`.
+> RLS, cobertura fiscal, gating de rol, seguridad). El despliegue está **activo en Fly.io** (región
+> `fra`) con Neon Postgres, Cloudflare R2 y Brevo. Derivado de `.github/workflows/ci.yml`, `CODEOWNERS`,
+> `fly.api.toml`, `fly.web.toml`, `RUNBOOK.md`.
 
 ## Infraestructura local (docker-compose)
 
@@ -69,23 +69,30 @@ Son exactamente las piezas de **auth, RLS, compliance y sesión** — cambiarlas
 eso el fix del bootstrap de refresh se sacó a PR aparte aunque `auth.tsx` no esté literalmente listado:
 es lógica de sesión.)
 
-## Entrega continua (CD) y topología objetivo
+## Despliegue (producción en Fly.io)
 
 ```mermaid
 flowchart LR
-    subgraph edge["Borde"]
-        lb["Reverse proxy / LB<br/>TLS 1.2+ · HSTS · 80→443"]
-    end
-    lb --> webp["web (Next.js)"]
-    lb --> apip["api (NestJS)"]
-    apip --> pgp[("Postgres gestionado<br/>sslmode=require · disco cifrado")]
-    apip --> objp[("Almacén objetos<br/>blobs cifrados AES-256-GCM")]
-    apip --> kms["KMS / Secrets Manager<br/>SYSTEM_DATABASE_URL · DATA_ENCRYPTION_KEY · JWT_*"]
+    user(["Usuario"]) --> edge["Fly edge · TLS · HSTS"]
+    edge --> webp["lawzora-web (Next.js)<br/>fra · 1GB · auto-stop"]
+    edge --> apip["lawzora-api (NestJS)<br/>fra · 512MB · ≥1 fija (cron)"]
+    webp -->|BFF| apip
+    apip --> pgp[("Neon Postgres · fra<br/>sslmode=require · 3 roles · RLS")]
+    apip --> objp[("Cloudflare R2 · S3<br/>blobs AES-256-GCM")]
+    apip --> mail["Brevo · SMTP"]
+    apip --> sec["Secrets de Fly<br/>SYSTEM_DATABASE_URL · DATA_ENCRYPTION_KEY · JWT_* · STRIPE_* · ..."]
 ```
 
-- **CD: cableado pero desconectado** (D-018) hasta elegir hosting. El `RUNBOOK.md` recoge la
-  configuración de seguridad de despliegue (TLS, roles de BD provisionados fuera de banda, secretos en
-  KMS, cifrado de disco y backups) pero **no activa nada por sí solo**.
+- **API (`lawzora-api`, `fly.api.toml`):** región `fra`, `shared-cpu-1x`/512MB, **mínimo 1 instancia
+  fija** (no auto-stop) porque ejecuta el **cron interno** (dunning/billing). `release_command` corre
+  `prisma migrate deploy`; healthcheck `GET /api/health`.
+- **Web (`lawzora-web`, `fly.web.toml`):** región `fra`, 1GB, auto-stop. `NEXT_PUBLIC_API_URL` se hornea
+  en build → **deploy manual** (`flyctl deploy -c fly.web.toml --remote-only`) cuando cambia el front.
+- **Datos:** Neon Postgres (Frankfurt) con los 3 roles (`direct`/`app`/`system`); Cloudflare R2 como
+  almacén de objetos S3-compatible. Dominios `lawzora.com` / `www` / `api` con certificados emitidos.
+- **Secretos:** gestionados como Fly secrets (equivalente al gestor del [RUNBOOK §4](../../RUNBOOK.md)):
+  joyas de la corona + claves de terceros (Stripe, OAuth, Signaturit, Brevo, IA). Ver
+  [04-encryption-and-secrets.md](04-encryption-and-secrets.md).
 - Checklist previo a producción en [RUNBOOK §4](../../RUNBOOK.md): roles de BD con contraseñas fuertes,
   secretos en gestor, TLS+HSTS, `sslmode=require`, cifrado de disco y backups, migraciones con rol
   propietario, smoke (login→dashboard, round-trip de documento cifrado, aislamiento de tenant).

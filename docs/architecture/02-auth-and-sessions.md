@@ -92,10 +92,25 @@ flowchart TB
 
 ## Roles del sistema (RBAC)
 
-`Role.FIRM_ADMIN`, `Role.LAWYER`, `Role.CLIENT`. Distribución observada en los controladores
-(ver [07-api-reference.md](07-api-reference.md)): **10** endpoints exigen `FIRM_ADMIN`, **6**
-`FIRM_ADMIN|LAWYER` a nivel de método (además del gating de clase), **1** `CLIENT` (todo el `/portal`),
-y **5** son `@Public` (`/health` y los 4 de `/auth` excepto `me`).
+`Role.FIRM_ADMIN`, `Role.LAWYER`, `Role.CLIENT`, más un **super-admin de plataforma** fuera del modelo
+de tenant (JWT con claim `platform`, vía `PlatformGuard`; login en `/api/platform/auth/login`).
+Distribución de los **185** endpoints (ver [07-api-reference.md](07-api-reference.md)): la mayoría exige
+`FIRM_ADMIN|LAWYER` (gating de clase); un subconjunto sensible eleva a `FIRM_ADMIN` (RGPD, aprobaciones,
+asignación de letrado, suscripción, ajustes, reports, audit, users, import); todo `/portal` es `CLIENT`;
+`messages`/`notifications` son `auth` (cualquier rol, acotado por servicio + RLS); y son `@Public` los
+webhooks (Stripe, Signaturit — con firma HMAC), los callbacks OAuth, `/health`, el intake público, el
+feed iCal y casi todo `/auth` (login, refresh, logout, register, social, reset, verify).
+
+## Funciones de autenticación adicionales
+
+- **MFA (TOTP):** `mfa/setup` → `mfa/enable`/`mfa/disable`; el login con MFA activo usa `mfa/login` como
+  segundo paso. Antirreplay por `lastTotpCounter`; códigos de respaldo en `mfaBackupCodes`.
+- **Login social (OAuth):** `social/:provider` → callback → `social/exchange` canjea un ticket por sesión.
+- **Recuperación de contraseña:** `forgot-password` (respuesta genérica, no revela cuentas) →
+  `reset-password`; el reset por admin (`admin/reset-password/:userId`) fuerza `mustChangePassword`.
+  Cualquier reset/cambio **revoca todas las sesiones** del usuario.
+- **Trial expirado:** los controladores `auth` y `subscription` llevan `@AllowExpired()` para permitir
+  reactivar la suscripción sin sesión bloqueada.
 
 > **Nota de seguridad (D-019):** en producción la cookie de sesión añade `Secure` (solo HTTPS) y ya es
 > `SameSite=Lax` + `httpOnly`. Ver [04-encryption-and-secrets.md](04-encryption-and-secrets.md) y
