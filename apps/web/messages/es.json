@@ -122,16 +122,25 @@
     },
     "pricing": {
       "title": "Una tarifa, todo dentro",
-      "subtitle": "Por usuario activo. Sin niveles de funciones, sin sorpresas.",
+      "subtitle": "Por usuario activo, con descuento por volumen. Sin niveles de funciones, sin sorpresas.",
       "tag": "Plan único · todo incluido",
-      "amount": "29 €",
+      "amount": "39 €",
       "per": "/ usuario / mes",
+      "amountNote": "para 1–5 usuarios · menos por volumen",
+      "tiersLabel": "Precio por usuario según el tamaño del despacho",
+      "tiers": [
+        { "range": "1–5 usuarios", "price": "39 €" },
+        { "range": "6–15 usuarios", "price": "35 €" },
+        { "range": "16+ usuarios", "price": "29 €" }
+      ],
       "features": [
         "Verifactu + e-CF nativos",
         "Cobro online + provisión de fondos",
         "Plazos procesales + portal del cliente",
         "Asistente IA con citas y confianza"
       ],
+      "annualNote": "2 meses gratis al pagar al año",
+      "trialNote": "15 días de prueba · sin tarjeta",
       "cta": "Empieza gratis"
     },
     "finalCta": {

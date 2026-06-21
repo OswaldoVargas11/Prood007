@@ -73,6 +73,7 @@ export function Landing() {
   const bullets = t.raw('product.showcase.bullets') as string[];
   const security = t.raw('security.items') as { title: string; body: string }[];
   const features = t.raw('pricing.features') as string[];
+  const priceTiers = t.raw('pricing.tiers') as { range: string; price: string }[];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -459,6 +460,25 @@ export function Landing() {
                 </span>
                 <span className="mb-1.5 text-[14px] text-muted-foreground">{t('pricing.per')}</span>
               </div>
+              <p className="mt-1.5 text-[12.5px] text-muted-foreground">
+                {t('pricing.amountNote')}
+              </p>
+
+              {/* Tramos por volumen (espejo de la tabla in-app: SEAT_TIERS) */}
+              <div className="mt-4 rounded-lg border bg-[var(--surface-1)]">
+                <div className="border-b px-3.5 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('pricing.tiersLabel')}
+                </div>
+                <div className="divide-y text-[13px]">
+                  {priceTiers.map((tier) => (
+                    <div key={tier.range} className="flex items-center justify-between px-3.5 py-2">
+                      <span className="text-muted-foreground">{tier.range}</span>
+                      <span className="font-medium tabular-nums">{tier.price}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <ul className="mt-[18px] flex flex-col gap-2.5 text-[14px]">
                 {features.map((f) => (
                   <li key={f} className="flex items-center gap-2.5">
@@ -466,6 +486,17 @@ export function Landing() {
                   </li>
                 ))}
               </ul>
+
+              <div className="mt-4 flex flex-col gap-1.5 text-[12.5px] text-muted-foreground">
+                <span className="flex items-center gap-2">
+                  <PiggyBank className="size-3.5 text-[var(--brand)]" /> {t('pricing.annualNote')}
+                </span>
+                <span className="flex items-center gap-2">
+                  <CalendarClock className="size-3.5 text-[var(--brand)]" />{' '}
+                  {t('pricing.trialNote')}
+                </span>
+              </div>
+
               <Button asChild size="lg" className="mt-5 w-full">
                 <Link href="/login">
                   {t('pricing.cta')} <ArrowRight />
