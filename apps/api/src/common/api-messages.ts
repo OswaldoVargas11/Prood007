@@ -223,6 +223,14 @@ export const API_MESSAGES = {
     'es-ES': 'Solo abogados o administradores pueden revisar documentos.',
     'es-DO': 'Solo abogados o administradores pueden revisar documentos.',
   },
+  'documents.cloudImportFailed': {
+    'es-ES': 'No se pudo importar el archivo desde la nube. Inténtalo de nuevo.',
+    'es-DO': 'No se pudo importar el archivo desde la nube. Inténtalo de nuevo.',
+  },
+  'documents.cloudTooLarge': {
+    'es-ES': 'El archivo supera el límite de 25 MB.',
+    'es-DO': 'El archivo supera el límite de 25 MB.',
+  },
 
   // ── Suscripción (SaaS de plataforma) ──────────────────────────────────────
   'subscription.required': {

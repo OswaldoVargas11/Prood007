@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { GoogleService } from './google.service';
 import { MicrosoftService } from './microsoft.service';
 import { MailService } from './mail.service';
+import { CloudFilesService } from './cloud-files.service';
 import { IntegrationsController } from './integrations.controller';
 import { GoogleCallbackController } from './google-callback.controller';
 import { MicrosoftController } from './microsoft.controller';
@@ -18,6 +19,8 @@ import { AuthModule } from '../auth/auth.module';
     MicrosoftCallbackController,
     MailController,
   ],
-  providers: [GoogleService, MicrosoftService, MailService],
+  providers: [GoogleService, MicrosoftService, MailService, CloudFilesService],
+  // CloudFilesService lo usa DocumentsModule para importar ficheros de la nube al expediente.
+  exports: [CloudFilesService],
 })
 export class IntegrationsModule {}

@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { CloudFilesService, type CloudFileRef } from '../integrations/cloud-files.service';
 import { apiError } from '../common/api-messages';
 import { renderTemplate, type TemplateContext } from '../templates/render';
 import { buildDocumentPdf } from './document-pdf';
@@ -23,6 +24,9 @@ interface UploadedFile {
   size: number;
   buffer: Buffer;
 }
+
+/** Límite de tamaño (mismo que el upload por Multer): 25 MB. */
+const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
 
 /** Convierte un nombre en un slug seguro para el nombre de archivo. */
 function slugify(value: string): string {
@@ -43,6 +47,7 @@ export class DocumentsService {
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly cloudFiles: CloudFilesService,
   ) {}
 
   private async assertMatterInTenant(user: RequestUser, matterId: string): Promise<void> {
@@ -91,6 +96,43 @@ export class DocumentsService {
     });
     const version = await this.persistVersion(user, document.id, 1, file);
     await this.audit.log(user, 'document.uploaded', 'Document', document.id, { version: 1 });
+    return { document, version };
+  }
+
+  /**
+   * Importa un fichero desde un almacenamiento en la nube (Google Drive / OneDrive / SharePoint) al
+   * expediente. El usuario elige el fichero en el selector del proveedor; el SERVIDOR descarga los bytes
+   * (cadena de custodia) y los guarda como un Document + versión 1 pasando por el MISMO pipeline cifrado
+   * que una subida normal (cifrado, hash SHA-256, versionado, revisión, auditoría).
+   */
+  async importFromCloud(
+    user: RequestUser,
+    input: {
+      matterId: string;
+      provider: string;
+      name?: string;
+    } & CloudFileRef,
+  ) {
+    await this.assertMatterInTenant(user, input.matterId);
+    const { provider, matterId, name, ...ref } = input;
+    const fetched = await this.cloudFiles.fetch(user, provider, ref);
+    if (fetched.sizeBytes > MAX_IMPORT_BYTES) {
+      throw new BadRequestException(apiError('documents.cloudTooLarge'));
+    }
+    const file: UploadedFile = {
+      originalname: fetched.filename,
+      mimetype: fetched.mimeType,
+      size: fetched.sizeBytes,
+      buffer: fetched.buffer,
+    };
+    const document = await this.prisma.document.create({
+      data: { tenantId: user.tenantId, matterId, name: name?.trim() || fetched.filename },
+    });
+    const version = await this.persistVersion(user, document.id, 1, file);
+    await this.audit.log(user, 'document.imported_from_cloud', 'Document', document.id, {
+      version: 1,
+      provider,
+    });
     return { document, version };
   }
 

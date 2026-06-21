@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Download, FileText, LayoutTemplate, Loader2, Plus, Upload } from 'lucide-react';
+import { Cloud, Download, FileText, LayoutTemplate, Loader2, Plus, Upload } from 'lucide-react';
 import {
   downloadVersion,
   useAddDocumentVersion,
@@ -15,6 +15,7 @@ import {
 import { docStatusVariant, formatBytes, REVIEW_ACTIONS } from '@/lib/doc-status';
 import { formatDateTime } from '@/lib/format';
 import { SignaturePanel } from '@/components/lexora/signature-panel';
+import { CloudImportDialog } from '@/components/lexora/cloud-import-dialog';
 import type { DocumentReviewStatus, DocumentVersion, MatterDocument } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -46,6 +47,7 @@ export function DocumentsTab({ matterId }: { matterId: string }) {
   const [versionFor, setVersionFor] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<DocumentVersion | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [importingCloud, setImportingCloud] = useState(false);
 
   function onNewFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -67,6 +69,10 @@ export function DocumentsTab({ matterId }: { matterId: string }) {
           <Button size="sm" variant="outline" onClick={() => setGenerating(true)}>
             <LayoutTemplate />
             {t('fromTemplate')}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setImportingCloud(true)}>
+            <Cloud />
+            {t('cloud.button')}
           </Button>
           <Button size="sm" onClick={() => newFileRef.current?.click()} disabled={upload.isPending}>
             {upload.isPending ? <Loader2 className="animate-spin" /> : <Upload />}
@@ -162,6 +168,11 @@ export function DocumentsTab({ matterId }: { matterId: string }) {
 
       <ReviewDialog matterId={matterId} version={reviewing} onClose={() => setReviewing(null)} />
       <GenerateDialog matterId={matterId} open={generating} onClose={() => setGenerating(false)} />
+      <CloudImportDialog
+        matterId={matterId}
+        open={importingCloud}
+        onClose={() => setImportingCloud(false)}
+      />
     </div>
   );
 }

@@ -248,6 +248,91 @@ export function useReviewVersion(matterId: string) {
   });
 }
 
+// ── Importar documentos desde la nube (Google Drive / OneDrive / SharePoint) ──
+
+export type GoogleDriveConfig = {
+  configured: boolean;
+  connected: boolean;
+  clientId: string | null;
+  apiKey: string | null;
+  appId: string | null;
+  scope: string;
+};
+export type MicrosoftFilesStatus = { configured: boolean; connected: boolean };
+export type CloudEntry = {
+  id: string;
+  name: string;
+  isFolder: boolean;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  driveId: string | null;
+};
+export type SharePointSite = {
+  id: string;
+  name: string;
+  webUrl: string;
+  driveId: string | null;
+};
+
+/** Referencia al fichero elegido en la nube + proveedor (lo que espera POST /documents/import/cloud). */
+export type CloudImportInput = {
+  provider: 'google' | 'microsoft';
+  fileId?: string;
+  driveId?: string;
+  itemId?: string;
+  name?: string;
+};
+
+export function useGoogleDriveConfig() {
+  return useQuery({
+    queryKey: ['google-drive-config'],
+    queryFn: () => api.get<GoogleDriveConfig>('/integrations/google/drive/config'),
+  });
+}
+
+export function useMicrosoftFilesStatus() {
+  return useQuery({
+    queryKey: ['microsoft-files-status'],
+    queryFn: () => api.get<MicrosoftFilesStatus>('/integrations/microsoft/files/status'),
+  });
+}
+
+/** Lista una carpeta de OneDrive (sin driveId = raíz) o de una unidad de SharePoint. */
+export function useMicrosoftFiles(
+  loc: { driveId?: string; itemId?: string } | null,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ['microsoft-files', loc?.driveId ?? null, loc?.itemId ?? null],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (loc?.driveId) params.set('driveId', loc.driveId);
+      if (loc?.itemId) params.set('itemId', loc.itemId);
+      const qs = params.toString();
+      return api.get<CloudEntry[]>(`/integrations/microsoft/files${qs ? `?${qs}` : ''}`);
+    },
+    enabled,
+  });
+}
+
+export function useSharePointSites(query: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['sharepoint-sites', query],
+    queryFn: () =>
+      api.get<SharePointSite[]>(`/integrations/microsoft/sites?q=${encodeURIComponent(query)}`),
+    enabled,
+  });
+}
+
+export function useImportCloudDocument(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CloudImportInput) =>
+      api.post<MatterDocument>('/documents/import/cloud', { matterId, ...input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', matterId] }),
+  });
+}
+
 // ── Firma electrónica (Signaturit, Fase 5) ────────────────────────────────────
 
 export function useDocumentSignatures(documentId: string | null) {
