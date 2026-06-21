@@ -20,10 +20,10 @@ export function AiDocumentSummary({ documentId }: { documentId: string }) {
   const summarize = useSummarizeDocument();
   const [result, setResult] = useState<AiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  if (!status?.enabled) return null;
+  const enabled = Boolean(status?.enabled);
 
   async function run() {
+    if (!enabled) return;
     setError(null);
     setResult(null);
     try {
@@ -41,11 +41,17 @@ export function AiDocumentSummary({ documentId }: { documentId: string }) {
             <Sparkles className="size-4 text-[var(--brand)]" />
             {t('title')}
           </span>
-          <Button size="sm" variant="outline" onClick={run} disabled={summarize.isPending}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={run}
+            disabled={!enabled || summarize.isPending}
+          >
             {summarize.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {t('summarizeDoc')}
           </Button>
         </div>
+        {!enabled && <p className="text-[12px] text-muted-foreground">{t('disabledShort')}</p>}
         {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
         {result && (
           <div className="space-y-2 rounded-lg border bg-[var(--surface-1)] p-3">
