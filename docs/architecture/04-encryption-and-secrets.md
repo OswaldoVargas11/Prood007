@@ -43,6 +43,8 @@ flowchart LR
 - **PII estructurada** (nombres, identificadores fiscales, etc.) **no** se cifra a columna: queda
   cubierta por el **cifrado de disco/volumen** (TDE del gestor). El cifrado de columna consultable
   (blind index/determinista) está **diferido** (D-021).
+- **Tokens OAuth** (`OAuthConnection.accessToken`/`refreshToken` de Google/Microsoft) **sí** se cifran a
+  nivel de aplicación con la misma `DATA_ENCRYPTION_KEY` antes de persistirse en Postgres.
 
 ## Las joyas de la corona
 
@@ -68,13 +70,19 @@ flowchart TB
 | Secreto               | Qué desbloquea                                    | Dónde se usa                                               | Riesgo si se filtra                                     |
 | --------------------- | ------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------- |
 | `SYSTEM_DATABASE_URL` | Rol **BYPASSRLS**: salta el aislamiento de tenant | `SystemPrismaService` (solo login/registro/carga de token) | Lectura cross-tenant total                              |
-| `DATA_ENCRYPTION_KEY` | Descifra **todos** los documentos                 | `EncryptedStorageProvider` / `storage-crypto.ts`           | Todos los documentos legibles; **perderla = perderlos** |
+| `DATA_ENCRYPTION_KEY` | Descifra **todos** los documentos y tokens OAuth  | `EncryptedStorageProvider` / `storage-crypto.ts`           | Todos los documentos legibles; **perderla = perderlos** |
 | `JWT_ACCESS_SECRET`   | Firma de access tokens                            | `JwtAuthGuard` / emisión                                   | Falsificación de sesiones cortas                        |
 | `JWT_REFRESH_SECRET`  | Firma de refresh tokens                           | `tokens.service` (rotación)                                | Falsificación de sesiones largas                        |
 
 **Custodia (RUNBOOK §1–2):** todos en **gestor de secretos** (AWS Secrets Manager / Vault), **nunca**
 en el repositorio, **nunca** logueados. `legalflow_system` y los roles de BD se provisionan **fuera de
 banda** en producción; la migración solo (re)aplica GRANTs.
+
+**Secretos de terceros (segundo nivel):** además de las joyas, el sistema usa claves de proveedores
+externos que viven en el mismo gestor de secretos: `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET` (pagos
+y suscripción), credenciales OAuth `GOOGLE_*`/`MS_*`, `SIGNATURIT_*`, SMTP `BREVO_*`, y las opcionales de
+IA `ANTHROPIC_API_KEY` / `VOYAGE_API_KEY`. Su filtración compromete la integración afectada, no el
+aislamiento global, pero se custodian igual.
 
 > **Gap conocido (D-021):** hoy se usa **una sola** `DATA_ENCRYPTION_KEY` y **no hay re-cifrado**;
 > rotarla dejaría **huérfanos** los blobs antiguos (el byte de versión del formato `LFENC1` está

@@ -1,249 +1,510 @@
 # 07 · Referencia de la API (mapa de responsabilidades)
 
-> **Los 77 endpoints**, ninguno fuera. Prefijo global `api`. Cadena de guards global:
-> `ThrottlerGuard → JwtAuthGuard (@Public exime) → RolesGuard`. El **rol efectivo** combina el
-> `@Roles` de clase con el de método (el más restrictivo gana). RLS aísla por tenant aunque el rol
-> pase. Derivado de `apps/api/src/**/*.controller.ts`.
+> **Los 185 endpoints**, ninguno fuera. Prefijo global `api`. Cadena de guards global:
+> `ThrottlerGuard → JwtAuthGuard (@Public exime) → RolesGuard`. El **rol efectivo** combina el `@Roles`
+> de clase con el de método (el más restrictivo gana). RLS aísla por tenant aunque el rol pase.
+> Derivado de `apps/api/src/**/*.controller.ts` (40 controladores).
+>
+> Convenciones de la columna **Rol**: `público` = `@Public`; `auth` = autenticado sin `@Roles`
+> (cualquier rol; el servicio + RLS acotan); `PLATFORM` = JWT de super-admin (claim `platform`, vía
+> `PlatformGuard`). Webhooks son `público` pero verifican **firma HMAC** del proveedor.
 
 ## Módulo → dominio
 
 ```mermaid
 flowchart LR
-    subgraph auth_d["Identidad"]
-        a1["auth · 5"]
+    subgraph ident["🔐 Identidad y acceso"]
+        a1["auth · 20"]
         u1["users · 4"]
-        au1["audit · 1"]
+        pa1["platform-auth · 1"]
+        pl1["platform · 4"]
     end
-    subgraph core_d["Negocio del despacho"]
+    subgraph crm["👥 Clientes / captación"]
         c1["clients · 9"]
-        m1["matters · 7"]
-        d1["documents · 6"]
-        t1["tasks · 6"]
+        k1["kyc · 4"]
+        le1["leads · 7"]
+        in1["intake · 2"]
+    end
+    subgraph case["📁 Expedientes"]
+        m1["matters · 8"]
+        t1["tasks · 8"]
         ms1["messages · 2"]
     end
-    subgraph fin_d["Finanzas / cumplimiento"]
-        l1["ledger · 12"]
-        s1["settings · 5"]
+    subgraph docs["📄 Documentos"]
+        d1["documents · 7"]
+        tp1["templates · 5"]
+        sg1["signatures · 4"]
+        sgw1["sig-webhook · 1"]
     end
-    subgraph cross_d["Transversal"]
-        n1["notifications · 2"]
+    subgraph money["💶 Económico"]
+        l1["ledger · 15"]
+        pm1["payments · 6"]
+        pmw1["pay-webhook · 1"]
+        du1["dunning · 2"]
+        rt1["retainer · 7"]
+        bl1["billing · 5"]
+    end
+    subgraph saas["💳 Suscripción"]
+        sb1["subscription · 6"]
+        sbw1["sub-webhook · 1"]
+    end
+    subgraph prod["🤖 Productividad / IA / integraciones"]
+        ai1["ai · 8"]
+        se1["search · 1"]
+        ig1["integrations · 8"]
+        cb1["oauth-callbacks · 2"]
+        ma1["mail · 5"]
+        cal1["calendar · 1"]
+        calf1["calendar-feed · 1"]
+    end
+    subgraph ops["🛡️ Operación"]
         da1["dashboard · 1"]
-        h1["health · 1"]
-        p1["portal · 9"]
+        rp1["reports · 4"]
+        au1["audit · 1"]
+        no1["notifications · 4"]
+        st1["settings · 5"]
+        im1["import · 2"]
+        he1["health · 1"]
+        po1["portal · 12"]
     end
-    auth_d --> core_d --> fin_d
-    cross_d -.-> core_d
-    p1 -. "solo CLIENT · vista de su propio expediente" .-> core_d
+
+    ident --> crm --> case --> docs --> money
+    money --> saas
+    case -.-> prod
+    ops -.-> case
+    po1 -. "solo CLIENT · su propio expediente" .-> case
+
+    classDef ident fill:#dbeafe,stroke:#3b82f6,color:#1e3a8a
+    classDef crm fill:#dcfce7,stroke:#22c55e,color:#14532d
+    classDef case fill:#fef9c3,stroke:#eab308,color:#713f12
+    classDef docs fill:#ffedd5,stroke:#f97316,color:#7c2d12
+    classDef money fill:#fee2e2,stroke:#ef4444,color:#7f1d1d
+    classDef saas fill:#fce7f3,stroke:#ec4899,color:#831843
+    classDef prod fill:#fae8ff,stroke:#d946ef,color:#701a75
+    classDef ops fill:#f1f5f9,stroke:#94a3b8,color:#334155
+    class a1,u1,pa1,pl1 ident
+    class c1,k1,le1,in1 crm
+    class m1,t1,ms1 case
+    class d1,tp1,sg1,sgw1 docs
+    class l1,pm1,pmw1,du1,rt1,bl1 money
+    class sb1,sbw1 saas
+    class ai1,se1,ig1,cb1,ma1,cal1,calf1 prod
+    class da1,rp1,au1,no1,st1,im1,he1,po1 ops
 ```
 
-## Tabla exhaustiva (77 / 77)
+## Tabla exhaustiva (185 / 185)
 
-Rol = el más restrictivo aplicable. "auth" = autenticado sin `@Roles` (cualquier rol; el servicio +
-RLS acotan el acceso). "público" = `@Public`.
+### 🔐 Identidad y acceso
 
-### `auth` — `/api/auth` (5)
+#### `auth` — `/api/auth` (20) · clase: `@AllowExpired`
 
-| Método | Ruta                        | Rol     |
-| ------ | --------------------------- | ------- |
-| POST   | `/api/auth/register-tenant` | público |
-| POST   | `/api/auth/login`           | público |
-| POST   | `/api/auth/refresh`         | público |
-| POST   | `/api/auth/logout`          | público |
-| GET    | `/api/auth/me`              | auth    |
+| Método | Ruta                                 | Rol        |
+| ------ | ------------------------------------ | ---------- |
+| POST   | `/auth/verify-email`                 | público    |
+| POST   | `/auth/resend-verification`          | auth       |
+| GET    | `/auth/social/providers`             | público    |
+| GET    | `/auth/social/:provider`             | público    |
+| GET    | `/auth/social/:provider/callback`    | público    |
+| POST   | `/auth/social/exchange`              | público    |
+| POST   | `/auth/register-tenant`              | público    |
+| POST   | `/auth/login`                        | público    |
+| POST   | `/auth/mfa/login`                    | público    |
+| GET    | `/auth/mfa/status`                   | auth       |
+| POST   | `/auth/mfa/setup`                    | auth       |
+| POST   | `/auth/mfa/enable`                   | auth       |
+| POST   | `/auth/mfa/disable`                  | auth       |
+| POST   | `/auth/refresh`                      | público    |
+| POST   | `/auth/logout`                       | público    |
+| POST   | `/auth/change-password`              | auth       |
+| POST   | `/auth/admin/reset-password/:userId` | FIRM_ADMIN |
+| POST   | `/auth/forgot-password`              | público    |
+| POST   | `/auth/reset-password`               | público    |
+| GET    | `/auth/me`                           | auth       |
 
-### `users` — `/api/users` (4) · clase: **FIRM_ADMIN**
+#### `users` — `/api/users` (4) · clase: **FIRM_ADMIN**
 
-| Método | Ruta               | Rol        |
-| ------ | ------------------ | ---------- |
-| GET    | `/api/users`       | FIRM_ADMIN |
-| GET    | `/api/users/seats` | FIRM_ADMIN |
-| POST   | `/api/users`       | FIRM_ADMIN |
-| PATCH  | `/api/users/:id`   | FIRM_ADMIN |
+| Método | Ruta           | Rol        |
+| ------ | -------------- | ---------- |
+| GET    | `/users`       | FIRM_ADMIN |
+| GET    | `/users/seats` | FIRM_ADMIN |
+| POST   | `/users`       | FIRM_ADMIN |
+| PATCH  | `/users/:id`   | FIRM_ADMIN |
 
-### `audit` — `/api/audit` (1) · clase: **FIRM_ADMIN**
+#### `platform-auth` — `/api/platform/auth` (1)
 
-| Método | Ruta         | Rol        |
-| ------ | ------------ | ---------- |
-| GET    | `/api/audit` | FIRM_ADMIN |
+| Método | Ruta                   | Rol     | Nota                         |
+| ------ | ---------------------- | ------- | ---------------------------- |
+| POST   | `/platform/auth/login` | público | super-admin · throttle 5/min |
 
-### `clients` — `/api/clients` (9) · clase: **FIRM_ADMIN, LAWYER**
+#### `platform` — `/api/platform/tenants` (4) · `@UseGuards(PlatformGuard)`
 
-| Método | Ruta                           | Rol                |
-| ------ | ------------------------------ | ------------------ |
-| POST   | `/api/clients`                 | FIRM_ADMIN, LAWYER |
-| GET    | `/api/clients`                 | FIRM_ADMIN, LAWYER |
-| GET    | `/api/clients/conflict-check`  | FIRM_ADMIN, LAWYER |
-| GET    | `/api/clients/:id`             | FIRM_ADMIN, LAWYER |
-| GET    | `/api/clients/:id/gdpr-export` | **FIRM_ADMIN**     |
-| POST   | `/api/clients/:id/anonymize`   | **FIRM_ADMIN**     |
-| PATCH  | `/api/clients/:id`             | FIRM_ADMIN, LAWYER |
-| DELETE | `/api/clients/:id`             | FIRM_ADMIN, LAWYER |
-| POST   | `/api/clients/:id/portal-user` | FIRM_ADMIN, LAWYER |
+| Método | Ruta                                 | Rol      |
+| ------ | ------------------------------------ | -------- |
+| GET    | `/platform/tenants`                  | PLATFORM |
+| GET    | `/platform/tenants/:id`              | PLATFORM |
+| PATCH  | `/platform/tenants/:id/trial`        | PLATFORM |
+| PATCH  | `/platform/tenants/:id/subscription` | PLATFORM |
 
-### `matters` — `/api/matters` (7) · clase: **FIRM_ADMIN, LAWYER**
+### 👥 Clientes y captación
 
-| Método | Ruta                      | Rol                |
-| ------ | ------------------------- | ------------------ |
-| POST   | `/api/matters`            | FIRM_ADMIN, LAWYER |
-| GET    | `/api/matters/assignees`  | **FIRM_ADMIN**     |
-| GET    | `/api/matters`            | FIRM_ADMIN, LAWYER |
-| GET    | `/api/matters/:id`        | FIRM_ADMIN, LAWYER |
-| PATCH  | `/api/matters/:id`        | FIRM_ADMIN, LAWYER |
-| PATCH  | `/api/matters/:id/lawyer` | **FIRM_ADMIN**     |
-| PATCH  | `/api/matters/:id/status` | FIRM_ADMIN, LAWYER |
-
-### `messages` — `/api/matters/:matterId/messages` (2)
-
-| Método | Ruta                              | Rol                           |
-| ------ | --------------------------------- | ----------------------------- |
-| POST   | `/api/matters/:matterId/messages` | auth (miembro del expediente) |
-| GET    | `/api/matters/:matterId/messages` | auth (miembro del expediente) |
-
-### `documents` — `/api/documents` (6) · clase: **FIRM_ADMIN, LAWYER**
-
-| Método | Ruta                                          | Rol                |
-| ------ | --------------------------------------------- | ------------------ |
-| POST   | `/api/documents`                              | FIRM_ADMIN, LAWYER |
-| POST   | `/api/documents/:id/versions`                 | FIRM_ADMIN, LAWYER |
-| GET    | `/api/documents/by-matter/:matterId`          | FIRM_ADMIN, LAWYER |
-| GET    | `/api/documents/:id`                          | FIRM_ADMIN, LAWYER |
-| GET    | `/api/documents/versions/:versionId/download` | FIRM_ADMIN, LAWYER |
-| POST   | `/api/documents/versions/:versionId/review`   | FIRM_ADMIN, LAWYER |
-
-### `tasks` — `/api/tasks` (6) · clase: **FIRM_ADMIN, LAWYER**
+#### `clients` — `/api/clients` (9) · clase: **FIRM_ADMIN, LAWYER**
 
 | Método | Ruta                       | Rol                |
 | ------ | -------------------------- | ------------------ |
-| POST   | `/api/tasks`               | FIRM_ADMIN, LAWYER |
-| POST   | `/api/tasks/from-deadline` | FIRM_ADMIN, LAWYER |
-| GET    | `/api/tasks`               | FIRM_ADMIN, LAWYER |
-| GET    | `/api/tasks/:id`           | FIRM_ADMIN, LAWYER |
-| PATCH  | `/api/tasks/:id`           | FIRM_ADMIN, LAWYER |
-| DELETE | `/api/tasks/:id`           | FIRM_ADMIN, LAWYER |
+| POST   | `/clients`                 | FIRM_ADMIN, LAWYER |
+| GET    | `/clients`                 | FIRM_ADMIN, LAWYER |
+| GET    | `/clients/conflict-check`  | FIRM_ADMIN, LAWYER |
+| GET    | `/clients/:id`             | FIRM_ADMIN, LAWYER |
+| GET    | `/clients/:id/gdpr-export` | **FIRM_ADMIN**     |
+| POST   | `/clients/:id/anonymize`   | **FIRM_ADMIN**     |
+| PATCH  | `/clients/:id`             | FIRM_ADMIN, LAWYER |
+| DELETE | `/clients/:id`             | FIRM_ADMIN, LAWYER |
+| POST   | `/clients/:id/portal-user` | FIRM_ADMIN, LAWYER |
 
-### `ledger` — `/api/ledger` (12) · clase: **FIRM_ADMIN, LAWYER**
+#### `kyc` — `/api/kyc` (4) · clase: **FIRM_ADMIN, LAWYER**
 
-| Método | Ruta                                | Rol                |
-| ------ | ----------------------------------- | ------------------ |
-| POST   | `/api/ledger/costs/propose`         | FIRM_ADMIN, LAWYER |
-| GET    | `/api/ledger/approvals`             | **FIRM_ADMIN**     |
-| POST   | `/api/ledger/approvals/:id/approve` | **FIRM_ADMIN**     |
-| POST   | `/api/ledger/approvals/:id/reject`  | **FIRM_ADMIN**     |
-| POST   | `/api/ledger/entries`               | FIRM_ADMIN, LAWYER |
-| POST   | `/api/ledger/time`                  | FIRM_ADMIN, LAWYER |
-| GET    | `/api/ledger/matter/:matterId`      | FIRM_ADMIN, LAWYER |
-| POST   | `/api/ledger/invoices/preview`      | FIRM_ADMIN, LAWYER |
-| POST   | `/api/ledger/invoices`              | FIRM_ADMIN, LAWYER |
-| GET    | `/api/ledger/invoices/:id`          | FIRM_ADMIN, LAWYER |
-| GET    | `/api/ledger/invoices/:id/pdf`      | FIRM_ADMIN, LAWYER |
-| POST   | `/api/ledger/invoices/:id/pay`      | FIRM_ADMIN, LAWYER |
+| Método | Ruta             | Rol                |
+| ------ | ---------------- | ------------------ |
+| GET    | `/kyc`           | FIRM_ADMIN, LAWYER |
+| GET    | `/kyc/summary`   | FIRM_ADMIN, LAWYER |
+| GET    | `/kyc/:clientId` | FIRM_ADMIN, LAWYER |
+| PUT    | `/kyc/:clientId` | FIRM_ADMIN, LAWYER |
 
-### `dunning` — `/api/dunning` (2) · clase: **FIRM_ADMIN, LAWYER**
+#### `leads` — `/api/leads` (7) · clase: **FIRM_ADMIN, LAWYER**
 
-Recordatorios de cobro de facturas vencidas. Todo acotado al tenant (RLS + `user.tenantId`). El cron
-diario automático llega en PR-D3 reutilizando el mismo `DunningService`.
+| Método | Ruta                 | Rol                |
+| ------ | -------------------- | ------------------ |
+| GET    | `/leads`             | FIRM_ADMIN, LAWYER |
+| GET    | `/leads/intake-link` | FIRM_ADMIN, LAWYER |
+| POST   | `/leads`             | FIRM_ADMIN, LAWYER |
+| GET    | `/leads/:id`         | FIRM_ADMIN, LAWYER |
+| PATCH  | `/leads/:id`         | FIRM_ADMIN, LAWYER |
+| POST   | `/leads/:id/convert` | FIRM_ADMIN, LAWYER |
+| DELETE | `/leads/:id`         | FIRM_ADMIN, LAWYER |
 
-| Método | Ruta                     | Rol                | Nota                                                    |
-| ------ | ------------------------ | ------------------ | ------------------------------------------------------- |
-| POST   | `/api/dunning/run`       | FIRM_ADMIN, LAWYER | "Recordar ahora": evalúa vencidas y dispara las etapas  |
-| GET    | `/api/dunning/reminders` | FIRM_ADMIN, LAWYER | Recordatorios generados (línea de tiempo); `?invoiceId` |
+#### `intake` — `/api/public/intake` (2) · público
 
-### `retainer` — `/api/retainer` (7) · clase: **FIRM_ADMIN, LAWYER**
+| Método | Ruta                    | Rol     | Nota                   |
+| ------ | ----------------------- | ------- | ---------------------- |
+| GET    | `/public/intake/:token` | público | datos del formulario   |
+| POST   | `/public/intake/:token` | público | envío · throttle 5/min |
 
-Provisión de fondos por expediente (saldo + movimientos). Todo acotado al tenant (RLS). PR-R2: cobro
-manual de tipos no fiscales + lecturas; ANTICIPO emite factura (R2b); la factura final deduce el
-anticipo (R3b); el refund de un anticipo emite rectificativa (R3c).
+### 📁 Expedientes
 
-| Método | Ruta                          | Rol                | Nota                                                                                           |
-| ------ | ----------------------------- | ------------------ | ---------------------------------------------------------------------------------------------- |
-| POST   | `/api/retainer/deposit`       | FIRM_ADMIN, LAWYER | Cobro de provisión NO fiscal (SUPLIDO/GENERICO; ANTICIPO → 400)                                |
-| POST   | `/api/retainer/anticipo`      | FIRM_ADMIN, LAWYER | Cobro ANTICIPO: emite factura de anticipo (Verifactu/e-CF) + acredita saldo (atómico)          |
-| POST   | `/api/retainer/apply`         | FIRM_ADMIN, LAWYER | Aplica saldo (SUPLIDO/GENERICO) al cobro de una factura; ANTICIPO se realiza vía final-invoice |
-| POST   | `/api/retainer/final-invoice` | FIRM_ADMIN, LAWYER | Factura final de cierre con **deducción del anticipo** (sin doble IVA), encadenada (atómico)   |
-| POST   | `/api/retainer/refund`        | FIRM_ADMIN, LAWYER | Devolución de un anticipo facturado = **factura rectificativa** por sustitución (atómico)      |
-| GET    | `/api/retainer/matter/:id`    | FIRM_ADMIN, LAWYER | Saldo + movimientos del expediente                                                             |
-| GET    | `/api/retainer/client/:id`    | FIRM_ADMIN, LAWYER | Saldo agregado del cliente (Σ de sus expedientes)                                              |
+#### `matters` — `/api/matters` (8) · clase: **FIRM_ADMIN, LAWYER**
 
-### `billing` — `/api/billing` (5) · clase: **FIRM_ADMIN, LAWYER**
+| Método | Ruta                    | Rol                |
+| ------ | ----------------------- | ------------------ |
+| POST   | `/matters`              | FIRM_ADMIN, LAWYER |
+| GET    | `/matters/assignees`    | **FIRM_ADMIN**     |
+| GET    | `/matters`              | FIRM_ADMIN, LAWYER |
+| GET    | `/matters/:id`          | FIRM_ADMIN, LAWYER |
+| GET    | `/matters/:id/timeline` | FIRM_ADMIN, LAWYER |
+| PATCH  | `/matters/:id`          | FIRM_ADMIN, LAWYER |
+| PATCH  | `/matters/:id/lawyer`   | **FIRM_ADMIN**     |
+| PATCH  | `/matters/:id/status`   | FIRM_ADMIN, LAWYER |
 
-Facturación programada (recurrente / planes de pago, D-028). Crear/leer planes + cuadro de cuotas (RP2);
-**emisión recurrente** (RP3: 1 factura/periodo); **plan de pago servicio prestado** (RP4a: 1 factura) y
-**por anticipos** (RP4b: factura de anticipo al cobrar cada cuota). Todo acotado al tenant (RLS). El cron
-de barrido llega en RP5.
+#### `tasks` — `/api/tasks` (8) · clase: **FIRM_ADMIN, LAWYER**
 
-| Método | Ruta                                    | Rol                | Nota                                                               |
-| ------ | --------------------------------------- | ------------------ | ------------------------------------------------------------------ |
-| POST   | `/api/billing/schedules`                | FIRM_ADMIN, LAWYER | Crea un plan (RECURRING/INSTALLMENTS) + genera su cuadro de cuotas |
-| GET    | `/api/billing/schedules`                | FIRM_ADMIN, LAWYER | Planes de un expediente (`?matterId=`)                             |
-| GET    | `/api/billing/schedules/:id`            | FIRM_ADMIN, LAWYER | Un plan con su cuadro de cuotas                                    |
-| POST   | `/api/billing/schedules/:id/run`        | FIRM_ADMIN, LAWYER | Emite las facturas de los periodos vencidos (RECURRING/servicio)   |
-| POST   | `/api/billing/installments/:id/collect` | FIRM_ADMIN, LAWYER | Cobra una cuota ADVANCE → emite su factura de anticipo             |
+| Método | Ruta                      | Rol                |
+| ------ | ------------------------- | ------------------ |
+| POST   | `/tasks`                  | FIRM_ADMIN, LAWYER |
+| POST   | `/tasks/run-reminders`    | **FIRM_ADMIN**     |
+| POST   | `/tasks/deadline-preview` | FIRM_ADMIN, LAWYER |
+| POST   | `/tasks/from-deadline`    | FIRM_ADMIN, LAWYER |
+| GET    | `/tasks`                  | FIRM_ADMIN, LAWYER |
+| GET    | `/tasks/:id`              | FIRM_ADMIN, LAWYER |
+| PATCH  | `/tasks/:id`              | FIRM_ADMIN, LAWYER |
+| DELETE | `/tasks/:id`              | FIRM_ADMIN, LAWYER |
 
-### `settings` — `/api/settings` (5) · clase: **FIRM_ADMIN**
+#### `messages` — `/api/matters/:matterId/messages` (2)
 
-| Método | Ruta                           | Rol        |
-| ------ | ------------------------------ | ---------- |
-| GET    | `/api/settings`                | FIRM_ADMIN |
-| PATCH  | `/api/settings`                | FIRM_ADMIN |
-| POST   | `/api/settings/holidays`       | FIRM_ADMIN |
-| DELETE | `/api/settings/holidays/:date` | FIRM_ADMIN |
-| POST   | `/api/settings/certificate`    | FIRM_ADMIN |
+| Método | Ruta                          | Rol                           |
+| ------ | ----------------------------- | ----------------------------- |
+| POST   | `/matters/:matterId/messages` | auth (miembro del expediente) |
+| GET    | `/matters/:matterId/messages` | auth (miembro del expediente) |
 
-### `dashboard` — `/api/dashboard` (1) · clase: **FIRM_ADMIN, LAWYER**
+### 📄 Documentos y firmas
+
+#### `documents` — `/api/documents` (7) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                                      | Rol                |
+| ------ | ----------------------------------------- | ------------------ |
+| POST   | `/documents`                              | FIRM_ADMIN, LAWYER |
+| POST   | `/documents/:id/versions`                 | FIRM_ADMIN, LAWYER |
+| POST   | `/documents/from-template`                | FIRM_ADMIN, LAWYER |
+| GET    | `/documents/by-matter/:matterId`          | FIRM_ADMIN, LAWYER |
+| GET    | `/documents/:id`                          | FIRM_ADMIN, LAWYER |
+| GET    | `/documents/versions/:versionId/download` | FIRM_ADMIN, LAWYER |
+| POST   | `/documents/versions/:versionId/review`   | FIRM_ADMIN, LAWYER |
+
+#### `templates` — `/api/templates` (5) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta             | Rol                |
+| ------ | ---------------- | ------------------ |
+| GET    | `/templates`     | FIRM_ADMIN, LAWYER |
+| GET    | `/templates/:id` | FIRM_ADMIN, LAWYER |
+| POST   | `/templates`     | FIRM_ADMIN, LAWYER |
+| PATCH  | `/templates/:id` | FIRM_ADMIN, LAWYER |
+| DELETE | `/templates/:id` | FIRM_ADMIN, LAWYER |
+
+#### `signatures` — `/api/signatures` (4) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                                  | Rol                |
+| ------ | ------------------------------------- | ------------------ |
+| POST   | `/signatures`                         | FIRM_ADMIN, LAWYER |
+| GET    | `/signatures/by-matter/:matterId`     | FIRM_ADMIN, LAWYER |
+| GET    | `/signatures/by-document/:documentId` | FIRM_ADMIN, LAWYER |
+| POST   | `/signatures/:id/cancel`              | FIRM_ADMIN, LAWYER |
+
+#### `signatures-webhook` — `/api/signatures/webhook` (1)
+
+| Método | Ruta                             | Rol     | Nota       |
+| ------ | -------------------------------- | ------- | ---------- |
+| POST   | `/signatures/webhook/signaturit` | público | firma HMAC |
+
+### 💶 Económico
+
+#### `ledger` — `/api/ledger` (15) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                            | Rol                |
+| ------ | ------------------------------- | ------------------ |
+| POST   | `/ledger/costs/propose`         | FIRM_ADMIN, LAWYER |
+| GET    | `/ledger/costs/:id/receipt`     | FIRM_ADMIN, LAWYER |
+| GET    | `/ledger/approvals`             | **FIRM_ADMIN**     |
+| POST   | `/ledger/approvals/:id/approve` | **FIRM_ADMIN**     |
+| POST   | `/ledger/approvals/:id/reject`  | **FIRM_ADMIN**     |
+| POST   | `/ledger/entries`               | FIRM_ADMIN, LAWYER |
+| POST   | `/ledger/time`                  | FIRM_ADMIN, LAWYER |
+| GET    | `/ledger/time`                  | FIRM_ADMIN, LAWYER |
+| GET    | `/ledger/matter/:matterId`      | FIRM_ADMIN, LAWYER |
+| POST   | `/ledger/invoices/preview`      | FIRM_ADMIN, LAWYER |
+| POST   | `/ledger/invoices`              | FIRM_ADMIN, LAWYER |
+| GET    | `/ledger/invoices`              | FIRM_ADMIN, LAWYER |
+| GET    | `/ledger/invoices/:id`          | FIRM_ADMIN, LAWYER |
+| GET    | `/ledger/invoices/:id/pdf`      | FIRM_ADMIN, LAWYER |
+| POST   | `/ledger/invoices/:id/pay`      | FIRM_ADMIN, LAWYER |
+
+#### `payments` — `/api/payments` (6) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                              | Rol                |
+| ------ | --------------------------------- | ------------------ |
+| GET    | `/payments/config`                | FIRM_ADMIN, LAWYER |
+| POST   | `/payments`                       | FIRM_ADMIN, LAWYER |
+| POST   | `/payments/checkout`              | FIRM_ADMIN, LAWYER |
+| GET    | `/payments/by-invoice/:invoiceId` | FIRM_ADMIN, LAWYER |
+| POST   | `/payments/connect/onboard`       | **FIRM_ADMIN**     |
+| GET    | `/payments/connect/status`        | **FIRM_ADMIN**     |
+
+#### `payments-webhook` — `/api/payments/webhook` (1)
+
+| Método | Ruta                       | Rol     | Nota       |
+| ------ | -------------------------- | ------- | ---------- |
+| POST   | `/payments/webhook/stripe` | público | firma HMAC |
+
+#### `dunning` — `/api/dunning` (2) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                 | Rol                | Nota                                        |
+| ------ | -------------------- | ------------------ | ------------------------------------------- |
+| POST   | `/dunning/run`       | FIRM_ADMIN, LAWYER | "Recordar ahora": evalúa vencidas + dispara |
+| GET    | `/dunning/reminders` | FIRM_ADMIN, LAWYER | recordatorios generados; `?invoiceId`       |
+
+> El cron diario 06:00 reutiliza el mismo `DunningService`.
+
+#### `retainer` — `/api/retainer` (7) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                         | Rol                | Nota                                                 |
+| ------ | ---------------------------- | ------------------ | ---------------------------------------------------- |
+| POST   | `/retainer/deposit`          | FIRM_ADMIN, LAWYER | provisión NO fiscal (SUPLIDO/GENERICO; ANTICIPO→400) |
+| POST   | `/retainer/anticipo`         | FIRM_ADMIN, LAWYER | ANTICIPO: emite factura + acredita saldo (atómico)   |
+| POST   | `/retainer/apply`            | FIRM_ADMIN, LAWYER | aplica saldo al cobro de una factura                 |
+| POST   | `/retainer/final-invoice`    | FIRM_ADMIN, LAWYER | factura final con **deducción del anticipo**         |
+| POST   | `/retainer/refund`           | FIRM_ADMIN, LAWYER | devolución = factura **rectificativa**               |
+| GET    | `/retainer/matter/:matterId` | FIRM_ADMIN, LAWYER | saldo + movimientos del expediente                   |
+| GET    | `/retainer/client/:clientId` | FIRM_ADMIN, LAWYER | saldo agregado del cliente                           |
+
+#### `billing` — `/api/billing` (5) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                                | Rol                | Nota                                        |
+| ------ | ----------------------------------- | ------------------ | ------------------------------------------- |
+| POST   | `/billing/schedules`                | FIRM_ADMIN, LAWYER | crea plan (RECURRING/INSTALLMENTS) + cuotas |
+| GET    | `/billing/schedules`                | FIRM_ADMIN, LAWYER | planes de un expediente (`?matterId=`)      |
+| GET    | `/billing/schedules/:id`            | FIRM_ADMIN, LAWYER | plan con su cuadro de cuotas                |
+| POST   | `/billing/schedules/:id/run`        | FIRM_ADMIN, LAWYER | emite facturas de periodos vencidos         |
+| POST   | `/billing/installments/:id/collect` | FIRM_ADMIN, LAWYER | cobra cuota ADVANCE → factura de anticipo   |
+
+### 💳 Suscripción SaaS
+
+#### `subscription` — `/api/subscription` (6) · clase: **FIRM_ADMIN, LAWYER** + `@AllowExpired`
 
 | Método | Ruta                     | Rol                |
 | ------ | ------------------------ | ------------------ |
-| GET    | `/api/dashboard/summary` | FIRM_ADMIN, LAWYER |
+| GET    | `/subscription`          | FIRM_ADMIN, LAWYER |
+| POST   | `/subscription/checkout` | **FIRM_ADMIN**     |
+| POST   | `/subscription/portal`   | **FIRM_ADMIN**     |
+| POST   | `/subscription/cancel`   | **FIRM_ADMIN**     |
+| POST   | `/subscription/resume`   | **FIRM_ADMIN**     |
+| POST   | `/subscription/seats`    | **FIRM_ADMIN**     |
 
-### `notifications` — `/api/notifications` (2)
+#### `subscription-webhook` — `/api/subscription/webhook` (1)
 
-| Método | Ruta                          | Rol                 |
-| ------ | ----------------------------- | ------------------- |
-| GET    | `/api/notifications`          | auth (destinatario) |
-| PATCH  | `/api/notifications/:id/read` | auth (destinatario) |
+| Método | Ruta                           | Rol     | Nota       |
+| ------ | ------------------------------ | ------- | ---------- |
+| POST   | `/subscription/webhook/stripe` | público | firma HMAC |
 
-### `portal` — `/api/portal` (9) · clase: **CLIENT**
+### 🤖 Productividad, IA e integraciones
 
-| Método | Ruta                                | Rol    |
-| ------ | ----------------------------------- | ------ |
-| GET    | `/api/portal/me`                    | CLIENT |
-| GET    | `/api/portal/matters`               | CLIENT |
-| GET    | `/api/portal/matters/:id`           | CLIENT |
-| GET    | `/api/portal/matters/:id/documents` | CLIENT |
-| GET    | `/api/portal/matters/:id/ledger`    | CLIENT |
-| GET    | `/api/portal/matters/:id/tasks`     | CLIENT |
-| GET    | `/api/portal/matters/:id/retainer`  | CLIENT |
-| GET    | `/api/portal/invoices`              | CLIENT |
-| GET    | `/api/portal/invoices/:id/pdf`      | CLIENT |
+#### `ai` — `/api/ai` (8) · clase: **FIRM_ADMIN, LAWYER**
 
-### `health` — `/api/health` (1)
+| Método | Ruta                          | Rol                |
+| ------ | ----------------------------- | ------------------ |
+| GET    | `/ai/status`                  | FIRM_ADMIN, LAWYER |
+| POST   | `/ai/matters/:id/ask`         | FIRM_ADMIN, LAWYER |
+| POST   | `/ai/matters/:id/summary`     | FIRM_ADMIN, LAWYER |
+| POST   | `/ai/documents/:id/summarize` | FIRM_ADMIN, LAWYER |
+| POST   | `/ai/templates/:id/draft`     | FIRM_ADMIN, LAWYER |
+| POST   | `/ai/email/draft`             | FIRM_ADMIN, LAWYER |
+| POST   | `/ai/search`                  | FIRM_ADMIN, LAWYER |
+| POST   | `/ai/index/matters/:id`       | FIRM_ADMIN, LAWYER |
 
-| Método | Ruta          | Rol     |
-| ------ | ------------- | ------- |
-| GET    | `/api/health` | público |
+#### `search` — `/api/search` (1) · clase: **FIRM_ADMIN, LAWYER**
 
-**Recuento:** 5+4+1+9+7+2+6+6+12+5+1+2+8+1 = **69**. ✅
+| Método | Ruta      | Rol                |
+| ------ | --------- | ------------------ |
+| GET    | `/search` | FIRM_ADMIN, LAWYER |
 
-## Discrepancias detectadas (docs previos vs código)
+#### `integrations` (Google) — `/api/integrations/google` (4) · clase: **FIRM_ADMIN, LAWYER**
 
-Cruzando con `HANDOFF.md`, `PLAN.md`, `DECISIONS.md` y `RUNBOOK.md`:
+| Método | Ruta                                 | Rol                |
+| ------ | ------------------------------------ | ------------------ |
+| GET    | `/integrations/google/status`        | FIRM_ADMIN, LAWYER |
+| GET    | `/integrations/google/connect`       | FIRM_ADMIN, LAWYER |
+| DELETE | `/integrations/google`               | FIRM_ADMIN, LAWYER |
+| POST   | `/integrations/google/calendar/sync` | FIRM_ADMIN, LAWYER |
 
-1. **CI = 9 jobs, no 8.** El prompt de QA hablaba de "8 jobs"; el workflow real tiene **9**: `setup`,
-   `lint-typecheck`, `unit`, `api-integration`, `web-e2e`, `security`, `migration-check`, `build`,
-   `ci-ok` (gate agregador). Ver [09](09-infrastructure-cicd.md).
-2. **RLS sobre 16 tablas, no 14.** El bucle `enable_rls` activa 14; `rls_fail_closed` añade `Tenant` e
-   `InvoiceLine` → **16**. Documentado en [03](03-multitenancy-and-rls.md).
-3. **`messages` y `notifications` sin `@Roles` de clase.** No son "solo firma": cualquier usuario
-   autenticado pasa el guard de rol; el control real es del servicio (membresía del expediente /
-   propiedad de la notificación) + RLS. Anotado arriba como "auth".
-4. **ADRs D-000..D-023 (24), no D-001..D-023.** Existe también `D-000`. Sin impacto funcional.
-5. **`HANDOFF.md` desactualizado en el fallback de `SYSTEM_DATABASE_URL`.** HANDOFF afirma "si falta
-   `SYSTEM_DATABASE_URL`, cae a `DIRECT_DATABASE_URL`". El código (`prisma.service.ts`) es más estricto:
-   en **producción `throw`** (sin fallback); el fallback a `DIRECT_DATABASE_URL` (con aviso) **solo
-   aplica fuera de producción**. La doc nueva ([03](03-multitenancy-and-rls.md),
-   [04](04-encryption-and-secrets.md)) refleja el comportamiento real.
-6. **`HANDOFF.md` dice "Next.js 14"; el código usa Next 15.5** (`apps/web/package.json`). Doc
-   [10](10-tech-stack.md) refleja la versión real.
+#### `integrations` (Microsoft) — `/api/integrations/microsoft` (4) · clase: **FIRM_ADMIN, LAWYER**
 
-Salvo lo anterior (precisiones de recuento y dos puntos **stale** en HANDOFF, anotados aquí), no se
-detectaron discrepancias **funcionales** entre lo que los docs afirman y lo que el código hace.
+| Método | Ruta                                    | Rol                |
+| ------ | --------------------------------------- | ------------------ |
+| GET    | `/integrations/microsoft/status`        | FIRM_ADMIN, LAWYER |
+| GET    | `/integrations/microsoft/connect`       | FIRM_ADMIN, LAWYER |
+| DELETE | `/integrations/microsoft`               | FIRM_ADMIN, LAWYER |
+| POST   | `/integrations/microsoft/calendar/sync` | FIRM_ADMIN, LAWYER |
+
+#### OAuth callbacks — (2) · público
+
+| Método | Ruta                               | Rol     |
+| ------ | ---------------------------------- | ------- |
+| GET    | `/integrations/google/callback`    | público |
+| GET    | `/integrations/microsoft/callback` | público |
+
+#### `mail` — `/api/integrations/mail` (5) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                                        | Rol                |
+| ------ | ------------------------------------------- | ------------------ |
+| GET    | `/integrations/mail/status`                 | FIRM_ADMIN, LAWYER |
+| GET    | `/integrations/mail/recent`                 | FIRM_ADMIN, LAWYER |
+| POST   | `/integrations/mail/attach`                 | FIRM_ADMIN, LAWYER |
+| GET    | `/integrations/mail/matters/:matterId`      | FIRM_ADMIN, LAWYER |
+| POST   | `/integrations/mail/matters/:matterId/send` | FIRM_ADMIN, LAWYER |
+
+#### `calendar` — `/api/calendar` (1) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                  | Rol                |
+| ------ | --------------------- | ------------------ |
+| GET    | `/calendar/feed-link` | FIRM_ADMIN, LAWYER |
+
+#### `calendar-feed` — `/api/public/calendar` (1) · público
+
+| Método | Ruta                      | Rol     | Nota      |
+| ------ | ------------------------- | ------- | --------- |
+| GET    | `/public/calendar/:token` | público | feed iCal |
+
+### 🛡️ Operación y portal
+
+#### `dashboard` — `/api/dashboard` (1) · clase: **FIRM_ADMIN, LAWYER**
+
+| Método | Ruta                 | Rol                |
+| ------ | -------------------- | ------------------ |
+| GET    | `/dashboard/summary` | FIRM_ADMIN, LAWYER |
+
+#### `reports` — `/api/reports` (4) · clase: **FIRM_ADMIN**
+
+| Método | Ruta                        | Rol        |
+| ------ | --------------------------- | ---------- |
+| GET    | `/reports/aged-receivables` | FIRM_ADMIN |
+| GET    | `/reports/time-by-lawyer`   | FIRM_ADMIN |
+| GET    | `/reports/profitability`    | FIRM_ADMIN |
+| GET    | `/reports/tax-summary`      | FIRM_ADMIN |
+
+#### `audit` — `/api/audit` (1) · clase: **FIRM_ADMIN**
+
+| Método | Ruta     | Rol        |
+| ------ | -------- | ---------- |
+| GET    | `/audit` | FIRM_ADMIN |
+
+#### `notifications` — `/api/notifications` (4)
+
+| Método | Ruta                         | Rol                 |
+| ------ | ---------------------------- | ------------------- |
+| GET    | `/notifications`             | auth (destinatario) |
+| GET    | `/notifications/preferences` | auth                |
+| PATCH  | `/notifications/preferences` | auth                |
+| PATCH  | `/notifications/:id/read`    | auth (destinatario) |
+
+#### `settings` — `/api/settings` (5) · clase: **FIRM_ADMIN**
+
+| Método | Ruta                       | Rol        |
+| ------ | -------------------------- | ---------- |
+| GET    | `/settings`                | FIRM_ADMIN |
+| PATCH  | `/settings`                | FIRM_ADMIN |
+| POST   | `/settings/holidays`       | FIRM_ADMIN |
+| DELETE | `/settings/holidays/:date` | FIRM_ADMIN |
+| POST   | `/settings/certificate`    | FIRM_ADMIN |
+
+#### `import` — `/api/import` (2) · clase: **FIRM_ADMIN**
+
+| Método | Ruta                      | Rol        |
+| ------ | ------------------------- | ---------- |
+| POST   | `/import/clients/preview` | FIRM_ADMIN |
+| POST   | `/import/clients/commit`  | FIRM_ADMIN |
+
+#### `health` — `/api/health` (1)
+
+| Método | Ruta      | Rol     |
+| ------ | --------- | ------- |
+| GET    | `/health` | público |
+
+#### `portal` — `/api/portal` (12) · clase: **CLIENT**
+
+| Método | Ruta                            | Rol    |
+| ------ | ------------------------------- | ------ |
+| GET    | `/portal/me`                    | CLIENT |
+| GET    | `/portal/matters`               | CLIENT |
+| GET    | `/portal/matters/:id`           | CLIENT |
+| GET    | `/portal/matters/:id/documents` | CLIENT |
+| POST   | `/portal/matters/:id/documents` | CLIENT |
+| GET    | `/portal/matters/:id/ledger`    | CLIENT |
+| GET    | `/portal/matters/:id/tasks`     | CLIENT |
+| GET    | `/portal/matters/:id/retainer`  | CLIENT |
+| GET    | `/portal/invoices`              | CLIENT |
+| GET    | `/portal/payments/config`       | CLIENT |
+| POST   | `/portal/invoices/:id/checkout` | CLIENT |
+| GET    | `/portal/invoices/:id/pdf`      | CLIENT |
+
+## Recuento
+
+20+4+1+4 (identidad=29) · 9+4+7+2 (captación=22) · 8+8+2 (expedientes=18) ·
+7+5+4+1 (documentos=17) · 15+6+1+2+7+5 (económico=36) · 6+1 (suscripción=7) ·
+8+1+4+4+2+5+1+1 (productividad=26) · 1+4+1+4+5+2+1+12 (operación=30) = **185**. ✅
+
+Verificación: `grep -rhE "@(Get|Post|Put|Patch|Delete)\(" apps/api/src --include=*.controller.ts | wc -l`.
+
+## Notas de discrepancias históricas (ya reconciliadas)
+
+- **CI = 9 jobs** (incluye `ci-ok`). Ver [09](09-infrastructure-cicd.md).
+- **RLS sobre 30 tablas**: 16 del `rls_fail_closed` + 14 añadidas en migraciones posteriores. Ver
+  [03](03-multitenancy-and-rls.md) y [06](06-data-model.md).
+- **`messages` y `notifications` sin `@Roles` de clase**: cualquier autenticado pasa el guard; el
+  control real es del servicio (membresía / propiedad) + RLS. Marcados como `auth`.
+- El registro fiscal Verifactu/e-CF se **construye** pero **no se transmite** a AEAT/DGII (diferido).
