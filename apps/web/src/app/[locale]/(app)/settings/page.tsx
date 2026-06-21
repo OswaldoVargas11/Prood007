@@ -475,12 +475,22 @@ function FirmCard() {
     <Section title={t('firm.title')} desc={t('firm.desc')}>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <Label>{t('firm.name')}</Label>
-          <Input value={nameVal} onChange={(e) => setName(e.target.value)} />
+          <Label htmlFor="firm-name">{t('firm.name')}</Label>
+          <Input
+            id="firm-name"
+            name="organization"
+            autoComplete="organization"
+            value={nameVal}
+            onChange={(e) => setName(e.target.value)}
+          />
         </div>
         <div className="space-y-1.5">
-          <Label>{t('firm.taxId')}</Label>
+          <Label htmlFor="firm-taxid">{t('firm.taxId')}</Label>
           <Input
+            id="firm-taxid"
+            name="taxId"
+            autoComplete="off"
+            spellCheck={false}
             value={taxVal}
             onChange={(e) => setTaxId(e.target.value)}
             className="font-mono"
@@ -490,8 +500,11 @@ function FirmCard() {
         <Readonly label={t('firm.jurisdiction')} value={tenant.jurisdiction.toUpperCase()} />
         <Readonly label={t('firm.currency')} value={tenant.currency} />
         <div className="space-y-1.5">
-          <Label>{t('firm.series')}</Label>
+          <Label htmlFor="firm-series">{t('firm.series')}</Label>
           <Input
+            id="firm-series"
+            name="invoiceSeries"
+            autoComplete="off"
             value={seriesVal}
             onChange={(e) => setSeries(e.target.value)}
             className="font-mono uppercase"
@@ -512,7 +525,11 @@ function FirmCard() {
           onCheckedChange={(v) => update.mutate({ deadlineEmailRemindersEnabled: v })}
         />
       </div>
-      {error && <p className="mt-3 text-sm text-[var(--danger)]">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-[var(--danger)]">
+          {error}
+        </p>
+      )}
       <div className="mt-4 flex justify-end">
         <Button size="sm" onClick={save} disabled={!dirty || update.isPending}>
           {update.isPending && <Loader2 className="animate-spin" />}
@@ -584,6 +601,7 @@ function StaffCard() {
   const update = useUpdateStaff();
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDeactivate, setConfirmDeactivate] = useState<StaffUser | null>(null);
 
   function roleLabel(role: StaffRole) {
     return role === 'FIRM_ADMIN' ? t('staff.admin') : t('staff.lawyer');
@@ -663,7 +681,7 @@ function StaffCard() {
                 size="sm"
                 variant="outline"
                 disabled={update.isPending}
-                onClick={() => toggleActive(u)}
+                onClick={() => (u.isActive ? setConfirmDeactivate(u) : toggleActive(u))}
               >
                 {u.isActive ? t('staff.deactivate') : t('staff.activate')}
               </Button>
@@ -673,6 +691,21 @@ function StaffCard() {
         </div>
       )}
       <AddStaffDialog open={adding} onClose={() => setAdding(false)} seatsFull={seats} />
+      <ConfirmDialog
+        open={confirmDeactivate !== null}
+        onOpenChange={(o) => !o && setConfirmDeactivate(null)}
+        title={t('staff.deactivateConfirmTitle')}
+        description={t('staff.deactivateConfirmBody', {
+          name: confirmDeactivate?.fullName ?? '',
+        })}
+        confirmLabel={t('staff.deactivate')}
+        loading={update.isPending}
+        onConfirm={() => {
+          const u = confirmDeactivate;
+          setConfirmDeactivate(null);
+          if (u) void toggleActive(u);
+        }}
+      />
     </Section>
   );
 }
@@ -787,27 +820,46 @@ function AddStaffDialog({
         >
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>{t('staff.fullName')}</Label>
-              <Input value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus />
+              <Label htmlFor="staff-fullname">{t('staff.fullName')}</Label>
+              <Input
+                id="staff-fullname"
+                name="fullName"
+                autoComplete="name"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                autoFocus
+              />
             </div>
             <div className="space-y-1.5">
-              <Label>{t('staff.email')}</Label>
-              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Label htmlFor="staff-email">{t('staff.email')}</Label>
+              <Input
+                id="staff-email"
+                name="email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
-              <Label>{t('staff.password')}</Label>
+              <Label htmlFor="staff-password">{t('staff.password')}</Label>
               <PasswordInput
+                id="staff-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
               />
             </div>
             <div className="space-y-1.5">
-              <Label>{t('staff.role')}</Label>
+              <Label htmlFor="staff-role">{t('staff.role')}</Label>
               <select
+                id="staff-role"
                 value={role}
                 onChange={(e) => setRole(e.target.value as StaffRole)}
-                className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <option value="LAWYER">{t('staff.lawyer')}</option>
                 <option value="FIRM_ADMIN">{t('staff.admin')}</option>

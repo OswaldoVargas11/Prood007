@@ -1278,6 +1278,8 @@
       "inactive": "Inactivo",
       "activate": "Activar",
       "deactivate": "Desactivar",
+      "deactivateConfirmTitle": "¿Desactivar a esta persona?",
+      "deactivateConfirmBody": "{name} perderá el acceso al despacho hasta que la reactives. No se elimina su histórico.",
       "error": "No se pudo completar la acción.",
       "addTitle": "Añadir usuario al despacho",
       "addDesc": "Crea un letrado o administrador. Ocupará una plaza de la licencia.",
