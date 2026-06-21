@@ -71,8 +71,11 @@ export default function PortalHome() {
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">{t('myInvoices')}</h2>
         {overdueCount > 0 && (
-          <div className="flex items-start gap-3 rounded-xl border border-[var(--danger)]/20 bg-[var(--danger-soft)] p-4">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-[var(--danger)]" />
+          <div
+            role="alert"
+            className="flex items-start gap-3 rounded-xl border border-[var(--danger)]/20 bg-[var(--danger-soft)] p-4"
+          >
+            <AlertTriangle aria-hidden className="mt-0.5 size-4 shrink-0 text-[var(--danger)]" />
             <div className="space-y-0.5">
               <p className="text-sm font-medium text-[var(--danger)]">
                 {t('overdueBanner', { n: overdueCount })}
@@ -93,6 +96,16 @@ export default function PortalHome() {
         {invoices.data && invoices.data.length > 0 && (
           <Card className="overflow-hidden">
             <table className="w-full text-sm">
+              <caption className="sr-only">{t('myInvoices')}</caption>
+              <thead className="sr-only">
+                <tr>
+                  <th scope="col">{t('colNumber')}</th>
+                  <th scope="col">{t('colStatus')}</th>
+                  <th scope="col">{t('colDate')}</th>
+                  <th scope="col">{t('colAmount')}</th>
+                  <th scope="col">{t('colActions')}</th>
+                </tr>
+              </thead>
               <tbody>
                 {invoices.data.map((inv) => {
                   const displayStatus = inv.overdue ? 'OVERDUE' : inv.status;

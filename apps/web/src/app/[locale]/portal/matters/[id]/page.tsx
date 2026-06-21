@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Loader2, Upload } from 'lucide-react';
@@ -101,18 +101,31 @@ function PortalDocuments({ matterId }: { matterId: string }) {
   const { data, isLoading } = usePortalDocuments(matterId);
   const upload = useUploadPortalDocument(matterId);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [uploadError, setUploadError] = useState(false);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (file) await upload.mutateAsync({ file });
+    if (!file) return;
+    setUploadError(false);
+    try {
+      await upload.mutateAsync({ file });
+    } catch {
+      setUploadError(true);
+    }
   }
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[12.5px] text-muted-foreground">{tp('uploadHint')}</p>
-        <input ref={fileRef} type="file" className="hidden" onChange={onFile} />
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+          className="hidden"
+          onChange={onFile}
+        />
         <Button
           size="sm"
           variant="outline"
@@ -123,6 +136,11 @@ function PortalDocuments({ matterId }: { matterId: string }) {
           {tp('upload')}
         </Button>
       </div>
+      {uploadError && (
+        <p role="alert" className="text-[12.5px] text-[var(--danger)]">
+          {t('uploadError')}
+        </p>
+      )}
       {isLoading ? (
         <Skeleton className="h-24 w-full" />
       ) : !data || data.length === 0 ? (
@@ -139,7 +157,7 @@ function PortalDocuments({ matterId }: { matterId: string }) {
                   </Badge>
                 )}
                 <span className="ml-auto text-xs text-muted-foreground">
-                  {doc.versions.length} {t('newVersion')}
+                  {t('versionCount', { count: doc.versions.length })}
                 </span>
               </CardContent>
             </Card>
