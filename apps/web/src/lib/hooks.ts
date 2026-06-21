@@ -1877,3 +1877,37 @@ export function useRefreshEcf(invoiceId: string) {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['invoice', invoiceId] }),
   });
 }
+
+// ── Vistas guardadas (presets de filtros) ─────────────────────────────────────
+
+export type SavedView = {
+  id: string;
+  name: string;
+  scope: string;
+  filters: Record<string, unknown>;
+  createdAt: string;
+};
+
+export function useSavedViews(scope: string) {
+  return useQuery({
+    queryKey: ['saved-views', scope],
+    queryFn: () => api.get<SavedView[]>(`/saved-views?scope=${scope}`),
+  });
+}
+
+export function useCreateSavedView() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { scope: string; name: string; filters: Record<string, unknown> }) =>
+      api.post<SavedView>('/saved-views', body),
+    onSuccess: (_d, v) => void qc.invalidateQueries({ queryKey: ['saved-views', v.scope] }),
+  });
+}
+
+export function useDeleteSavedView(scope: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del(`/saved-views/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['saved-views', scope] }),
+  });
+}

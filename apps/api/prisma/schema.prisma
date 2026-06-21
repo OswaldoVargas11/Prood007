@@ -244,6 +244,7 @@ model Tenant {
   certificateUploadedAt DateTime?
   // Contraseña del certificado .p12, CIFRADA (AES-256-GCM con DATA_ENCRYPTION_KEY); nunca en claro.
   certificatePasswordEnc String?
+  savedViews             SavedView[]
   // RGPD/Ley 172-13 — gobernanza de datos (D-022): región de residencia de datos del despacho
   // (p. ej. "EU" para ES; a definir para RD) y política de conservación configurable en meses. La
   // RETENCIÓN es metadato/política (la conservación legal prevalece sobre el borrado); no auto-purga.
@@ -824,6 +825,22 @@ enum EcfStatus {
   PENDING // Enviado a la DGII, pendiente de acuse (o pendiente de transmitir).
   ACCEPTED // Aceptado por la DGII.
   REJECTED // Rechazado por la DGII (ver ecfStatusDetail).
+}
+
+/// Vista guardada (preset de filtros) PRIVADA por usuario, por ámbito (facturas/tareas/expedientes).
+model SavedView {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String // dueño de la vista (privada)
+  scope     String // "invoices" | "tasks" | "matters"
+  name      String
+  filters   Json // preset de filtros, opaco al núcleo
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, scope])
 }
 
 // Cobro sobre una factura. Soporta cobros parciales (varios Payment por factura) y conciliación con
