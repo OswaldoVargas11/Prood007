@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { SentryModule, SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -42,6 +43,8 @@ import { HealthController } from './health.controller';
 
 @Module({
   imports: [
+    // Observabilidad de errores (gated por SENTRY_DSN; ver instrument.ts). Va primero.
+    SentryModule.forRoot(),
     ConfigModule.forRoot({ isGlobal: true }),
     // Rate limiting global (in-memory; para multi-instancia usar almacenamiento Redis).
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
@@ -83,6 +86,9 @@ import { HealthController } from './health.controller';
   ],
   controllers: [HealthController],
   providers: [
+    // Captura en Sentry las excepciones no controladas y delega luego en el manejo por defecto de Nest
+    // (no cambia el formato de respuesta). Inerte si Sentry no está inicializado (sin DSN).
+    { provide: APP_FILTER, useClass: SentryGlobalFilter },
     // Rate limiting global. Se ejecuta antes que la autenticación.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     // Fija el contexto de tenant por request (para RLS). Tras los guards (req.user ya está).
