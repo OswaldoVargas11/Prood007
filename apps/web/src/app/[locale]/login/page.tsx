@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { ThemeToggle } from '@/components/lexora/theme-toggle';
+import { Logo } from '@/components/lexora/logo';
 
 const schema = z.object({
   email: z.string().email(),
@@ -132,12 +133,7 @@ export default function LoginPage() {
 
       <Card className="w-full max-w-sm border-border/60 shadow-xl shadow-black/5">
         <CardHeader className="items-center space-y-3 pb-5 text-center">
-          <div className="flex items-center gap-2">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--ai-from)] to-[var(--ai-to)] shadow-md">
-              <div className="size-3 rotate-45 rounded-[3px] border-2 border-white" />
-            </div>
-            <span className="text-lg font-semibold tracking-tight">Lawzora</span>
-          </div>
+          <Logo size={30} />
           <div className="space-y-1">
             <CardTitle className="text-xl tracking-tight">{t('title')}</CardTitle>
             <CardDescription>{t('subtitle')}</CardDescription>

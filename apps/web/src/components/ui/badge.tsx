@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 /**
- * Badge de estado Lexora: `variant` semántico usa color de texto + fondo translúcido del mismo token
+ * Badge de estado Lawzora: `variant` semántico usa color de texto + fondo translúcido del mismo token
  * (la máquina de estados de cada dominio decide qué variante aplicar).
  */
 const badgeVariants = cva(

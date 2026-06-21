@@ -2,7 +2,7 @@ import type { Config } from 'tailwindcss';
 import tailwindcssAnimate from 'tailwindcss-animate';
 
 /**
- * Tailwind 3 + tokens Lexora. Los tokens en `globals.css` ya son valores `oklch(...)` completos,
+ * Tailwind 3 + tokens Lawzora. Los tokens en `globals.css` ya son valores `oklch(...)` completos,
  * así que aquí se referencian con `var(--token)` (no `oklch(var(--token))`). Tema por clase `.dark`.
  */
 const config: Config = {
@@ -23,7 +23,7 @@ const config: Config = {
         border: 'var(--border)',
         input: 'var(--input)',
         ring: 'var(--ring)',
-        // superficies y semánticos Lexora
+        // superficies y semánticos Lawzora
         'surface-1': 'var(--surface-1)',
         'surface-2': 'var(--surface-2)',
         'surface-3': 'var(--surface-3)',
