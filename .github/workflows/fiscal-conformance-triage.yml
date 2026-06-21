@@ -31,6 +31,9 @@ jobs:
           github.event.workflow_run.head_repository.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # GH_TOKEN para que `gh pr create` / `gh issue create` autentiquen en el Bash del agente.
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -69,9 +72,14 @@ jobs:
                (B) cambio fiscal INTENCIONADO que requiere actualizar el golden
                    + ratificación por ADR (ver DECISIONS.md, p. ej. D-026/D-027).
             3) Si y SOLO si es (A), el fix es mecánico, y NO toca ningún path
-               prohibido: abre un PR con la corrección, etiqueta `fiscal-triage`,
-               y explica el cambio. En cualquier otro caso abre un issue
-               explicativo y NO modifiques código.
+               prohibido: crea una rama, commitea la corrección y ABRE UN PR DE
+               VERDAD con `gh pr create --label fiscal-triage --title ... --body ...`
+               explicando el cambio. En cualquier otro caso CREA un issue con
+               `gh issue create --label fiscal-triage --title ... --body ...` y NO
+               modifiques código. El token está en el entorno como GH_TOKEN; si la
+               etiqueta no existe, créala con `gh label create fiscal-triage -f`.
+               Tu entregable es un PR o un issue creado (no solo describirlo); al
+               final imprime su URL.
 
             PROHIBIDO modificar bajo cualquier circunstancia:
               - apps/api/prisma/migrations/** ni apps/api/prisma/schema.prisma
