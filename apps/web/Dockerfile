@@ -12,9 +12,15 @@ RUN pnpm install --frozen-lockfile || pnpm install
 
 FROM deps AS build
 COPY . .
-# Next.js hornea las NEXT_PUBLIC_* en build → la URL de la API debe llegar como build-arg.
+# Next.js hornea las NEXT_PUBLIC_* en build → deben llegar como build-arg.
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Sentry de cliente (opcional): si se pasa el DSN como build-arg, se hornea y se activa la captura de
+# errores en el navegador; si no, el SDK ni siquiera entra en el bundle (coste cero). Ver SENTRY_SETUP.md.
+ARG NEXT_PUBLIC_SENTRY_DSN
+ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
+ARG NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE
+ENV NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE=$NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE
 RUN pnpm --filter @legalflow/domain build \
  && pnpm --filter @legalflow/web build
 

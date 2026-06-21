@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { SentryModule, SentryGlobalFilter } from '@sentry/nestjs/setup';
+import { LoggerModule } from 'nestjs-pino';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -45,6 +46,19 @@ import { HealthController } from './health.controller';
   imports: [
     // Observabilidad de errores (gated por SENTRY_DSN; ver instrument.ts). Va primero.
     SentryModule.forRoot(),
+    // Logs estructurados en JSON (pino). Una línea por request con id/método/status/latencia. Redacta
+    // cabeceras sensibles (Authorization/Cookie) para no filtrar tokens ni sesiones en los logs (RGPD).
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+        redact: {
+          paths: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'],
+          remove: true,
+        },
+        // No registra el cuerpo de las peticiones (puede contener PII); solo metadatos de req/res.
+        autoLogging: true,
+      },
+    }),
     ConfigModule.forRoot({ isGlobal: true }),
     // Rate limiting global (in-memory; para multi-instancia usar almacenamiento Redis).
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
