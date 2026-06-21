@@ -1,0 +1,53 @@
+name: SAST (Semgrep)
+
+# Análisis estático de seguridad (SAST) con Semgrep, reglas OSS (no requiere GitHub Advanced Security,
+# a diferencia de CodeQL). Cubre el hueco fiable de SAST: CodeQL en este repo arranca y falla en segundos.
+#
+# Despliegue gradual (a propósito): este workflow NO está en el gate requerido `CI OK`, así que sus
+# hallazgos son VISIBLES pero no bloquean el merge todavía. Una vez triados los primeros y limpio en
+# verde, conviértelo en check requerido en la branch protection (Settings → Branches) para que sea un
+# gate duro. Filtra a severidad ERROR (alta confianza) para minimizar ruido inicial; amplía a WARNING
+# cuando esté afinado.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: semgrep-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install Semgrep
+        run: pip install --disable-pip-version-check semgrep
+      - name: Scan (reglas de seguridad · severidad ERROR)
+        run: |
+          semgrep scan \
+            --config p/default \
+            --config p/owasp-top-ten \
+            --config p/nodejs \
+            --config p/react \
+            --severity ERROR \
+            --error \
+            --sarif-output semgrep.sarif \
+            --metrics off
+      - name: Subir SARIF
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          if-no-files-found: ignore
+          retention-days: 14
