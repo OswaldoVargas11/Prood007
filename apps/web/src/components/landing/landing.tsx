@@ -9,13 +9,13 @@ import {
   CreditCard,
   FileCheck2,
   FileLock2,
+  FileText,
   History,
   Landmark,
   Link2,
   Lock,
   PiggyBank,
   ShieldCheck,
-  Sparkles,
   Users,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -39,7 +39,7 @@ const BENEFIT_ICONS: LucideIcon[] = [
   PiggyBank,
   CalendarClock,
   Users,
-  Sparkles,
+  FileText,
   ShieldCheck,
 ];
 const SECURITY_ICONS: LucideIcon[] = [ShieldCheck, FileLock2, History, Users];
@@ -371,9 +371,13 @@ export function Landing() {
                   </span>
                   <Badge variant="success">{t('product.showcase.mockCardState')}</Badge>
                 </MockRow>
-                <Button className="mt-0.5 w-full">
-                  <Link2 /> {t('product.showcase.mockCta')}
-                </Button>
+                {/* Visual ilustrativo del mock: NO es un control real (la landing no cobra). */}
+                <div
+                  aria-hidden
+                  className="mt-0.5 flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary text-sm font-medium text-primary-foreground"
+                >
+                  <Link2 className="size-4" /> {t('product.showcase.mockCta')}
+                </div>
               </div>
             </MockWindow>
           </Reveal>

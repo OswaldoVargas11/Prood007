@@ -64,8 +64,8 @@
           "body": "Tu cliente ve sus expedientes, facturas y documentos en su espacio."
         },
         {
-          "title": "Asistente IA",
-          "body": "Redacta, resume y revisa documentos con citas y señal de confianza."
+          "title": "Documentos y plantillas",
+          "body": "Genera escritos desde plantillas y guárdalos cifrados, todo en el expediente."
         },
         {
           "title": "España + R. Dominicana",
@@ -104,7 +104,7 @@
       "items": [
         {
           "title": "Cifrado en tránsito y en reposo",
-          "body": "TLS y cifrado de la base de datos en todo momento."
+          "body": "TLS en tránsito y cifrado de documentos en reposo (AES-256-GCM)."
         },
         {
           "title": "RGPD (ES) y Ley 172-13 (RD)",
@@ -137,7 +137,7 @@
         "Verifactu + e-CF nativos",
         "Cobro online + provisión de fondos",
         "Plazos procesales + portal del cliente",
-        "Asistente IA con citas y confianza"
+        "Documentos, plantillas y gestión del expediente"
       ],
       "annualNote": "2 meses gratis al pagar al año",
       "trialNote": "15 días de prueba · sin tarjeta",
