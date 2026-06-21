@@ -592,6 +592,12 @@
     "namePlaceholder": "Nombre de la vista…",
     "delete": "Eliminar vista"
   },
+  "emailSnippets": {
+    "saveCurrent": "Guardar plantilla",
+    "save": "Guardar",
+    "namePlaceholder": "Nombre de la plantilla…",
+    "delete": "Eliminar plantilla"
+  },
   "invoicesOverview": {
     "title": "Facturas",
     "subtitle": "Todas las facturas emitidas por el despacho.",

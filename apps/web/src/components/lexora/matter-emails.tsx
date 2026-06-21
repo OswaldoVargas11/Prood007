@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmailSnippetPicker } from './email-snippet-picker';
 import {
   Dialog,
   DialogContent,
@@ -226,6 +227,14 @@ function SendDialog({
             placeholder={t('subject')}
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
+          />
+          <EmailSnippetPicker
+            subject={subject}
+            body={body}
+            onInsert={(s) => {
+              if (!subject.trim() && s.subject) setSubject(s.subject);
+              setBody(s.body);
+            }}
           />
           <Textarea
             rows={7}

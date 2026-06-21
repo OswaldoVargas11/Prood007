@@ -245,6 +245,7 @@ model Tenant {
   // Contraseña del certificado .p12, CIFRADA (AES-256-GCM con DATA_ENCRYPTION_KEY); nunca en claro.
   certificatePasswordEnc String?
   savedViews             SavedView[]
+  emailSnippets          EmailSnippet[]
   // RGPD/Ley 172-13 — gobernanza de datos (D-022): región de residencia de datos del despacho
   // (p. ej. "EU" para ES; a definir para RD) y política de conservación configurable en meses. La
   // RETENCIÓN es metadato/política (la conservación legal prevalece sobre el borrado); no auto-purga.
@@ -841,6 +842,21 @@ model SavedView {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, userId, scope])
+}
+
+// Plantilla/snippet de correo del despacho (respuestas recurrentes), compartida por todo el despacho.
+model EmailSnippet {
+  id        String   @id @default(cuid())
+  tenantId  String
+  name      String
+  subject   String? // asunto opcional
+  body      String // cuerpo de la plantilla
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 // Cobro sobre una factura. Soporta cobros parciales (varios Payment por factura) y conciliación con
