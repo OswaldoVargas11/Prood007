@@ -1150,6 +1150,8 @@
     "convert": "Convertir",
     "discard": "Descartar",
     "delete": "Eliminar",
+    "deleteConfirmTitle": "¿Eliminar este lead?",
+    "deleteConfirmBody": "Se eliminará definitivamente «{name}» y sus datos de captación. No se puede deshacer.",
     "viewClient": "Ver cliente",
     "name": "Nombre",
     "email": "Email",

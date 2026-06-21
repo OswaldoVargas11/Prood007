@@ -204,8 +204,15 @@ function CreateClientDialog({ open, onClose }: { open: boolean; onClose: () => v
         >
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label>{t('name')}</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+              <Label htmlFor="client-name">{t('name')}</Label>
+              <Input
+                id="client-name"
+                name="clientName"
+                autoComplete="off"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoFocus
+              />
               {conflictMatches.length > 0 && (
                 <div className="rounded-lg border border-[var(--warning)] bg-[var(--warning-soft)] p-2.5 text-[12px]">
                   <div className="flex items-center gap-1.5 font-semibold text-[var(--warning)]">
@@ -226,11 +233,12 @@ function CreateClientDialog({ open, onClose }: { open: boolean; onClose: () => v
             <div className="space-y-1.5">
               <div className="grid grid-cols-[10rem_1fr] gap-3">
                 <div className="space-y-1.5">
-                  <Label>{t('docType')}</Label>
+                  <Label htmlFor="client-doctype">{t('docType')}</Label>
                   <select
+                    id="client-doctype"
                     value={docType}
                     onChange={(e) => setDocType(e.target.value as 'FISCAL' | 'PASSPORT' | 'OTHER')}
-                    className="flex h-9 w-full rounded-md border border-input bg-[var(--surface-1)] px-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex h-9 w-full rounded-md border border-input bg-[var(--surface-1)] px-2 text-sm text-foreground shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <option value="FISCAL">{t('docFiscal')}</option>
                     <option value="PASSPORT">{t('docPassport')}</option>
@@ -238,8 +246,14 @@ function CreateClientDialog({ open, onClose }: { open: boolean; onClose: () => v
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>{docType === 'FISCAL' ? t('fiscalId') : t('docId')}</Label>
+                  <Label htmlFor="client-taxid">
+                    {docType === 'FISCAL' ? t('fiscalId') : t('docId')}
+                  </Label>
                   <Input
+                    id="client-taxid"
+                    name="taxId"
+                    autoComplete="off"
+                    spellCheck={false}
                     value={taxId}
                     onChange={(e) => setTaxId(e.target.value)}
                     className="font-mono"
@@ -255,15 +269,37 @@ function CreateClientDialog({ open, onClose }: { open: boolean; onClose: () => v
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label>{t('email')}</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                <Label htmlFor="client-email">{t('email')}</Label>
+                <Input
+                  id="client-email"
+                  name="email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
               </div>
               <div className="space-y-1.5">
-                <Label>{t('phone')}</Label>
-                <Input value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <Label htmlFor="client-phone">{t('phone')}</Label>
+                <Input
+                  id="client-phone"
+                  name="tel"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="off"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
               </div>
             </div>
-            {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+            {error && (
+              <p role="alert" className="text-sm text-[var(--danger)]">
+                {error}
+              </p>
+            )}
           </div>
           <DialogFooter className="mt-4">
             <Button type="button" variant="outline" size="sm" onClick={onClose}>
