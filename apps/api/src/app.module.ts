@@ -40,6 +40,7 @@ import { LeadsModule } from './leads/leads.module';
 import { CalendarModule } from './calendar/calendar.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { AiModule } from './ai/ai.module';
+import { DebugModule } from './debug/debug.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -97,6 +98,8 @@ import { HealthController } from './health.controller';
     CalendarModule,
     IntegrationsModule,
     AiModule,
+    // Solo en arranques con SENTRY_DEBUG_KEY definido: endpoint gated para verificar Sentry (errores 5xx).
+    ...(process.env.SENTRY_DEBUG_KEY ? [DebugModule] : []),
   ],
   controllers: [HealthController],
   providers: [
