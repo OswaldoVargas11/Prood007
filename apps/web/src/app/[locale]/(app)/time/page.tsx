@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTimeEntries } from '@/lib/hooks';
-import { useRouter } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import { formatDate, formatMoney } from '@/lib/format';
 import { LogTimeDialog } from '@/components/lexora/log-time-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -28,7 +28,11 @@ function fmtDuration(min: number): string {
 export default function TimePage() {
   const t = useTranslations('time');
   const locale = useLocale();
-  const today = new Date().toISOString().slice(0, 10);
+  // Fecha local (no UTC): toISOString() puede devolver el día siguiente cerca de medianoche.
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+    now.getDate(),
+  ).padStart(2, '0')}`;
 
   const dayQuery = useTimeEntries({ mine: true, date: today });
   const unbilledQuery = useTimeEntries({ unbilled: true });
@@ -59,7 +63,11 @@ export default function TimePage() {
           )}
         </div>
         {dayQuery.isLoading && <Skeleton className="h-28 w-full rounded-xl" />}
-        {dayQuery.isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
+        {dayQuery.isError && (
+          <p role="alert" className="text-sm text-[var(--danger)]">
+            {t('loadError')}
+          </p>
+        )}
         {!dayQuery.isLoading && !dayQuery.isError && (dayQuery.data?.entries.length ?? 0) === 0 && (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -91,7 +99,11 @@ export default function TimePage() {
         </div>
         <p className="text-[13px] text-muted-foreground">{t('unbilledHint')}</p>
         {unbilledQuery.isLoading && <Skeleton className="h-28 w-full rounded-xl" />}
-        {unbilledQuery.isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
+        {unbilledQuery.isError && (
+          <p role="alert" className="text-sm text-[var(--danger)]">
+            {t('loadError')}
+          </p>
+        )}
         {!unbilledQuery.isLoading &&
           !unbilledQuery.isError &&
           (unbilledQuery.data?.entries.length ?? 0) === 0 && (
@@ -116,39 +128,62 @@ function TimeRows({ entries, currency }: { entries: TimeEntryItem[]; currency: s
   const t = useTranslations('time');
   const locale = useLocale();
   return (
-    <div>
-      {entries.map((e) => (
-        <div
-          key={e.id}
-          className="grid grid-cols-[1.6fr_0.8fr_0.7fr_0.8fr_auto] items-center gap-3 border-b px-4 py-2.5 text-[13px] last:border-b-0"
-        >
-          <span className="truncate">{e.description}</span>
-          <span className="truncate font-mono text-[11px] text-[var(--text-subtle)]">
-            {e.matter?.reference ?? '—'}
-          </span>
-          <span className="text-right tabular-nums text-muted-foreground">
-            {fmtDuration(e.minutes)}
-          </span>
-          <span className="text-right font-medium tabular-nums">
-            {formatMoney(e.fee, currency, locale)}
-          </span>
-          <span className="text-right">
-            {e.billed ? (
-              <Badge variant="success">{t('billedBadge')}</Badge>
-            ) : (
-              <Badge variant="warning">{t('unbilledBadge')}</Badge>
-            )}
-          </span>
-        </div>
-      ))}
-    </div>
+    <table className="w-full table-fixed text-[13px]">
+      <caption className="sr-only">{t('today')}</caption>
+      <thead>
+        <tr className="border-b text-[10.5px] uppercase tracking-wide text-[var(--text-subtle)]">
+          <th scope="col" className="w-[42%] px-4 py-2.5 text-left font-semibold">
+            {t('description')}
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-left font-semibold">
+            {t('matter')}
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-right font-semibold">
+            {t('colDuration')}
+          </th>
+          <th scope="col" className="px-4 py-2.5 text-right font-semibold">
+            {t('colAmount')}
+          </th>
+          <th scope="col" className="w-[96px] px-4 py-2.5 text-right font-semibold">
+            {t('colStatus')}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {entries.map((e) => (
+          <tr key={e.id} className="border-b last:border-0">
+            <td className="truncate px-4 py-2.5" title={e.description}>
+              {e.description}
+            </td>
+            <td
+              className="truncate px-4 py-2.5 font-mono text-[11px] text-[var(--text-subtle)]"
+              title={e.matter?.reference ?? undefined}
+            >
+              {e.matter?.reference ?? '—'}
+            </td>
+            <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">
+              {fmtDuration(e.minutes)}
+            </td>
+            <td className="px-4 py-2.5 text-right font-medium tabular-nums">
+              {formatMoney(e.fee, currency, locale)}
+            </td>
+            <td className="px-4 py-2.5 text-right">
+              {e.billed ? (
+                <Badge variant="success">{t('billedBadge')}</Badge>
+              ) : (
+                <Badge variant="warning">{t('unbilledBadge')}</Badge>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
 function UnbilledByMatter({ entries, currency }: { entries: TimeEntryItem[]; currency: string }) {
   const t = useTranslations('time');
   const locale = useLocale();
-  const router = useRouter();
 
   const groups = useMemo(() => {
     const map = new Map<
@@ -172,39 +207,67 @@ function UnbilledByMatter({ entries, currency }: { entries: TimeEntryItem[]; cur
     return [...map.entries()].map(([id, g]) => ({ id, ...g }));
   }, [entries]);
 
+  const headerContent = (g: (typeof groups)[number], { link }: { link: boolean }) => (
+    <>
+      <span className="min-w-0">
+        <span className="font-mono text-[11px] text-[var(--text-subtle)]">{g.reference}</span>
+        <span className="ml-2 truncate text-[13px] font-medium">{g.title}</span>
+      </span>
+      <span className="shrink-0 text-[13px] text-muted-foreground">
+        {fmtDuration(g.minutes)} ·{' '}
+        <span className="font-semibold text-foreground tabular-nums">
+          {formatMoney(g.fee.toFixed(2), currency, locale)}
+        </span>
+        {link && <span className="ml-2 text-[var(--brand)]">{t('invoice')} →</span>}
+      </span>
+    </>
+  );
+
   return (
     <div className="space-y-3">
       {groups.map((g) => (
         <Card key={g.id} className="overflow-hidden">
-          <button
-            type="button"
-            onClick={() => g.id !== 'none' && router.push(`/matters/${g.id}?tab=costs`)}
-            className="flex w-full items-center justify-between gap-3 border-b bg-accent/40 px-4 py-2.5 text-left transition-colors hover:bg-accent/70"
-          >
-            <span className="min-w-0">
-              <span className="font-mono text-[11px] text-[var(--text-subtle)]">{g.reference}</span>
-              <span className="ml-2 truncate text-[13px] font-medium">{g.title}</span>
-            </span>
-            <span className="shrink-0 text-[13px] text-muted-foreground">
-              {fmtDuration(g.minutes)} ·{' '}
-              <span className="font-semibold text-foreground tabular-nums">
-                {formatMoney(g.fee.toFixed(2), currency, locale)}
-              </span>
-              <span className="ml-2 text-[var(--brand)]">{t('invoice')} →</span>
-            </span>
-          </button>
-          <div>
-            {g.items.map((e) => (
-              <div
-                key={e.id}
-                className="grid grid-cols-[1.8fr_0.6fr_0.7fr] items-center gap-3 border-b px-4 py-2 text-[12.5px] text-muted-foreground last:border-b-0"
-              >
-                <span className="truncate">{e.description}</span>
-                <span className="text-right tabular-nums">{fmtDuration(e.minutes)}</span>
-                <span className="text-right tabular-nums">{formatDate(e.workedAt, locale)}</span>
-              </div>
-            ))}
-          </div>
+          {g.id !== 'none' ? (
+            <Link
+              href={`/matters/${g.id}?tab=costs`}
+              className="flex w-full items-center justify-between gap-3 border-b bg-accent/40 px-4 py-2.5 text-left outline-none transition-colors hover:bg-accent/70 focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {headerContent(g, { link: true })}
+            </Link>
+          ) : (
+            <div className="flex w-full items-center justify-between gap-3 border-b bg-accent/40 px-4 py-2.5 text-left">
+              {headerContent(g, { link: false })}
+            </div>
+          )}
+          <table className="w-full table-fixed text-[12.5px] text-muted-foreground">
+            <caption className="sr-only">{g.title}</caption>
+            <thead>
+              <tr className="border-b text-[10.5px] uppercase tracking-wide text-[var(--text-subtle)]">
+                <th scope="col" className="w-[60%] px-4 py-2 text-left font-semibold">
+                  {t('description')}
+                </th>
+                <th scope="col" className="px-4 py-2 text-right font-semibold">
+                  {t('colDuration')}
+                </th>
+                <th scope="col" className="px-4 py-2 text-right font-semibold">
+                  {t('workedAt')}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {g.items.map((e) => (
+                <tr key={e.id} className="border-b last:border-0">
+                  <td className="truncate px-4 py-2" title={e.description}>
+                    {e.description}
+                  </td>
+                  <td className="px-4 py-2 text-right tabular-nums">{fmtDuration(e.minutes)}</td>
+                  <td className="px-4 py-2 text-right tabular-nums">
+                    {formatDate(e.workedAt, locale)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </Card>
       ))}
     </div>

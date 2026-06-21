@@ -96,6 +96,9 @@ export default function BillingOverviewPage() {
   const loading =
     mattersQuery.isLoading || (matters.length > 0 && ledgerQueries.some((q) => q.isLoading));
   const isError = mattersQuery.isError;
+  // Fallo de algún ledger por expediente: los expedientes sí cargan, pero faltan sus movimientos,
+  // así que los totales/saldos mostrados están incompletos. Se avisa sin bloquear la vista.
+  const partialError = matters.length > 0 && ledgerQueries.some((q) => q.isError);
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-4">
@@ -113,6 +116,14 @@ export default function BillingOverviewPage() {
 
       {!loading && !isError && (
         <>
+          {partialError && (
+            <p
+              role="alert"
+              className="rounded-lg border border-[var(--warning)]/40 bg-[var(--warning-soft)] px-3 py-2 text-[12.5px] text-foreground"
+            >
+              {t('partialError')}
+            </p>
+          )}
           {/* Resumen del despacho (importes desglosados por moneda) */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <Kpi label={t('totalBilled')} values={summary.billed} />

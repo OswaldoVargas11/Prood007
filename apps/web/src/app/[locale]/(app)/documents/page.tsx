@@ -5,7 +5,7 @@ import { useQueries } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
 import { useMatters } from '@/lib/hooks';
-import { useRouter } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import { docStatusVariant, formatBytes, mimeLabel } from '@/lib/doc-status';
 import { formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +21,6 @@ export default function DocumentsOverviewPage() {
   const t = useTranslations('documentsOverview');
   const tStatus = useTranslations('documents.status');
   const locale = useLocale();
-  const router = useRouter();
 
   const mattersQuery = useMatters({ pageSize: 100 });
   const matters = useMemo<Matter[]>(() => mattersQuery.data?.items ?? [], [mattersQuery.data]);
@@ -69,11 +68,10 @@ export default function DocumentsOverviewPage() {
           {rows.map(({ matter, doc }) => {
             const top = doc.versions[0];
             return (
-              <button
+              <Link
                 key={doc.id}
-                type="button"
-                onClick={() => router.push(`/matters/${matter.id}/documents/${doc.id}`)}
-                className="flex w-full items-center gap-3 border-b px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-accent/60"
+                href={`/matters/${matter.id}/documents/${doc.id}`}
+                className="flex w-full items-center gap-3 border-b px-4 py-3 text-left outline-none transition-colors last:border-b-0 hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
               >
                 <span className="flex size-[34px] flex-shrink-0 items-center justify-center rounded-[9px] bg-[var(--danger-soft)] font-mono text-[9px] font-bold text-[var(--danger)]">
                   {top ? mimeLabel(top.mimeType) : '—'}
@@ -93,7 +91,7 @@ export default function DocumentsOverviewPage() {
                     {tStatus(top.reviewStatus)}
                   </Badge>
                 )}
-              </button>
+              </Link>
             );
           })}
         </div>
