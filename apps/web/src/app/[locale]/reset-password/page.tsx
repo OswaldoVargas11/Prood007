@@ -61,8 +61,8 @@ function ResetForm() {
 
   if (done) {
     return (
-      <div className="space-y-4 text-center">
-        <CheckCircle2 className="mx-auto size-8 text-[var(--success)]" />
+      <div role="status" aria-live="polite" className="space-y-4 text-center">
+        <CheckCircle2 aria-hidden className="mx-auto size-8 text-[var(--success)]" />
         <p className="text-sm text-muted-foreground">{t('success')}</p>
         <Link href="/login" className="text-sm font-medium text-[var(--brand)] hover:underline">
           {t('goToLogin')}
@@ -100,11 +100,20 @@ function ResetForm() {
           autoComplete="new-password"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
+          aria-invalid={mismatch || undefined}
           className={cn(mismatch && 'border-[var(--danger)]')}
         />
-        {mismatch && <p className="text-[11px] text-[var(--danger)]">{t('mismatch')}</p>}
+        {mismatch && (
+          <p role="alert" className="text-[11px] text-[var(--danger)]">
+            {t('mismatch')}
+          </p>
+        )}
       </div>
-      {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-[var(--danger)]">
+          {error}
+        </p>
+      )}
       <Button type="submit" className="w-full" disabled={!valid || reset.isPending}>
         {reset.isPending && <Loader2 className="animate-spin" />}
         {t('submit')}

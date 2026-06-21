@@ -45,8 +45,8 @@ export default function ForgotPasswordPage() {
         </CardHeader>
         <CardContent>
           {sent ? (
-            <div className="space-y-4 text-center">
-              <CheckCircle2 className="mx-auto size-8 text-[var(--success)]" />
+            <div role="status" aria-live="polite" className="space-y-4 text-center">
+              <CheckCircle2 aria-hidden className="mx-auto size-8 text-[var(--success)]" />
               <p className="text-sm text-muted-foreground">{t('sent')}</p>
               <Link
                 href="/login"
@@ -69,7 +69,10 @@ export default function ForgotPasswordPage() {
                 <Input
                   id="email"
                   type="email"
+                  inputMode="email"
                   autoComplete="email"
+                  autoCapitalize="none"
+                  spellCheck={false}
                   autoFocus
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}

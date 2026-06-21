@@ -33,16 +33,16 @@ function VerifyInner() {
 
   if (state === 'loading') {
     return (
-      <div className="py-4 text-center">
-        <Loader2 className="mx-auto size-6 animate-spin text-muted-foreground" />
+      <div role="status" aria-live="polite" className="py-4 text-center">
+        <Loader2 aria-hidden className="mx-auto size-6 animate-spin text-muted-foreground" />
         <p className="mt-2 text-sm text-muted-foreground">{t('verifying')}</p>
       </div>
     );
   }
   if (state === 'ok') {
     return (
-      <div className="space-y-4 text-center">
-        <CheckCircle2 className="mx-auto size-8 text-[var(--success)]" />
+      <div role="status" aria-live="polite" className="space-y-4 text-center">
+        <CheckCircle2 aria-hidden className="mx-auto size-8 text-[var(--success)]" />
         <p className="text-sm text-muted-foreground">{t('success')}</p>
         <Link href="/login" className="text-sm font-medium text-[var(--brand)] hover:underline">
           {t('goToLogin')}
@@ -51,8 +51,8 @@ function VerifyInner() {
     );
   }
   return (
-    <div className="space-y-4 text-center">
-      <XCircle className="mx-auto size-8 text-[var(--danger)]" />
+    <div role="alert" className="space-y-4 text-center">
+      <XCircle aria-hidden className="mx-auto size-8 text-[var(--danger)]" />
       <p className="text-sm text-muted-foreground">{t('error')}</p>
       <Link href="/login" className="text-sm font-medium text-[var(--brand)] hover:underline">
         {t('goToLogin')}
