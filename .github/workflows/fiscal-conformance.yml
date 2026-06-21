@@ -11,15 +11,11 @@ name: Fiscal Conformance (golden-file)
 # Builders reales: @legalflow/compliance (Spain/Dominican provider, funciones puras).
 
 on:
+  # Corre en TODO PR (sin filtro de paths) a propósito: como es un REQUIRED CHECK
+  # de branch protection, un filtro de paths lo dejaría "pending" eterno en los PRs
+  # que no tocan fiscalidad y bloquearía su merge. El harness es determinista y
+  # rápido (~30s), así que correrlo siempre es barato y lo hace fiable como gate.
   pull_request:
-    paths:
-      - 'packages/compliance/**'
-      - 'packages/domain/**'
-      - 'apps/api/src/billing/**'
-      - 'apps/api/src/retainer/**'
-      - 'apps/api/src/compliance/**'
-      - 'apps/api/src/ledger/**'
-      - 'apps/api/prisma/**'
   schedule:
     - cron: '0 3 * * *' # 03:00 UTC, control nocturno (deriva por dependencias o datos)
   workflow_dispatch: {}
