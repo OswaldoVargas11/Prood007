@@ -8,6 +8,7 @@ import { MatterStatus, Role } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
+import { AiSearchService } from '../ai/ai-search.service';
 import { CreateMatterDto } from './dto/create-matter.dto';
 import { UpdateMatterDto } from './dto/update-matter.dto';
 import { canTransition } from './matter-status';
@@ -20,6 +21,7 @@ export class MattersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly aiSearch: AiSearchService,
   ) {}
 
   /** Comprueba que el cliente pertenece al tenant. */
@@ -105,6 +107,9 @@ export class MattersService {
       },
     });
     await this.audit.log(user, 'matter.created', 'Matter', matter.id, { reference });
+    // Auto-indexado semántico best-effort para la búsqueda de conocimiento del despacho. No-op sin clave
+    // de embeddings; no bloquea la creación (fire-and-forget) y el cron nocturno lo respalda.
+    void this.aiSearch.indexMatter(user, matter.id).catch(() => undefined);
     return matter;
   }
 
