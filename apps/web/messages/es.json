@@ -211,7 +211,10 @@
     "workedAt": "Fecha",
     "save": "Guardar",
     "error": "No se pudo registrar el tiempo.",
-    "loadError": "No se pudo cargar el tiempo."
+    "loadError": "No se pudo cargar el tiempo.",
+    "colDuration": "Duración",
+    "colAmount": "Importe",
+    "colStatus": "Estado"
   },
   "calendar": {
     "title": "Agenda de plazos",
@@ -567,6 +570,7 @@
     "title": "Facturación",
     "subtitle": "Resumen de facturación del despacho, por expediente.",
     "loadError": "No se pudo cargar la facturación.",
+    "partialError": "Algunos expedientes no se pudieron cargar; los totales pueden estar incompletos.",
     "empty": "Aún no hay movimientos de facturación.",
     "totalBilled": "Facturado (total)",
     "totalBalance": "Saldo pendiente",
