@@ -28,11 +28,45 @@ export class AiSearchService {
     @Inject(AI_EMBEDDINGS) private readonly embeddings: EmbeddingsProvider,
   ) {}
 
-  /** (Re)indexa un expediente: borra sus vectores previos e inserta los nuevos. */
-  async indexMatter(user: RequestUser, matterId: string): Promise<{ chunks: number }> {
+  /** (Re)indexa un expediente desde una ruta con sesión. */
+  indexMatter(user: RequestUser, matterId: string): Promise<{ chunks: number }> {
+    return this.indexMatterForTenant(user.tenantId, matterId);
+  }
+
+  /** ¿Está disponible el indexado/búsqueda semántica? (hay clave de embeddings). */
+  isEnabled(): boolean {
+    return this.embeddings.isEnabled();
+  }
+
+  /**
+   * IDs de expedientes ACTIVOS que necesitan (re)indexarse: sin vectores o modificados después del último
+   * indexado. Lo usa el cron nocturno para mantener el corpus de búsqueda del despacho al día.
+   */
+  async staleMatterIds(tenantId: string): Promise<string[]> {
+    const matters = await this.prisma.matter.findMany({
+      where: { tenantId, status: { in: ['OPEN', 'IN_PROGRESS', 'ON_HOLD'] } },
+      select: { id: true, updatedAt: true },
+    });
+    if (matters.length === 0) return [];
+    const indexed = await this.prisma.aiEmbedding.groupBy({
+      by: ['refId'],
+      where: { tenantId, kind: 'matter', refId: { in: matters.map((m) => m.id) } },
+      _max: { createdAt: true },
+    });
+    const lastIndexed = new Map(indexed.map((r) => [r.refId, r._max.createdAt]));
+    return matters
+      .filter((m) => {
+        const at = lastIndexed.get(m.id);
+        return !at || at < m.updatedAt;
+      })
+      .map((m) => m.id);
+  }
+
+  /** (Re)indexa un expediente por tenantId (usable sin sesión, p. ej. desde el cron). */
+  async indexMatterForTenant(tenantId: string, matterId: string): Promise<{ chunks: number }> {
     this.assertEnabled();
     const matter = await this.prisma.matter.findFirst({
-      where: { id: matterId, tenantId: user.tenantId },
+      where: { id: matterId, tenantId },
       include: {
         client: { select: { name: true } },
         documents: { select: { name: true }, take: 50 },
@@ -53,13 +87,13 @@ export class AiSearchService {
     const model = this.modelTag();
 
     await this.prisma.aiEmbedding.deleteMany({
-      where: { tenantId: user.tenantId, kind: 'matter', refId: matterId },
+      where: { tenantId, kind: 'matter', refId: matterId },
     });
     await this.prisma.$transaction(
       chunks.map((content, i) =>
         this.prisma.aiEmbedding.create({
           data: {
-            tenantId: user.tenantId,
+            tenantId,
             kind: 'matter',
             refId: matterId,
             refLabel: label,
