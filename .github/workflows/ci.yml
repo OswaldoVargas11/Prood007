@@ -54,6 +54,8 @@ jobs:
         run: pnpm --filter @legalflow/compliance test:coverage
       - name: Domain (sin tests aún)
         run: pnpm --filter @legalflow/domain test
+      - name: API (unit — firma e-CF DGII, etc.)
+        run: pnpm --filter @legalflow/api test
       - name: Web (Vitest, cliente API + auth — GATE)
         run: pnpm --filter @legalflow/web test:coverage
       - name: Upload coverage
