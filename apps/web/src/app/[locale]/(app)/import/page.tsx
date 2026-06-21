@@ -114,8 +114,10 @@ export default function ImportPage() {
               setResult(null);
             }}
             rows={6}
+            aria-label={t('step1')}
+            spellCheck={false}
             placeholder={t('pastePlaceholder')}
-            className="w-full rounded-md border bg-[var(--surface-1)] p-3 font-mono text-[12px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="w-full rounded-md border bg-[var(--surface-1)] p-3 font-mono text-[12px] text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
 
           <div className="flex items-center gap-2">
