@@ -8,6 +8,9 @@ primary_region = "fra"
   [build.args]
     # URL pública de la API (se hornea en el bundle de Next).
     NEXT_PUBLIC_API_URL = "https://api.lawzora.com"
+    # DSN de Sentry del web (errores de cliente). NO es secreto: un DSN va embebido en el JS de cliente
+    # y solo permite ENVIAR eventos. Aquí para que CADA deploy del web lo hornee (es build-time).
+    NEXT_PUBLIC_SENTRY_DSN = "https://c594d99268d737e61889360edc16ca6a@o4511605119582208.ingest.de.sentry.io/4511605265334352"
 
 [env]
   NODE_ENV = "production"
