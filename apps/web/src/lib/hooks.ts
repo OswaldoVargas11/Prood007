@@ -1642,9 +1642,27 @@ export function useCheckout() {
   });
 }
 
-/** Abre el portal de Stripe (gestionar/cancelar la suscripción). */
+/** Abre el portal de Stripe (gestionar método de pago/facturas). */
 export function usePortal() {
   return useMutation({ mutationFn: () => api.post<{ url: string }>('/subscription/portal') });
+}
+
+/** Cancela la suscripción al final del periodo (conserva acceso hasta entonces). */
+export function useCancelSubscription() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<{ cancelAtPeriodEnd: true }>('/subscription/cancel'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['subscription'] }),
+  });
+}
+
+/** Deshace una cancelación programada y reanuda la suscripción. */
+export function useResumeSubscription() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<{ cancelAtPeriodEnd: false }>('/subscription/resume'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['subscription'] }),
+  });
 }
 
 /** Ajusta el nº de plazas contratadas (prorrateado en la próxima factura). */

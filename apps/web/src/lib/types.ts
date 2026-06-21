@@ -591,6 +591,7 @@ export interface SubscriptionInfo {
   trialEndsAt: string | null;
   trialDaysLeft: number | null;
   currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
   hasAccess: boolean;
   seats: number;
   seatsUsed: number;

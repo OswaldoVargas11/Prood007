@@ -29,6 +29,7 @@ interface SubLike {
   id: string;
   status: string;
   current_period_end?: number;
+  cancel_at_period_end?: boolean;
   items: { data: Array<{ quantity?: number | null; current_period_end?: number }> };
   metadata?: Record<string, string> | null;
 }
@@ -254,6 +255,45 @@ export class StripeBillingService {
     return { seats: newSeats };
   }
 
+  /**
+   * Cancela la suscripción AL FINAL DEL PERIODO. La suscripción sigue ACTIVE y el despacho conserva el
+   * acceso hasta `currentPeriodEnd`; Stripe no vuelve a cobrar y al expirar emite
+   * `customer.subscription.deleted` → CANCELED. Es reversible con `resume()` mientras no haya expirado.
+   * Sincroniza el flag al instante (sin esperar al webhook) para que la UI muestre "se cancelará el …".
+   */
+  async cancel(user: RequestUser): Promise<{ cancelAtPeriodEnd: true }> {
+    const stripe = this.client();
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: user.tenantId },
+      select: { stripeSubscriptionId: true },
+    });
+    if (!tenant.stripeSubscriptionId) {
+      throw new BadRequestException(apiError('subscription.noSubscription'));
+    }
+    const updated = await stripe.subscriptions.update(tenant.stripeSubscriptionId, {
+      cancel_at_period_end: true,
+    });
+    await this.applySubscription(user.tenantId, updated as unknown as SubLike);
+    return { cancelAtPeriodEnd: true };
+  }
+
+  /** Deshace una cancelación programada: reanuda la suscripción (vuelve a cobrar en la fecha normal). */
+  async resume(user: RequestUser): Promise<{ cancelAtPeriodEnd: false }> {
+    const stripe = this.client();
+    const tenant = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: user.tenantId },
+      select: { stripeSubscriptionId: true },
+    });
+    if (!tenant.stripeSubscriptionId) {
+      throw new BadRequestException(apiError('subscription.noSubscription'));
+    }
+    const updated = await stripe.subscriptions.update(tenant.stripeSubscriptionId, {
+      cancel_at_period_end: false,
+    });
+    await this.applySubscription(user.tenantId, updated as unknown as SubLike);
+    return { cancelAtPeriodEnd: false };
+  }
+
   // ── Webhook ────────────────────────────────────────────────────────────────
 
   private verify(rawBody: Buffer, signature: string): StripeEvent {
@@ -281,6 +321,8 @@ export class StripeBillingService {
       seats,
       billingCycle: cycle,
       stripeSubscriptionId: sub.id,
+      // Baja agendada: Stripe la marca en la suscripción; la reflejamos para el aviso "se cancelará el …".
+      cancelAtPeriodEnd: Boolean(sub.cancel_at_period_end),
       // El tope operativo de plazas pasa a ser el contratado.
       maxLawyers: seats,
       maxAdmins: Math.max(1, Math.min(seats, 5)),
@@ -347,7 +389,8 @@ export class StripeBillingService {
         if (tenantId) {
           await this.system.tenant.update({
             where: { id: tenantId },
-            data: { subscriptionStatus: 'CANCELED' },
+            // Ya expiró y se canceló de verdad: limpiamos la baja agendada (deja de tener sentido).
+            data: { subscriptionStatus: 'CANCELED', cancelAtPeriodEnd: false },
           });
         }
         break;
