@@ -91,5 +91,6 @@ jobs:
             Si la causa raíz vive ahí, descríbela y escala con un issue. No
             mergees nada. No actualices ningún golden por tu cuenta.
           claude_args: |
-            --max-turns 12
+            --allowedTools "Bash(gh pr create:*),Bash(gh issue create:*),Bash(gh label create:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
+            --max-turns 25
             --model claude-sonnet-4-6

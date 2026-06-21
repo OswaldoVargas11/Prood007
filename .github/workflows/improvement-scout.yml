@@ -70,5 +70,6 @@ jobs:
                 norma (AEAT/Verifactu, DGII/e-CF…), márcalo como "verificar con
                 asesor fiscal".
           claude_args: |
-            --max-turns 15
+            --allowedTools "Bash(gh issue create:*),Bash(gh label create:*),Bash(gh label list:*),Bash(gh issue list:*)"
+            --max-turns 30
             --model claude-sonnet-4-6
