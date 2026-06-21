@@ -31,7 +31,8 @@ import { Reveal } from './reveal';
  * Landing pública de Lawzora. Lidera con GESTIÓN (el porqué del uso diario); el cumplimiento
  * (Verifactu/e-CF) baja a diferenciador + urgencia. Misma marca/tokens/Geist que la app, framer-motion
  * con `Reveal` (respeta prefers-reduced-motion) y componentes reales (Button/Badge/Logo/ComplianceSeal).
- * Copy en messages/es.json (`landing.*`). Precio 29 €/usuario/mes: pendiente de confirmación del owner.
+ * Copy en messages/es.json (`landing.*`). Precios = espejo de subscription/plans.ts (SEAT_TIERS:
+ * 1–5 → 39 € · 6–15 → 35 € · 16+ → 29 €; anual 2 meses gratis; prueba 15 días).
  */
 const BENEFIT_ICONS: LucideIcon[] = [
   CreditCard,
