@@ -1,3 +1,5 @@
+// Debe ir ANTES que cualquier otro import: inicializa Sentry y auto-instrumenta el framework (gated).
+import './instrument';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
