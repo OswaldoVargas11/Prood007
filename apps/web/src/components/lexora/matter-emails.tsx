@@ -150,6 +150,7 @@ function SendDialog({
   const tAi = useTranslations('ai');
   const send = useSendMatterEmail(matterId);
   const { data: aiStatus } = useAiStatus();
+  const aiEnabled = Boolean(aiStatus?.enabled);
   const draft = useDraftEmail();
   const [to, setTo] = useState(defaultTo ?? '');
   const [subject, setSubject] = useState('');
@@ -169,7 +170,7 @@ function SendDialog({
   }
 
   async function aiDraft() {
-    if (aiInstructions.trim().length < 2) return;
+    if (!aiEnabled || aiInstructions.trim().length < 2) return;
     try {
       const res = await draft.mutateAsync({ instructions: aiInstructions.trim(), matterId });
       if (res.subject) setSubject(res.subject);
@@ -187,32 +188,34 @@ function SendDialog({
           <DialogDescription>{t('sendDesc')}</DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          {aiStatus?.enabled && (
-            <div className="space-y-2 rounded-lg border border-dashed bg-[var(--surface-1)] p-2.5">
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder={tAi('draftEmailInstructions')}
-                  value={aiInstructions}
-                  onChange={(e) => setAiInstructions(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && aiDraft()}
-                />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={aiDraft}
-                  disabled={draft.isPending || aiInstructions.trim().length < 2}
-                >
-                  {draft.isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Sparkles className="size-4" />
-                  )}
-                  {tAi('draftEmail')}
-                </Button>
-              </div>
+          <div className="space-y-1.5 rounded-lg border border-dashed bg-[var(--surface-1)] p-2.5">
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder={tAi('draftEmailInstructions')}
+                value={aiInstructions}
+                onChange={(e) => setAiInstructions(e.target.value)}
+                onKeyDown={(e) => aiEnabled && e.key === 'Enter' && aiDraft()}
+                disabled={!aiEnabled}
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="shrink-0"
+                onClick={aiDraft}
+                disabled={!aiEnabled || draft.isPending || aiInstructions.trim().length < 2}
+              >
+                {draft.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+                {tAi('draftEmail')}
+              </Button>
             </div>
-          )}
+            {!aiEnabled && (
+              <p className="text-[12px] text-muted-foreground">{tAi('disabledShort')}</p>
+            )}
+          </div>
           <Input
             type="email"
             placeholder={t('to')}

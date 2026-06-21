@@ -1529,6 +1529,7 @@
   "ai": {
     "title": "Asistente IA",
     "disabled": "El asistente de IA aún no está activado en este despacho. Cuando se configure, podrás preguntar y resumir aquí.",
+    "disabledShort": "IA no activada",
     "askPlaceholder": "Pregunta sobre este expediente (plazos, partes, estado…)",
     "ask": "Preguntar",
     "summarize": "Resumir expediente",

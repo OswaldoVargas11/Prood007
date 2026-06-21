@@ -31,36 +31,33 @@ export function AiAssistantPanel({ matterId }: { matterId: string }) {
 
   if (isLoading) return <Skeleton className="h-48 w-full rounded-xl" />;
 
-  if (!status?.enabled) {
-    return (
-      <Card className="border-dashed">
-        <CardContent className="flex items-start gap-3 py-6 text-sm text-muted-foreground">
-          <Sparkles className="mt-0.5 size-4 shrink-0" />
-          <div>
-            <p className="font-medium text-foreground">{t('title')}</p>
-            <p className="mt-1">{t('disabled')}</p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const enabled = Boolean(status?.enabled);
 
   return (
     <div className="space-y-4">
-      {status.model && (
-        <div className="flex items-center justify-between">
-          <h3 className="flex items-center gap-1.5 text-sm font-semibold">
-            <Sparkles className="size-4 text-[var(--brand)]" />
-            {t('title')}
-          </h3>
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+          <Sparkles className="size-4 text-[var(--brand)]" />
+          {t('title')}
+        </h3>
+        {status?.model ? (
           <Badge variant="secondary" className="font-mono text-[11px]">
             {status.model}
           </Badge>
-        </div>
+        ) : (
+          <Badge variant="outline" className="text-[11px]">
+            {t('disabledShort')}
+          </Badge>
+        )}
+      </div>
+      {!enabled && (
+        <p className="rounded-lg border border-dashed bg-[var(--surface-1)] p-3 text-[13px] text-muted-foreground">
+          {t('disabled')}
+        </p>
       )}
-      <AskSummarizeCard matterId={matterId} />
-      <TemplateDraftCard matterId={matterId} />
-      <SemanticSearchCard matterId={matterId} searchEnabled={status.searchEnabled} />
+      <AskSummarizeCard matterId={matterId} enabled={enabled} />
+      <TemplateDraftCard matterId={matterId} enabled={enabled} />
+      <SemanticSearchCard matterId={matterId} searchEnabled={Boolean(status?.searchEnabled)} />
     </div>
   );
 }
@@ -105,7 +102,7 @@ function ResultView({ result }: { result: AiResponse }) {
 }
 
 /** Preguntar / resumir el expediente. */
-function AskSummarizeCard({ matterId }: { matterId: string }) {
+function AskSummarizeCard({ matterId, enabled }: { matterId: string; enabled: boolean }) {
   const t = useTranslations('ai');
   const ask = useAskMatter(matterId);
   const summarize = useSummarizeMatter(matterId);
@@ -115,6 +112,7 @@ function AskSummarizeCard({ matterId }: { matterId: string }) {
   const pending = ask.isPending || summarize.isPending;
 
   async function run(action: 'ask' | 'summary') {
+    if (!enabled) return;
     setError(null);
     setResult(null);
     try {
@@ -133,19 +131,25 @@ function AskSummarizeCard({ matterId }: { matterId: string }) {
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           rows={3}
+          disabled={!enabled}
           placeholder={t('askPlaceholder')}
-          className="flex w-full rounded-md border bg-[var(--surface-1)] px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex w-full rounded-md border bg-[var(--surface-1)] px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
         />
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
             onClick={() => run('ask')}
-            disabled={pending || question.trim().length < 2}
+            disabled={!enabled || pending || question.trim().length < 2}
           >
             {ask.isPending ? <Loader2 className="animate-spin" /> : <Sparkles />}
             {t('ask')}
           </Button>
-          <Button size="sm" variant="outline" onClick={() => run('summary')} disabled={pending}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => run('summary')}
+            disabled={!enabled || pending}
+          >
             {summarize.isPending ? <Loader2 className="animate-spin" /> : <FileText />}
             {t('summarize')}
           </Button>
@@ -158,7 +162,7 @@ function AskSummarizeCard({ matterId }: { matterId: string }) {
 }
 
 /** Redactar un borrador a partir de una plantilla del despacho + contexto del expediente. */
-function TemplateDraftCard({ matterId }: { matterId: string }) {
+function TemplateDraftCard({ matterId, enabled }: { matterId: string; enabled: boolean }) {
   const t = useTranslations('ai');
   const { data: templates } = useTemplates();
   const draft = useDraftFromTemplate();
@@ -168,7 +172,7 @@ function TemplateDraftCard({ matterId }: { matterId: string }) {
   const [error, setError] = useState<string | null>(null);
 
   async function run() {
-    if (!templateId) return;
+    if (!enabled || !templateId) return;
     setError(null);
     setResult(null);
     try {
@@ -187,7 +191,8 @@ function TemplateDraftCard({ matterId }: { matterId: string }) {
         <select
           value={templateId}
           onChange={(e) => setTemplateId(e.target.value)}
-          className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          disabled={!enabled}
+          className="flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
         >
           <option value="">{t('draftTemplatePick')}</option>
           {(templates ?? []).map((tpl) => (
@@ -200,10 +205,11 @@ function TemplateDraftCard({ matterId }: { matterId: string }) {
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
           rows={2}
+          disabled={!enabled}
           placeholder={t('draftTemplateInstructions')}
-          className="flex w-full rounded-md border bg-[var(--surface-1)] px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex w-full rounded-md border bg-[var(--surface-1)] px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
         />
-        <Button size="sm" onClick={run} disabled={draft.isPending || !templateId}>
+        <Button size="sm" onClick={run} disabled={!enabled || draft.isPending || !templateId}>
           {draft.isPending ? <Loader2 className="animate-spin" /> : <FileText />}
           {t('draftTemplateCta')}
         </Button>
