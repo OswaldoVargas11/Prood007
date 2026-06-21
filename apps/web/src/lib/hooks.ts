@@ -1828,3 +1828,52 @@ export function useIndexMatter() {
     mutationFn: (matterId: string) => api.post<{ chunks: number }>(`/ai/index/matters/${matterId}`),
   });
 }
+
+// ── Facturación electrónica RD (e-CF · DGII) ──────────────────────────────────
+
+export type DgiiStatusResponse = {
+  enabled: boolean;
+  environment: string | null;
+  certificate: { uploaded: boolean; name: string | null; uploadedAt: string | null };
+};
+
+export function useDgiiStatus() {
+  return useQuery({
+    queryKey: ['dgii-status'],
+    queryFn: () => api.get<DgiiStatusResponse>('/dgii/status'),
+  });
+}
+
+export function useUploadDgiiCertificate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ file, password }: { file: File; password: string }) => {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('password', password);
+      return api.upload<{ commonName: string | null }>('/dgii/certificate', form);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dgii-status'] }),
+  });
+}
+
+export function useTransmitEcf(invoiceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ status: string; detail?: string }>(`/dgii/invoices/${invoiceId}/transmit`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['invoice', invoiceId] });
+      void qc.invalidateQueries({ queryKey: ['invoices'] });
+    },
+  });
+}
+
+export function useRefreshEcf(invoiceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ status: string; detail?: string }>(`/dgii/invoices/${invoiceId}/refresh`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['invoice', invoiceId] }),
+  });
+}

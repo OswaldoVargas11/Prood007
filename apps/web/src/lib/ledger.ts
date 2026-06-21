@@ -56,6 +56,22 @@ export function invoiceStatusVariant(status: InvoiceStatus): NonNullable<BadgePr
   }
 }
 
+/** Variante de badge para el estado de transmisión del e-CF a la DGII. */
+export function ecfStatusVariant(status: string): NonNullable<BadgeProps['variant']> {
+  switch (status) {
+    case 'ACCEPTED':
+      return 'success';
+    case 'PENDING':
+      return 'warning';
+    case 'REJECTED':
+      return 'danger';
+    case 'STUBBED':
+      return 'info';
+    default:
+      return 'secondary';
+  }
+}
+
 /** Códigos fiscales por defecto según la jurisdicción del tenant (no hardcodear país en la UI). */
 export function defaultTaxCodes(jurisdiction: AuthUser['jurisdiction']): {
   taxCode: string;

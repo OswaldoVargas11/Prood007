@@ -8,6 +8,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Link } from '@/i18n/navigation';
 import { downloadInvoicePdf, useInvoice, usePayInvoice } from '@/lib/hooks';
 import { DunningTimeline } from '@/components/lexora/dunning';
+import { EcfStatusPanel } from '@/components/lexora/ecf-status-panel';
 import { invoiceStatusVariant } from '@/lib/ledger';
 import { formatMoney, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
@@ -176,6 +177,8 @@ export default function InvoiceDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
+            {/* e-CF (RD): estado de transmisión a la DGII + acciones (transmitir / consultar acuse). */}
+            {inv.complianceFormat === 'ECF' && <EcfStatusPanel invoice={inv} />}
             {/* QR de cotejo Verifactu (ES). El contenido es la URL de validación de la AEAT que
                 genera el complianceRecord. En e-CF (RD) no aplica y no se muestra. */}
             {qrUrl && (

@@ -919,6 +919,18 @@
     "recordHash": "Huella (hash)",
     "previousHash": "Encadenamiento (huella anterior)",
     "record": "Registro",
+    "ecf": {
+      "status": "Estado e-CF",
+      "transmit": "Transmitir",
+      "refresh": "Consultar acuse",
+      "statuses": {
+        "NOT_APPLICABLE": "No aplica",
+        "STUBBED": "Sin transmitir",
+        "PENDING": "Pendiente de acuse",
+        "ACCEPTED": "Aceptado",
+        "REJECTED": "Rechazado"
+      }
+    },
     "backDashboard": "Volver al panel",
     "invoiceStatus": {
       "DRAFT": "Borrador",
@@ -1275,6 +1287,19 @@
       "replace": "Reemplazar",
       "none": "No hay certificado configurado.",
       "error": "No se pudo subir el certificado."
+    },
+    "dgii": {
+      "title": "Certificado DGII (e-CF)",
+      "desc": "Certificado .p12 del despacho para transmitir facturas electrónicas (e-CF) a la DGII (RD).",
+      "password": "Contraseña del certificado",
+      "passwordRequired": "Escribe la contraseña del certificado antes de subirlo.",
+      "upload": "Subir certificado",
+      "replace": "Reemplazar",
+      "uploaded": "Certificado cargado",
+      "none": "No hay certificado DGII configurado.",
+      "error": "No se pudo subir el certificado.",
+      "enabledOn": "Transmisión a la DGII activada ({env}).",
+      "enabledOff": "Transmisión a la DGII apagada en el servidor (pendiente de activar)."
     },
     "stripe": {
       "title": "Cobro online (Stripe)",
