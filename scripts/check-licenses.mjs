@@ -51,9 +51,24 @@ try {
   process.exit(1);
 }
 
+/**
+ * ¿La licencia está prohibida? Semántica SPDX:
+ *  - Expresión OR (dual-license, p. ej. "(BSD-3-Clause OR GPL-2.0)"): el licenciatario ELIGE una; basta
+ *    con que UNA alternativa esté permitida para usar el paquete (elegimos la permisiva). Solo se deniega
+ *    si TODAS las alternativas están denegadas.
+ *  - Resto (licencia simple o expresión AND): se exige cumplir TODO → si algo casa con DENY, se deniega.
+ */
+function isDenied(license) {
+  const orParts = license.split(/\s+OR\s+/i).map((s) => s.replace(/[()]/g, '').trim());
+  if (orParts.length > 1) {
+    return orParts.every((part) => DENY.some((re) => re.test(part)));
+  }
+  return DENY.some((re) => re.test(license));
+}
+
 const violations = [];
 for (const { license, name, version } of iterate(data)) {
-  if (DENY.some((re) => re.test(license))) {
+  if (isDenied(license)) {
     violations.push(`${name}@${version} → ${license}`);
   }
 }
