@@ -45,6 +45,8 @@ import {
   useUpdateSettings,
   useUpdateStaff,
   useUploadCertificate,
+  useDgiiStatus,
+  useUploadDgiiCertificate,
 } from '@/lib/hooks';
 import { formatDate } from '@/lib/format';
 import { ApiError } from '@/lib/api';
@@ -91,6 +93,7 @@ export default function SettingsPage() {
       <HolidaysCard />
       <SecurityCard />
       <CertificateCard />
+      <DgiiCertificateCard />
       <GoogleCard />
       <MicrosoftCard />
       <StripeCard />
@@ -1049,6 +1052,90 @@ function CertificateCard() {
       ) : (
         <p className="text-[12.5px] text-muted-foreground">{t('cert.none')}</p>
       )}
+    </Section>
+  );
+}
+
+/** Certificado DGII (.p12 + contraseña) para transmitir e-CF. Solo despachos de jurisdicción RD (do). */
+function DgiiCertificateCard() {
+  const t = useTranslations('settings');
+  const locale = useLocale();
+  const { data } = useSettings();
+  const status = useDgiiStatus();
+  const upload = useUploadDgiiCertificate();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  if (data?.tenant.jurisdiction !== 'do') return null;
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!password.trim()) {
+      setError(t('dgii.passwordRequired'));
+      return;
+    }
+    setError(null);
+    try {
+      await upload.mutateAsync({ file, password });
+      setPassword('');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('dgii.error'));
+    }
+  }
+
+  const cert = status.data?.certificate;
+  return (
+    <Section
+      icon={<FileBadge className="size-5 text-[var(--brand)]" />}
+      title={t('dgii.title')}
+      desc={t('dgii.desc')}
+    >
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
+          <span
+            className={`inline-block size-2 rounded-full ${status.data?.enabled ? 'bg-[var(--success)]' : 'bg-muted-foreground/40'}`}
+          />
+          {status.data?.enabled
+            ? t('dgii.enabledOn', { env: status.data.environment ?? '' })
+            : t('dgii.enabledOff')}
+        </div>
+        {cert?.uploaded ? (
+          <div className="flex items-center gap-2 rounded-lg border bg-[var(--success-soft)] px-3 py-2.5 text-[13px]">
+            <FileBadge className="size-4 text-[var(--success)]" />
+            <span className="font-medium">{cert.name ?? t('dgii.uploaded')}</span>
+            {cert.uploadedAt && (
+              <span className="ml-auto text-[11.5px] text-muted-foreground">
+                {formatDate(cert.uploadedAt, locale)}
+              </span>
+            )}
+          </div>
+        ) : (
+          <p className="text-[12.5px] text-muted-foreground">{t('dgii.none')}</p>
+        )}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={t('dgii.password')}
+            className="sm:max-w-xs"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => fileRef.current?.click()}
+            disabled={upload.isPending}
+          >
+            {upload.isPending ? <Loader2 className="animate-spin" /> : <Upload />}
+            {cert?.uploaded ? t('dgii.replace') : t('dgii.upload')}
+          </Button>
+        </div>
+        {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+        <input ref={fileRef} type="file" accept=".p12,.pfx" className="hidden" onChange={onFile} />
+      </div>
     </Section>
   );
 }

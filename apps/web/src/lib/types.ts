@@ -301,9 +301,16 @@ export interface Invoice {
   complianceRecord: Record<string, unknown> | null;
   recordHash: string | null;
   previousRecordHash: string | null;
+  // Estado de la transmisión del e-CF a la DGII (RD).
+  ecfStatus?: EcfStatus;
+  ecfTrackId?: string | null;
+  ecfStatusDetail?: string | null;
   lines: InvoiceLine[];
   client?: { id: string; name: string; taxId: string };
 }
+
+/** Estado de la transmisión del e-CF a la DGII. */
+export type EcfStatus = 'NOT_APPLICABLE' | 'STUBBED' | 'PENDING' | 'ACCEPTED' | 'REJECTED';
 
 /** Factura tal como la ve el cliente en su portal (`GET /portal/invoices`), con `overdue` derivado. */
 export interface PortalInvoice {
@@ -329,6 +336,7 @@ export interface InvoiceListItem {
   total: string;
   amountPaid: string;
   overdue: boolean;
+  ecfStatus?: EcfStatus;
   client: { id: string; name: string } | null;
   matter: { id: string; reference: string } | null;
 }
