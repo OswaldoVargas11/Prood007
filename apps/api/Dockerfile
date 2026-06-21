@@ -25,7 +25,12 @@ RUN pnpm --filter @legalflow/domain build \
 # ── runtime ──
 FROM base AS runtime
 ENV NODE_ENV=production
+# HOME del usuario `node` (cache de npx/prisma escribible en el release_command).
+ENV HOME=/home/node
 COPY --from=build /repo /repo
 WORKDIR /repo/apps/api
 EXPOSE 4000
+# No correr como root (hardening). El usuario `node` (uid 1000) viene en la imagen oficial node:alpine;
+# solo necesita LEER /repo (copiado root, world-readable) y ejecutar node → no escribe en /repo en runtime.
+USER node
 CMD ["node", "dist/main.js"]

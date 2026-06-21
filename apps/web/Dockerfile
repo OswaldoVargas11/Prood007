@@ -23,7 +23,11 @@ ENV NODE_ENV=production
 # next start escucha en este host/puerto (0.0.0.0 para que Fly lo alcance).
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+# HOME del usuario `node` (cache de pnpm escribible).
+ENV HOME=/home/node
 COPY --from=build /repo /repo
 WORKDIR /repo/apps/web
 EXPOSE 3000
+# No correr como root (hardening). `node` (uid 1000) viene en node:alpine; solo lee /repo y sirve Next.
+USER node
 CMD ["pnpm", "start"]

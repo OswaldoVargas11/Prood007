@@ -31,7 +31,9 @@ export function isEncrypted(blob: Buffer): boolean {
 
 export function encryptBlob(key: Buffer, plaintext: Buffer): Buffer {
   const iv = randomBytes(IV_LEN);
-  const cipher = createCipheriv('aes-256-gcm', key, iv);
+  // authTagLength explícito (= TAG_LEN): el formato del blob ya fija el tag a 16 B, pero declararlo
+  // evita que se acepte un tag más corto de lo esperado (defensa en profundidad, CWE-310).
+  const cipher = createCipheriv('aes-256-gcm', key, iv, { authTagLength: TAG_LEN });
   const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
   const tag = cipher.getAuthTag();
   return Buffer.concat([MAGIC, iv, tag, ciphertext]);
@@ -43,7 +45,7 @@ export function decryptBlob(key: Buffer, blob: Buffer): Buffer {
   const iv = blob.subarray(MAGIC.length, MAGIC.length + IV_LEN);
   const tag = blob.subarray(MAGIC.length + IV_LEN, MAGIC.length + IV_LEN + TAG_LEN);
   const ciphertext = blob.subarray(MAGIC.length + IV_LEN + TAG_LEN);
-  const decipher = createDecipheriv('aes-256-gcm', key, iv);
+  const decipher = createDecipheriv('aes-256-gcm', key, iv, { authTagLength: TAG_LEN });
   decipher.setAuthTag(tag);
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 }
