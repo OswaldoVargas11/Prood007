@@ -10,6 +10,7 @@ import { ConfirmEmail } from './confirm-email';
 import { PageTransition } from './page-transition';
 import { ThemeToggle } from './theme-toggle';
 import { UserMenu } from './user-menu';
+import { Logo } from './logo';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Toaster } from '@/components/ui/sonner';
 
@@ -48,11 +49,8 @@ export function PortalShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-5 backdrop-blur-xl">
-        <Link href="/portal" className="flex items-center gap-2.5">
-          <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--ai-from)] to-[var(--ai-to)]">
-            <div className="size-2.5 rotate-45 rounded-[3px] border-2 border-white" />
-          </div>
-          <span className="text-sm font-semibold tracking-tight">Lexora</span>
+        <Link href="/portal" className="flex items-center">
+          <Logo size={24} />
         </Link>
         <div className="ml-auto flex items-center gap-2">
           <NotificationsBell />

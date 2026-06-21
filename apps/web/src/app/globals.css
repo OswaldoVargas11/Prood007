@@ -3,79 +3,98 @@
 @tailwind utilities;
 
 /* ============================================================
-   LEXORA — Design Tokens (del entregable design/globals.css)
+   LAWZORA — Design Tokens
    Convención shadcn/ui · color en oklch · light = :root, dark = .dark
+   Dirección "Sello": tinta petróleo (teal) + sello de cumplimiento (cobre)
+   sobre neutros pizarra fríos. Contraste AA en texto y controles.
+
+   Los NOMBRES de variable son los mismos que el resto de la UI ya consume
+   (sidebar, tablas, badges, charts) -> el rebrand es un swap de valores.
+   Novedades respecto al sistema anterior:
+   - --brand-strong  · estado hover/pressed de la marca
+   - familia --seal*  · el cobre del sello fiscal (Verifactu/e-CF)
+   - --font-wordmark  · el logotipo (Geist Semibold, sin fuente display)
+   Para TEXTO en cobre sobre fondo claro usa --seal-strong (cumple AA), nunca --seal.
    ============================================================ */
 @layer base {
   :root {
     /* ---- shadcn core (LIGHT) ---- */
-    --background: oklch(0.986 0.003 264);
-    --foreground: oklch(0.25 0.013 264);
+    --background: oklch(0.985 0.002 225);
+    --foreground: oklch(0.24 0.012 232);
     --card: oklch(1 0 0);
-    --card-foreground: oklch(0.25 0.013 264);
+    --card-foreground: oklch(0.24 0.012 232);
     --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.25 0.013 264);
-    --primary: oklch(0.52 0.2 264);
+    --popover-foreground: oklch(0.24 0.012 232);
+    --primary: oklch(0.5 0.092 200);
     --primary-foreground: oklch(0.99 0 0);
-    --secondary: oklch(0.97 0.004 264);
-    --secondary-foreground: oklch(0.25 0.013 264);
-    --muted: oklch(0.97 0.004 264);
-    --muted-foreground: oklch(0.47 0.013 264);
-    --accent: oklch(0.96 0.005 264);
-    --accent-foreground: oklch(0.25 0.013 264);
-    --destructive: oklch(0.57 0.19 24);
+    --secondary: oklch(0.968 0.004 225);
+    --secondary-foreground: oklch(0.26 0.012 232);
+    --muted: oklch(0.968 0.004 225);
+    --muted-foreground: oklch(0.5 0.012 232);
+    --accent: oklch(0.958 0.006 220);
+    --accent-foreground: oklch(0.24 0.012 232);
+    --destructive: oklch(0.55 0.19 25);
     --destructive-foreground: oklch(0.99 0 0);
-    --border: oklch(0.25 0.03 264 / 0.1);
-    --input: oklch(0.25 0.03 264 / 0.14);
-    --ring: oklch(0.52 0.2 264);
+    --border: oklch(0.24 0.02 232 / 0.1);
+    --input: oklch(0.24 0.02 232 / 0.14);
+    --ring: oklch(0.5 0.092 200);
 
-    /* ---- Lexora · layered surfaces (LIGHT) ---- */
+    /* ---- layered surfaces (LIGHT) ---- */
     --surface-1: oklch(1 0 0);
-    --surface-2: oklch(0.976 0.004 264);
-    --surface-3: oklch(0.96 0.005 264);
+    --surface-2: oklch(0.975 0.004 220);
+    --surface-3: oklch(0.958 0.006 220);
     --elevated: oklch(1 0 0);
-    --border-strong: oklch(0.25 0.03 264 / 0.16);
-    --text-subtle: oklch(0.62 0.013 264);
+    --border-strong: oklch(0.24 0.025 232 / 0.16);
+    --text-subtle: oklch(0.6 0.012 232);
 
-    /* ---- brand + AI ---- */
-    --brand: oklch(0.52 0.2 264);
-    --brand-2: oklch(0.55 0.18 285);
-    --brand-soft: oklch(0.52 0.2 264 / 0.1);
-    --brand-line: oklch(0.52 0.2 264 / 0.3);
-    --ai-from: oklch(0.52 0.2 264);
-    --ai-to: oklch(0.56 0.18 300);
+    /* ---- brand · tinta petróleo (teal) ---- */
+    --brand: oklch(0.5 0.092 200);
+    --brand-strong: oklch(0.43 0.09 201); /* hover / pressed */
+    --brand-2: oklch(0.58 0.08 192);
+    --brand-soft: oklch(0.5 0.092 200 / 0.1);
+    --brand-line: oklch(0.5 0.092 200 / 0.32);
+
+    /* ---- seal · sello de cumplimiento (cobre) ---- */
+    --seal: oklch(0.62 0.12 58); /* gráfico (rellenos, sellos, iconos) */
+    --seal-strong: oklch(0.5 0.11 54); /* cobre como TEXTO (AA en claro) */
+    --seal-soft: oklch(0.62 0.12 58 / 0.12);
+    --seal-line: oklch(0.62 0.12 58 / 0.34);
+
+    /* ---- AI ---- */
+    --ai-from: oklch(0.5 0.092 200);
+    --ai-to: oklch(0.58 0.09 178);
 
     /* ---- semantic / status ---- */
-    --success: oklch(0.56 0.13 162);
-    --success-soft: oklch(0.56 0.13 162 / 0.12);
-    --warning: oklch(0.66 0.13 70);
-    --warning-soft: oklch(0.66 0.13 70 / 0.13);
-    --info: oklch(0.55 0.15 250);
-    --info-soft: oklch(0.55 0.15 250 / 0.11);
-    --violet: oklch(0.55 0.17 305);
-    --violet-soft: oklch(0.55 0.17 305 / 0.11);
-    --danger: oklch(0.57 0.19 24);
-    --danger-soft: oklch(0.57 0.19 24 / 0.11);
+    --success: oklch(0.55 0.13 158);
+    --success-soft: oklch(0.55 0.13 158 / 0.12);
+    --warning: oklch(0.64 0.13 74);
+    --warning-soft: oklch(0.64 0.13 74 / 0.14);
+    --info: oklch(0.54 0.12 232);
+    --info-soft: oklch(0.54 0.12 232 / 0.11);
+    --violet: oklch(0.54 0.16 300);
+    --violet-soft: oklch(0.54 0.16 300 / 0.11);
+    --danger: oklch(0.55 0.19 25);
+    --danger-soft: oklch(0.55 0.19 25 / 0.11);
 
     /* ---- confidence signal (AI) ---- */
-    --confidence-high: oklch(0.56 0.13 162);
-    --confidence-med: oklch(0.66 0.13 70);
-    --confidence-low: oklch(0.57 0.19 24);
+    --confidence-high: oklch(0.55 0.13 158);
+    --confidence-med: oklch(0.64 0.13 74);
+    --confidence-low: oklch(0.55 0.19 25);
 
     /* ---- charts ---- */
-    --chart-1: oklch(0.52 0.2 264);
-    --chart-2: oklch(0.56 0.13 162);
-    --chart-3: oklch(0.66 0.13 70);
-    --chart-4: oklch(0.55 0.17 305);
-    --chart-5: oklch(0.55 0.15 250);
+    --chart-1: oklch(0.5 0.092 200);
+    --chart-2: oklch(0.62 0.12 58);
+    --chart-3: oklch(0.55 0.13 158);
+    --chart-4: oklch(0.54 0.16 300);
+    --chart-5: oklch(0.64 0.13 74);
 
     /* ---- elevation (LIGHT) ---- */
-    --shadow-xs: 0 1px 2px oklch(0.2 0.02 264 / 0.06);
-    --shadow-sm: 0 1px 2px oklch(0.2 0.02 264 / 0.08);
-    --shadow-md: 0 8px 24px oklch(0.2 0.02 264 / 0.1);
-    --shadow-lg: 0 12px 32px oklch(0.2 0.02 264 / 0.12);
-    --shadow-xl: 0 28px 64px oklch(0.2 0.02 264 / 0.16);
-    --ring-shadow: 0 0 0 3px oklch(0.52 0.2 264 / 0.35);
+    --shadow-xs: 0 1px 2px oklch(0.2 0.02 232 / 0.06);
+    --shadow-sm: 0 1px 2px oklch(0.2 0.02 232 / 0.08);
+    --shadow-md: 0 8px 24px oklch(0.2 0.02 232 / 0.1);
+    --shadow-lg: 0 12px 32px oklch(0.2 0.02 232 / 0.12);
+    --shadow-xl: 0 28px 64px oklch(0.2 0.02 232 / 0.16);
+    --ring-shadow: 0 0 0 3px oklch(0.5 0.092 200 / 0.32);
 
     /* ---- radius ---- */
     --radius: 0.8rem;
@@ -86,67 +105,87 @@
     --font-sans:
       var(--font-geist-sans), 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
     --font-mono: var(--font-geist-mono), 'Geist Mono', ui-monospace, 'SF Mono', monospace;
+    --font-wordmark:
+      var(--font-geist-sans), 'Geist', ui-sans-serif, system-ui, sans-serif; /* logotipo */
+
+    /* ---- motion (espejo de lib/motion.ts; para que las transiciones CSS usen los mismos valores) ---- */
+    --ease-standard: cubic-bezier(0.22, 0.8, 0.2, 1);
+    --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+    --dur-micro: 150ms;
+    --dur-base: 220ms;
+    --dur-expand: 260ms;
+    --dur-overlay: 320ms;
   }
 
   .dark {
     /* ---- shadcn core (DARK) ---- */
-    --background: oklch(0.165 0.008 264);
-    --foreground: oklch(0.97 0.004 264);
-    --card: oklch(0.198 0.009 264);
-    --card-foreground: oklch(0.97 0.004 264);
-    --popover: oklch(0.246 0.011 264);
-    --popover-foreground: oklch(0.97 0.004 264);
-    --primary: oklch(0.645 0.16 264);
-    --primary-foreground: oklch(0.99 0 0);
-    --secondary: oklch(0.224 0.01 264);
-    --secondary-foreground: oklch(0.97 0.004 264);
-    --muted: oklch(0.224 0.01 264);
-    --muted-foreground: oklch(0.745 0.012 264);
-    --accent: oklch(0.224 0.01 264);
-    --accent-foreground: oklch(0.97 0.004 264);
-    --destructive: oklch(0.68 0.19 22);
+    --background: oklch(0.17 0.006 230);
+    --foreground: oklch(0.965 0.003 225);
+    --card: oklch(0.205 0.007 230);
+    --card-foreground: oklch(0.965 0.003 225);
+    --popover: oklch(0.245 0.009 230);
+    --popover-foreground: oklch(0.965 0.003 225);
+    --primary: oklch(0.72 0.1 198);
+    --primary-foreground: oklch(0.19 0.02 220);
+    --secondary: oklch(0.235 0.009 230);
+    --secondary-foreground: oklch(0.965 0.003 225);
+    --muted: oklch(0.235 0.009 230);
+    --muted-foreground: oklch(0.74 0.012 228);
+    --accent: oklch(0.235 0.009 230);
+    --accent-foreground: oklch(0.965 0.003 225);
+    --destructive: oklch(0.66 0.19 24);
     --destructive-foreground: oklch(0.99 0 0);
     --border: oklch(1 0 0 / 0.09);
     --input: oklch(1 0 0 / 0.12);
-    --ring: oklch(0.645 0.16 264);
+    --ring: oklch(0.72 0.1 198);
 
     /* ---- layered surfaces (DARK) ---- */
-    --surface-1: oklch(0.198 0.009 264);
-    --surface-2: oklch(0.224 0.01 264);
-    --surface-3: oklch(0.246 0.011 264);
-    --elevated: oklch(0.246 0.011 264);
+    --surface-1: oklch(0.205 0.007 230);
+    --surface-2: oklch(0.235 0.009 230);
+    --surface-3: oklch(0.262 0.01 230);
+    --elevated: oklch(0.245 0.009 230);
     --border-strong: oklch(1 0 0 / 0.14);
-    --text-subtle: oklch(0.57 0.012 264);
+    --text-subtle: oklch(0.56 0.012 228);
 
-    /* ---- brand + AI (DARK) ---- */
-    --brand: oklch(0.645 0.16 264);
-    --brand-2: oklch(0.72 0.14 285);
-    --brand-soft: oklch(0.645 0.16 264 / 0.16);
-    --brand-line: oklch(0.645 0.16 264 / 0.45);
-    --ai-from: oklch(0.645 0.16 264);
-    --ai-to: oklch(0.72 0.14 300);
+    /* ---- brand · teal (DARK) ---- */
+    --brand: oklch(0.72 0.1 198);
+    --brand-strong: oklch(0.8 0.1 196);
+    --brand-2: oklch(0.74 0.09 184);
+    --brand-soft: oklch(0.72 0.1 198 / 0.16);
+    --brand-line: oklch(0.72 0.1 198 / 0.42);
+
+    /* ---- seal · cobre (DARK) ---- */
+    --seal: oklch(0.72 0.12 60);
+    --seal-strong: oklch(0.78 0.12 62);
+    --seal-soft: oklch(0.72 0.12 60 / 0.16);
+    --seal-line: oklch(0.72 0.12 60 / 0.42);
+
+    /* ---- AI ---- */
+    --ai-from: oklch(0.72 0.1 198);
+    --ai-to: oklch(0.76 0.1 174);
 
     /* ---- semantic / status (DARK) ---- */
-    --success: oklch(0.74 0.14 162);
-    --success-soft: oklch(0.74 0.14 162 / 0.15);
-    --warning: oklch(0.81 0.14 78);
-    --warning-soft: oklch(0.81 0.14 78 / 0.15);
-    --info: oklch(0.71 0.13 244);
-    --info-soft: oklch(0.71 0.13 244 / 0.15);
-    --violet: oklch(0.72 0.15 305);
-    --violet-soft: oklch(0.72 0.15 305 / 0.15);
-    --danger: oklch(0.68 0.19 22);
-    --danger-soft: oklch(0.68 0.19 22 / 0.15);
+    --success: oklch(0.74 0.14 158);
+    --success-soft: oklch(0.74 0.14 158 / 0.15);
+    --warning: oklch(0.8 0.14 80);
+    --warning-soft: oklch(0.8 0.14 80 / 0.15);
+    --info: oklch(0.7 0.12 230);
+    --info-soft: oklch(0.7 0.12 230 / 0.15);
+    --violet: oklch(0.72 0.15 302);
+    --violet-soft: oklch(0.72 0.15 302 / 0.15);
+    --danger: oklch(0.66 0.19 24);
+    --danger-soft: oklch(0.66 0.19 24 / 0.15);
 
-    --confidence-high: oklch(0.74 0.14 162);
-    --confidence-med: oklch(0.81 0.14 78);
-    --confidence-low: oklch(0.68 0.19 22);
+    --confidence-high: oklch(0.74 0.14 158);
+    --confidence-med: oklch(0.8 0.14 80);
+    --confidence-low: oklch(0.66 0.19 24);
 
-    --chart-1: oklch(0.645 0.16 264);
-    --chart-2: oklch(0.74 0.14 162);
-    --chart-3: oklch(0.81 0.14 78);
-    --chart-4: oklch(0.72 0.15 305);
-    --chart-5: oklch(0.71 0.13 244);
+    --chart-1: oklch(0.72 0.1 198);
+    --chart-2: oklch(0.72 0.12 60);
+    --chart-3: oklch(0.74 0.14 158);
+    --chart-4: oklch(0.72 0.15 302);
+    --chart-5: oklch(0.8 0.14 80);
 
     /* ---- elevation (DARK) ---- */
     --shadow-xs: 0 1px 2px oklch(0 0 0 / 0.4);
@@ -154,7 +193,7 @@
     --shadow-md: 0 12px 34px oklch(0 0 0 / 0.5);
     --shadow-lg: 0 12px 32px oklch(0 0 0 / 0.55);
     --shadow-xl: 0 30px 70px oklch(0 0 0 / 0.6);
-    --ring-shadow: 0 0 0 3px oklch(0.645 0.16 264 / 0.45);
+    --ring-shadow: 0 0 0 3px oklch(0.72 0.1 198 / 0.45);
   }
 }
 
@@ -172,5 +211,18 @@
   .tabular,
   [data-numeric] {
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Accesibilidad: si el usuario pide menos movimiento, anulamos transiciones/animaciones CSS. El
+     movimiento de framer-motion ya lo desactiva `<MotionConfig reducedMotion="user">` globalmente. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }

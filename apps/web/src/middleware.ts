@@ -71,7 +71,9 @@ export default function middleware(req: NextRequest) {
     rest.startsWith('/reset-password/');
   // Formulario público de captación (intake) del despacho: accesible sin sesión.
   const isIntake = rest === '/intake' || rest.startsWith('/intake/');
-  const isPublic = isLogin || isOnboarding || isRecovery || isIntake;
+  // Landing pública (raíz): el visitante anónimo la ve; con sesión se le lleva a su home.
+  const isLanding = rest === '/';
+  const isPublic = isLanding || isLogin || isOnboarding || isRecovery || isIntake;
   const isPortal = rest === '/portal' || rest.startsWith('/portal/');
   const home = scope === 'client' ? 'portal' : 'dashboard';
 

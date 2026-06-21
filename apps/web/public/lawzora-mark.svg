@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="Lawzora">
+  <defs>
+    <linearGradient id="lz-tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="oklch(0.55 0.092 200)"></stop>
+      <stop offset="1" stop-color="oklch(0.43 0.09 201)"></stop>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="28" height="28" rx="8" fill="url(#lz-tile)"></rect>
+  <path d="M11.5 8 V20.5 H18.5" fill="none" stroke="#fff" stroke-width="3.3" stroke-linecap="round" stroke-linejoin="round"></path>
+  <path d="M16.6 18.7 L19.5 21.6 L23.8 15.4" fill="none" stroke="oklch(0.72 0.13 60)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>

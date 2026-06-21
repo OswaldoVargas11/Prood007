@@ -1,5 +1,5 @@
 /**
- * Cliente API de Lexora.
+ * Cliente API de Lawzora.
  *
  * - El **access token vive en memoria** (no en localStorage) — ver D-014.
  * - Las llamadas de **datos** van directas a la API Nest (`NEXT_PUBLIC_API_URL`) con `Authorization:

@@ -10,8 +10,9 @@ import { Providers } from '@/app/providers';
 import '../globals.css';
 
 export const metadata: Metadata = {
-  title: 'Lexora',
-  description: 'Sistema operativo para despachos de abogados · España y República Dominicana',
+  title: 'Lawzora',
+  description: 'Software de gestión para despachos · España y República Dominicana',
+  icons: { icon: '/lawzora-mark.svg' },
 };
 
 export function generateStaticParams() {

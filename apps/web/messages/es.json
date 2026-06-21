@@ -1,7 +1,160 @@
 {
   "app": {
-    "name": "Lexora",
-    "tagline": "El sistema operativo del despacho moderno"
+    "name": "Lawzora",
+    "tagline": "Todo tu despacho en un sitio"
+  },
+  "landing": {
+    "nav": {
+      "product": "Producto",
+      "compliance": "Cumplimiento",
+      "security": "Seguridad",
+      "pricing": "Precios",
+      "login": "Iniciar sesión",
+      "trial": "Prueba gratis"
+    },
+    "hero": {
+      "eyebrow": "Software de gestión para despachos · España y R. Dominicana",
+      "title": "Todo tu despacho en un sitio.",
+      "subtitle": "Expedientes, plazos procesales, tareas, facturación y cobro — en una sola herramienta. Menos saltos entre programas, ni un plazo perdido y el dinero antes en tu cuenta.",
+      "ctaPrimary": "Empieza gratis 15 días",
+      "ctaSecondary": "Solicitar una demo",
+      "note": "Sin tarjeta para empezar · Todo incluido · ES/RD",
+      "mockUrl": "lawzora.com · Panel del despacho",
+      "mockMatter1": "Reclamación de cantidad",
+      "mockMatter1Ref": "EXP-2026-0001 · M. García",
+      "mockMatter1State": "En curso",
+      "mockMatter2": "Recurso de apelación",
+      "mockMatter2Ref": "EXP-2026-0002 · J. Fernández",
+      "mockMatter2State": "Abierto",
+      "mockMatter3": "Despido improcedente",
+      "mockMatter3Ref": "EXP-2026-0003 · L. López",
+      "mockMatter3State": "En espera",
+      "mockDeadlineLabel": "Próximo plazo",
+      "mockDeadlineTask": "Contestación a la demanda",
+      "mockDeadlineWhen": "en 23 días · días hábiles",
+      "mockBilled": "Por cobrar"
+    },
+    "trust": {
+      "heading": "Diseñado para despachos en España y R. Dominicana"
+    },
+    "diff": {
+      "badge": "El diferenciador",
+      "title": "Y nativamente al día con Verifactu y e-CF",
+      "body": "La facturación electrónica es obligatoria — Verifactu en España y e-CF en R. Dominicana. Lawzora la emite con su registro fiscal encadenado y su QR/eNCF de cotejo, listo para AEAT y DGII. Sin un segundo programa, sin integraciones a medias y sin sustos cuando llega la inspección.",
+      "invoiceUrl": "Factura FAC-2026-0042 · Verifactu",
+      "lineFees": "Honorarios profesionales",
+      "lineTax": "IVA (21%) − IRPF (15%)",
+      "lineTotal": "Total"
+    },
+    "product": {
+      "title": "Todo lo que el despacho necesita",
+      "subtitle": "De la captación al cobro, pasando por los plazos y el portal del cliente.",
+      "benefits": [
+        { "title": "Cobro online", "body": "Cobra con tarjeta; el dinero va directo a tu cuenta." },
+        {
+          "title": "Provisión de fondos",
+          "body": "Pide provisiones y lleva el saldo del expediente en tiempo real."
+        },
+        {
+          "title": "Plazos procesales",
+          "body": "Vencimientos con días hábiles y festivos; recordatorios que no fallan."
+        },
+        {
+          "title": "Portal del cliente",
+          "body": "Tu cliente ve sus expedientes, facturas y documentos en su espacio."
+        },
+        {
+          "title": "Documentos y plantillas",
+          "body": "Genera escritos desde plantillas y guárdalos cifrados, todo en el expediente."
+        },
+        {
+          "title": "España + R. Dominicana",
+          "body": "Una herramienta para despachos en ES, en RD o en ambos."
+        }
+      ],
+      "metrics": [
+        { "value": "2", "label": "jurisdicciones, ES y RD, en una sola cuenta" },
+        { "value": "0", "label": "programas extra para facturar en regla" },
+        { "value": "1", "label": "herramienta del expediente al cobro" }
+      ],
+      "showcase": {
+        "badge": "Cobro y caja",
+        "title": "Cobra antes, sin perseguir a nadie",
+        "body": "Envía la factura con enlace de pago, pide provisión de fondos y lleva el saldo del expediente en tiempo real. El dinero entra directo a tu cuenta.",
+        "bullets": [
+          "Pago con tarjeta en un clic",
+          "Provisión de fondos y saldo por expediente",
+          "Recordatorios de cobro automáticos"
+        ],
+        "mockUrl": "Cobro · EXP-2026-0001",
+        "mockPending": "Pendiente de cobro",
+        "mockProvision": "Provisión de fondos",
+        "mockProvisionWhen": "Solicitada · 14 jun",
+        "mockProvisionState": "Pendiente",
+        "mockCard": "Pago con tarjeta",
+        "mockCardRef": "•••• 4242 · Stripe",
+        "mockCardState": "Cobrado",
+        "mockCta": "Enviar enlace de pago"
+      }
+    },
+    "security": {
+      "badge": "Seguridad y datos",
+      "title": "Tus datos, y los de tus clientes, protegidos",
+      "subtitle": "Información sensible tratada con el cuidado que exige un despacho.",
+      "items": [
+        {
+          "title": "Cifrado en tránsito y en reposo",
+          "body": "TLS en tránsito y cifrado de documentos en reposo (AES-256-GCM)."
+        },
+        {
+          "title": "RGPD (ES) y Ley 172-13 (RD)",
+          "body": "Protección de datos conforme en ambas jurisdicciones."
+        },
+        { "title": "Auditoría e historial", "body": "Cada acción queda registrada y es trazable." },
+        { "title": "Acceso por roles", "body": "Cada persona ve solo lo que le corresponde." }
+      ]
+    },
+    "quote": {
+      "text": "Antes saltaba entre el programa de facturación, la hoja de plazos y el correo. Con Lawzora el expediente, el plazo y la factura viven en el mismo sitio — y Verifactu deja de ser un problema.",
+      "name": "María Gálvez",
+      "role": "Abogada · despacho boutique, Madrid",
+      "flag": "[ejemplo · testimonio ilustrativo para revisión]"
+    },
+    "pricing": {
+      "title": "Una tarifa, todo dentro",
+      "subtitle": "Por usuario activo, con descuento por volumen. Sin niveles de funciones, sin sorpresas.",
+      "tag": "Plan único · todo incluido",
+      "amount": "39 €",
+      "per": "/ usuario / mes",
+      "amountNote": "para 1–5 usuarios · menos por volumen",
+      "tiersLabel": "Precio por usuario según el tamaño del despacho",
+      "tiers": [
+        { "range": "1–5 usuarios", "price": "39 €" },
+        { "range": "6–15 usuarios", "price": "35 €" },
+        { "range": "16+ usuarios", "price": "29 €" }
+      ],
+      "features": [
+        "Verifactu + e-CF nativos",
+        "Cobro online + provisión de fondos",
+        "Plazos procesales + portal del cliente",
+        "Documentos, plantillas y gestión del expediente"
+      ],
+      "annualNote": "2 meses gratis al pagar al año",
+      "trialNote": "15 días de prueba · sin tarjeta",
+      "cta": "Empieza gratis"
+    },
+    "finalCta": {
+      "title": "Pon tu despacho en un sitio",
+      "body": "Empieza gratis 15 días. Sin tarjeta, todo incluido y al día con Verifactu (ES) y e-CF (RD) desde el primer momento.",
+      "ctaPrimary": "Empieza gratis 15 días",
+      "ctaSecondary": "Solicitar una demo"
+    },
+    "footer": {
+      "rights": "© 2026 Lawzora · lawzora.com",
+      "privacy": "Privacidad",
+      "terms": "Términos",
+      "contact": "Contacto"
+    }
   },
   "nav": {
     "dashboard": "Panel",
@@ -81,7 +234,7 @@
     "subscribeNote": "Es de solo lectura: tus plazos aparecen en tu calendario; no se modifican desde allí."
   },
   "login": {
-    "title": "Acceder a Lexora",
+    "title": "Acceder a Lawzora",
     "subtitle": "Introduce tus credenciales del despacho",
     "email": "Correo electrónico",
     "password": "Contraseña",
