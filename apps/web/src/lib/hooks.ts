@@ -12,6 +12,12 @@ import type {
   BillingSchedule,
   BillingScheduleListItem,
   CompareResult,
+  CreateGrantResult,
+  DataRoomAccessEntry,
+  DataRoomDetail,
+  DataRoomQuestion,
+  DataRoomSummary,
+  ExternalDataRoom,
   ClosingChecklistDetail,
   ClosingChecklistSummary,
   ClosingItemCategory,
@@ -2309,4 +2315,156 @@ export async function downloadClosingBinder(checklistId: string, filename: strin
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ── Data room (due diligence) ─────────────────────────────────────────────────
+
+export function useMatterDataRooms(matterId: string) {
+  return useQuery({
+    queryKey: ['datarooms', matterId],
+    queryFn: () => api.get<DataRoomSummary[]>(`/data-rooms/by-matter/${matterId}`),
+    enabled: Boolean(matterId),
+  });
+}
+
+export function useDataRoom(id: string | null) {
+  return useQuery({
+    queryKey: ['dataroom', id],
+    queryFn: () => api.get<DataRoomDetail>(`/data-rooms/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+export function useDataRoomAccessLog(id: string | null) {
+  return useQuery({
+    queryKey: ['dataroom-log', id],
+    queryFn: () => api.get<DataRoomAccessEntry[]>(`/data-rooms/${id}/access-log`),
+    enabled: Boolean(id),
+  });
+}
+
+export function useDataRoomQuestions(id: string | null) {
+  return useQuery({
+    queryKey: ['dataroom-questions', id],
+    queryFn: () => api.get<DataRoomQuestion[]>(`/data-rooms/${id}/questions`),
+    enabled: Boolean(id),
+  });
+}
+
+export function useCreateDataRoom(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; watermark?: boolean }) =>
+      api.post<DataRoomDetail>('/data-rooms', { matterId, ...body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['datarooms', matterId] }),
+  });
+}
+
+export function useDataRoomActions(roomId: string, matterId: string) {
+  const qc = useQueryClient();
+  const refresh = (data: DataRoomDetail) => {
+    qc.setQueryData(['dataroom', data.id], data);
+    void qc.invalidateQueries({ queryKey: ['datarooms', matterId] });
+  };
+  return {
+    addFolder: useMutation({
+      mutationFn: (body: { name: string; parentId?: string }) =>
+        api.post<DataRoomDetail>(`/data-rooms/${roomId}/folders`, body),
+      onSuccess: refresh,
+    }),
+    removeFolder: useMutation({
+      mutationFn: (folderId: string) => api.del<DataRoomDetail>(`/data-rooms/folders/${folderId}`),
+      onSuccess: (d) => d && refresh(d),
+    }),
+    linkDocument: useMutation({
+      mutationFn: (body: { versionId: string; folderId?: string; name?: string }) =>
+        api.post<DataRoomDetail>(`/data-rooms/${roomId}/documents/link`, body),
+      onSuccess: refresh,
+    }),
+    uploadDocument: useMutation({
+      mutationFn: ({ file, folderId, name }: { file: File; folderId?: string; name?: string }) => {
+        const form = new FormData();
+        form.append('file', file);
+        if (folderId) form.append('folderId', folderId);
+        if (name) form.append('name', name);
+        return api.upload<DataRoomDetail>(`/data-rooms/${roomId}/documents/upload`, form);
+      },
+      onSuccess: refresh,
+    }),
+    removeDocument: useMutation({
+      mutationFn: (docId: string) => api.del<DataRoomDetail>(`/data-rooms/documents/${docId}`),
+      onSuccess: (d) => d && refresh(d),
+    }),
+    createGrant: useMutation({
+      mutationFn: (body: {
+        email: string;
+        name?: string;
+        canDownload?: boolean;
+        folderIds?: string[];
+        expiresInDays?: number;
+      }) => api.post<CreateGrantResult>(`/data-rooms/${roomId}/grants`, body),
+      onSuccess: () => void qc.invalidateQueries({ queryKey: ['dataroom', roomId] }),
+    }),
+    revokeGrant: useMutation({
+      mutationFn: (grantId: string) => api.del<DataRoomDetail>(`/data-rooms/grants/${grantId}`),
+      onSuccess: (d) => d && refresh(d),
+    }),
+  };
+}
+
+export function useAnswerDataRoomQuestion(roomId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ questionId, answer }: { questionId: string; answer: string }) =>
+      api.post<DataRoomQuestion[]>(`/data-rooms/questions/${questionId}/answer`, { answer }),
+    onSuccess: (data) => qc.setQueryData(['dataroom-questions', roomId], data),
+  });
+}
+
+/** Descarga interna (staff) de un documento del data room (original, sin marca de agua). */
+export async function downloadDataRoomDoc(docId: string, filename: string): Promise<void> {
+  const blob = await api.download(`/data-rooms/documents/${docId}/download`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Data room: acceso EXTERNO por enlace mágico (sin sesión) ───────────────────
+
+export function useExternalDataRoom(token: string) {
+  return useQuery({
+    queryKey: ['external-dataroom', token],
+    queryFn: () => api.get<ExternalDataRoom>(`/data-rooms/external/${token}`, undefined),
+    enabled: Boolean(token),
+    retry: false,
+  });
+}
+
+export function useExternalDataRoomQuestions(token: string) {
+  return useQuery({
+    queryKey: ['external-dataroom-questions', token],
+    queryFn: () =>
+      api.get<{ questions: DataRoomQuestion[] }>(`/data-rooms/external/${token}/questions`),
+    enabled: Boolean(token),
+  });
+}
+
+export function useAskExternalDataRoomQuestion(token: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { body: string; documentId?: string; folderId?: string }) =>
+      api.post<{ questions: DataRoomQuestion[] }>(`/data-rooms/external/${token}/questions`, body),
+    onSuccess: (data) => qc.setQueryData(['external-dataroom-questions', token], data),
+  });
+}
+
+export function useDeleteDataRoom() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del<{ success: boolean }>(`/data-rooms/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['datarooms'] }),
+  });
 }

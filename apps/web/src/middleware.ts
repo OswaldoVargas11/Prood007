@@ -71,16 +71,19 @@ export default function middleware(req: NextRequest) {
     rest.startsWith('/reset-password/');
   // Formulario público de captación (intake) del despacho: accesible sin sesión.
   const isIntake = rest === '/intake' || rest.startsWith('/intake/');
+  // Data room externo por enlace mágico (contraparte/externos): accesible sin sesión. No se redirige a
+  // los usuarios con sesión (un letrado puede querer previsualizar el enlace).
+  const isDataRoom = rest === '/dataroom' || rest.startsWith('/dataroom/');
   // Landing pública (raíz): el visitante anónimo la ve; con sesión se le lleva a su home.
   const isLanding = rest === '/';
-  const isPublic = isLanding || isLogin || isOnboarding || isRecovery || isIntake;
+  const isPublic = isLanding || isLogin || isOnboarding || isRecovery || isIntake || isDataRoom;
   const isPortal = rest === '/portal' || rest.startsWith('/portal/');
   const home = scope === 'client' ? 'portal' : 'dashboard';
 
   if (!hasSession && !isPublic) {
     return NextResponse.redirect(new URL(`/${locale}/login`, req.url));
   }
-  if (hasSession && isPublic) {
+  if (hasSession && isPublic && !isDataRoom) {
     return NextResponse.redirect(new URL(`/${locale}/${home}`, req.url));
   }
   // Gate de rol (solo si conocemos el ámbito; si falta, el shell de cliente lo resuelve).

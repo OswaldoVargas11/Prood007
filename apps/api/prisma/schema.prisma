@@ -311,6 +311,7 @@ model Tenant {
   aiEmbeddings        AiEmbedding[]
   closingChecklists   ClosingChecklist[]
   closingItems        ClosingChecklistItem[]
+  dataRooms           DataRoom[]
 }
 
 model User {
@@ -552,6 +553,7 @@ model Matter {
   appointments     Appointment[]
   judicialNotifications JudicialNotification[]
   closingChecklists     ClosingChecklist[]
+  dataRooms             DataRoom[]
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -717,6 +719,137 @@ model ClosingChecklistItem {
 
   @@index([tenantId])
   @@index([checklistId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Data room de due diligence: set controlado compartido con la CONTRAPARTE y externos
+// (permisos por carpeta, enlace mágico sin cuenta, log de accesos, marca de agua, Q&A).
+// Fuente de verdad cifrada en el StorageProvider (R2 en prod). Tenant-scoped con RLS.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DataRoom {
+  id        String   @id @default(cuid())
+  tenantId  String
+  matterId  String
+  name      String
+  // Marca de agua dinámica al descargar PDFs (email del visor + fecha). Por defecto activada.
+  watermark Boolean  @default(true)
+  status    String   @default("OPEN") // OPEN | CLOSED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant     Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter     Matter              @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  folders    DataRoomFolder[]
+  documents  DataRoomDocument[]
+  grants     DataRoomGrant[]
+  accessLogs DataRoomAccessLog[]
+  questions  DataRoomQuestion[]
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+}
+
+model DataRoomFolder {
+  id         String   @id @default(cuid())
+  tenantId   String
+  dataRoomId String
+  parentId   String?
+  name       String
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  dataRoom   DataRoom         @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
+  parent     DataRoomFolder?  @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  subfolders DataRoomFolder[] @relation("FolderTree")
+
+  @@index([tenantId])
+  @@index([dataRoomId])
+}
+
+model DataRoomDocument {
+  id         String  @id @default(cuid())
+  tenantId   String
+  dataRoomId String
+  folderId   String?
+  name       String
+  // Espejo opcional de una versión de documento del expediente (misma clave de almacenamiento). Si es
+  // null, el fichero se subió directamente al data room con su propia clave.
+  sourceVersionId String?
+  storageKey  String
+  mimeType    String
+  sizeBytes   Int
+  contentHash String
+  uploadedById String
+  createdAt   DateTime @default(now())
+
+  dataRoom DataRoom @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dataRoomId])
+}
+
+model DataRoomGrant {
+  id         String  @id @default(cuid())
+  tenantId   String
+  dataRoomId String
+  email      String
+  name       String?
+  // Hash (sha256) del token del enlace mágico; el token en claro solo se muestra una vez al crearlo.
+  tokenHash  String  @unique
+  role       String  @default("VIEWER") // VIEWER | CONTRIBUTOR
+  canDownload Boolean @default(true)
+  // Carpetas permitidas (ids). Vacío = todo el data room. Granularidad de acceso por carpeta.
+  folderIds  String[]
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  lastAccessAt DateTime?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  dataRoom DataRoom @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dataRoomId])
+}
+
+model DataRoomAccessLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  dataRoomId  String
+  grantId     String?
+  actorEmail  String
+  action      String // VIEW_ROOM | VIEW_DOC | DOWNLOAD | QUESTION
+  targetId    String?
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  dataRoom DataRoom @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dataRoomId, createdAt])
+}
+
+model DataRoomQuestion {
+  id           String    @id @default(cuid())
+  tenantId     String
+  dataRoomId   String
+  grantId      String?
+  folderId     String?
+  documentId   String?
+  askedByEmail String
+  body         String
+  answer       String?
+  answeredById String?
+  answeredAt   DateTime?
+  status       String    @default("OPEN") // OPEN | ANSWERED
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  dataRoom DataRoom @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([dataRoomId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
