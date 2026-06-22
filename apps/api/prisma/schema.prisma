@@ -313,6 +313,10 @@ model Tenant {
   closingItems        ClosingChecklistItem[]
   dataRooms           DataRoom[]
   engagementLetters   EngagementLetter[]
+  corporateMinutes    CorporateMinute[]
+  shareholders        Shareholder[]
+  shareTransfers      ShareTransfer[]
+  registryObligations RegistryObligation[]
 }
 
 model User {
@@ -482,6 +486,10 @@ model Client {
   billingSchedules BillingSchedule[]
   kyc              KycProfile?
   appointments     Appointment[]
+  corporateMinutes    CorporateMinute[]
+  shareholders        Shareholder[]
+  shareTransfers      ShareTransfer[]
+  registryObligations RegistryObligation[]
 
   @@index([tenantId])
   @@index([tenantId, taxId])
@@ -878,6 +886,85 @@ model EngagementLetter {
   matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Secretaría de sociedades (sub-perfil mercantil): libro de actas, libro de socios y
+// obligaciones recurrentes al Registro. Por sociedad (= Client). Tenant-scoped con RLS.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model CorporateMinute {
+  id          String   @id @default(cuid())
+  tenantId    String
+  clientId    String
+  kind        String   @default("GENERAL_MEETING") // GENERAL_MEETING | BOARD | OTHER
+  title       String
+  meetingDate DateTime
+  body        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, clientId])
+}
+
+model Shareholder {
+  id        String   @id @default(cuid())
+  tenantId  String
+  clientId  String
+  name      String
+  taxId     String?
+  // Participaciones/acciones que ostenta (unidades). El % se calcula en la capa de app sobre el total.
+  units     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, clientId])
+}
+
+model ShareTransfer {
+  id       String   @id @default(cuid())
+  tenantId String
+  clientId String
+  fromName String? // null = ampliación/emisión (alta de capital)
+  toName   String
+  units    Int
+  date     DateTime
+  note     String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, clientId])
+}
+
+model RegistryObligation {
+  id         String    @id @default(cuid())
+  tenantId   String
+  clientId   String
+  title      String
+  dueDate    DateTime
+  recurrence String    @default("ANNUAL") // NONE | ANNUAL
+  status     String    @default("PENDING") // PENDING | FILED
+  filedAt    DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, clientId])
+  @@index([tenantId, dueDate])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

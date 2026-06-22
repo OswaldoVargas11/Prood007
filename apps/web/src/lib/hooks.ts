@@ -17,6 +17,7 @@ import type {
   DataRoomDetail,
   DataRoomQuestion,
   DataRoomSummary,
+  CompanySecretaryOverview,
   EngagementLetter,
   ExternalDataRoom,
   ClosingChecklistDetail,
@@ -2490,4 +2491,72 @@ export function useSaveEngagementLetter(matterId: string) {
       void qc.invalidateQueries({ queryKey: ['documents', matterId] });
     },
   });
+}
+
+// ── Secretaría de sociedades ──────────────────────────────────────────────────
+
+export function useCompanySecretary(clientId: string) {
+  return useQuery({
+    queryKey: ['company-secretary', clientId],
+    queryFn: () => api.get<CompanySecretaryOverview>(`/company-secretary/${clientId}`),
+    enabled: Boolean(clientId),
+  });
+}
+
+export function useCompanySecretaryActions(clientId: string) {
+  const qc = useQueryClient();
+  const set = (data: CompanySecretaryOverview) =>
+    qc.setQueryData(['company-secretary', clientId], data);
+  const post = (path: string) => (body: unknown) =>
+    api.post<CompanySecretaryOverview>(`/company-secretary/${path}`, body);
+  return {
+    addMinute: useMutation({ mutationFn: post(`${clientId}/minutes`), onSuccess: set }),
+    removeMinute: useMutation({
+      mutationFn: (id: string) =>
+        api.del<CompanySecretaryOverview>(`/company-secretary/minutes/${id}`),
+      onSuccess: (d) => d && set(d),
+    }),
+    addShareholder: useMutation({ mutationFn: post(`${clientId}/shareholders`), onSuccess: set }),
+    updateShareholder: useMutation({
+      mutationFn: ({
+        id,
+        ...body
+      }: {
+        id: string;
+        name?: string;
+        taxId?: string;
+        units?: number;
+      }) => api.patch<CompanySecretaryOverview>(`/company-secretary/shareholders/${id}`, body),
+      onSuccess: set,
+    }),
+    removeShareholder: useMutation({
+      mutationFn: (id: string) =>
+        api.del<CompanySecretaryOverview>(`/company-secretary/shareholders/${id}`),
+      onSuccess: (d) => d && set(d),
+    }),
+    addTransfer: useMutation({ mutationFn: post(`${clientId}/transfers`), onSuccess: set }),
+    removeTransfer: useMutation({
+      mutationFn: (id: string) =>
+        api.del<CompanySecretaryOverview>(`/company-secretary/transfers/${id}`),
+      onSuccess: (d) => d && set(d),
+    }),
+    addObligation: useMutation({ mutationFn: post(`${clientId}/obligations`), onSuccess: set }),
+    updateObligation: useMutation({
+      mutationFn: ({
+        id,
+        ...body
+      }: {
+        id: string;
+        title?: string;
+        dueDate?: string;
+        status?: string;
+      }) => api.patch<CompanySecretaryOverview>(`/company-secretary/obligations/${id}`, body),
+      onSuccess: set,
+    }),
+    removeObligation: useMutation({
+      mutationFn: (id: string) =>
+        api.del<CompanySecretaryOverview>(`/company-secretary/obligations/${id}`),
+      onSuccess: (d) => d && set(d),
+    }),
+  };
 }

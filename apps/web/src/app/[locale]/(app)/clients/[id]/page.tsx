@@ -29,6 +29,7 @@ import { ApiError } from '@/lib/api';
 import { StatusBadge } from '@/components/lexora/status-badge';
 import { AdminResetPasswordButton } from '@/components/lexora/admin-reset-password';
 import { KycCard } from '@/components/lexora/kyc-card';
+import { CompanySecretaryTab } from '@/components/lexora/company-secretary-tab';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -211,6 +212,7 @@ export default function ClientProfilePage() {
             <TabsTrigger value="matters">{tm('title')}</TabsTrigger>
             <TabsTrigger value="documents">{t('tabDocuments')}</TabsTrigger>
             <TabsTrigger value="invoices">{t('tabInvoices')}</TabsTrigger>
+            <TabsTrigger value="secretary">{t('tabSecretary')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="matters">
@@ -256,6 +258,9 @@ export default function ClientProfilePage() {
                 {t('invoicesHint')}
               </CardContent>
             </Card>
+          </TabsContent>
+          <TabsContent value="secretary">
+            <CompanySecretaryTab clientId={id} />
           </TabsContent>
         </Tabs>
       </div>

@@ -940,6 +940,45 @@ export interface AuditEntry {
   createdAt: string;
 }
 
+// ── Secretaría de sociedades ──────────────────────────────────────────────────
+
+export interface CorporateMinute {
+  id: string;
+  kind: string;
+  title: string;
+  meetingDate: string;
+  body: string;
+}
+export interface Shareholder {
+  id: string;
+  name: string;
+  taxId: string | null;
+  units: number;
+}
+export interface ShareTransfer {
+  id: string;
+  fromName: string | null;
+  toName: string;
+  units: number;
+  date: string;
+  note: string | null;
+}
+export interface RegistryObligation {
+  id: string;
+  title: string;
+  dueDate: string;
+  recurrence: string;
+  status: string;
+  filedAt: string | null;
+}
+export interface CompanySecretaryOverview {
+  minutes: CorporateMinute[];
+  shareholders: Shareholder[];
+  transfers: ShareTransfer[];
+  obligations: RegistryObligation[];
+  totalUnits: number;
+}
+
 // ── Hoja de encargo ───────────────────────────────────────────────────────────
 
 export interface EngagementLetter {
