@@ -1341,6 +1341,7 @@ model MatterEmail {
   toAddr    String
   subject   String?
   snippet   String?  @db.Text
+  body      String?  @db.Text // cuerpo completo legible (correo archivado por BCC)
   sentAt    DateTime
   createdAt DateTime @default(now())
 

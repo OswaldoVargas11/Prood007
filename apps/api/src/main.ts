@@ -57,6 +57,9 @@ async function bootstrap() {
   // conserva el rawBody del webhook de Stripe.
   app.useBodyParser('json', { limit: '512kb' });
   app.useBodyParser('urlencoded', { limit: '512kb', extended: true });
+  // Correo entrante por BCC (gated): el worker envía el MIME crudo (`message/rfc822`) para archivar el
+  // cuerpo completo + adjuntos. Límite mayor acotado a ese content-type (no afecta al resto de rutas).
+  app.useBodyParser('raw', { type: 'message/rfc822', limit: '30mb' });
 
   // Cabeceras de seguridad HTTP.
   app.use(helmet());

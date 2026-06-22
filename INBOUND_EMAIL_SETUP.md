@@ -38,25 +38,34 @@ worker manda en la cabecera `x-inbound-secret`. Guárdalo bien.
 2. Crea una **regla catch-all** para `in.lawzora.com` que ejecute un **Email Worker**.
 3. El Worker reenvía a la API. Ejemplo mínimo:
 
+   El worker manda el **MIME crudo completo** (`message/rfc822`) para que la API archive el cuerpo
+   íntegro y los adjuntos; reenvía a Gmail todo lo que no sea `archivar+` para no romper el correo normal:
+
    ```js
    export default {
      async email(message, env) {
-       const raw = await new Response(message.raw).text();
-       await fetch('https://api.lawzora.com/api/inbound-email', {
-         method: 'POST',
-         headers: { 'content-type': 'application/json', 'x-inbound-secret': env.INBOUND_SECRET },
-         body: JSON.stringify({
-           to: message.to, // archivar+<id>.<token>@in.lawzora.com
-           from: message.from,
-           subject: message.headers.get('subject') || '',
-           text: raw.slice(0, 50000),
-         }),
-       });
+       const to = message.to || '';
+       if ((to.split('@')[0] || '').startsWith('archivar+')) {
+         await fetch('https://api.lawzora.com/api/inbound-email', {
+           method: 'POST',
+           headers: {
+             'content-type': 'message/rfc822',
+             'x-inbound-secret': env.INBOUND_SECRET,
+             'x-envelope-to': to,
+             'x-envelope-from': message.from,
+           },
+           body: message.raw, // stream del MIME completo (cuerpo + adjuntos)
+         });
+         return;
+       }
+       await message.forward('TU-CORREO@gmail.com'); // resto → tu bandeja de siempre
      },
    };
    ```
 
-   Pon `INBOUND_SECRET` en el Worker con el mismo valor que `INBOUND_EMAIL_SECRET`.
+   Pon `INBOUND_SECRET` en el Worker con el mismo valor que `INBOUND_EMAIL_SECRET`. El cuerpo completo
+   queda en la correspondencia del expediente (desplegable) y cada **adjunto** se sube como documento
+   cifrado del expediente (atribuido a su letrado).
 
 ### 3. Probar
 

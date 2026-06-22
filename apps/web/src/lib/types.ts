@@ -165,6 +165,7 @@ export interface MatterEmail {
   toAddr: string;
   subject: string | null;
   snippet: string | null;
+  body?: string | null;
   sentAt: string;
 }
 

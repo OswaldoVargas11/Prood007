@@ -122,6 +122,9 @@ importers:
       pino-http:
         specifier: ^11.0.0
         version: 11.0.0
+      postal-mime:
+        specifier: ^2.7.4
+        version: 2.7.4
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
@@ -8851,6 +8854,12 @@ packages:
       }
     engines: { node: '>= 0.4' }
 
+  postal-mime@2.7.4:
+    resolution:
+      {
+        integrity: sha512-0WdnFQYUrPGGTFu1uOqD2s7omwua8xaeYGdO6rb88oD5yJ/4pPHDA4sdWqfD8wQVfCny563n/HQS7zTFft+f/g==,
+      }
+
   postcss-import@15.1.0:
     resolution:
       {
@@ -16847,6 +16856,8 @@ snapshots:
   pngjs@5.0.0: {}
 
   possible-typed-array-names@1.1.0: {}
+
+  postal-mime@2.7.4: {}
 
   postcss-import@15.1.0(postcss@8.5.15):
     dependencies:
