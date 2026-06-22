@@ -2167,3 +2167,13 @@ export function useGenerateFromTemplates() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['documents'] }),
   });
 }
+
+// ── Email-por-BCC al expediente (dirección de archivado) ──────────────────────
+
+export function useMatterBccAddress(matterId: string) {
+  return useQuery({
+    queryKey: ['inbound-email', 'address', matterId],
+    queryFn: () =>
+      api.get<{ enabled: boolean; address: string | null }>(`/inbound-email/address/${matterId}`),
+  });
+}
