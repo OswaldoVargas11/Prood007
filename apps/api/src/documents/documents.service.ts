@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { DocumentReviewStatus, Role, STORAGE_PROVIDER } from '@legalflow/domain';
 import type { StorageProvider } from '@legalflow/domain';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -44,11 +44,45 @@ function slugify(value: string): string {
 export class DocumentsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly system: SystemPrismaService,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly cloudFiles: CloudFilesService,
   ) {}
+
+  /**
+   * Crea un documento (versión 1) en un expediente SIN contexto de usuario (p. ej. adjuntos de un correo
+   * archivado por BCC). Usa el cliente del sistema (BYPASSRLS) con tenantId explícito y el mismo pipeline
+   * de almacenamiento cifrado. `uploaderId` debe ser un usuario válido del despacho (el letrado del expediente).
+   */
+  async createSystemDocument(
+    tenantId: string,
+    matterId: string,
+    uploaderId: string,
+    file: UploadedFile,
+  ) {
+    const document = await this.system.document.create({
+      data: { tenantId, matterId, name: file.originalname.slice(0, 200) || 'Adjunto' },
+    });
+    const key = this.storageKey(tenantId, document.id, 1);
+    await this.storage.put(key, file.buffer, file.mimetype);
+    const contentHash = createHash('sha256').update(file.buffer).digest('hex');
+    await this.system.documentVersion.create({
+      data: {
+        tenantId,
+        documentId: document.id,
+        version: 1,
+        storageKey: key,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        contentHash,
+        reviewStatus: DocumentReviewStatus.PENDING,
+        uploadedById: uploaderId,
+      },
+    });
+    return document;
+  }
 
   private async assertMatterInTenant(user: RequestUser, matterId: string): Promise<void> {
     const matter = await this.prisma.matter.findFirst({

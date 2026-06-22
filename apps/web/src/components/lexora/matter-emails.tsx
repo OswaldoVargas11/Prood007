@@ -26,6 +26,8 @@ import {
   useSendMatterEmail,
 } from '@/lib/hooks';
 import { ApiError } from '@/lib/api';
+import type { MatterEmail } from '@/lib/types';
+import { cn } from '@/lib/utils';
 import { formatDate } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -105,27 +107,7 @@ export function MatterEmails({
         ) : (
           <ul className="divide-y">
             {emails.data.map((e) => (
-              <li key={e.id} className="flex items-start gap-3 py-2.5">
-                {e.direction === 'OUT' ? (
-                  <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-blue-600" />
-                ) : (
-                  <ArrowDownLeft className="mt-0.5 size-4 shrink-0 text-emerald-600" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[13.5px] font-medium">
-                      {e.subject || t('noSubject')}
-                    </span>
-                    <span className="shrink-0 text-[11.5px] text-muted-foreground">
-                      {formatDate(e.sentAt)}
-                    </span>
-                  </div>
-                  <p className="truncate text-[12px] text-muted-foreground">
-                    {e.direction === 'OUT' ? `→ ${e.toAddr}` : `← ${e.fromAddr}`}
-                    {e.snippet ? ` · ${e.snippet}` : ''}
-                  </p>
-                </div>
-              </li>
+              <EmailRow key={e.id} e={e} />
             ))}
           </ul>
         )}
@@ -377,5 +359,48 @@ function BccLine({ matterId }: { matterId: string }) {
         {copied ? t('bccCopied') : t('bccCopy')}
       </button>
     </div>
+  );
+}
+
+/** Una línea de correspondencia; los correos con cuerpo completo (archivados por BCC) se pueden desplegar. */
+function EmailRow({ e }: { e: MatterEmail }) {
+  const t = useTranslations('matterEmails');
+  const [open, setOpen] = useState(false);
+  const hasBody = Boolean(e.body && e.body.trim().length > 0);
+
+  return (
+    <li className="flex items-start gap-3 py-2.5">
+      {e.direction === 'OUT' ? (
+        <ArrowUpRight className="mt-0.5 size-4 shrink-0 text-blue-600" />
+      ) : (
+        <ArrowDownLeft className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-[13.5px] font-medium">{e.subject || t('noSubject')}</span>
+          <span className="shrink-0 text-[11.5px] text-muted-foreground">
+            {formatDate(e.sentAt)}
+          </span>
+        </div>
+        <p className={cn('text-[12px] text-muted-foreground', !open && 'truncate')}>
+          {e.direction === 'OUT' ? `→ ${e.toAddr}` : `← ${e.fromAddr}`}
+          {e.snippet ? ` · ${e.snippet}` : ''}
+        </p>
+        {open && hasBody && (
+          <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-lg border bg-[var(--surface-1)] p-2.5 font-sans text-[12px] text-foreground">
+            {e.body}
+          </pre>
+        )}
+        {hasBody && (
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="mt-1 text-[11.5px] font-medium text-[var(--brand)] hover:underline"
+          >
+            {open ? t('showLess') : t('showMore')}
+          </button>
+        )}
+      </div>
+    </li>
   );
 }

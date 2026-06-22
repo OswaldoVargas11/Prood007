@@ -81,6 +81,7 @@ export class MailService {
         toAddr: true,
         subject: true,
         snippet: true,
+        body: true,
         sentAt: true,
       },
     });

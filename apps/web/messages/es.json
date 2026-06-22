@@ -1252,6 +1252,8 @@
     "bccHint": "Archiva correos poniendo en copia oculta (CCO/BCC):",
     "bccCopy": "Copiar",
     "bccCopied": "Copiada",
+    "showMore": "Ver el correo completo",
+    "showLess": "Ocultar",
     "send": "Enviar correo",
     "attach": "Adjuntar de la bandeja",
     "empty": "Aún no hay correos en este expediente.",
