@@ -38,8 +38,9 @@ const nextConfig = {
   async headers() {
     return [
       { source: '/word-addin/:path*', headers: officeAddinHeaders },
-      // Resto del sitio: cabeceras estrictas (negative-lookahead para excluir el add-in).
-      { source: '/((?!word-addin).*)', headers: securityHeaders },
+      { source: '/outlook-addin/:path*', headers: officeAddinHeaders },
+      // Resto del sitio: cabeceras estrictas (negative-lookahead para excluir los add-ins de Office).
+      { source: '/((?!word-addin|outlook-addin).*)', headers: securityHeaders },
     ];
   },
 };
