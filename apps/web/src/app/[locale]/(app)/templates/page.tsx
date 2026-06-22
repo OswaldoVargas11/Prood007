@@ -6,6 +6,7 @@ import { FileText, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useCreateTemplate, useDeleteTemplate, useTemplates, useUpdateTemplate } from '@/lib/hooks';
 import { ApiError } from '@/lib/api';
 import { ConfirmDialog } from '@/components/lexora/confirm-dialog';
+import { ClausePicker } from '@/components/lexora/clause-picker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -235,6 +236,11 @@ function TemplateDialog({
                   </button>
                 ))}
               </div>
+              <ClausePicker
+                onInsert={(clauseBody) =>
+                  setBody((b) => (b.trim() ? `${b}\n\n${clauseBody}` : clauseBody))
+                }
+              />
             </div>
             {error && (
               <p role="alert" className="text-sm text-[var(--danger)]">
