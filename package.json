@@ -21,6 +21,8 @@
     "db:migrate": "pnpm --filter @legalflow/api prisma:migrate",
     "db:generate": "pnpm --filter @legalflow/api prisma:generate",
     "stripe:setup": "node scripts/setup-stripe.mjs",
+    "seed:demo": "node apps/api/scripts/demo/seed-demo.mjs",
+    "reset:demo": "node apps/api/scripts/demo/reset-demo.mjs",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "prepare": "husky || true"
