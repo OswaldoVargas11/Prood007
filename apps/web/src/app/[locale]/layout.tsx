@@ -5,10 +5,21 @@ import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
+import { Newsreader } from 'next/font/google';
 import { routing } from '@/i18n/routing';
 import { Providers } from '@/app/providers';
 import { ServiceWorkerRegister } from '@/components/lexora/service-worker-register';
 import '../globals.css';
+
+/** Serif editorial (Newsreader) — solo lo usa la landing pública (titulares "Sello"). Autohospedada
+ * vía next/font; expone `--font-newsreader`, que la landing mapea a `--serif`. */
+const newsreader = Newsreader({
+  subsets: ['latin'],
+  weight: ['400', '500'],
+  style: ['normal', 'italic'],
+  variable: '--font-newsreader',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Lawzora',
@@ -47,7 +58,7 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       suppressHydrationWarning
-      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      className={`${GeistSans.variable} ${GeistMono.variable} ${newsreader.variable}`}
     >
       <body>
         <NextIntlClientProvider messages={messages}>
