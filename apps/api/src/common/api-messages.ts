@@ -250,6 +250,12 @@ export const API_MESSAGES = {
     'es-DO': 'Tu acceso no permite descargar; solo visualización.',
   },
 
+  // ── Secretaría de sociedades ──────────────────────────────────────────────
+  'companySecretary.notFound': {
+    'es-ES': 'Registro de secretaría no encontrado.',
+    'es-DO': 'Registro de secretaría no encontrado.',
+  },
+
   // ── Documentos ────────────────────────────────────────────────────────────
   'documents.fileMissing': {
     'es-ES': 'Falta el archivo.',
