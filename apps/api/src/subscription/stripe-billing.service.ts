@@ -1,16 +1,25 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Role } from '@legalflow/domain';
+import {
+  Currency,
+  FOUNDER,
+  Role,
+  planCurrencyForJurisdiction,
+  type Jurisdiction,
+  type SubscriptionTierId,
+} from '@legalflow/domain';
 import Stripe from 'stripe';
 import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
 import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 import type { BillingCycle, SubscriptionStatus } from './plans';
-import { FOUNDER_CAP, SEAT_TIERS } from './plans';
+import { FOUNDER_CAP } from './plans';
+import { loadPriceMap, resolvePriceId, type PlanKey } from './stripe-prices';
 
-/** Opciones de contratación: plazas, ciclo y si solicita Plan Fundador. */
+/** Opciones de contratación: plazas, tier, ciclo y si solicita Plan Fundador. */
 export interface CheckoutOptions {
   seats: number;
+  tier: SubscriptionTierId;
   cycle: BillingCycle;
   founder: boolean;
 }
@@ -63,8 +72,8 @@ function mapStatus(s: string): SubscriptionStatus {
 @Injectable()
 export class StripeBillingService {
   private readonly stripe: StripeClient | null;
-  private readonly priceId?: string;
-  private readonly priceAnnualId?: string;
+  /** Mapa de Price IDs del esquema nuevo (clave tier|FOUNDER:ciclo:moneda → price_…). */
+  private readonly priceMap: Record<string, string>;
 
   constructor(
     private readonly config: ConfigService,
@@ -73,29 +82,25 @@ export class StripeBillingService {
   ) {
     const key = config.get<string>('STRIPE_SECRET_KEY');
     this.stripe = key ? new Stripe(key) : null;
-    this.priceId = config.get<string>('STRIPE_PRICE_SEAT');
-    this.priceAnnualId = config.get<string>('STRIPE_PRICE_SEAT_ANNUAL');
+    this.priceMap = loadPriceMap(config);
   }
 
   isEnabled(): boolean {
-    return Boolean(this.stripe && this.priceId);
+    return Boolean(this.stripe && Object.keys(this.priceMap).length > 0);
   }
 
   private client(): StripeClient {
-    if (!this.stripe || !this.priceId) {
+    if (!this.stripe || Object.keys(this.priceMap).length === 0) {
       throw new BadRequestException(apiError('subscription.stripeNotConfigured'));
     }
     return this.stripe;
   }
 
-  /** Price ID de Stripe según ciclo. El anual exige STRIPE_PRICE_SEAT_ANNUAL configurado. */
-  private priceFor(cycle: BillingCycle): string {
-    if (cycle === 'ANNUAL') {
-      if (!this.priceAnnualId)
-        throw new BadRequestException(apiError('subscription.annualNotConfigured'));
-      return this.priceAnnualId;
-    }
-    return this.priceId!;
+  /** Price ID de Stripe para (plan, ciclo, moneda) del esquema nuevo; exige el mapa configurado. */
+  private priceFor(plan: PlanKey, cycle: BillingCycle, currency: Currency): string {
+    const id = resolvePriceId(this.priceMap, plan, cycle, currency);
+    if (!id) throw new BadRequestException(apiError('subscription.priceNotConfigured'));
+    return id;
   }
 
   private baseUrl(): string {
@@ -153,25 +158,43 @@ export class StripeBillingService {
     return Math.max(0, FOUNDER_CAP - taken);
   }
 
+  /** Moneda de facturación del SaaS para el despacho (ES→EUR, RD→USD). */
+  private async billingCurrency(tenantId: string): Promise<Currency> {
+    const t = await this.prisma.tenant.findUniqueOrThrow({
+      where: { id: tenantId },
+      select: { jurisdiction: true },
+    });
+    return planCurrencyForJurisdiction(t.jurisdiction as Jurisdiction);
+  }
+
   /**
-   * Sesión de Checkout para suscribirse a `seats` plazas (precio escalonado por volumen). El ciclo
-   * elige el price (mensual/anual). Si solicita Fundador y hay cupo, se marca la intención en la
-   * metadata; el alta efectiva del beneficio (snapshot de tarifa) se hace al aplicar la suscripción.
+   * Sesión de Checkout para suscribirse a `seats` plazas de un TIER y CICLO concretos. Si solicita
+   * Fundador (solo prepago anual/bienal) y hay cupo, se cobra el price de Fundador y se marca la
+   * intención en la metadata; el alta efectiva del beneficio se hace al aplicar la suscripción.
    */
   async createCheckout(user: RequestUser, opts: CheckoutOptions): Promise<{ url: string }> {
     const stripe = this.client();
-    const customer = await this.ensureCustomer(user);
+    const currency = await this.billingCurrency(user.tenantId);
     // Sólo concedemos la intención Fundador si aún hay cupo en el momento del checkout.
     const wantsFounder = opts.founder && (await this.founderSlotsLeft()) > 0;
+    // El Fundador exige prepago anual o bienal (nunca mensual).
+    if (wantsFounder && !FOUNDER.cycles.includes(opts.cycle)) {
+      throw new BadRequestException(apiError('subscription.founderCycleInvalid'));
+    }
+    const plan: PlanKey = wantsFounder ? 'FOUNDER' : opts.tier;
+    const price = this.priceFor(plan, opts.cycle, currency);
+    const customer = await this.ensureCustomer(user);
     const metadata: Record<string, string> = {
       tenantId: user.tenantId,
+      plan,
+      tier: opts.tier,
       cycle: opts.cycle,
       founder: wantsFounder ? 'true' : 'false',
     };
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer,
-      line_items: [{ price: this.priceFor(opts.cycle), quantity: opts.seats }],
+      line_items: [{ price, quantity: opts.seats }],
       success_url: `${this.baseUrl()}/subscription?status=success`,
       cancel_url: `${this.baseUrl()}/subscription?status=cancel`,
       subscription_data: { metadata },
@@ -312,7 +335,13 @@ export class StripeBillingService {
   private async applySubscription(tenantId: string, sub: SubLike): Promise<void> {
     const item = sub.items.data[0];
     const seats = item?.quantity ?? 0;
-    const cycle: BillingCycle = sub.metadata?.cycle === 'ANNUAL' ? 'ANNUAL' : 'MONTHLY';
+    const cycle: BillingCycle =
+      sub.metadata?.cycle === 'ANNUAL' || sub.metadata?.cycle === 'BIENNIAL'
+        ? (sub.metadata.cycle as BillingCycle)
+        : 'MONTHLY';
+    const isFounderSub = sub.metadata?.founder === 'true';
+    // Plan elegido (tier o FOUNDER). Solo se fija al crear/cambiar quantity NO lo toca (preserva el plan).
+    const plan = isFounderSub ? 'FOUNDER' : (sub.metadata?.tier ?? sub.metadata?.plan);
     // Fin de periodo: en API basil/dahlia vive en el item; fallback al nivel superior (versiones viejas).
     const periodEndUnix = item?.current_period_end ?? sub.current_period_end;
 
@@ -327,15 +356,17 @@ export class StripeBillingService {
       maxLawyers: seats,
       maxAdmins: Math.max(1, Math.min(seats, 5)),
     };
+    if (typeof plan === 'string' && plan) data.plan = plan;
     // Solo guardamos la fecha si Stripe la dio y es válida: `new Date(NaN)` rompería TODO el update y
     // el despacho quedaría sin activar pese a haber pagado. ACTIVE no depende de esta fecha (hasAppAccess).
     if (typeof periodEndUnix === 'number' && Number.isFinite(periodEndUnix)) {
       data.currentPeriodEnd = new Date(periodEndUnix * 1000);
     }
 
-    // Plan Fundador: alta efectiva del beneficio si lo pidió, no lo era ya, y queda cupo. Congela la
-    // tarifa POR PLAZA vigente (snapshot de tramos): el precio sigue dependiendo del volumen.
-    if (sub.metadata?.founder === 'true') {
+    // Plan Fundador: alta efectiva del beneficio si lo pidió, no lo era ya, y queda cupo. La tarifa queda
+    // CONGELADA de por vida por estar en el Price de Fundador (inmutable; no se migra). Sin snapshot de
+    // volumen (el descuento por volumen se eliminó).
+    if (isFounderSub) {
       const tenant = await this.system.tenant.findUnique({
         where: { id: tenantId },
         select: { isFounder: true },
@@ -345,10 +376,6 @@ export class StripeBillingService {
         if (taken < FOUNDER_CAP) {
           data.isFounder = true;
           data.founderNumber = taken + 1;
-          data.lockedSeatTiers = SEAT_TIERS.map((t) => ({
-            upTo: t.upTo,
-            pricePerSeatEur: t.pricePerSeatEur,
-          }));
         }
       }
     }

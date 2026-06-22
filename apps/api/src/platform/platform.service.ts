@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import { SystemPrismaService } from '../prisma/prisma.service';
 import { apiError } from '../common/api-messages';
-import { monthlyTotalEur, pricePerSeatEur, trialDaysLeft } from '../subscription/plans';
+import { planMonthlyEur, trialDaysLeft } from '../subscription/plans';
 import type { SetSubscriptionDto } from './dto/platform.dto';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -46,9 +46,13 @@ export class PlatformService {
       trialEndsAt: Date | null;
       currentPeriodEnd: Date | null;
       createdAt: Date;
+      plan: string;
     },
     c: { seatsUsed: number; clients: number; matters: number },
   ) {
+    // €/plaza/mes indicativo del plan del despacho (sin descuento por volumen). Las suscripciones
+    // existentes no se reprecian; este importe es solo informativo para la consola.
+    const perSeat = planMonthlyEur(t.plan);
     return {
       id: t.id,
       name: t.name,
@@ -64,8 +68,8 @@ export class PlatformService {
       seatsUsed: c.seatsUsed,
       clients: c.clients,
       matters: c.matters,
-      pricePerSeatEur: pricePerSeatEur(Math.max(1, t.seats || c.seatsUsed)),
-      monthlyTotalEur: monthlyTotalEur(t.seats),
+      pricePerSeatEur: perSeat,
+      monthlyTotalEur: perSeat * t.seats,
     };
   }
 
@@ -81,6 +85,7 @@ export class PlatformService {
     trialEndsAt: true,
     currentPeriodEnd: true,
     createdAt: true,
+    plan: true,
   } as const;
 
   /** Lista todos los despachos con metadatos de cuenta (para la consola). */

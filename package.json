@@ -20,6 +20,7 @@
     "web:dev": "pnpm --filter @legalflow/web dev",
     "db:migrate": "pnpm --filter @legalflow/api prisma:migrate",
     "db:generate": "pnpm --filter @legalflow/api prisma:generate",
+    "stripe:setup": "node scripts/setup-stripe.mjs",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "prepare": "husky || true"
@@ -27,10 +28,12 @@
   "devDependencies": {
     "@commitlint/cli": "^19.5.0",
     "@commitlint/config-conventional": "^19.5.0",
+    "@legalflow/domain": "workspace:*",
     "eslint": "^8.57.1",
     "husky": "^9.1.6",
     "lint-staged": "^15.2.10",
     "prettier": "^3.3.3",
+    "stripe": "^22.2.1",
     "typescript": "^5.6.3"
   },
   "lint-staged": {

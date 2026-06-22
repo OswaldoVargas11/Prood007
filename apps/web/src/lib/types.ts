@@ -588,11 +588,28 @@ export interface SignatureRequest {
 // ── Suscripción (SaaS de plataforma) ──────────────────────────────────────────
 export type SubscriptionStatusValue = 'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED' | 'CANCELED';
 
-export type BillingCycle = 'MONTHLY' | 'ANNUAL';
+export type BillingCycle = 'MONTHLY' | 'ANNUAL' | 'BIENNIAL';
+export type SubscriptionTierId = 'ESENCIAL' | 'PROFESIONAL' | 'AVANZADO';
+export type PlanKey = SubscriptionTierId | 'FOUNDER';
 
-export interface SubscriptionTier {
-  upTo: number | null;
-  pricePerSeatEur: number;
+/** Definición de un tier (precio lista €/plaza/mes). */
+export interface PlanTierDef {
+  id: SubscriptionTierId;
+  monthlyEur: number;
+  popular?: boolean;
+}
+
+/** Fila del catálogo resuelto (un plan en un ciclo y moneda). Fuente: backend (que lee del catálogo). */
+export interface PlanPriceRow {
+  plan: PlanKey;
+  cycle: BillingCycle;
+  currency: string;
+  listMonthlyEur: number;
+  perSeatPeriod: number;
+  perSeatMonthly: number;
+  savingsPct: number;
+  stripeInterval: 'month' | 'year';
+  stripeIntervalCount: number;
 }
 
 // ── IA ──────────────────────────────────────────────────────────────────────
@@ -640,21 +657,32 @@ export interface SubscriptionInfo {
   seatsUsed: number;
   seatCap: number;
   billingCycle: BillingCycle;
+  /** Plan actual del despacho (tier o FOUNDER); informativo. */
+  plan: PlanKey;
   isFounder: boolean;
   founderNumber: number | null;
   founderSlotsLeft: number;
   founderCap: number;
-  annualFreeMonths: number;
-  pricePerSeatEur: number;
-  monthlyTotalEur: number;
-  annualTotalEur: number;
-  currentTotalEur: number;
-  tiers: SubscriptionTier[];
+  founderMonthlyEur: number;
+  founderCycles: BillingCycle[];
+  /** Moneda de facturación del SaaS para este despacho (EUR/USD). */
+  currency: string;
+  /** Catálogo NUEVO de tiers (precio lista €/plaza/mes). */
+  tiers: PlanTierDef[];
+  /** Catálogo resuelto (filas tier×ciclo + fundador) en la moneda del despacho. */
+  catalog: PlanPriceRow[];
 }
 
-/** Payload de inicio de pago: plazas, ciclo y si solicita Plan Fundador. */
+/** Estado público del cupo de Fundador (para la landing). */
+export interface FounderStatus {
+  slotsLeft: number;
+  cap: number;
+}
+
+/** Payload de inicio de pago: plazas, tier, ciclo y si solicita Plan Fundador. */
 export interface CheckoutRequest {
   seats: number;
+  tier: SubscriptionTierId;
   cycle: BillingCycle;
   founder: boolean;
 }
