@@ -9,6 +9,7 @@ import {
   parseMatterAddress,
   verifyMatterToken,
 } from './inbound-email.config';
+import { extractEmailBody } from './mime';
 
 /**
  * Email-por-BCC al expediente: el webhook recibe el correo parseado, resuelve el expediente por la
@@ -34,6 +35,8 @@ export class InboundEmailService {
     });
     if (!matter) throw new NotFoundException('matter not found');
 
+    // El worker reenvía el MIME crudo en `text`; extraemos el cuerpo legible para el extracto.
+    const body = extractEmailBody(dto.text ?? '');
     await this.system.matterEmail.create({
       data: {
         tenantId: matter.tenantId,
@@ -42,7 +45,7 @@ export class InboundEmailService {
         fromAddr: dto.from.slice(0, 320),
         toAddr: dto.to.slice(0, 320),
         subject: dto.subject?.slice(0, 500) ?? null,
-        snippet: (dto.text ?? '').trim().slice(0, 300) || null,
+        snippet: body.slice(0, 300) || null,
         sentAt: new Date(),
       },
     });
