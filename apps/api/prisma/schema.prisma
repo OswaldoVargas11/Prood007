@@ -249,6 +249,7 @@ model Tenant {
   clauses                Clause[]
   schedulingConfigs      SchedulingConfig[]
   appointments           Appointment[]
+  judicialNotifications  JudicialNotification[]
   // RGPD/Ley 172-13 — gobernanza de datos (D-022): región de residencia de datos del despacho
   // (p. ej. "EU" para ES; a definir para RD) y política de conservación configurable en meses. La
   // RETENCIÓN es metadato/política (la conservación legal prevalece sobre el borrado); no auto-purga.
@@ -531,6 +532,7 @@ model Matter {
   billingSchedules BillingSchedule[]
   emails           MatterEmail[]
   appointments     Appointment[]
+  judicialNotifications JudicialNotification[]
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -929,6 +931,39 @@ model Appointment {
 
   @@index([tenantId, lawyerId, startsAt])
   @@index([tenantId, clientId])
+}
+
+// Origen de una notificación judicial: conector LexNET (gated), importada de fichero, o registro manual.
+enum JudicialNotificationSource {
+  LEXNET
+  IMPORT
+  MANUAL
+}
+
+// Notificación de sede judicial electrónica (LexNET-lite): el acto recibido del juzgado cuya fecha de
+// recepción dispara el cómputo del plazo procesal. Se encadena a una Task procesal (taskId).
+model JudicialNotification {
+  id           String                     @id @default(cuid())
+  tenantId     String
+  matterId     String?
+  source       JudicialNotificationSource @default(MANUAL)
+  externalId   String? // id LexNET (dedupe en ingesta automática)
+  court        String? // órgano judicial
+  procedureRef String? // nº de procedimiento / autos
+  type         String? // tipo de acto (diligencia, sentencia, decreto…)
+  subject      String // asunto / resumen del acto
+  receivedAt   DateTime // fecha de recepción (inicio del cómputo del plazo)
+  taskId       String? // plazo procesal encadenado, si ya se calculó
+  createdById  String
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter? @relation(fields: [matterId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, source, externalId])
+  @@index([tenantId, receivedAt])
+  @@index([tenantId, matterId])
 }
 
 // Cobro sobre una factura. Soporta cobros parciales (varios Payment por factura) y conciliación con

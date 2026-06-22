@@ -2060,3 +2060,73 @@ export function useCancelClientAppointment() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['portal', 'scheduling'] }),
   });
 }
+
+// ── Notificaciones judiciales (LexNET-lite) ───────────────────────────────────
+
+export type JudicialNotification = {
+  id: string;
+  matterId: string | null;
+  source: 'LEXNET' | 'IMPORT' | 'MANUAL';
+  court: string | null;
+  procedureRef: string | null;
+  type: string | null;
+  subject: string;
+  receivedAt: string;
+  taskId: string | null;
+  matter?: { id: string; reference: string; title: string } | null;
+};
+export type LexnetConnector = { enabled: boolean; endpoint: string | null };
+
+export function useJudicialNotifications(pending?: boolean) {
+  return useQuery({
+    queryKey: ['judicial-notifications', { pending: pending ?? false }],
+    queryFn: () =>
+      api.get<JudicialNotification[]>(`/judicial-notifications${pending ? '?pending=true' : ''}`),
+  });
+}
+export function useLexnetConnector() {
+  return useQuery({
+    queryKey: ['judicial-notifications', 'connector'],
+    queryFn: () => api.get<LexnetConnector>('/judicial-notifications/connector'),
+  });
+}
+export function useCreateJudicialNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      matterId?: string;
+      court?: string;
+      procedureRef?: string;
+      type?: string;
+      subject: string;
+      receivedAt: string;
+    }) => api.post<JudicialNotification>('/judicial-notifications', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['judicial-notifications'] }),
+  });
+}
+export function useChainDeadline() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      deadlineType: string;
+      days: number;
+      assigneeId?: string;
+      title?: string;
+    }) => api.post(`/judicial-notifications/${id}/deadline`, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['judicial-notifications'] });
+      void qc.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+}
+export function useDeleteJudicialNotification() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del(`/judicial-notifications/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['judicial-notifications'] }),
+  });
+}

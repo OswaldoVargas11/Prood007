@@ -8,6 +8,7 @@ import {
   Clock,
   CreditCard,
   FileText,
+  Gavel,
   LayoutTemplate,
   LayoutDashboard,
   MessageSquare,
@@ -74,6 +75,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { key: 'calendar', href: '/calendar', icon: CalendarDays, enabled: true },
       { key: 'scheduling', href: '/scheduling', icon: CalendarClock, enabled: true },
+      { key: 'lexnet', href: '/lexnet', icon: Gavel, enabled: true },
       { key: 'aml', href: '/aml', icon: ShieldCheck, enabled: true },
       // Grupo «Despacho» admin (Tanda B). Solo FIRM_ADMIN.
       { key: 'reports', href: '/reports', icon: BarChart3, enabled: true, adminOnly: true },
