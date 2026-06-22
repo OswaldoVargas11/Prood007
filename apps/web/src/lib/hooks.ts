@@ -11,6 +11,11 @@ import type {
   BillingRunResult,
   BillingSchedule,
   BillingScheduleListItem,
+  ClosingChecklistDetail,
+  ClosingChecklistSummary,
+  ClosingItemCategory,
+  ClosingItemStatus,
+  ClosingTemplate,
   Client,
   ClientsPage,
   ConflictResult,
@@ -2176,4 +2181,117 @@ export function useMatterBccAddress(matterId: string) {
     queryFn: () =>
       api.get<{ enabled: boolean; address: string | null }>(`/inbound-email/address/${matterId}`),
   });
+}
+
+// ── Cierre transaccional: checklist + binder ─────────────────────────────────
+
+export function useClosingTemplates() {
+  return useQuery({
+    queryKey: ['closing', 'templates'],
+    queryFn: () => api.get<ClosingTemplate[]>('/closing/templates'),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useMatterChecklists(matterId: string) {
+  return useQuery({
+    queryKey: ['closing', 'by-matter', matterId],
+    queryFn: () => api.get<ClosingChecklistSummary[]>(`/closing/by-matter/${matterId}`),
+    enabled: Boolean(matterId),
+  });
+}
+
+export function useChecklist(id: string | null) {
+  return useQuery({
+    queryKey: ['closing', 'checklist', id],
+    queryFn: () => api.get<ClosingChecklistDetail>(`/closing/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+export function useCreateChecklist(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { title: string; templateKey?: string }) =>
+      api.post<ClosingChecklistDetail>('/closing', { matterId, ...body }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['closing', 'by-matter', matterId] }),
+  });
+}
+
+export function useUpdateChecklist(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; title?: string; closingDate?: string }) =>
+      api.patch<ClosingChecklistDetail>(`/closing/${id}`, body),
+    onSuccess: (data) => {
+      qc.setQueryData(['closing', 'checklist', data.id], data);
+      void qc.invalidateQueries({ queryKey: ['closing', 'by-matter', matterId] });
+    },
+  });
+}
+
+export function useDeleteChecklist(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del<{ success: boolean }>(`/closing/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['closing', 'by-matter', matterId] }),
+  });
+}
+
+interface ChecklistItemInput {
+  category?: ClosingItemCategory;
+  status?: ClosingItemStatus;
+  title?: string;
+  detail?: string;
+  responsibleParty?: string;
+  assigneeId?: string;
+  documentId?: string;
+  dueDate?: string;
+  sortOrder?: number;
+}
+
+export function useAddChecklistItem(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ checklistId, ...body }: ChecklistItemInput & { checklistId: string }) =>
+      api.post<ClosingChecklistDetail>(`/closing/${checklistId}/items`, body),
+    onSuccess: (data) => {
+      qc.setQueryData(['closing', 'checklist', data.id], data);
+      void qc.invalidateQueries({ queryKey: ['closing', 'by-matter', matterId] });
+    },
+  });
+}
+
+export function useUpdateChecklistItem(matterId: string, checklistId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ itemId, ...body }: ChecklistItemInput & { itemId: string }) =>
+      api.patch<ClosingChecklistDetail>(`/closing/items/${itemId}`, body),
+    onSuccess: (data) => {
+      qc.setQueryData(['closing', 'checklist', data.id], data);
+      void qc.invalidateQueries({ queryKey: ['closing', 'by-matter', matterId] });
+    },
+  });
+}
+
+export function useDeleteChecklistItem(matterId: string, checklistId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => api.del<ClosingChecklistDetail>(`/closing/items/${itemId}`),
+    onSuccess: (data) => {
+      if (data) qc.setQueryData(['closing', 'checklist', data.id], data);
+      void qc.invalidateQueries({ queryKey: ['closing', 'by-matter', matterId] });
+    },
+  });
+}
+
+/** Descarga el closing binder (ZIP: índice PDF + documentos vinculados) del checklist. */
+export async function downloadClosingBinder(checklistId: string, filename: string): Promise<void> {
+  const blob = await api.download(`/closing/${checklistId}/binder`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }

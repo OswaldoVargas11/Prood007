@@ -511,6 +511,7 @@
     "tabs": {
       "overview": "Resumen",
       "documents": "Documentos",
+      "closing": "Cierre",
       "tasks": "Tareas",
       "costs": "Costes",
       "provision": "Provisión",
@@ -751,6 +752,46 @@
     "subtitle": "Conversaciones del despacho, una por expediente.",
     "loadError": "No se pudieron cargar los mensajes.",
     "empty": "Aún no hay conversaciones."
+  },
+  "closing": {
+    "empty": "Aún no hay checklists de cierre en este expediente. Crea uno para organizar condiciones previas, entregables y hojas de firma.",
+    "new": "Nuevo checklist",
+    "newTitle": "Nuevo checklist de cierre",
+    "newDescription": "Elige una plantilla de operación como punto de partida; podrás adaptarla después.",
+    "template": "Plantilla",
+    "titleLabel": "Título",
+    "titlePlaceholder": "p. ej. Cierre compraventa de participaciones",
+    "defaultTitle": "Checklist de cierre",
+    "create": "Crear",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "deleteConfirm": "¿Eliminar este checklist y todas sus partidas?",
+    "closingDate": "Fecha de cierre",
+    "binder": "Descargar binder",
+    "progress": "Progreso",
+    "editItem": "Editar partida",
+    "itemTitle": "Título",
+    "itemDetail": "Detalle",
+    "responsibleParty": "Parte responsable",
+    "assignee": "Asignado a",
+    "linkedDocument": "Documento vinculado",
+    "dueDate": "Vencimiento",
+    "none": "—",
+    "addItemPlaceholder": "Añadir partida y pulsar Enter…",
+    "category": {
+      "CONDITION_PRECEDENT": "Condiciones previas",
+      "DELIVERABLE": "Entregables",
+      "SIGNATURE_PAGE": "Hojas de firma",
+      "OTHER": "Otros"
+    },
+    "status": {
+      "PENDING": "Pendiente",
+      "IN_PROGRESS": "En curso",
+      "WAIVED": "Dispensada",
+      "SATISFIED": "Cumplida"
+    }
   },
   "documents": {
     "title": "Documentos",

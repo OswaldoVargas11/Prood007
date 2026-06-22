@@ -14,6 +14,7 @@ import { StatusBadge } from '@/components/lexora/status-badge';
 import { MatterRail } from '@/components/lexora/matter-rail';
 import { LegalResearchLinks } from '@/components/lexora/legal-research-links';
 import { DocumentsTab } from '@/components/lexora/documents-tab';
+import { ClosingChecklistTab } from '@/components/lexora/closing-checklist-tab';
 import { TasksPanel } from '@/components/lexora/tasks-panel';
 import { CostsTab } from '@/components/lexora/costs-tab';
 import { RetainerTab } from '@/components/lexora/retainer';
@@ -46,6 +47,7 @@ export default function MatterDetailPage() {
   const validTabs = [
     'overview',
     'documents',
+    'closing',
     'tasks',
     'costs',
     'provision',
@@ -130,6 +132,7 @@ export default function MatterDetailPage() {
         <TabsList className="w-full overflow-x-auto">
           <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
           <TabsTrigger value="documents">{t('tabs.documents')}</TabsTrigger>
+          <TabsTrigger value="closing">{t('tabs.closing')}</TabsTrigger>
           <TabsTrigger value="tasks">{t('tabs.tasks')}</TabsTrigger>
           <TabsTrigger value="costs">{t('tabs.costs')}</TabsTrigger>
           <TabsTrigger value="provision">{t('tabs.provision')}</TabsTrigger>
@@ -179,6 +182,10 @@ export default function MatterDetailPage() {
             </Link>
           </div>
           <DocumentsTab matterId={id} />
+        </TabsContent>
+
+        <TabsContent value="closing">
+          <ClosingChecklistTab matterId={id} />
         </TabsContent>
 
         <TabsContent value="tasks">
