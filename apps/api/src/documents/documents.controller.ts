@@ -15,6 +15,7 @@ import { DocumentsService } from './documents.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { ReviewDocumentDto } from './dto/review-document.dto';
 import { GenerateFromTemplateDto } from './dto/generate-from-template.dto';
+import { GenerateFromTemplatesDto } from './dto/generate-from-templates.dto';
 import { ImportCloudDocumentDto } from './dto/import-cloud-document.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -61,6 +62,12 @@ export class DocumentsController {
   @Post('from-template')
   generateFromTemplate(@CurrentUser() user: RequestUser, @Body() dto: GenerateFromTemplateDto) {
     return this.documents.generateFromTemplate(user, dto);
+  }
+
+  /** Ensambla un paquete de documentos (varias plantillas a la vez) en el expediente. */
+  @Post('from-templates')
+  generateFromTemplates(@CurrentUser() user: RequestUser, @Body() dto: GenerateFromTemplatesDto) {
+    return this.documents.generateFromTemplates(user, dto.matterId, dto.templateIds);
   }
 
   /** Importa un fichero desde la nube (Google Drive / OneDrive / SharePoint) al expediente. */

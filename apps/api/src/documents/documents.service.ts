@@ -212,6 +212,21 @@ export class DocumentsService {
     return { document, version };
   }
 
+  /**
+   * Ensamblado documental: genera de una pasada un paquete de documentos en el expediente, uno por cada
+   * plantilla indicada (p. ej. el set de intake del despacho). Reutiliza generateFromTemplate por plantilla.
+   */
+  async generateFromTemplates(user: RequestUser, matterId: string, templateIds: string[]) {
+    await this.assertMatterInTenant(user, matterId);
+    const unique = [...new Set(templateIds)];
+    const documents = [];
+    for (const templateId of unique) {
+      const { document } = await this.generateFromTemplate(user, { templateId, matterId });
+      documents.push({ id: document.id, name: document.name });
+    }
+    return { count: documents.length, documents };
+  }
+
   /** Añade una nueva versión a un documento existente. */
   async addVersion(user: RequestUser, documentId: string, file?: UploadedFile) {
     if (!file) throw new BadRequestException(apiError('documents.fileMissing'));

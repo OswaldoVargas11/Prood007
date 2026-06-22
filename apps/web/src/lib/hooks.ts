@@ -2130,3 +2130,40 @@ export function useDeleteJudicialNotification() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['judicial-notifications'] }),
   });
 }
+
+// ── Paquetes de plantillas (ensamblado multi-documento) ───────────────────────
+
+export type DocumentPackage = { id: string; name: string; templateIds: string[] };
+
+export function useDocumentPackages() {
+  return useQuery({
+    queryKey: ['document-packages'],
+    queryFn: () => api.get<DocumentPackage[]>('/document-packages'),
+  });
+}
+export function useCreateDocumentPackage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; templateIds: string[] }) =>
+      api.post<DocumentPackage>('/document-packages', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['document-packages'] }),
+  });
+}
+export function useDeleteDocumentPackage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del(`/document-packages/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['document-packages'] }),
+  });
+}
+export function useGenerateFromTemplates() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { matterId: string; templateIds: string[] }) =>
+      api.post<{ count: number; documents: { id: string; name: string }[] }>(
+        '/documents/from-templates',
+        body,
+      ),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['documents'] }),
+  });
+}
