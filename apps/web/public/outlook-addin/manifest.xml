@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xsi:type="MailApp">
+  <Id>c9f2d1b3-2a4e-5d6f-8b9c-3e5f7a9b1d24</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Lawzora</ProviderName>
+  <DefaultLocale>es-ES</DefaultLocale>
+  <DisplayName DefaultValue="Lawzora — Archivar al expediente" />
+  <Description DefaultValue="Archiva el correo abierto en un expediente de Lawzora, sin salir de Outlook." />
+  <IconUrl DefaultValue="https://lawzora.com/favicon.ico" />
+  <SupportUrl DefaultValue="https://lawzora.com" />
+  <AppDomains>
+    <AppDomain>https://lawzora.com</AppDomain>
+    <AppDomain>https://api.lawzora.com</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Mailbox" />
+  </Hosts>
+  <Requirements>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.1" />
+    </Sets>
+  </Requirements>
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://lawzora.com/outlook-addin/taskpane.html" />
+        <RequestedHeight>360</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+  <Permissions>ReadItem</Permissions>
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read" />
+  </Rule>
+  <DisableEntityHighlighting>false</DisableEntityHighlighting>
+</OfficeApp>
