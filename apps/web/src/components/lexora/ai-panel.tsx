@@ -42,7 +42,7 @@ export function AiPanel() {
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
           <Badge variant="info">{t('soon')}</Badge>
           <p className="max-w-xs text-sm text-muted-foreground">{t('placeholder')}</p>
-          <p className="max-w-xs text-xs text-muted-foreground/70">{t('citations')}</p>
+          <p className="max-w-xs text-xs text-muted-foreground/70">{t('disclaimer')}</p>
         </div>
       </SheetContent>
     </Sheet>
