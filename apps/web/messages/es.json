@@ -694,6 +694,12 @@
     "save": "Guardar",
     "cancel": "Cancelar"
   },
+  "dictation": {
+    "dictate": "Dictar",
+    "listening": "Escuchando…",
+    "start": "Dictar por voz",
+    "stop": "Detener el dictado"
+  },
   "invoicesOverview": {
     "title": "Facturas",
     "subtitle": "Todas las facturas emitidas por el despacho.",

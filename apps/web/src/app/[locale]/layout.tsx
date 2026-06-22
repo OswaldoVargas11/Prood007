@@ -7,12 +7,15 @@ import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import { routing } from '@/i18n/routing';
 import { Providers } from '@/app/providers';
+import { ServiceWorkerRegister } from '@/components/lexora/service-worker-register';
 import '../globals.css';
 
 export const metadata: Metadata = {
   title: 'Lawzora',
   description: 'Software de gestión para despachos · España y República Dominicana',
   icons: { icon: '/lawzora-mark.svg' },
+  manifest: '/manifest.webmanifest',
+  appleWebApp: { capable: true, title: 'Lawzora' },
 };
 
 export const viewport: Viewport = {
@@ -49,6 +52,7 @@ export default async function LocaleLayout({
       <body>
         <NextIntlClientProvider messages={messages}>
           <Providers>{children}</Providers>
+          <ServiceWorkerRegister />
         </NextIntlClientProvider>
       </body>
     </html>
