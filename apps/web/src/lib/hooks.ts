@@ -1966,3 +1966,97 @@ export function useDeleteClause() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['clauses'] }),
   });
 }
+
+// ── Auto-agenda (citas) ───────────────────────────────────────────────────────
+
+export type SchedulingConfig = {
+  enabled: boolean;
+  weekdays: number[];
+  startMin: number;
+  endMin: number;
+  slotMinutes: number;
+};
+export type SchedulingSlot = { startsAt: string; dayLabel: string; timeLabel: string };
+export type SchedulingOption = {
+  lawyerId: string;
+  lawyerName: string;
+  bookable: boolean;
+  matters: { id: string; label: string }[];
+};
+export type Appointment = {
+  id: string;
+  startsAt: string;
+  endsAt: string;
+  status: 'REQUESTED' | 'CONFIRMED' | 'CANCELLED';
+  note: string | null;
+  dayLabel: string;
+  timeLabel: string;
+  lawyer?: { id: string; name: string };
+  client?: { id: string; name: string };
+  matter?: { id: string; label: string };
+};
+
+// Lado despacho
+export function useSchedulingConfig() {
+  return useQuery({
+    queryKey: ['scheduling', 'config'],
+    queryFn: () => api.get<SchedulingConfig>('/scheduling/config'),
+  });
+}
+export function useUpdateSchedulingConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: SchedulingConfig) => api.put<SchedulingConfig>('/scheduling/config', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['scheduling'] }),
+  });
+}
+export function useFirmAppointments() {
+  return useQuery({
+    queryKey: ['scheduling', 'appointments'],
+    queryFn: () => api.get<Appointment[]>('/scheduling/appointments'),
+  });
+}
+export function useSetAppointmentStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'confirm' | 'cancel' }) =>
+      api.post(`/scheduling/appointments/${id}/${action}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['scheduling', 'appointments'] }),
+  });
+}
+
+// Lado portal (cliente)
+export function useSchedulingOptions() {
+  return useQuery({
+    queryKey: ['portal', 'scheduling', 'options'],
+    queryFn: () => api.get<SchedulingOption[]>('/portal/scheduling/options'),
+  });
+}
+export function useSchedulingSlots(lawyerId: string | null) {
+  return useQuery({
+    queryKey: ['portal', 'scheduling', 'slots', lawyerId],
+    queryFn: () => api.get<SchedulingSlot[]>(`/portal/scheduling/slots?lawyerId=${lawyerId}`),
+    enabled: Boolean(lawyerId),
+  });
+}
+export function useClientAppointments() {
+  return useQuery({
+    queryKey: ['portal', 'scheduling', 'appointments'],
+    queryFn: () => api.get<Appointment[]>('/portal/scheduling/appointments'),
+  });
+}
+export function useBookAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { lawyerId: string; matterId?: string; startsAt: string; note?: string }) =>
+      api.post<Appointment>('/portal/scheduling/appointments', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['portal', 'scheduling'] }),
+  });
+}
+export function useCancelClientAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.post(`/portal/scheduling/appointments/${id}/cancel`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['portal', 'scheduling'] }),
+  });
+}
