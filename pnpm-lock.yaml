@@ -95,6 +95,9 @@ importers:
       class-validator:
         specifier: ^0.15.1
         version: 0.15.1
+      diff:
+        specifier: 4.0.4
+        version: 4.0.4
       helmet:
         specifier: ^8.0.0
         version: 8.2.0
@@ -159,6 +162,9 @@ importers:
       '@nestjs/testing':
         specifier: ^10.4.4
         version: 10.4.22(@nestjs/common@10.4.22(class-transformer@0.5.1)(class-validator@0.15.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@10.4.22)(@nestjs/platform-express@10.4.22)
+      '@types/diff':
+        specifier: ^5.2.3
+        version: 5.2.3
       '@types/express':
         specifier: ^5.0.0
         version: 5.0.6
@@ -3466,6 +3472,12 @@ packages:
     resolution:
       {
         integrity: sha512-mFNylyeyqN93lfe/9CSxOGREz8cpzAhH+E93xJ4xWQf62V8sQ/24reV2nyzUWM6H6Xji+GGHpkbLe7pVoUEskg==,
+      }
+
+  '@types/diff@5.2.3':
+    resolution:
+      {
+        integrity: sha512-K0Oqlrq3kQMaO2RhfrNQX5trmt+XLyom88zS0u84nnIcLvFnRUMRRHmrGny5GSM+kNO9IZLARsdQHDzkhAgmrQ==,
       }
 
   '@types/eslint-scope@3.7.7':
@@ -13307,6 +13319,8 @@ snapshots:
   '@types/cors@2.8.19':
     dependencies:
       '@types/node': 20.19.43
+
+  '@types/diff@5.2.3': {}
 
   '@types/eslint-scope@3.7.7':
     dependencies:

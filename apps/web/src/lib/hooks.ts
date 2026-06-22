@@ -11,6 +11,7 @@ import type {
   BillingRunResult,
   BillingSchedule,
   BillingScheduleListItem,
+  CompareResult,
   ClosingChecklistDetail,
   ClosingChecklistSummary,
   ClosingItemCategory,
@@ -234,6 +235,20 @@ export function useAddDocumentVersion(matterId: string) {
       return api.upload(`/documents/${documentId}/versions`, form);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', matterId] }),
+  });
+}
+
+/** Redline entre dos versiones de un documento (comparación a nivel de palabra). */
+export function useCompareVersions(
+  documentId: string,
+  base: string | null,
+  against: string | null,
+) {
+  return useQuery({
+    queryKey: ['document-compare', documentId, base, against],
+    queryFn: () =>
+      api.get<CompareResult>(`/documents/${documentId}/compare?base=${base}&against=${against}`),
+    enabled: Boolean(documentId && base && against && base !== against),
   });
 }
 

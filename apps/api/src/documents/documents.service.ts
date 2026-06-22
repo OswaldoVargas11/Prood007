@@ -16,6 +16,8 @@ import { CloudFilesService, type CloudFileRef } from '../integrations/cloud-file
 import { apiError } from '../common/api-messages';
 import { renderTemplate, type TemplateContext } from '../templates/render';
 import { buildDocumentPdf } from './document-pdf';
+import { extractText } from './text-extract';
+import { computeRedline } from './document-redline';
 import type { RequestUser } from '../auth/auth.types';
 
 interface UploadedFile {
@@ -326,6 +328,64 @@ export class DocumentsService {
     if (!version) throw new NotFoundException(apiError('documents.versionNotFound'));
     const buffer = await this.storage.get(version.storageKey);
     return { version, buffer };
+  }
+
+  /**
+   * Compara dos versiones de un MISMO documento (redline a nivel de palabra). Extrae el texto de cada
+   * versión (.docx/texto), calcula el diff y devuelve segmentos estructurados (igual/añadido/eliminado)
+   * más el recuento de palabras añadidas/eliminadas. Verifica que ambas versiones son del documento y
+   * del tenant del usuario.
+   */
+  async compare(
+    user: RequestUser,
+    documentId: string,
+    baseVersionId: string,
+    againstVersionId: string,
+  ) {
+    if (baseVersionId === againstVersionId) {
+      throw new BadRequestException(apiError('documents.compareSameVersion'));
+    }
+    const versions = await this.prisma.documentVersion.findMany({
+      where: {
+        id: { in: [baseVersionId, againstVersionId] },
+        documentId,
+        tenantId: user.tenantId,
+      },
+      select: { id: true, version: true, storageKey: true, mimeType: true },
+    });
+    const base = versions.find((v) => v.id === baseVersionId);
+    const against = versions.find((v) => v.id === againstVersionId);
+    if (!base || !against) throw new NotFoundException(apiError('documents.versionNotFound'));
+
+    const [baseBytes, againstBytes] = await Promise.all([
+      this.storage.get(base.storageKey),
+      this.storage.get(against.storageKey),
+    ]);
+    const [baseText, againstText] = await Promise.all([
+      extractText(base.mimeType, baseBytes),
+      extractText(against.mimeType, againstBytes),
+    ]);
+
+    if (!baseText.extractable || !againstText.extractable) {
+      return {
+        baseVersion: base.version,
+        againstVersion: against.version,
+        extractable: false,
+        segments: [],
+        added: 0,
+        removed: 0,
+      };
+    }
+
+    const redline = computeRedline(baseText.text, againstText.text);
+    return {
+      baseVersion: base.version,
+      againstVersion: against.version,
+      extractable: true,
+      segments: redline.segments,
+      added: redline.added,
+      removed: redline.removed,
+    };
   }
 
   /** Revisa una versión (aprobar/rechazar/requiere cambios/en revisión). Solo abogados/admin. */

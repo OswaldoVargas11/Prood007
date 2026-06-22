@@ -2,10 +2,20 @@
 
 import { useRef, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Cloud, Download, FileText, LayoutTemplate, Loader2, Plus, Upload } from 'lucide-react';
+import {
+  Cloud,
+  Download,
+  FileDiff,
+  FileText,
+  LayoutTemplate,
+  Loader2,
+  Plus,
+  Upload,
+} from 'lucide-react';
 import {
   downloadVersion,
   useAddDocumentVersion,
+  useCompareVersions,
   useGenerateFromTemplate,
   useMatterDocuments,
   useReviewVersion,
@@ -46,6 +56,7 @@ export function DocumentsTab({ matterId }: { matterId: string }) {
   const versionFileRef = useRef<HTMLInputElement>(null);
   const [versionFor, setVersionFor] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState<DocumentVersion | null>(null);
+  const [comparing, setComparing] = useState<MatterDocument | null>(null);
   const [generating, setGenerating] = useState(false);
   const [importingCloud, setImportingCloud] = useState(false);
 
@@ -114,6 +125,12 @@ export function DocumentsTab({ matterId }: { matterId: string }) {
                   <span className="font-medium">{doc.name}</span>
                   {latest && <ReviewBadge status={latest.reviewStatus} />}
                   <div className="ml-auto flex gap-2">
+                    {doc.versions.length >= 2 && (
+                      <Button size="sm" variant="outline" onClick={() => setComparing(doc)}>
+                        <FileDiff />
+                        {t('compare')}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="outline"
@@ -167,6 +184,7 @@ export function DocumentsTab({ matterId }: { matterId: string }) {
         })}
 
       <ReviewDialog matterId={matterId} version={reviewing} onClose={() => setReviewing(null)} />
+      <CompareDialog document={comparing} onClose={() => setComparing(null)} />
       <GenerateDialog matterId={matterId} open={generating} onClose={() => setGenerating(false)} />
       <CloudImportDialog
         matterId={matterId}
@@ -307,6 +325,123 @@ function ReviewDialog({
             </Button>
           ))}
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const compareSelectClass =
+  'flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
+function CompareDialog({
+  document: doc,
+  onClose,
+}: {
+  document: MatterDocument | null;
+  onClose: () => void;
+}) {
+  const t = useTranslations('documents');
+  // versions vienen ordenadas desc (más reciente primero). Por defecto: anterior → última.
+  const versions = doc?.versions ?? [];
+  const [base, setBase] = useState<string | null>(null);
+  const [against, setAgainst] = useState<string | null>(null);
+
+  const effectiveBase = base ?? versions[1]?.id ?? null;
+  const effectiveAgainst = against ?? versions[0]?.id ?? null;
+
+  const compare = useCompareVersions(doc?.id ?? '', effectiveBase, effectiveAgainst);
+
+  return (
+    <Dialog
+      open={Boolean(doc)}
+      onOpenChange={(o) => {
+        if (!o) {
+          onClose();
+          setBase(null);
+          setAgainst(null);
+        }
+      }}
+    >
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>{t('compareTitle')}</DialogTitle>
+          <DialogDescription>{t('compareSubtitle')}</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <span className="text-xs text-muted-foreground">{t('compareBase')}</span>
+            <select
+              value={effectiveBase ?? ''}
+              onChange={(e) => setBase(e.target.value)}
+              className={compareSelectClass}
+            >
+              {versions.map((v) => (
+                <option key={v.id} value={v.id}>
+                  v{v.version}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <span className="text-xs text-muted-foreground">{t('compareAgainst')}</span>
+            <select
+              value={effectiveAgainst ?? ''}
+              onChange={(e) => setAgainst(e.target.value)}
+              className={compareSelectClass}
+            >
+              {versions.map((v) => (
+                <option key={v.id} value={v.id}>
+                  v{v.version}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="max-h-[55vh] overflow-auto rounded-md border bg-[var(--surface-1)] p-3 text-sm">
+          {compare.isLoading && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" /> {t('compareLoading')}
+            </div>
+          )}
+          {compare.isError && <p className="text-[var(--danger)]">{t('compareError')}</p>}
+          {compare.data && !compare.data.extractable && (
+            <p className="text-muted-foreground">{t('compareNotExtractable')}</p>
+          )}
+          {compare.data && compare.data.extractable && (
+            <>
+              <p className="mb-2 text-xs text-muted-foreground">
+                {t('compareStats', { added: compare.data.added, removed: compare.data.removed })}
+              </p>
+              <pre className="whitespace-pre-wrap break-words font-sans leading-relaxed">
+                {compare.data.segments.map((seg, i) => {
+                  if (seg.type === 'insert') {
+                    return (
+                      <ins
+                        key={i}
+                        className="bg-[color-mix(in_srgb,var(--success)_18%,transparent)] text-[var(--success)] no-underline"
+                      >
+                        {seg.value}
+                      </ins>
+                    );
+                  }
+                  if (seg.type === 'delete') {
+                    return (
+                      <del
+                        key={i}
+                        className="bg-[color-mix(in_srgb,var(--danger)_15%,transparent)] text-[var(--danger)]"
+                      >
+                        {seg.value}
+                      </del>
+                    );
+                  }
+                  return <span key={i}>{seg.value}</span>;
+                })}
+              </pre>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

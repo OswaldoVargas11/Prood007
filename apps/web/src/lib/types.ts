@@ -940,6 +940,23 @@ export interface AuditEntry {
   createdAt: string;
 }
 
+// ── Redline: comparación de versiones de documento ───────────────────────────
+
+export type RedlineSegmentType = 'equal' | 'insert' | 'delete';
+export interface RedlineSegment {
+  type: RedlineSegmentType;
+  value: string;
+}
+/** Resultado de `GET /documents/:id/compare`. `extractable=false` si el formato no permite extraer texto. */
+export interface CompareResult {
+  baseVersion: number;
+  againstVersion: number;
+  extractable: boolean;
+  segments: RedlineSegment[];
+  added: number;
+  removed: number;
+}
+
 // ── Cierre transaccional: checklist + binder ─────────────────────────────────
 
 export type ClosingItemCategory =

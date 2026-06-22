@@ -92,6 +92,16 @@
       <input id="docname" type="text" placeholder="Borrador" />
       <button id="saveBtn">Guardar el documento actual al expediente</button>
       <div id="saveMsg" class="msg"></div>
+
+      <hr style="margin: 18px 0; border: 0; border-top: 1px solid #e5e7eb" />
+
+      <h1 style="font-size: 14px">Comparar versiones (redline)</h1>
+      <p class="muted">Resalta los cambios entre las dos últimas versiones de un documento del expediente.</p>
+      <label for="cmpDoc">Documento</label>
+      <select id="cmpDoc"></select>
+      <button id="cmpBtn">Comparar las dos últimas versiones</button>
+      <div id="cmpMsg" class="msg"></div>
+      <div id="cmpResult" style="margin-top: 10px; line-height: 1.5; white-space: pre-wrap; word-break: break-word"></div>
     </div>
 
     <script>
@@ -112,6 +122,8 @@
       Office.onReady(function () {
         $('loginBtn').onclick = doLogin;
         $('saveBtn').onclick = doSave;
+        $('cmpBtn').onclick = doCompare;
+        $('matter').onchange = loadDocuments;
       });
 
       async function doLogin() {
@@ -156,6 +168,105 @@
           o.textContent = (m.reference ? m.reference + ' — ' : '') + (m.title || m.id);
           sel.appendChild(o);
         });
+        await loadDocuments();
+      }
+
+      // Carga los documentos del expediente con ≥2 versiones (los únicos comparables).
+      async function loadDocuments() {
+        var matterId = $('matter').value;
+        var sel = $('cmpDoc');
+        sel.innerHTML = '';
+        if (!matterId) return;
+        try {
+          var res = await fetch(API + '/api/documents/by-matter/' + matterId, {
+            headers: { Authorization: 'Bearer ' + token },
+          });
+          var list = await res.json().catch(function () {
+            return [];
+          });
+          (Array.isArray(list) ? list : [])
+            .filter(function (d) {
+              return d.versions && d.versions.length >= 2;
+            })
+            .forEach(function (d) {
+              var o = document.createElement('option');
+              o.value = d.id;
+              o.textContent = d.name + ' (' + d.versions.length + ' versiones)';
+              sel.appendChild(o);
+            });
+          if (!sel.options.length) {
+            var o = document.createElement('option');
+            o.value = '';
+            o.textContent = 'Sin documentos con 2+ versiones';
+            sel.appendChild(o);
+          }
+        } catch (e) {
+          /* silencioso: el panel de comparación es secundario */
+        }
+      }
+
+      function escapeHtml(s) {
+        return s
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+      }
+
+      async function doCompare() {
+        var documentId = $('cmpDoc').value;
+        if (!documentId) {
+          $('cmpMsg').textContent = 'Elige un documento con al menos dos versiones.';
+          $('cmpMsg').className = 'msg err';
+          return;
+        }
+        $('cmpBtn').disabled = true;
+        $('cmpMsg').textContent = 'Calculando los cambios…';
+        $('cmpMsg').className = 'msg muted';
+        $('cmpResult').innerHTML = '';
+        try {
+          // El detalle trae las versiones ordenadas de más reciente a más antigua.
+          var detRes = await fetch(API + '/api/documents/' + documentId, {
+            headers: { Authorization: 'Bearer ' + token },
+          });
+          var det = await detRes.json();
+          var versions = det.versions || [];
+          if (versions.length < 2) throw new Error('El documento no tiene dos versiones.');
+          var against = versions[0].id;
+          var base = versions[1].id;
+          var cmpRes = await fetch(
+            API + '/api/documents/' + documentId + '/compare?base=' + base + '&against=' + against,
+            { headers: { Authorization: 'Bearer ' + token } },
+          );
+          var cmp = await cmpRes.json();
+          if (!cmpRes.ok) throw new Error(cmp.message || 'No se pudo comparar.');
+          if (!cmp.extractable) {
+            $('cmpMsg').textContent =
+              'No se puede extraer texto de este formato. Usa versiones en Word (.docx) o texto.';
+            $('cmpMsg').className = 'msg err';
+            return;
+          }
+          $('cmpMsg').textContent =
+            'v' + cmp.baseVersion + ' → v' + cmp.againstVersion + ': ' +
+            cmp.added + ' añadidas · ' + cmp.removed + ' eliminadas';
+          $('cmpMsg').className = 'msg muted';
+          var html = '';
+          (cmp.segments || []).forEach(function (seg) {
+            var v = escapeHtml(seg.value);
+            if (seg.type === 'insert') {
+              html += '<ins style="background:#dcfce7;color:#15803d;text-decoration:none">' + v + '</ins>';
+            } else if (seg.type === 'delete') {
+              html += '<del style="background:#fee2e2;color:#b91c1c">' + v + '</del>';
+            } else {
+              html += '<span>' + v + '</span>';
+            }
+          });
+          $('cmpResult').innerHTML = html;
+        } catch (e) {
+          $('cmpMsg').textContent = e.message;
+          $('cmpMsg').className = 'msg err';
+        } finally {
+          $('cmpBtn').disabled = false;
+        }
       }
 
       // Lee el .docx actual de Word por slices y lo ensambla en bytes.

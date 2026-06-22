@@ -225,6 +225,10 @@ export const API_MESSAGES = {
     'es-ES': 'Versión no encontrada.',
     'es-DO': 'Versión no encontrada.',
   },
+  'documents.compareSameVersion': {
+    'es-ES': 'Elige dos versiones distintas para comparar.',
+    'es-DO': 'Elige dos versiones distintas para comparar.',
+  },
   'documents.invalidReviewStatus': {
     'es-ES': 'PENDING no es un estado de revisión válido.',
     'es-DO': 'PENDING no es un estado de revisión válido.',
