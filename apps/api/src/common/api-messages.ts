@@ -202,6 +202,16 @@ export const API_MESSAGES = {
     'es-DO': 'Transición de estado no permitida: {from} → {to}.',
   },
 
+  // ── Cierre transaccional (checklist + binder) ─────────────────────────────
+  'closing.checklistNotFound': {
+    'es-ES': 'Checklist de cierre no encontrado.',
+    'es-DO': 'Checklist de cierre no encontrado.',
+  },
+  'closing.itemNotFound': {
+    'es-ES': 'Partida del checklist no encontrada.',
+    'es-DO': 'Partida del checklist no encontrada.',
+  },
+
   // ── Documentos ────────────────────────────────────────────────────────────
   'documents.fileMissing': {
     'es-ES': 'Falta el archivo.',

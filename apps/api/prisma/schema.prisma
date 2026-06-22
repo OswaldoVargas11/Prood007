@@ -51,6 +51,21 @@ enum DocumentReviewStatus {
   CHANGES_REQUESTED
 }
 
+// Naturaleza de cada partida del checklist de cierre de una operación transaccional.
+enum ClosingItemCategory {
+  CONDITION_PRECEDENT // condición previa al cierre
+  DELIVERABLE         // entregable / documento de la operación
+  SIGNATURE_PAGE      // hoja de firmas
+  OTHER
+}
+
+enum ClosingItemStatus {
+  PENDING
+  IN_PROGRESS
+  WAIVED     // dispensada (la parte renuncia a la condición)
+  SATISFIED  // cumplida / entregada / firmada
+}
+
 enum TaskStatus {
   TODO
   IN_PROGRESS
@@ -294,6 +309,8 @@ model Tenant {
   oauthConnections    OAuthConnection[]
   matterEmails        MatterEmail[]
   aiEmbeddings        AiEmbedding[]
+  closingChecklists   ClosingChecklist[]
+  closingItems        ClosingChecklistItem[]
 }
 
 model User {
@@ -534,6 +551,7 @@ model Matter {
   emails           MatterEmail[]
   appointments     Appointment[]
   judicialNotifications JudicialNotification[]
+  closingChecklists     ClosingChecklist[]
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -650,6 +668,55 @@ model SignatureRequest {
   @@index([tenantId])
   @@index([tenantId, documentId])
   @@index([tenantId, matterId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Checklist de cierre transaccional (espina dorsal de la operación: condiciones previas,
+// entregables, hojas de firma) + generación del closing binder. Tenant-scoped con RLS.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ClosingChecklist {
+  id          String    @id @default(cuid())
+  tenantId    String
+  matterId    String
+  title       String
+  // Fecha objetivo del cierre (signing/closing). Nullable mientras no se fija.
+  closingDate DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter                 @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  items  ClosingChecklistItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+}
+
+model ClosingChecklistItem {
+  id          String              @id @default(cuid())
+  tenantId    String
+  checklistId String
+  category    ClosingItemCategory @default(DELIVERABLE)
+  title       String
+  detail      String?
+  status      ClosingItemStatus   @default(PENDING)
+  // Parte responsable (texto libre: "Comprador", "Vendedor", "Notaría", "Despacho"…).
+  responsibleParty String?
+  // Asignación interna (staff) y documento del expediente vinculado (entregable/hoja de firmas).
+  // Escalares sin relación (como SignatureRequest): se resuelven en la capa de app, acotados por tenant.
+  assigneeId  String?
+  documentId  String?
+  dueDate     DateTime?
+  sortOrder   Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  checklist ClosingChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([checklistId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

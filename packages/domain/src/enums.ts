@@ -42,6 +42,29 @@ export enum DocumentReviewStatus {
   CHANGES_REQUESTED = 'CHANGES_REQUESTED',
 }
 
+/**
+ * Naturaleza de cada partida del checklist de cierre de una operación transaccional (M&A,
+ * inmobiliario, financiación): condición previa, entregable, hoja de firmas u otra.
+ */
+export enum ClosingItemCategory {
+  CONDITION_PRECEDENT = 'CONDITION_PRECEDENT',
+  DELIVERABLE = 'DELIVERABLE',
+  SIGNATURE_PAGE = 'SIGNATURE_PAGE',
+  OTHER = 'OTHER',
+}
+
+/**
+ * Estado de una partida del checklist de cierre.
+ * - WAIVED: la parte renuncia/dispensa la condición.
+ * - SATISFIED: cumplida (condición), entregada (entregable) o firmada (hoja de firmas).
+ */
+export enum ClosingItemStatus {
+  PENDING = 'PENDING',
+  IN_PROGRESS = 'IN_PROGRESS',
+  WAIVED = 'WAIVED',
+  SATISFIED = 'SATISFIED',
+}
+
 /** Estado de una tarea. */
 export enum TaskStatus {
   TODO = 'TODO',

@@ -940,6 +940,55 @@ export interface AuditEntry {
   createdAt: string;
 }
 
+// ── Cierre transaccional: checklist + binder ─────────────────────────────────
+
+export type ClosingItemCategory =
+  | 'CONDITION_PRECEDENT'
+  | 'DELIVERABLE'
+  | 'SIGNATURE_PAGE'
+  | 'OTHER';
+export type ClosingItemStatus = 'PENDING' | 'IN_PROGRESS' | 'WAIVED' | 'SATISFIED';
+
+/** Plantilla integrada de checklist de cierre (`GET /closing/templates`). */
+export interface ClosingTemplate {
+  key: string;
+  title: string;
+  description: string;
+  itemCount: number;
+}
+
+export interface ClosingChecklistItem {
+  id: string;
+  category: ClosingItemCategory;
+  title: string;
+  detail: string | null;
+  status: ClosingItemStatus;
+  responsibleParty: string | null;
+  assigneeId: string | null;
+  documentId: string | null;
+  dueDate: string | null;
+  sortOrder: number;
+}
+
+/** Checklist con sus partidas (`GET /closing/:id`). */
+export interface ClosingChecklistDetail {
+  id: string;
+  matterId: string;
+  title: string;
+  closingDate: string | null;
+  items: ClosingChecklistItem[];
+}
+
+/** Resumen de un checklist en la lista de un expediente (`GET /closing/by-matter/:matterId`). */
+export interface ClosingChecklistSummary {
+  id: string;
+  title: string;
+  closingDate: string | null;
+  createdAt: string;
+  total: number;
+  satisfied: number;
+}
+
 /** Coste propuesto pendiente de aprobación (de `GET /ledger/approvals`). */
 export interface CostApproval {
   id: string;
