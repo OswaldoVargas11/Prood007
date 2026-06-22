@@ -20,8 +20,12 @@ export const API_DIR = resolve(__dirname, '..', '..', '..');
 /** Raíz del monorepo. */
 export const REPO_ROOT = resolve(API_DIR, '..', '..');
 
-/** Carga variables de un .env sin pisar las ya presentes en el entorno. */
-function loadEnvFile(path) {
+/**
+ * Carga variables de un .env. Por defecto NO pisa las ya presentes; con `override` SÍ las pisa.
+ * Importante: `@prisma/client` (importado arriba) auto-carga el `.env` local en `process.env` al
+ * importarse, así que en modo producción hay que PISAR con `.env.production` para que gane de verdad.
+ */
+function loadEnvFile(path, { override = false } = {}) {
   let raw;
   try {
     raw = readFileSync(path, 'utf8');
@@ -32,7 +36,7 @@ function loadEnvFile(path) {
     const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)\s*$/);
     if (!m) continue;
     const key = m[1];
-    if (process.env[key] !== undefined) continue;
+    if (!override && process.env[key] !== undefined) continue;
     let val = m[2].trim();
     if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
@@ -41,11 +45,19 @@ function loadEnvFile(path) {
   }
 }
 
-/** Carga .env / .env.local de apps/api (y .env.production si se pide explícitamente). */
+/**
+ * Carga la configuración de entorno de apps/api. En modo `production`, `.env.production` GANA
+ * (override) sobre lo que ya hubiera en `process.env` — incluido el `.env` local que Prisma
+ * auto-carga al importar `@prisma/client` —, para que el seed apunte de verdad a la BD y al
+ * almacenamiento (R2) de producción y no a los locales.
+ */
 export function loadEnv({ production = false } = {}) {
-  if (production) loadEnvFile(resolve(API_DIR, '.env.production'));
-  loadEnvFile(resolve(API_DIR, '.env'));
-  loadEnvFile(resolve(API_DIR, '.env.local'));
+  if (production) {
+    loadEnvFile(resolve(API_DIR, '.env.production'), { override: true });
+  } else {
+    loadEnvFile(resolve(API_DIR, '.env'));
+    loadEnvFile(resolve(API_DIR, '.env.local'));
+  }
 }
 
 /** URL del rol privilegiado (BYPASSRLS). Falla en claro si no hay ninguna. */
