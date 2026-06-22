@@ -6,8 +6,11 @@ import {
   buildPlanCatalog,
   convertEur,
   effectiveMonthlyEur,
+  featuresForPlan,
   perSeatPeriodEur,
   planCurrencyForJurisdiction,
+  planEffectiveTier,
+  planHasFeature,
   planPriceKey,
   savingsPct,
   toStripeMinor,
@@ -82,5 +85,56 @@ describe('Catálogo de precios de suscripción (@legalflow/domain)', () => {
     // Sin descuento por volumen: el importe NO depende del nº de plazas (es por plaza).
     const pro = eur.find((r) => r.plan === 'PROFESIONAL' && r.cycle === 'MONTHLY');
     expect(pro?.perSeatPeriod).toBe(69);
+  });
+});
+
+describe('Entitlements por tier', () => {
+  it('tier efectivo: explícito, Fundador→Profesional, legacy/prueba→FULL', () => {
+    expect(planEffectiveTier('ESENCIAL')).toBe('ESENCIAL');
+    expect(planEffectiveTier('AVANZADO')).toBe('AVANZADO');
+    expect(planEffectiveTier('FOUNDER')).toBe('PROFESIONAL');
+    expect(planEffectiveTier('Profesional')).toBe('FULL'); // string legacy
+    expect(planEffectiveTier(null)).toBe('FULL');
+    expect(planEffectiveTier(undefined)).toBe('FULL');
+  });
+
+  it('ESENCIAL: solo núcleo; Profesional+ y Avanzado+ bloqueados', () => {
+    expect(planHasFeature('ESENCIAL', 'closing')).toBe(false);
+    expect(planHasFeature('ESENCIAL', 'data-room')).toBe(false);
+    expect(planHasFeature('ESENCIAL', 'ai')).toBe(false);
+    expect(planHasFeature('ESENCIAL', 'integrations')).toBe(false);
+  });
+
+  it('PROFESIONAL: desbloquea Profesional, NO Avanzado', () => {
+    expect(planHasFeature('PROFESIONAL', 'closing')).toBe(true);
+    expect(planHasFeature('PROFESIONAL', 'data-room')).toBe(true);
+    expect(planHasFeature('PROFESIONAL', 'ai')).toBe(true);
+    expect(planHasFeature('PROFESIONAL', 'integrations')).toBe(false);
+    expect(planHasFeature('PROFESIONAL', 'semantic-search')).toBe(false);
+  });
+
+  it('AVANZADO: todo', () => {
+    expect(planHasFeature('AVANZADO', 'closing')).toBe(true);
+    expect(planHasFeature('AVANZADO', 'integrations')).toBe(true);
+    expect(planHasFeature('AVANZADO', 'semantic-search')).toBe(true);
+    expect(planHasFeature('AVANZADO', 'cloud-import')).toBe(true);
+  });
+
+  it('Fundador = funciones de Profesional', () => {
+    expect(planHasFeature('FOUNDER', 'closing')).toBe(true);
+    expect(planHasFeature('FOUNDER', 'integrations')).toBe(false);
+  });
+
+  it('grandfathering: legacy/prueba (plan no-tier) = acceso completo', () => {
+    expect(planHasFeature('Profesional', 'integrations')).toBe(true);
+    expect(planHasFeature(null, 'ai')).toBe(true);
+    const ent = featuresForPlan('Profesional');
+    expect(Object.values(ent).every(Boolean)).toBe(true);
+  });
+
+  it('featuresForPlan(ESENCIAL): núcleo todo false', () => {
+    const ent = featuresForPlan('ESENCIAL');
+    expect(ent.closing).toBe(false);
+    expect(ent.integrations).toBe(false);
   });
 });

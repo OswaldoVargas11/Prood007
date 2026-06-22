@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
-import { Currency, Jurisdiction, Role } from '@legalflow/domain';
+import { Currency, Jurisdiction, Role, featuresForPlan, type Feature } from '@legalflow/domain';
 import { SystemPrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { TokensService } from './tokens.service';
@@ -260,14 +260,37 @@ export class AuthService {
   }
 
   /** Perfil del usuario autenticado + su despacho (id, nombre, moneda) para el header y los informes. */
-  async getProfile(
-    user: RequestUser,
-  ): Promise<RequestUser & { tenant: { id: string; name: string; currency: string } }> {
+  async getProfile(user: RequestUser): Promise<
+    RequestUser & {
+      tenant: {
+        id: string;
+        name: string;
+        currency: string;
+        plan: string;
+        subscriptionStatus: string;
+        entitlements: Record<Feature, boolean>;
+      };
+    }
+  > {
     const tenant = await this.system.tenant.findUnique({
       where: { id: user.tenantId },
-      select: { id: true, name: true, currency: true },
+      select: { id: true, name: true, currency: true, plan: true, subscriptionStatus: true },
     });
-    return { ...user, tenant: tenant ?? { id: user.tenantId, name: '', currency: 'EUR' } };
+    // Entitlements por tier (función→bool). Legacy/prueba → todo true (grandfathering).
+    const entitlements = featuresForPlan(tenant?.plan);
+    return {
+      ...user,
+      tenant: tenant
+        ? { ...tenant, entitlements }
+        : {
+            id: user.tenantId,
+            name: '',
+            currency: 'EUR',
+            plan: 'PROFESIONAL',
+            subscriptionStatus: 'TRIALING',
+            entitlements,
+          },
+    };
   }
 
   /** Login correcto: resetea contador/bloqueo, audita y emite el par de tokens. */

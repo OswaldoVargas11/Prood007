@@ -4,6 +4,7 @@ import { AiService } from './ai.service';
 import { AiSearchService } from './ai-search.service';
 import { AskDto, DraftEmailDto, DraftFromTemplateDto, SemanticSearchDto } from './dto/ai.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -28,24 +29,28 @@ export class AiController {
   }
 
   /** Pregunta sobre un expediente. */
+  @RequiresFeature('ai')
   @Post('matters/:id/ask')
   ask(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() dto: AskDto) {
     return this.ai.askMatter(user, id, dto.question);
   }
 
   /** Resumen del expediente. */
+  @RequiresFeature('ai')
   @Post('matters/:id/summary')
   summarizeMatter(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.ai.summarizeMatter(user, id);
   }
 
   /** Resumen/extracción de un documento. */
+  @RequiresFeature('ai')
   @Post('documents/:id/summarize')
   summarizeDocument(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.ai.summarizeDocument(user, id);
   }
 
   /** Borrador de escrito a partir de una plantilla + contexto del expediente. */
+  @RequiresFeature('ai')
   @Post('templates/:id/draft')
   draftFromTemplate(
     @CurrentUser() user: RequestUser,
@@ -56,18 +61,21 @@ export class AiController {
   }
 
   /** Borrador de correo (asunto + cuerpo). */
+  @RequiresFeature('ai')
   @Post('email/draft')
   draftEmail(@CurrentUser() user: RequestUser, @Body() dto: DraftEmailDto) {
     return this.ai.draftEmail(user, dto.instructions, dto.matterId);
   }
 
-  /** Búsqueda semántica en lo indexado del despacho. */
+  /** Búsqueda semántica en lo indexado del despacho. (Avanzado: indexación/RAG.) */
+  @RequiresFeature('semantic-search')
   @Post('search')
   semanticSearch(@CurrentUser() user: RequestUser, @Body() dto: SemanticSearchDto) {
     return this.search.search(user, dto.query, dto.limit);
   }
 
-  /** (Re)indexa un expediente para la búsqueda semántica. */
+  /** (Re)indexa un expediente para la búsqueda semántica. (Avanzado: indexación/RAG.) */
+  @RequiresFeature('semantic-search')
   @Post('index/matters/:id')
   indexMatter(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.search.indexMatter(user, id);

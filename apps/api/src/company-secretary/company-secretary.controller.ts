@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 import { CompanySecretaryService } from './company-secretary.service';
@@ -15,6 +16,7 @@ import {
 
 /** Secretaría de sociedades (sub-perfil mercantil). Solo staff; acotado al tenant por RLS. */
 @Roles(Role.FIRM_ADMIN, Role.LAWYER)
+@RequiresFeature('company-secretary')
 @Controller('company-secretary')
 export class CompanySecretaryController {
   constructor(private readonly service: CompanySecretaryService) {}

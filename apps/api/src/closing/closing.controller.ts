@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Res } from '@nestjs/
 import type { Response } from 'express';
 import { Role } from '@legalflow/domain';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 import { ClosingService } from './closing.service';
@@ -15,6 +16,7 @@ import { UpdateItemDto } from './dto/update-item.dto';
  * closing binder. Solo staff del despacho; acotado al tenant por RLS + verificación de expediente.
  */
 @Roles(Role.FIRM_ADMIN, Role.LAWYER)
+@RequiresFeature('closing')
 @Controller('closing')
 export class ClosingController {
   constructor(private readonly service: ClosingService) {}

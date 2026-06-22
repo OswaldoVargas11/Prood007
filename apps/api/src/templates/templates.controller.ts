@@ -4,11 +4,13 @@ import { TemplatesService } from './templates.service';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Plantillas de documento del despacho. Staff (administrador y letrado). */
 @Roles(Role.FIRM_ADMIN, Role.LAWYER)
+@RequiresFeature('templates')
 @Controller('templates')
 export class TemplatesController {
   constructor(private readonly templates: TemplatesService) {}

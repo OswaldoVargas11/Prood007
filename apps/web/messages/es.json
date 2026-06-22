@@ -1970,6 +1970,12 @@
     "draftEmail": "Redactar con IA",
     "draftEmailInstructions": "¿Qué quieres decir? (la IA redacta asunto y cuerpo)"
   },
+  "entitlements": {
+    "lockedTitle": "«{feature}» no está en tu plan",
+    "lockedBody": "Mejora tu plan para desbloquear esta función.",
+    "lockedBodyTier": "Disponible a partir del plan {tier}. Mejora tu plan para usarla.",
+    "cta": "Ver planes"
+  },
   "subscription": {
     "title": "Tu suscripción",
     "subtitle": "Elige tu plan. Pagas por plaza; ahorra con el pago anual o bienal.",

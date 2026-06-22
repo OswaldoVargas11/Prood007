@@ -3,11 +3,13 @@ import { Role } from '@legalflow/domain';
 import { MailService } from './mail.service';
 import { AttachEmailDto, SendEmailDto } from './dto/email.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Correo del expediente, neutral de proveedor (despacha a Google o Microsoft, el que esté conectado). */
 @Roles(Role.FIRM_ADMIN, Role.LAWYER)
+@RequiresFeature('integrations')
 @Controller('integrations/mail')
 export class MailController {
   constructor(private readonly mail: MailService) {}
