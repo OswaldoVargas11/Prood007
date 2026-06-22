@@ -754,6 +754,29 @@
     "loadError": "No se pudieron cargar los mensajes.",
     "empty": "Aún no hay conversaciones."
   },
+  "engagement": {
+    "title": "Hoja de encargo",
+    "notSet": "Sin definir",
+    "intro": "Define el alcance, los honorarios y los términos del encargo. Se genera un PDF en el expediente, listo para firmar.",
+    "generatedHint": "Hoja de encargo generada como documento del expediente. Edítala para regenerarla.",
+    "create": "Crear",
+    "edit": "Editar",
+    "cancel": "Cancelar",
+    "generate": "Generar documento",
+    "error": "No se pudo generar la hoja de encargo.",
+    "signHint": "El PDF aparece en la pestaña Documentos; pídele la firma desde allí (flujo de firma electrónica).",
+    "scope": "Alcance del encargo",
+    "scopePlaceholder": "Servicios que asume el despacho, objeto del encargo…",
+    "fees": "Honorarios",
+    "feesPlaceholder": "Importe, forma de cálculo, provisión de fondos, IVA…",
+    "terms": "Términos y condiciones",
+    "termsPlaceholder": "Duración, confidencialidad, protección de datos, resolución…",
+    "status": {
+      "DRAFT": "Borrador",
+      "GENERATED": "Generada",
+      "SIGNED": "Firmada"
+    }
+  },
   "dataRoom": {
     "empty": "Aún no hay data rooms en este expediente. Crea uno para compartir documentación de forma controlada con la contraparte y externos.",
     "new": "Nuevo data room",

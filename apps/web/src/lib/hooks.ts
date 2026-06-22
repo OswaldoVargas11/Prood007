@@ -17,6 +17,7 @@ import type {
   DataRoomDetail,
   DataRoomQuestion,
   DataRoomSummary,
+  EngagementLetter,
   ExternalDataRoom,
   ClosingChecklistDetail,
   ClosingChecklistSummary,
@@ -2466,5 +2467,27 @@ export function useDeleteDataRoom() {
   return useMutation({
     mutationFn: (id: string) => api.del<{ success: boolean }>(`/data-rooms/${id}`),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['datarooms'] }),
+  });
+}
+
+// ── Hoja de encargo (intake) ──────────────────────────────────────────────────
+
+export function useEngagementLetter(matterId: string) {
+  return useQuery({
+    queryKey: ['engagement', matterId],
+    queryFn: () => api.get<EngagementLetter | null>(`/engagement-letters/by-matter/${matterId}`),
+    enabled: Boolean(matterId),
+  });
+}
+
+export function useSaveEngagementLetter(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { scope: string; fees: string; terms: string }) =>
+      api.post<EngagementLetter>('/engagement-letters', { matterId, ...body }),
+    onSuccess: (data) => {
+      qc.setQueryData(['engagement', matterId], data);
+      void qc.invalidateQueries({ queryKey: ['documents', matterId] });
+    },
   });
 }

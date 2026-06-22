@@ -312,6 +312,7 @@ model Tenant {
   closingChecklists   ClosingChecklist[]
   closingItems        ClosingChecklistItem[]
   dataRooms           DataRoom[]
+  engagementLetters   EngagementLetter[]
 }
 
 model User {
@@ -554,6 +555,7 @@ model Matter {
   judicialNotifications JudicialNotification[]
   closingChecklists     ClosingChecklist[]
   dataRooms             DataRoom[]
+  engagementLetter      EngagementLetter?
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -850,6 +852,32 @@ model DataRoomQuestion {
 
   @@index([tenantId])
   @@index([dataRoomId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hoja de encargo (carta de compromiso): artefacto de intake de primera clase con el
+// alcance, los honorarios y los términos, generado y firmado al abrir el expediente.
+// Uno por expediente. Tenant-scoped con RLS.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model EngagementLetter {
+  id         String   @id @default(cuid())
+  tenantId   String
+  matterId   String   @unique
+  // Alcance del encargo, honorarios y términos (texto libre; se componen en el PDF generado).
+  scope      String
+  fees       String
+  terms      String
+  // Documento generado (PDF) en el expediente; la firma se gestiona con el flujo de firmas existente.
+  documentId String?
+  status     String   @default("DRAFT") // DRAFT | GENERATED | SIGNED
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

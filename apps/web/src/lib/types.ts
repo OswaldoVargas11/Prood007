@@ -940,6 +940,20 @@ export interface AuditEntry {
   createdAt: string;
 }
 
+// ── Hoja de encargo ───────────────────────────────────────────────────────────
+
+export interface EngagementLetter {
+  id: string;
+  matterId: string;
+  scope: string;
+  fees: string;
+  terms: string;
+  documentId: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ── Data room (due diligence) ────────────────────────────────────────────────
 
 export interface DataRoomSummary {

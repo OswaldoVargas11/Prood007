@@ -50,6 +50,7 @@ import { JudicialNotificationsModule } from './judicial-notifications/judicial-n
 import { DocumentPackagesModule } from './document-packages/document-packages.module';
 import { ClosingModule } from './closing/closing.module';
 import { DataRoomModule } from './data-room/data-room.module';
+import { EngagementModule } from './engagement/engagement.module';
 import { InboundEmailModule } from './inbound-email/inbound-email.module';
 import { DebugModule } from './debug/debug.module';
 import { HealthController } from './health.controller';
@@ -119,6 +120,7 @@ import { HealthController } from './health.controller';
     DocumentPackagesModule,
     ClosingModule,
     DataRoomModule,
+    EngagementModule,
     InboundEmailModule,
     // Solo en arranques con SENTRY_DEBUG_KEY definido: endpoint gated para verificar Sentry (errores 5xx).
     ...(process.env.SENTRY_DEBUG_KEY ? [DebugModule] : []),
