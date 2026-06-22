@@ -46,6 +46,7 @@ import { SavedViewsModule } from './saved-views/saved-views.module';
 import { EmailSnippetsModule } from './email-snippets/email-snippets.module';
 import { ClausesModule } from './clauses/clauses.module';
 import { SchedulingModule } from './scheduling/scheduling.module';
+import { JudicialNotificationsModule } from './judicial-notifications/judicial-notifications.module';
 import { DebugModule } from './debug/debug.module';
 import { HealthController } from './health.controller';
 
@@ -110,6 +111,7 @@ import { HealthController } from './health.controller';
     EmailSnippetsModule,
     ClausesModule,
     SchedulingModule,
+    JudicialNotificationsModule,
     // Solo en arranques con SENTRY_DEBUG_KEY definido: endpoint gated para verificar Sentry (errores 5xx).
     ...(process.env.SENTRY_DEBUG_KEY ? [DebugModule] : []),
   ],
