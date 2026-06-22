@@ -663,6 +663,26 @@
     "namePlaceholder": "Nombre de la plantilla…",
     "delete": "Eliminar plantilla"
   },
+  "packages": {
+    "title": "Paquetes de documentos",
+    "hint": "Agrupa varias plantillas (p. ej. el set de intake) y genéralas de una vez sobre un expediente.",
+    "new": "Nuevo paquete",
+    "namePlaceholder": "Nombre del paquete… (p. ej. Alta de cliente)",
+    "chooseTemplates": "Plantillas del paquete",
+    "save": "Guardar paquete",
+    "saved": "Paquete guardado.",
+    "saveError": "No se pudo guardar el paquete.",
+    "cancel": "Cancelar",
+    "empty": "Aún no hay paquetes. Crea uno para ensamblar varios documentos de una vez.",
+    "generate": "Generar",
+    "delete": "Eliminar paquete",
+    "generateTitle": "Generar «{name}»",
+    "generateHint": "Se generará un documento por cada plantilla del paquete en el expediente elegido.",
+    "matter": "Expediente",
+    "chooseMatter": "Elige un expediente…",
+    "generated": "{count} documento(s) generado(s).",
+    "generateError": "No se pudieron generar los documentos."
+  },
   "clauses": {
     "label": "Cláusulas:",
     "empty": "Aún no hay cláusulas guardadas.",

@@ -250,6 +250,7 @@ model Tenant {
   schedulingConfigs      SchedulingConfig[]
   appointments           Appointment[]
   judicialNotifications  JudicialNotification[]
+  documentPackages       DocumentPackage[]
   // RGPD/Ley 172-13 — gobernanza de datos (D-022): región de residencia de datos del despacho
   // (p. ej. "EU" para ES; a definir para RD) y política de conservación configurable en meses. La
   // RETENCIÓN es metadato/política (la conservación legal prevalece sobre el borrado); no auto-purga.
@@ -876,6 +877,21 @@ model Clause {
   body      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// Paquete de plantillas del despacho: conjunto reutilizable de plantillas que se generan de una pasada
+// para un expediente (p. ej. el set de documentos de intake). Compartido por el despacho.
+model DocumentPackage {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  templateIds String[] // plantillas que componen el paquete
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

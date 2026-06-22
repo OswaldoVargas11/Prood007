@@ -7,6 +7,7 @@ import { useCreateTemplate, useDeleteTemplate, useTemplates, useUpdateTemplate }
 import { ApiError } from '@/lib/api';
 import { ConfirmDialog } from '@/components/lexora/confirm-dialog';
 import { ClausePicker } from '@/components/lexora/clause-picker';
+import { DocumentPackagesPanel } from '@/components/lexora/document-packages-panel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -109,6 +110,10 @@ export default function TemplatesPage() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div className="border-t pt-6">
+        <DocumentPackagesPanel />
       </div>
 
       <TemplateDialog template={editing} onClose={() => setEditing(null)} />
