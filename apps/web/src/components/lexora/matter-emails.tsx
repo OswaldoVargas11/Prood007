@@ -32,6 +32,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmailSnippetPicker } from './email-snippet-picker';
+import { DictateButton } from './dictate-button';
 import {
   Dialog,
   DialogContent,
@@ -247,6 +248,9 @@ function SendDialog({
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
+          <div className="flex justify-end">
+            <DictateButton onText={(text) => setBody((b) => (b ? `${b} ${text}` : text))} />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
