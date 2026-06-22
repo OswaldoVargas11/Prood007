@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Res,
   UploadedFile,
   UseInterceptors,
@@ -84,6 +85,17 @@ export class DocumentsController {
   @Get(':id')
   getOne(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.documents.getOne(user, id);
+  }
+
+  // Redline entre dos versiones del documento: GET /documents/:id/compare?base=<vId>&against=<vId>
+  @Get(':id/compare')
+  compare(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Query('base') base: string,
+    @Query('against') against: string,
+  ) {
+    return this.documents.compare(user, id, base, against);
   }
 
   @Get('versions/:versionId/download')
