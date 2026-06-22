@@ -6,6 +6,8 @@ import { toast } from 'sonner';
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  Check,
+  Copy,
   Loader2,
   Mail,
   Paperclip,
@@ -18,6 +20,7 @@ import {
   useAttachMail,
   useDraftEmail,
   useMailStatus,
+  useMatterBccAddress,
   useMatterEmails,
   useRecentMail,
   useSendMatterEmail,
@@ -69,6 +72,7 @@ export function MatterEmails({
             {t('goSettings')}
           </Link>
         </p>
+        <BccLine matterId={matterId} />
       </section>
     );
   }
@@ -90,6 +94,7 @@ export function MatterEmails({
           </Button>
         </div>
       </div>
+      <BccLine matterId={matterId} />
 
       <div className="mt-3">
         {emails.isLoading ? (
@@ -328,5 +333,45 @@ function AttachDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Email-por-BCC: muestra la dirección única del expediente para archivar correos poniéndola en copia
+ * oculta. Solo aparece si el conector de correo entrante está activo (gated).
+ */
+function BccLine({ matterId }: { matterId: string }) {
+  const t = useTranslations('matterEmails');
+  const { data } = useMatterBccAddress(matterId);
+  const [copied, setCopied] = useState(false);
+
+  if (!data?.enabled || !data.address) return null;
+
+  async function copy() {
+    if (!data?.address) return;
+    try {
+      await navigator.clipboard.writeText(data.address);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* sin portapapeles: el usuario puede seleccionar el texto */
+    }
+  }
+
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-dashed bg-[var(--surface-1)] p-2.5 text-[12px]">
+      <span className="text-muted-foreground">{t('bccHint')}</span>
+      <code className="rounded bg-[var(--surface-2)] px-1.5 py-0.5 text-[11.5px]">
+        {data.address}
+      </code>
+      <button
+        type="button"
+        onClick={copy}
+        className="inline-flex items-center gap-1 text-[var(--brand)] hover:underline"
+      >
+        {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+        {copied ? t('bccCopied') : t('bccCopy')}
+      </button>
+    </div>
   );
 }
