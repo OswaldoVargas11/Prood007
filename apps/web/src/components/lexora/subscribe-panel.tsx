@@ -21,14 +21,33 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { BadgeProps } from '@/components/ui/badge';
 import type {
   BillingCycle,
+  PlanKey,
+  PlanPriceRow,
   SubscriptionInfo,
   SubscriptionStatusValue,
-  SubscriptionTier,
+  SubscriptionTierId,
 } from '@/lib/types';
 
-function priceForSeats(tiers: SubscriptionTier[], seats: number): number {
-  for (const t of tiers) if (t.upTo === null || seats <= t.upTo) return t.pricePerSeatEur;
-  return tiers.length ? tiers[tiers.length - 1]!.pricePerSeatEur : 0;
+const CYCLES: BillingCycle[] = ['MONTHLY', 'ANNUAL', 'BIENNIAL'];
+
+function money(amount: number, currency: string, locale: string): string {
+  try {
+    return new Intl.NumberFormat(locale || 'es', {
+      style: 'currency',
+      currency,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `${Math.round(amount)} ${currency}`;
+  }
+}
+
+function rowFor(
+  data: SubscriptionInfo,
+  plan: PlanKey,
+  cycle: BillingCycle,
+): PlanPriceRow | undefined {
+  return data.catalog.find((r) => r.plan === plan && r.cycle === cycle);
 }
 
 function statusVariant(s: SubscriptionStatusValue): NonNullable<BadgeProps['variant']> {
@@ -45,20 +64,18 @@ function statusVariant(s: SubscriptionStatusValue): NonNullable<BadgeProps['vari
 }
 
 /**
- * Panel de suscripción (modelo POR USUARIO) presentado como CARTAS. Selector de plazas (input que se
- * puede vaciar y normaliza al salir), toggle mensual/anual (2 meses gratis), carta Profesional y carta
- * Fundador (precio por plaza bloqueado de por vida, mientras quede cupo). Suscribirme → Checkout de
- * Stripe; Gestionar pago → portal. Reutilizado en /subscription y en el muro de fin de prueba.
+ * Panel de suscripción (3 tiers × 3 ciclos + Fundador), leído del CATÁLOGO del backend. Selector de
+ * plazas, toggle Mensual/Anual/Bienal con ahorro, cartas de tier (Profesional destacado) y bloque
+ * Fundador (tarifa congelada, solo anual/bienal, mientras quede cupo). Suscribirse → Checkout de Stripe.
  */
 export function SubscribePanel() {
   const t = useTranslations('subscription');
+  const locale = useLocale();
   const { data, isLoading } = useSubscription();
   const checkout = useCheckout();
   const portal = usePortal();
-  // El input se gobierna como STRING para permitir borrarlo (vacío) mientras se escribe; se normaliza
-  // a un nº válido al perder el foco. `null` = aún no tocado (usa las plazas de referencia del backend).
   const [seatsInput, setSeatsInput] = useState<string | null>(null);
-  const [cycle, setCycle] = useState<BillingCycle>('MONTHLY');
+  const [cycle, setCycle] = useState<BillingCycle>('ANNUAL');
   const [error, setError] = useState<string | null>(null);
 
   if (isLoading || !data) return <Skeleton className="h-96 w-full rounded-xl" />;
@@ -66,24 +83,25 @@ export function SubscribePanel() {
   const refSeats = Math.max(1, data.seats || data.seatsUsed || 1);
   const current =
     seatsInput === null ? refSeats : Math.max(1, Math.min(1000, Number(seatsInput) || 1));
-  const pricePerSeat = priceForSeats(data.tiers, current);
-  const monthlyTotal = current * pricePerSeat;
-  const annualTotal = monthlyTotal * (12 - data.annualFreeMonths); // 2 meses gratis
-  const cycleTotal = cycle === 'ANNUAL' ? annualTotal : monthlyTotal;
-  const annualSavings = monthlyTotal * 12 - annualTotal;
-
   const hasSubscription = data.seats > 0 || data.status === 'ACTIVE' || data.status === 'PAST_DUE';
   const founderAvailable = !data.isFounder && data.founderSlotsLeft > 0;
+  // El Fundador exige anual o bienal; si el toggle está en mensual, usamos anual para su carta.
+  const founderCycle: BillingCycle = cycle === 'MONTHLY' ? 'ANNUAL' : cycle;
 
-  const proBenefits = t.raw('proBenefits') as string[];
-  const founderBenefits = t.raw('founderBenefits') as string[];
-
-  async function go(action: 'subscribe' | 'manage', founder = false) {
+  async function go(
+    action: 'subscribe' | 'manage',
+    opts?: { tier: SubscriptionTierId; founder: boolean; cycle: BillingCycle },
+  ) {
     setError(null);
     try {
       const res =
-        action === 'subscribe'
-          ? await checkout.mutateAsync({ seats: current, cycle, founder })
+        action === 'subscribe' && opts
+          ? await checkout.mutateAsync({
+              seats: current,
+              tier: opts.tier,
+              cycle: opts.cycle,
+              founder: opts.founder,
+            })
           : await portal.mutateAsync();
       window.location.href = res.url;
     } catch {
@@ -91,9 +109,10 @@ export function SubscribePanel() {
     }
   }
 
+  const cycleSavings = (c: BillingCycle) => rowFor(data, 'PROFESIONAL', c)?.savingsPct ?? 0;
+
   return (
     <div className="space-y-6">
-      {/* Cabecera + estado */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold">{t('title')}</h2>
@@ -114,10 +133,9 @@ export function SubscribePanel() {
         </p>
       )}
 
-      {/* Ajustar plazas (solo suscriptores): cambia la quantity con prorrateo, sin pasar por el portal. */}
       {hasSubscription && <ManageSeatsCard data={data} />}
 
-      {/* Controles compartidos: plazas + ciclo */}
+      {/* Controles: plazas + ciclo */}
       <div className="flex flex-wrap items-end justify-between gap-4 rounded-xl border bg-card p-4">
         <label className="space-y-1.5">
           <span className="text-[13px] font-medium">{t('seatsLabel')}</span>
@@ -133,116 +151,81 @@ export function SubscribePanel() {
           />
         </label>
 
-        {/* Toggle de ciclo */}
         <div className="inline-flex rounded-lg border bg-[var(--surface-1)] p-1 text-sm">
-          <button
-            type="button"
-            onClick={() => setCycle('MONTHLY')}
-            className={`rounded-md px-3 py-1.5 font-medium transition ${cycle === 'MONTHLY' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
-          >
-            {t('cycleMonthly')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setCycle('ANNUAL')}
-            className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition ${cycle === 'ANNUAL' ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
-          >
-            {t('cycleAnnual')}
-            <span className="rounded bg-[var(--brand-soft)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--brand)]">
-              {t('annualBadge', { months: data.annualFreeMonths })}
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* Cartas de plan */}
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Profesional */}
-        <PlanCard
-          icon={<Check className="size-4" />}
-          name={t('planPro')}
-          description={t('planProDesc')}
-          pricePerSeat={pricePerSeat}
-          cycle={cycle}
-          total={cycleTotal}
-          annualSavings={cycle === 'ANNUAL' ? annualSavings : 0}
-          perSeatLabel={t('perSeat')}
-          monthLabel={t('month')}
-          yearLabel={t('year')}
-          saveLabel={t('annualSave', { amount: annualSavings })}
-          equivLabel={t('annualEquiv', { amount: Math.round(annualTotal / 12) })}
-          benefits={proBenefits}
-          cta={
-            <Button
-              className="w-full"
-              onClick={() => go('subscribe', false)}
-              disabled={checkout.isPending}
-            >
-              {checkout.isPending ? <Loader2 className="animate-spin" /> : null}
-              {hasSubscription ? t('changePlan') : t('subscribe')}
-            </Button>
-          }
-        />
-
-        {/* Fundador (solo si queda cupo y no lo es ya) */}
-        {founderAvailable ? (
-          <PlanCard
-            highlighted
-            icon={<Crown className="size-4" />}
-            name={t('planFounder')}
-            description={t('planFounderDesc')}
-            badge={t('founderSlots', { n: data.founderSlotsLeft, cap: data.founderCap })}
-            pricePerSeat={pricePerSeat}
-            cycle={cycle}
-            total={cycleTotal}
-            annualSavings={cycle === 'ANNUAL' ? annualSavings : 0}
-            perSeatLabel={t('perSeat')}
-            monthLabel={t('month')}
-            yearLabel={t('year')}
-            saveLabel={t('annualSave', { amount: annualSavings })}
-            equivLabel={t('annualEquiv', { amount: Math.round(annualTotal / 12) })}
-            benefits={founderBenefits}
-            footnote={t('founderLockNote')}
-            cta={
-              <Button
-                className="w-full"
-                onClick={() => go('subscribe', true)}
-                disabled={checkout.isPending}
-              >
-                {checkout.isPending ? <Loader2 className="animate-spin" /> : <Crown />}
-                {t('chooseFounder')}
-              </Button>
-            }
-          />
-        ) : (
-          <div className="flex items-center justify-center rounded-xl border border-dashed bg-card/50 p-6 text-center text-sm text-muted-foreground">
-            {data.isFounder ? t('founderYours') : t('founderClosed')}
-          </div>
-        )}
-      </div>
-
-      {/* Tabla de tramos por volumen (referencia) */}
-      <div className="rounded-xl border">
-        <div className="border-b px-4 py-2 text-[13px] font-semibold">{t('priceTable')}</div>
-        <div className="divide-y text-sm">
-          {data.tiers.map((tier, i) => {
-            const from = i === 0 ? 1 : (data.tiers[i - 1]!.upTo ?? 0) + 1;
-            const label = tier.upTo ? `${from}–${tier.upTo}` : `${from}+`;
-            const active = current >= from && (tier.upTo === null || current <= tier.upTo);
+          {CYCLES.map((c) => {
+            const save = cycleSavings(c);
             return (
-              <div
-                key={i}
-                className={`flex items-center justify-between px-4 py-2 ${active ? 'bg-[var(--brand-soft)] font-medium text-[var(--brand)]' : ''}`}
+              <button
+                key={c}
+                type="button"
+                onClick={() => setCycle(c)}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium transition ${cycle === c ? 'bg-card shadow-sm' : 'text-muted-foreground'}`}
               >
-                <span>{t('seatsRange', { range: label })}</span>
-                <span>
-                  €{tier.pricePerSeatEur}/{t('perSeat')}
-                </span>
-              </div>
+                {t(`cycle.${c}`)}
+                {save > 0 && (
+                  <span className="rounded bg-[var(--brand-soft)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--brand)]">
+                    −{save}%
+                  </span>
+                )}
+              </button>
             );
           })}
         </div>
       </div>
+
+      {/* Cartas de tier */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {data.tiers.map((tier) => {
+          const row = rowFor(data, tier.id, cycle);
+          if (!row) return null;
+          const total = row.perSeatPeriod * current;
+          return (
+            <PlanCard
+              key={tier.id}
+              highlighted={tier.popular}
+              badge={tier.popular ? t('mostPopular') : undefined}
+              name={t(`tier.${tier.id}`)}
+              description={t(`tierDesc.${tier.id}`)}
+              total={money(total, data.currency, locale)}
+              periodLabel={t(`per.${cycle}`)}
+              perSeatLine={t('perSeatMonthly', {
+                amount: money(row.perSeatMonthly, data.currency, locale),
+              })}
+              savings={row.savingsPct > 0 ? t('savePct', { pct: row.savingsPct }) : undefined}
+              benefits={t.raw(`tierBenefits.${tier.id}`) as string[]}
+              cta={
+                <Button
+                  className="w-full"
+                  variant={tier.popular ? 'default' : 'outline'}
+                  onClick={() => go('subscribe', { tier: tier.id, founder: false, cycle })}
+                  disabled={checkout.isPending}
+                >
+                  {checkout.isPending ? <Loader2 className="animate-spin" /> : null}
+                  {hasSubscription ? t('changePlan') : t('subscribe')}
+                </Button>
+              }
+            />
+          );
+        })}
+      </div>
+
+      {/* Bloque Fundador */}
+      {founderAvailable ? (
+        <FounderBlock
+          data={data}
+          cycle={founderCycle}
+          seats={current}
+          locale={locale}
+          pending={checkout.isPending}
+          onChoose={() =>
+            go('subscribe', { tier: 'PROFESIONAL', founder: true, cycle: founderCycle })
+          }
+        />
+      ) : (
+        <div className="rounded-xl border border-dashed bg-card/50 p-4 text-center text-sm text-muted-foreground">
+          {data.isFounder ? t('founderYours') : t('founderClosed')}
+        </div>
+      )}
 
       {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
 
@@ -259,6 +242,60 @@ export function SubscribePanel() {
   );
 }
 
+function FounderBlock({
+  data,
+  cycle,
+  seats,
+  locale,
+  pending,
+  onChoose,
+}: {
+  data: SubscriptionInfo;
+  cycle: BillingCycle;
+  seats: number;
+  locale: string;
+  pending: boolean;
+  onChoose: () => void;
+}) {
+  const t = useTranslations('subscription');
+  const row = rowFor(data, 'FOUNDER', cycle);
+  const total = row ? money(row.perSeatPeriod * seats, data.currency, locale) : '—';
+  return (
+    <div className="rounded-xl border border-[var(--brand)] bg-[var(--brand-soft)]/30 p-6 ring-1 ring-[var(--brand)]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Crown className="size-5 text-[var(--brand)]" />
+          <h3 className="text-lg font-semibold">{t('planFounder')}</h3>
+          <span className="rounded-full bg-[var(--brand)] px-2.5 py-0.5 text-[11px] font-semibold text-white">
+            {t('founderSlots', { n: data.founderSlotsLeft, cap: data.founderCap })}
+          </span>
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-semibold">{total}</div>
+          <div className="text-[12px] text-muted-foreground">
+            {t(`per.${cycle}`)} · {row ? money(row.perSeatMonthly, data.currency, locale) : ''}/
+            {t('perSeatMonthShort')}
+          </div>
+        </div>
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">{t('planFounderDesc')}</p>
+      <ul className="mt-3 space-y-1.5 text-sm">
+        {(t.raw('founderBenefits') as string[]).map((b, i) => (
+          <li key={i} className="flex items-start gap-2">
+            <Check className="mt-0.5 size-4 shrink-0 text-[var(--success)]" />
+            <span>{b}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-[12px] text-muted-foreground">{t('founderLockNote')}</p>
+      <Button className="mt-4" onClick={onChoose} disabled={pending}>
+        {pending ? <Loader2 className="animate-spin" /> : <Crown />}
+        {t('chooseFounder')}
+      </Button>
+    </div>
+  );
+}
+
 /**
  * Baja de la suscripción desde la web (al final del periodo). Si ya hay baja agendada, muestra el aviso
  * "se cancelará el …" y el botón de reanudar; si no, el botón "Cancelar suscripción" con confirmación.
@@ -270,7 +307,6 @@ function SubscriptionLifecycle({ data }: { data: SubscriptionInfo }) {
   const resume = useResumeSubscription();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  // Solo tiene sentido cancelar con una suscripción de pago viva (no en prueba ni ya cancelada).
   const cancelable = data.status === 'ACTIVE' || data.status === 'PAST_DUE';
   const endDate = data.currentPeriodEnd ? formatDate(data.currentPeriodEnd, locale) : null;
 
@@ -334,15 +370,18 @@ function SubscriptionLifecycle({ data }: { data: SubscriptionInfo }) {
   );
 }
 
-/** Ajuste de plazas para un despacho YA suscrito: sube/baja la quantity con prorrateo. */
+/** Ajuste de plazas para un despacho YA suscrito: sube/baja la quantity con prorrateo (preserva el plan). */
 function ManageSeatsCard({ data }: { data: SubscriptionInfo }) {
   const t = useTranslations('subscription');
+  const locale = useLocale();
   const change = useChangeSeats();
   const min = Math.max(1, data.seatsUsed);
   const [seats, setSeats] = useState(Math.max(min, data.seats || min));
   const dirty = seats !== data.seats;
-  const perSeat = priceForSeats(data.tiers, seats);
-  const monthly = Math.round(seats * perSeat);
+  // Estimación €/mes del plan actual (informativa); el prorrateo real lo calcula Stripe.
+  const monthlyRow =
+    rowFor(data, data.plan, 'MONTHLY') ?? data.catalog.find((r) => r.plan === data.plan);
+  const monthly = money((monthlyRow?.perSeatMonthly ?? 0) * seats, data.currency, locale);
 
   async function apply() {
     if (seats < min || seats === data.seats) return;
@@ -405,38 +444,27 @@ function ManageSeatsCard({ data }: { data: SubscriptionInfo }) {
 }
 
 interface PlanCardProps {
-  icon: React.ReactNode;
   name: string;
   description: string;
   badge?: string;
   highlighted?: boolean;
-  pricePerSeat: number;
-  cycle: BillingCycle;
-  total: number;
-  annualSavings: number;
-  perSeatLabel: string;
-  monthLabel: string;
-  yearLabel: string;
-  saveLabel: string;
-  equivLabel: string;
+  total: string;
+  periodLabel: string;
+  perSeatLine: string;
+  savings?: string;
   benefits: string[];
-  footnote?: string;
   cta: React.ReactNode;
 }
 
 function PlanCard(props: PlanCardProps) {
-  const annual = props.cycle === 'ANNUAL';
   return (
     <div
       className={`flex flex-col gap-4 rounded-xl border bg-card p-6 shadow-sm ${props.highlighted ? 'border-[var(--brand)] ring-1 ring-[var(--brand)]' : ''}`}
     >
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="text-[var(--brand)]">{props.icon}</span>
-          <h3 className="font-semibold">{props.name}</h3>
-        </div>
+        <h3 className="font-semibold">{props.name}</h3>
         {props.badge && (
-          <span className="rounded-full bg-[var(--brand-soft)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--brand)]">
+          <span className="rounded-full bg-[var(--brand)] px-2.5 py-0.5 text-[11px] font-semibold text-white">
             {props.badge}
           </span>
         )}
@@ -445,18 +473,12 @@ function PlanCard(props: PlanCardProps) {
 
       <div>
         <div className="flex items-baseline gap-1">
-          <span className="text-3xl font-semibold">€{props.total}</span>
-          <span className="text-sm text-muted-foreground">
-            /{annual ? props.yearLabel : props.monthLabel}
-          </span>
+          <span className="text-3xl font-semibold">{props.total}</span>
+          <span className="text-sm text-muted-foreground">/{props.periodLabel}</span>
         </div>
-        <div className="text-[13px] text-muted-foreground">
-          €{props.pricePerSeat}/{props.perSeatLabel} · {annual ? props.equivLabel : ''}
-        </div>
-        {annual && props.annualSavings > 0 && (
-          <div className="mt-1 text-[13px] font-medium text-[var(--success)]">
-            {props.saveLabel}
-          </div>
+        <div className="text-[13px] text-muted-foreground">{props.perSeatLine}</div>
+        {props.savings && (
+          <div className="mt-1 text-[13px] font-medium text-[var(--success)]">{props.savings}</div>
         )}
       </div>
 
@@ -468,8 +490,6 @@ function PlanCard(props: PlanCardProps) {
           </li>
         ))}
       </ul>
-
-      {props.footnote && <p className="text-[12px] text-muted-foreground">{props.footnote}</p>}
 
       <div className="mt-auto">{props.cta}</div>
     </div>

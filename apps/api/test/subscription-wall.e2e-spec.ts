@@ -77,11 +77,22 @@ describe('Subscription wall on trial expiry (e2e)', () => {
       .set(auth(adminToken))
       .expect(200);
     expect(sub.body.hasAccess).toBe(false);
-    // Anual = mensual × 10 (2 meses gratis) y cupo de Fundador disponible.
-    expect(sub.body.annualFreeMonths).toBe(2);
-    expect(sub.body.annualTotalEur).toBe(sub.body.monthlyTotalEur * 10);
-    expect(sub.body.founderSlotsLeft).toBeGreaterThan(0);
+    // Catálogo nuevo: 3 tiers, moneda EUR (ES), Profesional como ancla, y cupo de Fundador disponible.
+    expect(sub.body.currency).toBe('EUR');
     expect(sub.body.billingCycle).toBe('MONTHLY');
+    expect(sub.body.tiers).toHaveLength(3);
+    const pro = sub.body.tiers.find((t: { id: string }) => t.id === 'PROFESIONAL');
+    expect(pro.monthlyEur).toBe(69);
+    expect(pro.popular).toBe(true);
+    // Profesional anual = 69 × 10 = 690 €/plaza/año (2 meses gratis, ahorro 16,7%).
+    const proAnnual = sub.body.catalog.find(
+      (r: { plan: string; cycle: string }) => r.plan === 'PROFESIONAL' && r.cycle === 'ANNUAL',
+    );
+    expect(proAnnual.perSeatPeriod).toBe(690);
+    expect(proAnnual.savingsPct).toBe(16.7);
+    expect(sub.body.founderMonthlyEur).toBe(39);
+    expect(sub.body.founderCap).toBe(18);
+    expect(sub.body.founderSlotsLeft).toBeGreaterThan(0);
 
     await request(app.getHttpServer()).get('/api/auth/me').set(auth(adminToken)).expect(200);
   });

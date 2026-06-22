@@ -307,6 +307,14 @@ export const API_MESSAGES = {
     'es-ES': 'El pago anual no está configurado todavía.',
     'es-DO': 'El pago anual no está configurado todavía.',
   },
+  'subscription.priceNotConfigured': {
+    'es-ES': 'Ese plan/ciclo aún no tiene precio configurado en Stripe.',
+    'es-DO': 'Ese plan/ciclo aún no tiene precio configurado en Stripe.',
+  },
+  'subscription.founderCycleInvalid': {
+    'es-ES': 'El Plan Fundador requiere prepago anual o bienal.',
+    'es-DO': 'El Plan Fundador requiere prepago anual o bienal.',
+  },
   'subscription.noCustomer': {
     'es-ES': 'El despacho aún no tiene una suscripción que gestionar.',
     'es-DO': 'El despacho aún no tiene una suscripción que gestionar.',

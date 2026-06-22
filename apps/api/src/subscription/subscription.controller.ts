@@ -31,6 +31,7 @@ export class SubscriptionController {
   checkout(@CurrentUser() user: RequestUser, @Body() dto: CheckoutDto) {
     return this.stripe.createCheckout(user, {
       seats: dto.seats,
+      tier: dto.tier ?? 'PROFESIONAL',
       cycle: dto.cycle ?? 'MONTHLY',
       founder: dto.founder ?? false,
     });

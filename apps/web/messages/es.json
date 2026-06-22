@@ -122,25 +122,56 @@
       "flag": "[ejemplo · testimonio ilustrativo para revisión]"
     },
     "pricing": {
-      "title": "Una tarifa, todo dentro",
-      "subtitle": "Por usuario activo, con descuento por volumen. Sin niveles de funciones, sin sorpresas.",
-      "tag": "Plan único · todo incluido",
-      "amount": "39 €",
-      "per": "/ usuario / mes",
-      "amountNote": "para 1–5 usuarios · menos por volumen",
-      "tiersLabel": "Precio por usuario según el tamaño del despacho",
-      "tiers": [
-        { "range": "1–5 usuarios", "price": "39 €" },
-        { "range": "6–15 usuarios", "price": "35 €" },
-        { "range": "16+ usuarios", "price": "29 €" }
-      ],
-      "features": [
-        "Verifactu + e-CF nativos",
-        "Cobro online + provisión de fondos",
-        "Plazos procesales + portal del cliente",
-        "Documentos, plantillas y gestión del expediente"
-      ],
-      "annualNote": "2 meses gratis al pagar al año",
+      "title": "Precios por plaza, sin sorpresas",
+      "subtitle": "Elige el plan que encaja con tu despacho. Paga por plaza y ahorra con el pago anual o bienal.",
+      "mostPopular": "Más popular",
+      "perSeatMonth": "/ plaza / mes",
+      "billedMonthly": "Facturación mensual",
+      "billedCycle": "{total}/plaza · facturado por {per}",
+      "cycle": {
+        "MONTHLY": "Mensual",
+        "ANNUAL": "Anual",
+        "BIENNIAL": "Bienal"
+      },
+      "per": {
+        "MONTHLY": "mes",
+        "ANNUAL": "año",
+        "BIENNIAL": "2 años"
+      },
+      "tier": {
+        "ESENCIAL": "Esencial",
+        "PROFESIONAL": "Profesional",
+        "AVANZADO": "Avanzado"
+      },
+      "tierDesc": {
+        "ESENCIAL": "Lo necesario para llevar el despacho al día.",
+        "PROFESIONAL": "El plan completo para el día a día del despacho.",
+        "AVANZADO": "Automatización e integraciones para exprimir Lawzora."
+      },
+      "tierBenefits": {
+        "ESENCIAL": [
+          "Expedientes, clientes y documentos",
+          "Verifactu + e-CF y cobro online",
+          "Cómputo de plazos y portal del cliente"
+        ],
+        "PROFESIONAL": [
+          "Todo lo de Esencial",
+          "Plantillas, cláusulas y firma electrónica",
+          "Cierre, data room, hoja de encargo e IA"
+        ],
+        "AVANZADO": [
+          "Todo lo de Profesional",
+          "Integraciones Google/Microsoft y add-ins",
+          "Investigación jurídica e indexación"
+        ]
+      },
+      "founder": {
+        "title": "Plan Fundador",
+        "desc": "Para los primeros despachos que confían en Lawzora: funciones del plan Profesional a tarifa de fundador.",
+        "slots": "Quedan {n} de {cap}",
+        "lockNote": "Tarifa congelada de por vida. Solo con prepago anual o bienal.",
+        "cta": "Unirme como Fundador"
+      },
       "trialNote": "15 días de prueba · sin tarjeta",
       "cta": "Empieza gratis"
     },
@@ -1941,7 +1972,7 @@
   },
   "subscription": {
     "title": "Tu suscripción",
-    "subtitle": "Producto completo. Pagas por plaza, con descuento por volumen.",
+    "subtitle": "Elige tu plan. Pagas por plaza; ahorra con el pago anual o bienal.",
     "statuses": {
       "TRIALING": "Prueba",
       "ACTIVE": "Activa",
@@ -1951,21 +1982,59 @@
     },
     "trialLeft": "Te quedan {days} días de prueba",
     "seatsUsed": "{used} plazas en uso",
-    "priceTable": "Precio por plaza (descuento por volumen)",
-    "seatsRange": "{range} plazas",
-    "perSeat": "plaza",
     "seatsLabel": "Plazas",
-    "total": "Total",
-    "month": "mes",
+    "mostPopular": "Más popular",
     "subscribe": "Suscribirme",
-    "changePlan": "Cambiar plazas",
+    "changePlan": "Cambiar de plan",
     "manage": "Gestionar pago",
-    "allFeatures": "Todas las funciones incluidas, sea cual sea el número de plazas.",
     "error": "No se pudo continuar. Inténtalo de nuevo.",
+    "tier": {
+      "ESENCIAL": "Esencial",
+      "PROFESIONAL": "Profesional",
+      "AVANZADO": "Avanzado"
+    },
+    "tierDesc": {
+      "ESENCIAL": "Lo necesario para llevar el despacho al día.",
+      "PROFESIONAL": "El plan completo para el día a día del despacho.",
+      "AVANZADO": "Para despachos que exprimen automatización e integraciones."
+    },
+    "tierBenefits": {
+      "ESENCIAL": [
+        "Expedientes, clientes y documentos",
+        "Facturación y cobro online",
+        "Cómputo de plazos",
+        "Soporte estándar"
+      ],
+      "PROFESIONAL": [
+        "Todo lo de Esencial",
+        "Plantillas, cláusulas y firma electrónica",
+        "Cierre, data room y hoja de encargo",
+        "Asistente de IA y soporte prioritario"
+      ],
+      "AVANZADO": [
+        "Todo lo de Profesional",
+        "Integraciones (Google/Microsoft) y add-ins",
+        "Investigación jurídica e indexación",
+        "Soporte preferente"
+      ]
+    },
+    "cycle": {
+      "MONTHLY": "Mensual",
+      "ANNUAL": "Anual",
+      "BIENNIAL": "Bienal"
+    },
+    "per": {
+      "MONTHLY": "mes",
+      "ANNUAL": "año",
+      "BIENNIAL": "2 años"
+    },
+    "perSeatMonthly": "{amount}/plaza/mes equivalente",
+    "perSeatMonthShort": "plaza/mes",
+    "savePct": "Ahorras un {pct}%",
     "manageSeats": {
       "title": "Ajustar plazas",
       "current": "Contratadas: {seats} · En uso: {used}",
-      "newTotal": "{total} €/mes",
+      "newTotal": "≈ {total}/mes",
       "apply": "Aplicar cambio",
       "updated": "Plazas actualizadas",
       "prorationNote": "Al añadir plazas se cobra ahora mismo el importe proporcional de los días que faltan hasta tu próxima factura, y la plaza queda disponible al instante. Desde tu fecha de cobro habitual se factura todo junto.",
@@ -1988,34 +2057,20 @@
     "wallSubtitle": "Suscríbete para seguir usando Lawzora. Tus datos están intactos.",
     "pageTitle": "Suscripción",
     "pageSubtitle": "Gestiona tu plan y tus plazas.",
-    "cycleMonthly": "Mensual",
-    "cycleAnnual": "Anual",
-    "annualBadge": "{months} meses gratis",
-    "year": "año",
-    "planPro": "Profesional",
-    "planProDesc": "Producto completo. Pagas por plaza, con descuento por volumen.",
-    "planFounder": "Fundador",
-    "planFounderDesc": "Para los primeros despachos que confían en Lawzora.",
+    "planFounder": "Plan Fundador",
+    "planFounderDesc": "Para los primeros despachos que confían en Lawzora: funciones del plan Profesional a tarifa de fundador.",
     "founderSlots": "Quedan {n} de {cap}",
     "founderClosed": "El cupo del Plan Fundador se ha agotado.",
     "founderYours": "Ya disfrutas del Plan Fundador.",
     "founderActive": "Eres Fundador nº {n}",
     "chooseFounder": "Unirme como Fundador",
-    "annualSave": "Ahorras €{amount} al año",
-    "annualEquiv": "≈ €{amount}/mes",
-    "founderLockNote": "Mismo precio que hoy, bloqueado de por vida según tus plazas.",
-    "proBenefits": [
-      "Todas las funciones incluidas",
-      "Descuento por volumen de plazas",
-      "Soporte estándar",
-      "Cancela cuando quieras"
-    ],
+    "founderLockNote": "Tarifa congelada de por vida. Entrada solo con prepago anual o bienal.",
     "founderBenefits": [
-      "Precio por plaza bloqueado de por vida",
-      "Todas las funciones presentes y futuras",
+      "Funciones del plan Profesional",
+      "Tarifa de fundador congelada de por vida",
+      "Acceso a funciones futuras",
       "Soporte prioritario y canal directo",
-      "Insignia de Fundador",
-      "2 meses gratis al pagar anual"
+      "Insignia de Fundador"
     ]
   },
   "reports": {

@@ -62,6 +62,7 @@ import type {
   Message,
   Notification,
   CheckoutRequest,
+  FounderStatus,
   Paginated,
   PaymentConfig,
   SignatureRequest,
@@ -1756,6 +1757,15 @@ export function useSubscription() {
 export function useCheckout() {
   return useMutation({
     mutationFn: (req: CheckoutRequest) => api.post<{ url: string }>('/subscription/checkout', req),
+  });
+}
+
+/** Cupo de Fundador restante (público, para la landing). */
+export function useFounderStatus() {
+  return useQuery({
+    queryKey: ['founder-status'],
+    queryFn: () => api.get<FounderStatus>('/pricing/founder'),
+    staleTime: 60_000,
   });
 }
 
