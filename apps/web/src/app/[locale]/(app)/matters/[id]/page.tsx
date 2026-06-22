@@ -27,6 +27,8 @@ import { MatterBudget } from '@/components/lexora/matter-budget';
 import { MatterPartiesCard } from '@/components/lexora/matter-parties';
 import { MatterTimeline } from '@/components/lexora/matter-timeline';
 import { AiAssistantPanel } from '@/components/lexora/ai-assistant-panel';
+import { UpgradeNotice } from '@/components/lexora/upgrade-notice';
+import { useEntitlement } from '@/lib/entitlements';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -46,6 +48,10 @@ export default function MatterDetailPage() {
   const { data: matter, isLoading, isError, refetch } = useMatter(id);
   const changeStatus = useChangeMatterStatus(id);
   const searchParams = useSearchParams();
+  // Gating por tier: Cierre/Data room/IA se desbloquean en Profesional+ (Avanzado para IA→no, IA es Profesional).
+  const canClosing = useEntitlement('closing');
+  const canDataRoom = useEntitlement('data-room');
+  const canAi = useEntitlement('ai');
   const validTabs = [
     'overview',
     'documents',
@@ -190,11 +196,19 @@ export default function MatterDetailPage() {
         </TabsContent>
 
         <TabsContent value="closing">
-          <ClosingChecklistTab matterId={id} />
+          {canClosing ? (
+            <ClosingChecklistTab matterId={id} />
+          ) : (
+            <UpgradeNotice feature={t('tabs.closing')} tier="Profesional" />
+          )}
         </TabsContent>
 
         <TabsContent value="dataroom">
-          <DataRoomTab matterId={id} />
+          {canDataRoom ? (
+            <DataRoomTab matterId={id} />
+          ) : (
+            <UpgradeNotice feature={t('tabs.dataroom')} tier="Profesional" />
+          )}
         </TabsContent>
 
         <TabsContent value="tasks">
@@ -226,7 +240,11 @@ export default function MatterDetailPage() {
         </TabsContent>
 
         <TabsContent value="assistant">
-          <AiAssistantPanel matterId={id} />
+          {canAi ? (
+            <AiAssistantPanel matterId={id} />
+          ) : (
+            <UpgradeNotice feature={t('tabs.assistant')} tier="Profesional" />
+          )}
         </TabsContent>
       </Tabs>
     </div>

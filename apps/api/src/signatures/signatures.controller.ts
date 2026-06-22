@@ -3,10 +3,12 @@ import { Role } from '@legalflow/domain';
 import { SignaturesService } from './signatures.service';
 import { RequestSignatureDto } from './dto/request-signature.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 
 @Roles(Role.FIRM_ADMIN, Role.LAWYER)
+@RequiresFeature('signatures')
 @Controller('signatures')
 export class SignaturesController {
   constructor(private readonly signatures: SignaturesService) {}

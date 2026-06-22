@@ -250,6 +250,12 @@ export const API_MESSAGES = {
     'es-DO': 'Tu acceso no permite descargar; solo visualización.',
   },
 
+  // ── Entitlements (gating por tier) ─────────────────────────────────────────
+  'entitlement.upgradeRequired': {
+    'es-ES': 'Esta función no está incluida en tu plan. Mejóralo para usarla.',
+    'es-DO': 'Esta función no está incluida en tu plan. Mejóralo para usarla.',
+  },
+
   // ── Secretaría de sociedades ──────────────────────────────────────────────
   'companySecretary.notFound': {
     'es-ES': 'Registro de secretaría no encontrado.',

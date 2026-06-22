@@ -19,6 +19,7 @@ import { GenerateFromTemplateDto } from './dto/generate-from-template.dto';
 import { GenerateFromTemplatesDto } from './dto/generate-from-templates.dto';
 import { ImportCloudDocumentDto } from './dto/import-cloud-document.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { safeContentDisposition } from '../common/safe-download';
 import type { RequestUser } from '../auth/auth.types';
@@ -72,6 +73,7 @@ export class DocumentsController {
   }
 
   /** Importa un fichero desde la nube (Google Drive / OneDrive / SharePoint) al expediente. */
+  @RequiresFeature('cloud-import')
   @Post('import/cloud')
   importFromCloud(@CurrentUser() user: RequestUser, @Body() dto: ImportCloudDocumentDto) {
     return this.documents.importFromCloud(user, dto);

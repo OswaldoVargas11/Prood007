@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { Link, usePathname } from '@/i18n/navigation';
+import { Lock } from 'lucide-react';
 import { NAV_GROUPS, type NavItem } from '@/lib/nav';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -21,8 +22,12 @@ function Brand() {
 function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const t = useTranslations('nav');
   const pathname = usePathname();
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const isAdmin = hasRole('FIRM_ADMIN');
+  const entitlements = user?.tenant?.entitlements;
+  // Bloqueada = la sección requiere una función que el plan no incluye (entitlements undefined ⇒ permisivo).
+  const isLocked = (item: NavItem) =>
+    Boolean(item.feature && entitlements && entitlements[item.feature] === false);
 
   return (
     <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-3">
@@ -42,6 +47,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                 active={pathname === item.href || pathname.startsWith(`${item.href}/`)}
                 label={t(item.key)}
                 soon={t('soon')}
+                locked={isLocked(item)}
                 onNavigate={onNavigate}
               />
             ))}
@@ -93,12 +99,14 @@ function SidebarItem({
   active,
   label,
   soon,
+  locked,
   onNavigate,
 }: {
   item: NavItem;
   active: boolean;
   label: string;
   soon: string;
+  locked?: boolean;
   onNavigate?: () => void;
 }) {
   const Icon = item.icon;
@@ -118,7 +126,8 @@ function SidebarItem({
       )}
       <Icon className="size-4 shrink-0" />
       {label}
-      {!item.enabled && (
+      {locked && <Lock className="ml-auto size-3.5 text-muted-foreground/60" aria-hidden />}
+      {!item.enabled && !locked && (
         <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground/60">
           {soon}
         </span>
@@ -126,11 +135,13 @@ function SidebarItem({
     </span>
   );
 
-  return item.enabled ? (
-    <Link href={item.href} aria-current={active ? 'page' : undefined} onClick={onNavigate}>
+  if (!item.enabled) return <div aria-disabled>{content}</div>;
+
+  // Bloqueada por plan: enlaza a la pantalla de planes (upsell) en vez de a la sección.
+  const href = locked ? '/subscription' : item.href;
+  return (
+    <Link href={href} aria-current={active ? 'page' : undefined} onClick={onNavigate}>
       {content}
     </Link>
-  ) : (
-    <div aria-disabled>{content}</div>
   );
 }

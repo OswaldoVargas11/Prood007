@@ -2,11 +2,13 @@ import { Controller, Delete, Get, Post } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import { GoogleService } from './google.service';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Conexión Google (OAuth) y push de agenda. El correo va por el controlador neutral /integrations/mail. */
 @Roles(Role.FIRM_ADMIN, Role.LAWYER)
+@RequiresFeature('integrations')
 @Controller('integrations/google')
 export class IntegrationsController {
   constructor(private readonly google: GoogleService) {}

@@ -14,6 +14,7 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { EntitlementsGuard } from './guards/entitlements.guard';
 import { MAIL_PROVIDER, type MailProvider, NoopMailProvider } from './mail/mail.provider';
 import { SmtpMailProvider } from './mail/smtp-mail.provider';
 
@@ -46,9 +47,10 @@ import { SmtpMailProvider } from './mail/smtp-mail.provider';
       },
       inject: [ConfigService],
     },
-    // Guards globales: autenticación por defecto (salvo @Public) + control de roles.
+    // Guards globales: autenticación por defecto (salvo @Public) + control de roles + gating por tier.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: EntitlementsGuard },
   ],
   exports: [AuthService, TokensService, PasswordResetService, HibpService, MAIL_PROVIDER],
 })

@@ -22,6 +22,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import type { Feature } from '@/lib/auth-types';
 
 export interface NavItem {
   /** clave i18n bajo `nav.*` */
@@ -33,6 +34,8 @@ export interface NavItem {
   enabled: boolean;
   /** true = solo visible para FIRM_ADMIN (grupo «Despacho» admin de la plantilla). */
   adminOnly?: boolean;
+  /** Si la sección requiere un tier: cuando el plan no la incluye, se muestra BLOQUEADA (CTA a planes). */
+  feature?: Feature;
 }
 
 export interface NavGroup {
@@ -56,7 +59,13 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: 'tasks', href: '/tasks', icon: CheckSquare, enabled: true },
       { key: 'time', href: '/time', icon: Clock, enabled: true },
       { key: 'documents', href: '/documents', icon: FileText, enabled: true },
-      { key: 'templates', href: '/templates', icon: LayoutTemplate, enabled: true },
+      {
+        key: 'templates',
+        href: '/templates',
+        icon: LayoutTemplate,
+        enabled: true,
+        feature: 'templates',
+      },
     ],
   },
   {

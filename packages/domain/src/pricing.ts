@@ -197,3 +197,78 @@ export function buildPlanCatalog(
   }
   return rows;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Entitlements: qué FUNCIONES desbloquea cada tier. Fuente de verdad para el guard
+// del backend y el gating del front. Núcleo (Esencial) = todo lo que NO está aquí.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Funciones con gating por tier (las del núcleo Esencial no se listan: siempre disponibles). */
+export type Feature =
+  | 'templates'
+  | 'clauses'
+  | 'document-packages'
+  | 'signatures'
+  | 'closing'
+  | 'data-room'
+  | 'engagement'
+  | 'company-secretary'
+  | 'ai'
+  | 'integrations'
+  | 'cloud-import'
+  | 'addins'
+  | 'semantic-search';
+
+/** Tier mínimo que desbloquea cada función. */
+export const FEATURE_MIN_TIER: Record<Feature, SubscriptionTierId> = {
+  // Profesional+
+  templates: 'PROFESIONAL',
+  clauses: 'PROFESIONAL',
+  'document-packages': 'PROFESIONAL',
+  signatures: 'PROFESIONAL',
+  closing: 'PROFESIONAL',
+  'data-room': 'PROFESIONAL',
+  engagement: 'PROFESIONAL',
+  'company-secretary': 'PROFESIONAL',
+  ai: 'PROFESIONAL',
+  // Avanzado+
+  integrations: 'AVANZADO',
+  'cloud-import': 'AVANZADO',
+  addins: 'AVANZADO',
+  'semantic-search': 'AVANZADO',
+};
+
+export const ALL_FEATURES = Object.keys(FEATURE_MIN_TIER) as Feature[];
+
+const TIER_RANK: Record<SubscriptionTierId, number> = {
+  ESENCIAL: 1,
+  PROFESIONAL: 2,
+  AVANZADO: 3,
+};
+
+/**
+ * Tier EFECTIVO para entitlements a partir del `plan` guardado del tenant:
+ * - tier explícito (ESENCIAL/PROFESIONAL/AVANZADO) → ese tier.
+ * - FOUNDER → funciones de Profesional.
+ * - cualquier otro (legacy "Profesional", prueba, vacío) → 'FULL' (acceso completo, grandfathering).
+ *   Solo las altas nuevas que eligen un tier concreto quedan gated.
+ */
+export function planEffectiveTier(plan?: string | null): SubscriptionTierId | 'FULL' {
+  if (plan === 'ESENCIAL' || plan === 'PROFESIONAL' || plan === 'AVANZADO') return plan;
+  if (plan === 'FOUNDER') return FOUNDER.baseTier;
+  return 'FULL';
+}
+
+/** ¿El plan del tenant incluye la función? */
+export function planHasFeature(plan: string | null | undefined, feature: Feature): boolean {
+  const eff = planEffectiveTier(plan);
+  if (eff === 'FULL') return true;
+  return TIER_RANK[eff] >= TIER_RANK[FEATURE_MIN_TIER[feature]];
+}
+
+/** Mapa función→bool con el entitlement del plan (para exponerlo al front). */
+export function featuresForPlan(plan?: string | null): Record<Feature, boolean> {
+  const out = {} as Record<Feature, boolean>;
+  for (const f of ALL_FEATURES) out[f] = planHasFeature(plan, f);
+  return out;
+}

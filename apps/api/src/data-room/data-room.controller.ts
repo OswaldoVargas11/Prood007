@@ -14,6 +14,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { Role } from '@legalflow/domain';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { safeContentDisposition } from '../common/safe-download';
 import type { RequestUser } from '../auth/auth.types';
@@ -37,6 +38,7 @@ const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
 /** Gestión INTERNA del data room (staff del despacho). Acotado al tenant por RLS. */
 @Roles(Role.FIRM_ADMIN, Role.LAWYER)
+@RequiresFeature('data-room')
 @Controller('data-rooms')
 export class DataRoomController {
   constructor(private readonly service: DataRoomService) {}

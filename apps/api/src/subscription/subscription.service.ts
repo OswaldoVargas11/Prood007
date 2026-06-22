@@ -6,6 +6,7 @@ import {
   PLAN_TIERS,
   Role,
   buildPlanCatalog,
+  featuresForPlan,
   planCurrencyForJurisdiction,
   type FxRates,
   type Jurisdiction,
@@ -113,6 +114,8 @@ export class SubscriptionService {
       // Catálogo NUEVO (altas nuevas). Las suscripciones existentes no se reprecian (grandfathering).
       tiers: PLAN_TIERS,
       catalog,
+      // Entitlements del plan actual (función→bool) para el gating del front.
+      entitlements: featuresForPlan(t.plan),
     };
   }
 }
