@@ -166,6 +166,7 @@
     "tasks": "Tareas",
     "time": "Tiempo",
     "calendar": "Agenda",
+    "scheduling": "Citas",
     "billing": "Facturación",
     "invoices": "Facturas",
     "chat": "Mensajes",
@@ -215,6 +216,32 @@
     "colDuration": "Duración",
     "colAmount": "Importe",
     "colStatus": "Estado"
+  },
+  "scheduling": {
+    "title": "Citas",
+    "subtitle": "Publica tu disponibilidad y gestiona las citas que reservan tus clientes.",
+    "availability": "Mi disponibilidad",
+    "enabled": "Aceptar reservas de cita",
+    "enabledHint": "Si lo activas, tus clientes podrán reservar una cita desde su portal.",
+    "weekdays": "Días disponibles",
+    "from": "Desde",
+    "to": "Hasta",
+    "slotLength": "Duración de la cita",
+    "minutes": "min",
+    "save": "Guardar disponibilidad",
+    "saved": "Disponibilidad guardada.",
+    "saveError": "No se pudo guardar.",
+    "invalidHours": "La hora de fin debe ser posterior a la de inicio.",
+    "appointments": "Próximas citas",
+    "noAppointments": "No tienes citas próximas.",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "withClient": "Con {name}",
+    "status": {
+      "REQUESTED": "Solicitada",
+      "CONFIRMED": "Confirmada",
+      "CANCELLED": "Cancelada"
+    }
   },
   "calendar": {
     "title": "Agenda de plazos",
@@ -1400,6 +1427,30 @@
   "portal": {
     "title": "Portal del cliente",
     "subtitle": "Tu superficie de solo lectura y chat con el despacho.",
+    "appointments": {
+      "title": "Mis citas",
+      "none": "No tienes citas próximas.",
+      "request": "Solicitar cita",
+      "requestHint": "Elige a tu abogado, una franja libre y el motivo de la consulta.",
+      "noBookable": "Ahora mismo ningún abogado de tus expedientes tiene la agenda abierta. Inténtalo más tarde o escríbeles por el chat.",
+      "lawyer": "Abogado",
+      "matter": "Expediente (opcional)",
+      "noMatter": "Sin expediente concreto",
+      "chooseSlot": "Elige una franja",
+      "noSlots": "No hay franjas libres en los próximos días.",
+      "reason": "Motivo de la consulta",
+      "reasonPlaceholder": "Cuéntale brevemente al abogado de qué quieres hablar…",
+      "confirm": "Reservar cita",
+      "booked": "Cita solicitada. El abogado la confirmará.",
+      "bookError": "No se pudo reservar la cita.",
+      "withLawyer": "Con {name}",
+      "cancel": "Cancelar",
+      "status": {
+        "REQUESTED": "Pendiente de confirmar",
+        "CONFIRMED": "Confirmada",
+        "CANCELLED": "Cancelada"
+      }
+    },
     "soon": "Próximamente",
     "upload": "Subir documento",
     "uploadHint": "Puedes subir documentos (DNI, contratos…). El despacho los revisará.",

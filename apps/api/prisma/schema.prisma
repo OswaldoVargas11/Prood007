@@ -247,6 +247,8 @@ model Tenant {
   savedViews             SavedView[]
   emailSnippets          EmailSnippet[]
   clauses                Clause[]
+  schedulingConfigs      SchedulingConfig[]
+  appointments           Appointment[]
   // RGPD/Ley 172-13 — gobernanza de datos (D-022): región de residencia de datos del despacho
   // (p. ej. "EU" para ES; a definir para RD) y política de conservación configurable en meses. La
   // RETENCIÓN es metadato/política (la conservación legal prevalece sobre el borrado); no auto-purga.
@@ -341,6 +343,8 @@ model User {
   messages           Message[]
   assignedLeads      Lead[]            @relation("LeadAssignee")
   oauthConnections   OAuthConnection[]
+  schedulingConfig   SchedulingConfig? @relation("LawyerScheduling")
+  appointments       Appointment[]     @relation("LawyerAppointments")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -456,6 +460,7 @@ model Client {
   invoices         Invoice[]
   billingSchedules BillingSchedule[]
   kyc              KycProfile?
+  appointments     Appointment[]
 
   @@index([tenantId])
   @@index([tenantId, taxId])
@@ -525,6 +530,7 @@ model Matter {
   retainerAccount  RetainerAccount?
   billingSchedules BillingSchedule[]
   emails           MatterEmail[]
+  appointments     Appointment[]
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -872,6 +878,57 @@ model Clause {
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+// Estado de una cita reservada desde el portal del cliente (o creada por el despacho).
+enum AppointmentStatus {
+  REQUESTED // solicitada por el cliente, pendiente de confirmar
+  CONFIRMED
+  CANCELLED
+}
+
+// Disponibilidad de un abogado para la auto-agenda (estilo Calendly). Horas en minutos desde medianoche,
+// en hora LOCAL del despacho (derivada de la jurisdicción). Una fila por abogado.
+model SchedulingConfig {
+  id          String   @id @default(cuid())
+  tenantId    String
+  lawyerId    String   @unique
+  enabled     Boolean  @default(false)
+  weekdays    Int[] // días ISO disponibles (1=lunes … 7=domingo)
+  startMin    Int      @default(540) // 09:00
+  endMin      Int      @default(1080) // 18:00
+  slotMinutes Int      @default(30)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lawyer User   @relation("LawyerScheduling", fields: [lawyerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// Cita entre un cliente y un abogado. startsAt/endsAt en hora LOCAL del despacho (sin conversión TZ).
+model Appointment {
+  id          String            @id @default(cuid())
+  tenantId    String
+  lawyerId    String
+  clientId    String?
+  matterId    String?
+  startsAt    DateTime
+  endsAt      DateTime
+  status      AppointmentStatus @default(REQUESTED)
+  note        String? // motivo indicado por el cliente
+  createdById String
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  lawyer User    @relation("LawyerAppointments", fields: [lawyerId], references: [id], onDelete: Cascade)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  matter Matter? @relation(fields: [matterId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, lawyerId, startsAt])
+  @@index([tenantId, clientId])
 }
 
 // Cobro sobre una factura. Soporta cobros parciales (varios Payment por factura) y conciliación con

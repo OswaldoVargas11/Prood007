@@ -2,6 +2,7 @@ import {
   BadgeCheck,
   BarChart3,
   Briefcase,
+  CalendarClock,
   CalendarDays,
   CheckSquare,
   Clock,
@@ -72,6 +73,7 @@ export const NAV_GROUPS: NavGroup[] = [
     key: 'admin',
     items: [
       { key: 'calendar', href: '/calendar', icon: CalendarDays, enabled: true },
+      { key: 'scheduling', href: '/scheduling', icon: CalendarClock, enabled: true },
       { key: 'aml', href: '/aml', icon: ShieldCheck, enabled: true },
       // Grupo «Despacho» admin (Tanda B). Solo FIRM_ADMIN.
       { key: 'reports', href: '/reports', icon: BarChart3, enabled: true, adminOnly: true },

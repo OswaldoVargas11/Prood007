@@ -16,6 +16,7 @@ import { jurisdictionCopy } from '@/lib/jurisdiction';
 import { invoiceStatusVariant } from '@/lib/ledger';
 import { formatDate, formatMoney } from '@/lib/format';
 import { StatusBadge } from '@/components/lexora/status-badge';
+import { PortalAppointments } from '@/components/lexora/portal-appointments';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,6 +68,8 @@ export default function PortalHome() {
           ))}
         </div>
       </section>
+
+      <PortalAppointments />
 
       <section className="space-y-3">
         <h2 className="text-sm font-medium text-muted-foreground">{t('myInvoices')}</h2>
