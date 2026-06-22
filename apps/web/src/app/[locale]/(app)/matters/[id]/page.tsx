@@ -16,6 +16,7 @@ import { LegalResearchLinks } from '@/components/lexora/legal-research-links';
 import { DocumentsTab } from '@/components/lexora/documents-tab';
 import { ClosingChecklistTab } from '@/components/lexora/closing-checklist-tab';
 import { DataRoomTab } from '@/components/lexora/data-room-tab';
+import { EngagementLetterCard } from '@/components/lexora/engagement-letter-card';
 import { TasksPanel } from '@/components/lexora/tasks-panel';
 import { CostsTab } from '@/components/lexora/costs-tab';
 import { RetainerTab } from '@/components/lexora/retainer';
@@ -172,6 +173,7 @@ export default function MatterDetailPage() {
               </div>
             </div>
             <MatterPartiesCard matter={matter} />
+            <EngagementLetterCard matterId={id} />
           </div>
         </TabsContent>
 
