@@ -598,6 +598,17 @@
     "namePlaceholder": "Nombre de la plantilla…",
     "delete": "Eliminar plantilla"
   },
+  "clauses": {
+    "label": "Cláusulas:",
+    "empty": "Aún no hay cláusulas guardadas.",
+    "insert": "Insertar en el cuerpo",
+    "delete": "Eliminar cláusula",
+    "new": "Nueva cláusula",
+    "namePlaceholder": "Nombre de la cláusula…",
+    "bodyPlaceholder": "Texto de la cláusula…",
+    "save": "Guardar",
+    "cancel": "Cancelar"
+  },
   "invoicesOverview": {
     "title": "Facturas",
     "subtitle": "Todas las facturas emitidas por el despacho.",

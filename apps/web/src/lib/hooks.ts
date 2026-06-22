@@ -1939,3 +1939,30 @@ export function useDeleteEmailSnippet() {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['email-snippets'] }),
   });
 }
+
+// ── Biblioteca de cláusulas del despacho ──────────────────────────────────────
+
+export type Clause = { id: string; name: string; body: string };
+
+export function useClauses() {
+  return useQuery({
+    queryKey: ['clauses'],
+    queryFn: () => api.get<Clause[]>('/clauses'),
+  });
+}
+
+export function useCreateClause() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; body: string }) => api.post<Clause>('/clauses', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['clauses'] }),
+  });
+}
+
+export function useDeleteClause() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del(`/clauses/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['clauses'] }),
+  });
+}

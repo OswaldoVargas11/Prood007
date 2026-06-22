@@ -44,6 +44,7 @@ import { DgiiModule } from './dgii/dgii.module';
 import { ProductivityModule } from './productivity/productivity.module';
 import { SavedViewsModule } from './saved-views/saved-views.module';
 import { EmailSnippetsModule } from './email-snippets/email-snippets.module';
+import { ClausesModule } from './clauses/clauses.module';
 import { DebugModule } from './debug/debug.module';
 import { HealthController } from './health.controller';
 
@@ -106,6 +107,7 @@ import { HealthController } from './health.controller';
     ProductivityModule,
     SavedViewsModule,
     EmailSnippetsModule,
+    ClausesModule,
     // Solo en arranques con SENTRY_DEBUG_KEY definido: endpoint gated para verificar Sentry (errores 5xx).
     ...(process.env.SENTRY_DEBUG_KEY ? [DebugModule] : []),
   ],
