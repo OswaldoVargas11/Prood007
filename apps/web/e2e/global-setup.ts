@@ -9,16 +9,25 @@ import { type APIRequestContext, request } from '@playwright/test';
  *    un expediente y una factura emitida (Verifactu) → recorridos de despacho y portal;
  *  - un tenant DO con admin + cliente + expediente + factura (e-CF stub, DOP) → jurisdicción/moneda.
  *
- * La verificación de email es best-effort: si `JWT_ACCESS_SECRET` está en el entorno (lo está en CI),
- * acuñamos el JWT `email_verify` y confirmamos por el endpoint real `POST /api/auth/verify-email`,
- * desbloqueando el muro de confirmación. Si no, `verified=false` y los specs que necesitan pasar el
- * muro se auto-saltan. Cada run usa identificadores únicos (no depende de datos de dev).
+ * Verificación de email best-effort: si `JWT_ACCESS_SECRET` está en el entorno (lo está en CI),
+ * acuñamos el JWT `email_verify` y confirmamos por `POST /api/auth/verify-email`, desbloqueando el
+ * muro. Si no, `verified=false` y los specs que necesitan pasarlo se auto-saltan.
  *
- * API por PLAYWRIGHT_API_URL (CI) o localhost:4000 (local). Credenciales en e2e/.auth/creds.json.
+ * IMPORTANTE (rate limit): `/auth/login` está limitado a 10/min por IP. Para no agotarlo, el setup
+ * hace el MÍNIMO de logins y persiste sesión reutilizable:
+ *  - `storageState` del admin y del cliente (cookie de sesión del web) → los specs de UI navegan sin
+ *    volver a hacer login (`test.use({ storageState })`);
+ *  - access tokens (Bearer) en creds → los specs de API no hacen login.
+ *
+ * API por PLAYWRIGHT_API_URL (CI) o localhost:4000; web por PLAYWRIGHT_BASE_URL o localhost:3000.
  */
 const API_URL = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:4000';
+const WEB_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
 const JWT_SECRET = process.env.JWT_ACCESS_SECRET ?? '';
-export const CREDS_PATH = join(__dirname, '.auth', 'creds.json');
+const AUTH_DIR = join(__dirname, '.auth');
+export const CREDS_PATH = join(AUTH_DIR, 'creds.json');
+export const ADMIN_STATE = join(AUTH_DIR, 'admin-state.json');
+export const CLIENT_STATE = join(AUTH_DIR, 'client-state.json');
 const PASSWORD = 'Sup3rSecret!2026';
 
 export interface SeededInvoice {
@@ -30,10 +39,7 @@ export interface SeededInvoice {
 export interface SeedCreds {
   /** Indica si la verificación de email se pudo completar (requiere JWT_ACCESS_SECRET en entorno). */
   verified: boolean;
-  /**
-   * Access tokens (Bearer) ya emitidos en el setup, para que los specs de API reutilicen sesión sin
-   * volver a hacer login (evita rozar el límite de 20 logins/min por IP del endpoint /auth/login).
-   */
+  /** Access tokens (Bearer) emitidos en el setup, para que los specs de API no repitan login. */
   tokens: { admin: string; lawyer: string; client: string; doAdmin: string };
   // — Tenant ES —
   tenantId: string;
@@ -58,7 +64,7 @@ function signEmailVerify(userId: string): string {
   return `${data}.${sig}`;
 }
 
-/** Decodifica el `sub` (userId) del access token sin verificar la firma. */
+/** Decodifica el `sub` (userId) de un access token sin verificar la firma. */
 function subOf(accessToken: string): string {
   const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64url').toString('utf8'));
   return payload.sub as string;
@@ -71,17 +77,12 @@ async function expectOk(
   if (!res.ok()) throw new Error(`${label} failed: ${res.status()} ${await res.text()}`);
 }
 
-async function loginToken(api: APIRequestContext, email: string): Promise<string> {
-  const res = await api.post('/api/auth/login', { data: { email, password: PASSWORD } });
-  await expectOk(`login ${email}`, res);
-  return ((await res.json()) as { accessToken: string }).accessToken;
-}
-
 /** Confirma el email del usuario dueño de `accessToken` (best-effort). Devuelve si se verificó. */
 async function verifyEmail(api: APIRequestContext, accessToken: string): Promise<boolean> {
   if (!JWT_SECRET) return false;
-  const token = signEmailVerify(subOf(accessToken));
-  const res = await api.post('/api/auth/verify-email', { data: { token } });
+  const res = await api.post('/api/auth/verify-email', {
+    data: { token: signEmailVerify(subOf(accessToken)) },
+  });
   return res.ok();
 }
 
@@ -97,8 +98,16 @@ function invoiceOf(body: unknown): SeededInvoice | null {
   };
 }
 
+/** Login por el BFF del web: fija la cookie de sesión en `ctx` y devuelve el access token. */
+async function webLogin(ctx: APIRequestContext, email: string, password: string): Promise<string> {
+  const res = await ctx.post('/api/auth/login', { data: { email, password } });
+  await expectOk(`web login ${email}`, res);
+  return ((await res.json()) as { accessToken: string }).accessToken;
+}
+
 export default async function globalSetup(): Promise<void> {
   const stamp = `${Date.now()}_${Math.floor(process.hrtime()[1] % 100000)}`;
+  mkdirSync(AUTH_DIR, { recursive: true });
   const api = await request.newContext({ baseURL: API_URL });
   let verified = true;
 
@@ -119,20 +128,28 @@ export default async function globalSetup(): Promise<void> {
   await expectOk('register-tenant ES', regEs);
   const tenantId = ((await regEs.json()) as { tenantId?: string }).tenantId ?? '';
 
-  const adminToken = await loginToken(api, adminEmail);
+  // Sesión del admin: login por el BFF (cookie → storageState) + token (login #1).
+  const adminWeb = await request.newContext({ baseURL: WEB_URL });
+  const adminToken = await webLogin(adminWeb, adminEmail, PASSWORD);
   verified = (await verifyEmail(api, adminToken)) && verified;
+  await adminWeb.storageState({ path: ADMIN_STATE });
+  await adminWeb.dispose();
   const auth = { Authorization: `Bearer ${adminToken}` };
 
-  // Abogado (LAWYER)
+  // Abogado (LAWYER): token vía login directo a la API (login #2).
   const lawyer = await api.post('/api/users', {
     headers: auth,
     data: { email: lawyerEmail, password: PASSWORD, fullName: 'E2E Abogada', role: 'LAWYER' },
   });
   await expectOk('create lawyer', lawyer);
-  const lawyerToken = await loginToken(api, lawyerEmail);
+  const lawyerLogin = await api.post('/api/auth/login', {
+    data: { email: lawyerEmail, password: PASSWORD },
+  });
+  await expectOk('lawyer login', lawyerLogin);
+  const lawyerToken = ((await lawyerLogin.json()) as { accessToken: string }).accessToken;
   if (verified) await verifyEmail(api, lawyerToken);
 
-  // Cliente + expediente + factura emitida (Verifactu)
+  // Cliente + expediente + factura emitida (Verifactu).
   const clientRes = await api.post('/api/clients', {
     headers: auth,
     data: { name: 'Cliente E2E', taxId: '12345678Z' },
@@ -168,29 +185,32 @@ export default async function globalSetup(): Promise<void> {
   const esInvoice = invoiceOf(await esInvRes.json());
 
   // Portal del cliente (CLIENT). El portal obliga a cambiar la contraseña asignada por el admin en
-  // el primer acceso (`mustChangePassword`), así que la rotamos para dejar la cuenta operativa.
+  // el primer acceso (`mustChangePassword`); la rotamos y capturamos la sesión ya operativa.
   const portal = await api.post(`/api/clients/${clientId}/portal-user`, {
     headers: auth,
     data: { email: clientEmail, password: PASSWORD, fullName: 'Cliente E2E' },
   });
   await expectOk('portal-user', portal);
-  let clientPassword = PASSWORD;
-  const clientToken = await loginToken(api, clientEmail);
-  if (verified) await verifyEmail(api, clientToken);
+
+  const clientWeb = await request.newContext({ baseURL: WEB_URL });
+  const clientToken1 = await webLogin(clientWeb, clientEmail, PASSWORD); // login #3
+  if (verified) await verifyEmail(api, clientToken1);
   const newClientPassword = `${PASSWORD}-2`;
   const changed = await api.post('/api/auth/change-password', {
-    headers: { Authorization: `Bearer ${clientToken}` },
+    headers: { Authorization: `Bearer ${clientToken1}` },
     data: { currentPassword: PASSWORD, newPassword: newClientPassword },
   });
-  // change-password rota la sesión: usa el token nuevo que devuelve (el anterior puede quedar revocado).
-  let clientAccessToken = clientToken;
+  let clientPassword = PASSWORD;
+  let clientAccessToken = clientToken1;
   if (changed.ok()) {
     clientPassword = newClientPassword;
-    clientAccessToken =
-      ((await changed.json()) as { accessToken?: string }).accessToken ?? clientToken;
+    // change-password rota la sesión: re-login con la nueva contraseña para una cookie/token frescos (login #4).
+    clientAccessToken = await webLogin(clientWeb, clientEmail, newClientPassword);
   }
+  await clientWeb.storageState({ path: CLIENT_STATE });
+  await clientWeb.dispose();
 
-  // ── Tenant DO (jurisdicción/moneda) ──────────────────────────────────────────
+  // ── Tenant DO (jurisdicción/moneda). Token desde la respuesta de registro (sin login). ───────────
   const doAdminEmail = `e2e_admin_do_${stamp}@despacho.test`;
   const regDo = await api.post('/api/auth/register-tenant', {
     data: {
@@ -202,10 +222,13 @@ export default async function globalSetup(): Promise<void> {
     },
   });
   await expectOk('register-tenant DO', regDo);
-  const doTenantId = ((await regDo.json()) as { tenantId?: string }).tenantId ?? '';
-
-  const doToken = await loginToken(api, doAdminEmail);
-  if (verified) await verifyEmail(api, doToken);
+  const regDoBody = (await regDo.json()) as {
+    tenantId?: string;
+    tokens?: { accessToken?: string };
+  };
+  const doTenantId = regDoBody.tenantId ?? '';
+  const doToken = regDoBody.tokens?.accessToken ?? '';
+  if (verified && doToken) await verifyEmail(api, doToken);
   const doAuth = { Authorization: `Bearer ${doToken}` };
 
   const doClient = await api.post('/api/clients', {
@@ -255,6 +278,5 @@ export default async function globalSetup(): Promise<void> {
     doAdmin: { email: doAdminEmail, password: PASSWORD },
     doInvoice,
   };
-  mkdirSync(dirname(CREDS_PATH), { recursive: true });
   writeFileSync(CREDS_PATH, JSON.stringify(creds, null, 2));
 }

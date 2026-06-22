@@ -1,10 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { CREDS_PATH, type SeedCreds } from './global-setup';
+import { CLIENT_STATE, CREDS_PATH, type SeedCreds } from './global-setup';
 
 const creds = (): SeedCreds => JSON.parse(readFileSync(CREDS_PATH, 'utf8')) as SeedCreds;
 const API = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:4000';
 const I18N_ERROR = /MISSING_MESSAGE|FORMATTING_ERROR|INVALID_MESSAGE|MALFORMED_ARGUMENT|IntlError/;
+
+// Sesión CLIENT reutilizada del setup (sin login por test).
+test.use({ storageState: CLIENT_STATE });
 
 /**
  * Portal del cliente: el CLIENT inicia sesión, aterriza en su portal (no en la firm-app) y solo ve
@@ -12,7 +15,7 @@ const I18N_ERROR = /MISSING_MESSAGE|FORMATTING_ERROR|INVALID_MESSAGE|MALFORMED_A
  */
 test.describe('Portal del cliente (CLIENT)', () => {
   test('aterriza en el portal y ve únicamente sus expedientes y facturas', async ({ page }) => {
-    const { client, esInvoice, verified } = creds();
+    const { esInvoice, verified, tokens } = creds();
     test.skip(!verified, 'requiere verificación de email');
 
     const i18nErrors: string[] = [];
@@ -21,14 +24,8 @@ test.describe('Portal del cliente (CLIENT)', () => {
         i18nErrors.push(msg.text().slice(0, 160));
     });
 
-    // Login por el BFF: fija la cookie de sesión del web (para la navegación de UI) y devuelve el
-    // access token en el cuerpo (las llamadas directas a la API requieren Bearer, no la cookie del web).
-    const login = await page.request.post('/api/auth/login', {
-      data: { email: client.email, password: client.password },
-    });
-    expect(login.ok(), 'el cliente inicia sesión por el BFF').toBeTruthy();
-    const accessToken = ((await login.json()) as { accessToken: string }).accessToken;
-    const bearer = { Authorization: `Bearer ${accessToken}` };
+    // Las llamadas directas a la API requieren Bearer (no la cookie del web). Token del setup.
+    const bearer = { Authorization: `Bearer ${tokens.client}` };
 
     await page.goto('/es/portal', { waitUntil: 'networkidle' });
     await expect(page, 'el CLIENT permanece en el portal').toHaveURL(/\/portal(\/|\?|$)/);

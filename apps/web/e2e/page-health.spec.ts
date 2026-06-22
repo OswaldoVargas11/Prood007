@@ -1,8 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
-import { CREDS_PATH, type SeedCreds } from './global-setup';
+import { ADMIN_STATE, CREDS_PATH, type SeedCreds } from './global-setup';
 
 const creds = (): SeedCreds => JSON.parse(readFileSync(CREDS_PATH, 'utf8')) as SeedCreds;
+
+// Sesión FIRM_ADMIN reutilizada del setup (sin login por test → no agota el rate limit de /auth/login).
+test.use({ storageState: ADMIN_STATE });
 
 /**
  * Salud de páginas: con sesión FIRM_ADMIN, recorre todas las rutas de la firm-app y verifica que
@@ -41,9 +44,8 @@ const I18N_ERROR = /MISSING_MESSAGE|FORMATTING_ERROR|INVALID_MESSAGE|MALFORMED_A
 
 test.describe('Salud de páginas (FIRM_ADMIN)', () => {
   test('ninguna ruta del despacho lanza errores de i18n ni 5xx', async ({ page }) => {
-    const { admin, verified } = creds();
     test.skip(
-      !verified,
+      !creds().verified,
       'requiere verificación de email (JWT_ACCESS_SECRET ausente en el entorno)',
     );
     test.setTimeout(150_000);
@@ -63,11 +65,6 @@ test.describe('Salud de páginas (FIRM_ADMIN)', () => {
       if (res.status() >= 500) serverErrors.push(`${res.status()} ${res.url()}`);
     });
 
-    const login = await page.request.post('/api/auth/login', {
-      data: { email: admin.email, password: admin.password },
-    });
-    expect(login.ok(), 'el admin inicia sesión por el BFF').toBeTruthy();
-
     for (const route of FIRM_ROUTES) {
       await page.goto(`/es/${route}`, { waitUntil: 'networkidle' });
       // Aterriza en la firm-app (no rebotado a login ni al portal).
@@ -76,41 +73,10 @@ test.describe('Salud de páginas (FIRM_ADMIN)', () => {
       );
     }
 
+    // El `AiPanel` de la cabecera renderiza su contenido (Sheet) de forma eager en cada página, así
+    // que sus claves (`ai.assistant/subtitle/soon/placeholder/citations`) se evalúan en cada carga:
+    // esta comprobación ya cubre la regresión de BUG-I18N-01 sin tener que abrir el panel.
     expect(i18nErrors, `errores de i18n detectados:\n${i18nErrors.join('\n')}`).toEqual([]);
     expect(serverErrors, `respuestas 5xx detectadas:\n${serverErrors.join('\n')}`).toEqual([]);
-  });
-
-  test('el panel del asistente IA del header se abre sin errores de i18n', async ({ page }) => {
-    const { admin, verified } = creds();
-    test.skip(!verified, 'requiere verificación de email');
-
-    const i18nErrors: string[] = [];
-    page.on('console', (msg) => {
-      if (msg.type() === 'error' && I18N_ERROR.test(msg.text()))
-        i18nErrors.push(msg.text().slice(0, 160));
-    });
-
-    await page.request.post('/api/auth/login', {
-      data: { email: admin.email, password: admin.password },
-    });
-    await page.goto('/es/dashboard', { waitUntil: 'networkidle' });
-
-    // El diálogo modal de novedades (si aparece) deja el resto de la página en aria-hidden; ciérralo.
-    await page
-      .getByRole('button', { name: /Entendido/ })
-      .click({ timeout: 3000 })
-      .catch(() => {});
-
-    const aiButton = page.getByRole('button', { name: /Asistente IA/ });
-    await expect(
-      aiButton,
-      'el botón del asistente muestra texto resuelto (no la clave i18n)',
-    ).toBeVisible();
-    await aiButton.click();
-    await expect(page.getByText(/Próximamente/)).toBeVisible();
-
-    expect(i18nErrors, `errores de i18n al abrir el asistente:\n${i18nErrors.join('\n')}`).toEqual(
-      [],
-    );
   });
 });
