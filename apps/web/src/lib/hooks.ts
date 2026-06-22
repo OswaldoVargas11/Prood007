@@ -1911,3 +1911,31 @@ export function useDeleteSavedView(scope: string) {
     onSuccess: () => void qc.invalidateQueries({ queryKey: ['saved-views', scope] }),
   });
 }
+
+// ── Plantillas/snippets de correo del despacho ────────────────────────────────
+
+export type EmailSnippet = { id: string; name: string; subject: string | null; body: string };
+
+export function useEmailSnippets() {
+  return useQuery({
+    queryKey: ['email-snippets'],
+    queryFn: () => api.get<EmailSnippet[]>('/email-snippets'),
+  });
+}
+
+export function useCreateEmailSnippet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; subject?: string; body: string }) =>
+      api.post<EmailSnippet>('/email-snippets', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['email-snippets'] }),
+  });
+}
+
+export function useDeleteEmailSnippet() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del(`/email-snippets/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['email-snippets'] }),
+  });
+}
