@@ -15,6 +15,7 @@ import { MatterRail } from '@/components/lexora/matter-rail';
 import { LegalResearchLinks } from '@/components/lexora/legal-research-links';
 import { DocumentsTab } from '@/components/lexora/documents-tab';
 import { ClosingChecklistTab } from '@/components/lexora/closing-checklist-tab';
+import { DataRoomTab } from '@/components/lexora/data-room-tab';
 import { TasksPanel } from '@/components/lexora/tasks-panel';
 import { CostsTab } from '@/components/lexora/costs-tab';
 import { RetainerTab } from '@/components/lexora/retainer';
@@ -48,6 +49,7 @@ export default function MatterDetailPage() {
     'overview',
     'documents',
     'closing',
+    'dataroom',
     'tasks',
     'costs',
     'provision',
@@ -133,6 +135,7 @@ export default function MatterDetailPage() {
           <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
           <TabsTrigger value="documents">{t('tabs.documents')}</TabsTrigger>
           <TabsTrigger value="closing">{t('tabs.closing')}</TabsTrigger>
+          <TabsTrigger value="dataroom">{t('tabs.dataroom')}</TabsTrigger>
           <TabsTrigger value="tasks">{t('tabs.tasks')}</TabsTrigger>
           <TabsTrigger value="costs">{t('tabs.costs')}</TabsTrigger>
           <TabsTrigger value="provision">{t('tabs.provision')}</TabsTrigger>
@@ -186,6 +189,10 @@ export default function MatterDetailPage() {
 
         <TabsContent value="closing">
           <ClosingChecklistTab matterId={id} />
+        </TabsContent>
+
+        <TabsContent value="dataroom">
+          <DataRoomTab matterId={id} />
         </TabsContent>
 
         <TabsContent value="tasks">

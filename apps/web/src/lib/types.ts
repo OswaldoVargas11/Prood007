@@ -940,6 +940,87 @@ export interface AuditEntry {
   createdAt: string;
 }
 
+// ── Data room (due diligence) ────────────────────────────────────────────────
+
+export interface DataRoomSummary {
+  id: string;
+  name: string;
+  status: string;
+  watermark: boolean;
+  createdAt: string;
+  _count: { documents: number; grants: number; questions: number };
+}
+export interface DataRoomFolderNode {
+  id: string;
+  name: string;
+  parentId: string | null;
+  sortOrder?: number;
+}
+export interface DataRoomDoc {
+  id: string;
+  name: string;
+  folderId: string | null;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt?: string;
+}
+export interface DataRoomGrant {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  canDownload: boolean;
+  folderIds: string[];
+  expiresAt: string | null;
+  revokedAt: string | null;
+  lastAccessAt: string | null;
+  createdAt: string;
+}
+export interface DataRoomDetail {
+  id: string;
+  matterId: string;
+  name: string;
+  watermark: boolean;
+  status: string;
+  folders: DataRoomFolderNode[];
+  documents: DataRoomDoc[];
+  grants: DataRoomGrant[];
+}
+export interface DataRoomAccessEntry {
+  id: string;
+  actorEmail: string;
+  action: string;
+  targetId: string | null;
+  ip: string | null;
+  createdAt: string;
+}
+export interface DataRoomQuestion {
+  id: string;
+  askedByEmail?: string;
+  body: string;
+  answer: string | null;
+  status: string;
+  documentId: string | null;
+  folderId?: string | null;
+  createdAt: string;
+  answeredAt: string | null;
+}
+export interface CreateGrantResult {
+  id: string;
+  email: string;
+  token: string;
+}
+/** Vista pública del data room para el externo (`GET /data-rooms/external/:token`). */
+export interface ExternalDataRoom {
+  name: string;
+  viewer: { email: string; name: string | null };
+  canDownload: boolean;
+  watermark: boolean;
+  folders: DataRoomFolderNode[];
+  documents: DataRoomDoc[];
+  rootFolderIds: string[];
+}
+
 // ── Redline: comparación de versiones de documento ───────────────────────────
 
 export type RedlineSegmentType = 'equal' | 'insert' | 'delete';

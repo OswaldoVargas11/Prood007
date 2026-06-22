@@ -212,6 +212,44 @@ export const API_MESSAGES = {
     'es-DO': 'Partida del checklist no encontrada.',
   },
 
+  // ── Data room (due diligence) ─────────────────────────────────────────────
+  'dataRoom.notFound': {
+    'es-ES': 'Data room no encontrado.',
+    'es-DO': 'Data room no encontrado.',
+  },
+  'dataRoom.folderNotFound': {
+    'es-ES': 'Carpeta no encontrada en este data room.',
+    'es-DO': 'Carpeta no encontrada en este data room.',
+  },
+  'dataRoom.documentNotFound': {
+    'es-ES': 'Documento no encontrado en este data room.',
+    'es-DO': 'Documento no encontrado en este data room.',
+  },
+  'dataRoom.grantNotFound': {
+    'es-ES': 'Acceso no encontrado.',
+    'es-DO': 'Acceso no encontrado.',
+  },
+  'dataRoom.questionNotFound': {
+    'es-ES': 'Pregunta no encontrada.',
+    'es-DO': 'Pregunta no encontrada.',
+  },
+  'dataRoom.linkInvalid': {
+    'es-ES': 'El enlace no es válido.',
+    'es-DO': 'El enlace no es válido.',
+  },
+  'dataRoom.linkExpired': {
+    'es-ES': 'El enlace ha caducado.',
+    'es-DO': 'El enlace ha caducado.',
+  },
+  'dataRoom.closed': {
+    'es-ES': 'Este data room está cerrado.',
+    'es-DO': 'Este data room está cerrado.',
+  },
+  'dataRoom.downloadNotAllowed': {
+    'es-ES': 'Tu acceso no permite descargar; solo visualización.',
+    'es-DO': 'Tu acceso no permite descargar; solo visualización.',
+  },
+
   // ── Documentos ────────────────────────────────────────────────────────────
   'documents.fileMissing': {
     'es-ES': 'Falta el archivo.',
