@@ -186,25 +186,38 @@ export class UsersService {
     }
 
     // Control de plazas: al ACTIVAR (o promover) hay que tener asiento libre para el rol resultante.
+    // `updateStaff` también CONSUME plaza (reactivar un usuario o promover LAWYER→FIRM_ADMIN), así que el
+    // conteo + la mutación tienen que serializarse igual que `createStaff` o dos reactivaciones concurrentes
+    // (o un createStaff + un updateStaff a la vez) superan la licencia. Se hace DENTRO de la tx con el mismo
+    // lock de aviso por tenant (espacio 1 = plazas/licencia), check-then-act atómico.
     const becomesActiveInRole =
       nextActive &&
       (nextRole !== currentRole || (target.isActive === false && nextActive === true));
-    if (becomesActiveInRole) {
-      const used = await this.countActive(actor.tenantId, nextRole);
-      if (used >= this.maxFor(tenant, nextRole)) {
-        const role = nextRole === Role.FIRM_ADMIN ? 'administradores' : 'letrados';
-        throw new ForbiddenException(
-          apiError('users.licenseLimitReached', {
-            message: `Límite de licencia alcanzado: ${this.maxFor(tenant, nextRole)} ${role}.`,
-            params: { max: this.maxFor(tenant, nextRole), role, roleCode: nextRole },
-          }),
-        );
-      }
-    }
 
     // tenantTransaction fija `app.tenant_id` al inicio de la tx: con RLS en fail-closed, las ops
     // sobre Role/User dentro requieren contexto (un $transaction crudo no lo fijaría). Ver D-020.
     await tenantTransaction(this.prisma, async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(1, hashtext(${actor.tenantId}))`;
+
+      if (becomesActiveInRole) {
+        const used = await tx.user.count({
+          where: {
+            tenantId: actor.tenantId,
+            isActive: true,
+            roles: { some: { role: { code: nextRole } } },
+          },
+        });
+        if (used >= this.maxFor(tenant, nextRole)) {
+          const role = nextRole === Role.FIRM_ADMIN ? 'administradores' : 'letrados';
+          throw new ForbiddenException(
+            apiError('users.licenseLimitReached', {
+              message: `Límite de licencia alcanzado: ${this.maxFor(tenant, nextRole)} ${role}.`,
+              params: { max: this.maxFor(tenant, nextRole), role, roleCode: nextRole },
+            }),
+          );
+        }
+      }
+
       if (nextRole !== currentRole) {
         const oldRoleId = target.roles.find((r) => r.role.code === currentRole)!.role.id;
         const newRoleId = (

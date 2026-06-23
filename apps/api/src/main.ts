@@ -37,6 +37,14 @@ function validateProdEnv(): void {
   if (process.env.JWT_ACCESS_SECRET === process.env.JWT_REFRESH_SECRET) {
     warn('JWT_ACCESS_SECRET y JWT_REFRESH_SECRET deberían ser distintos.');
   }
+  if (!process.env.PLATFORM_JWT_SECRET) {
+    warn(
+      'PLATFORM_JWT_SECRET no definido: el token del super-admin se firma con JWT_ACCESS_SECRET. ' +
+        'Fija un secreto dedicado para aislarlo de los tokens de usuario.',
+    );
+  } else if (process.env.PLATFORM_JWT_SECRET === process.env.JWT_ACCESS_SECRET) {
+    warn('PLATFORM_JWT_SECRET no debería coincidir con JWT_ACCESS_SECRET.');
+  }
 }
 
 async function bootstrap() {

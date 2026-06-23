@@ -134,8 +134,9 @@ describe('Documents & review (e2e)', () => {
     expect((res.body as Buffer).toString()).toBe('contenido del contrato v1');
   });
 
-  it('la descarga fuerza attachment para contenido no seguro (anti stored-XSS)', async () => {
-    const up = await request(app.getHttpServer())
+  it('la subida RECHAZA contenido activo HTML/SVG (anti stored-XSS en origen)', async () => {
+    // Defensa en la subida (assertUploadSafe): un HTML con <script> no debe ni almacenarse.
+    await request(app.getHttpServer())
       .post('/api/documents')
       .set(auth(lawyerToken))
       .field('matterId', matterId)
@@ -143,6 +144,34 @@ describe('Documents & review (e2e)', () => {
       .attach('file', Buffer.from('<script>alert(1)</script>'), {
         filename: 'evil.html',
         contentType: 'text/html',
+      })
+      .expect(400);
+    // Un SVG (puede ejecutar script) disfrazado de imagen también se rechaza por sniff de contenido.
+    await request(app.getHttpServer())
+      .post('/api/documents')
+      .set(auth(lawyerToken))
+      .field('matterId', matterId)
+      .field('name', 'svg')
+      .attach(
+        'file',
+        Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'),
+        {
+          filename: 'evil.png',
+          contentType: 'image/png',
+        },
+      )
+      .expect(400);
+  });
+
+  it('la descarga fuerza attachment para tipos no-inline (defensa en profundidad)', async () => {
+    const up = await request(app.getHttpServer())
+      .post('/api/documents')
+      .set(auth(lawyerToken))
+      .field('matterId', matterId)
+      .field('name', 'datos')
+      .attach('file', Buffer.from('col1,col2\n1,2\n'), {
+        filename: 'datos.csv',
+        contentType: 'text/csv',
       })
       .expect(201);
     const res = await request(app.getHttpServer())

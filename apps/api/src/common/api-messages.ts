@@ -295,6 +295,12 @@ export const API_MESSAGES = {
     'es-ES': 'El archivo supera el límite de 25 MB.',
     'es-DO': 'El archivo supera el límite de 25 MB.',
   },
+  'documents.uploadRejected': {
+    'es-ES':
+      'Tipo de archivo no permitido por seguridad (no se aceptan HTML, SVG ni ficheros ejecutables).',
+    'es-DO':
+      'Tipo de archivo no permitido por seguridad (no se aceptan HTML, SVG ni ficheros ejecutables).',
+  },
 
   // ── Suscripción (SaaS de plataforma) ──────────────────────────────────────
   'subscription.required': {
@@ -622,6 +628,12 @@ export const API_MESSAGES = {
   'ai.searchDisabled': {
     'es-ES': 'La búsqueda semántica no está disponible (faltan embeddings).',
     'es-DO': 'La búsqueda semántica no está disponible (faltan embeddings).',
+  },
+  'ai.dailyQuotaExceeded': {
+    'es-ES':
+      'Has alcanzado el límite diario de IA ({limit} consultas). Inténtalo mañana o amplía el plan.',
+    'es-DO':
+      'Has alcanzado el límite diario de IA ({limit} consultas). Inténtalo mañana o amplía el plan.',
   },
   'ai.emailProviderRequired': {
     'es-ES': 'Conecta tu correo (Gmail/Outlook) para redactar respuestas con IA.',

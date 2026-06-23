@@ -8,6 +8,7 @@ import { UsersService } from '../users/users.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { AddHolidayDto } from './dto/add-holiday.dto';
 import { apiError } from '../common/api-messages';
+import { assertUploadSafe } from '../common/safe-download';
 import type { RequestUser } from '../auth/auth.types';
 
 interface Holiday {
@@ -132,6 +133,7 @@ export class SettingsService {
 
   async uploadCertificate(user: RequestUser, file?: UploadedFile) {
     if (!file) throw new BadRequestException(apiError('settings.certificateMissing'));
+    assertUploadSafe(file.mimetype, file.originalname, file.buffer);
     // Clave fija con identificadores del servidor (nunca `originalname` → evita path traversal). El
     // nombre real del fichero se guarda en `certificateName`.
     const key = `${user.tenantId}/certificate/cert`;

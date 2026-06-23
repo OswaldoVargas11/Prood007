@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Role } from '@legalflow/domain';
 import { AiService } from './ai.service';
 import { AiSearchService } from './ai-search.service';
@@ -14,6 +15,10 @@ import type { RequestUser } from '../auth/auth.types';
  * configurado (`ANTHROPIC_API_KEY` ausente), los endpoints responden 503 `ai.notConfigured`; el front
  * usa `GET /ai/status` para mostrar la IA deshabilitada en vez de fallar.
  */
+// Las llamadas a IA tienen coste real (clave compartida del proveedor). Además de la cuota diaria por
+// tenant (AiQuotaService), se acota la RÁFAGA: 20/min frente al global de 300/min. `/ai/status` no llama
+// al modelo, así que se exime más abajo.
+@Throttle({ default: { ttl: 60_000, limit: 20 } })
 @Roles(Role.FIRM_ADMIN, Role.LAWYER)
 @Controller('ai')
 export class AiController {
@@ -22,7 +27,8 @@ export class AiController {
     private readonly search: AiSearchService,
   ) {}
 
-  /** ¿Está la IA disponible y con qué modelo? (para gating de la UI). */
+  /** ¿Está la IA disponible y con qué modelo? (para gating de la UI). No llama al modelo → sin throttle estricto. */
+  @SkipThrottle()
   @Get('status')
   status() {
     return this.ai.status();

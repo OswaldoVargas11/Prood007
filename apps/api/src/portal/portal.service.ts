@@ -13,6 +13,26 @@ import type { InvoiceStatus } from '@legalflow/domain';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
+ * Campos del expediente que el CLIENTE puede ver en su portal. Se excluyen los internos del despacho:
+ * `budgetAmount` (presupuesto de honorarios), `opposingCounsel`/`opposingPartyTaxId` y los ids internos.
+ * Sin un `select` explícito, `findMany`/`findFirst` devolvían el objeto Matter completo (API3, CWE-213).
+ */
+const PORTAL_MATTER_SELECT = {
+  id: true,
+  reference: true,
+  title: true,
+  type: true,
+  status: true,
+  court: true,
+  caseNumber: true,
+  proceduralPhase: true,
+  opposingParty: true,
+  openedAt: true,
+  closedAt: true,
+  lawyer: { select: { fullName: true } },
+} as const;
+
+/**
  * Portal del cliente (solo lectura). Cada endpoint queda acotado a los expedientes de la propia
  * ficha de cliente del usuario, vía `assertMatterAccess` y el vínculo Client.userId.
  */
@@ -45,12 +65,16 @@ export class PortalService {
     return this.prisma.matter.findMany({
       where: { tenantId: user.tenantId, clientId: client.id },
       orderBy: { openedAt: 'desc' },
+      select: PORTAL_MATTER_SELECT,
     });
   }
 
   async getMatter(user: RequestUser, matterId: string) {
     await assertMatterAccess(this.prisma, user, matterId);
-    return this.prisma.matter.findFirst({ where: { id: matterId, tenantId: user.tenantId } });
+    return this.prisma.matter.findFirst({
+      where: { id: matterId, tenantId: user.tenantId },
+      select: PORTAL_MATTER_SELECT,
+    });
   }
 
   async listDocuments(user: RequestUser, matterId: string) {

@@ -114,22 +114,27 @@ export class PasswordResetService {
 
   /**
    * Autoservicio "olvidé mi contraseña". SIEMPRE resuelve sin revelar si el email existe.
-   * Si hay exactamente un usuario activo con ese email, emite token y delega el envío al MailProvider.
+   *
+   * Anti-enumeración: el envío (creación de token + SMTP) va FUERA DE BANDA (sin `await`), de modo que el
+   * tiempo de respuesta es CONSTANTE tanto si hay 0, 1 o varias cuentas (antes, la rama con match esperaba
+   * al SMTP y filtraba existencia por timing). Si el email está en varios despachos, se manda un enlace por
+   * cada cuenta activa (cada token ligado a su userId) — antes era un no-op silencioso (no podían resetear).
    */
   async forgotPassword(email: string): Promise<void> {
     const users = await this.system.user.findMany({
       where: { email: email.toLowerCase(), isActive: true },
       select: { id: true, email: true },
     });
-    // Si el email es ambiguo (varios despachos) o no existe, no hacemos nada (respuesta genérica).
-    if (users.length !== 1) return;
+    for (const user of users) {
+      void this.dispatchReset(user.id, user.email);
+    }
+  }
 
-    const user = users[0]!;
-    const { token } = await this.createToken(user.id, FORGOT_RESET_TTL_MS);
-    // Fail-soft: un fallo de envío NO debe cambiar la respuesta genérica (no filtrar existencia de
-    // cuentas) ni propagar un 500. Se registra para diagnóstico y se resuelve igualmente.
+  /** Crea el token y envía el correo de recuperación. Fail-soft y desacoplado de la respuesta HTTP. */
+  private async dispatchReset(userId: string, email: string): Promise<void> {
     try {
-      await this.mail.sendPasswordReset(user.email, this.resetLink(token));
+      const { token } = await this.createToken(userId, FORGOT_RESET_TTL_MS);
+      await this.mail.sendPasswordReset(email, this.resetLink(token));
     } catch (err) {
       this.logger.error('Fallo al enviar el correo de recuperación', err as Error);
     }

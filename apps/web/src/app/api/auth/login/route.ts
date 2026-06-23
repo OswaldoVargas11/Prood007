@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { TokenPair } from '@/lib/auth-types';
 import { jurisdictionFromAccessToken, scopeFromAccessToken } from '@/lib/scope';
 import {
+  isCrossOrigin,
   nestUrl,
   setJurisdictionCookie,
   setScopeCookie,
@@ -13,6 +14,10 @@ import {
  * solo el access token al cliente (que lo mantiene en memoria). Ver D-014.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  // Anti-CSRF: un login forzado cross-site plantaría la sesión del atacante en la víctima (fijación).
+  if (isCrossOrigin(req)) {
+    return NextResponse.json({ message: 'Origen no permitido' }, { status: 403 });
+  }
   const body = await req.json().catch(() => ({}));
   const res = await fetch(nestUrl('/auth/login'), {
     method: 'POST',

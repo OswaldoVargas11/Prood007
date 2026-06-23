@@ -32,7 +32,7 @@ jobs:
         with:
           fetch-depth: 50
 
-      - uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
         with:
           # Auth por SUSCRIPCIÓN (Pro/Max), no por API key de pago. Genera el token
           # con `claude setup-token` y guárdalo como secret CLAUDE_CODE_OAUTH_TOKEN.

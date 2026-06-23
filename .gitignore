@@ -16,6 +16,9 @@ apps/api/prisma/migrations/dev.db*
 .env
 .env.*
 !.env.example
+# Backups efímeros que pueden contener secretos (p. ej. .env.bak.<ts>) — nunca al repo.
+*.bak
+*.bak.*
 
 # Logs
 *.log
