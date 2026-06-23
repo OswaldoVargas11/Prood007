@@ -251,6 +251,16 @@ function RevenueCard({ data }: { data: DashboardSummary }) {
               strokeLinejoin="round"
             />
           )}
+          {pts.length > 0 && (
+            <circle
+              cx={pts[pts.length - 1][0]}
+              cy={pts[pts.length - 1][1]}
+              r="3.5"
+              fill="var(--brand)"
+              stroke="var(--card)"
+              strokeWidth="2"
+            />
+          )}
         </svg>
         <div className="mt-2 flex justify-between font-mono text-[10px] text-muted-foreground">
           {data.revenueByMonth.map((m) => (
