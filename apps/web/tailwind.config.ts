@@ -75,9 +75,13 @@ const config: Config = {
           from: { opacity: '0', transform: 'translateY(8px)' },
           to: { opacity: '1', transform: 'none' },
         },
+        shimmer: {
+          '100%': { transform: 'translateX(100%)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.22s cubic-bezier(0.22,0.8,0.2,1) both',
+        shimmer: 'shimmer 1.6s infinite',
       },
     },
   },
