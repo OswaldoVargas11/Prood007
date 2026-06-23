@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import type { TokenPair } from '@/lib/auth-types';
 import { scopeFromAccessToken } from '@/lib/scope';
-import { nestUrl, setScopeCookie, setSessionCookie } from '@/lib/server/session';
+import { isCrossOrigin, nestUrl, setScopeCookie, setSessionCookie } from '@/lib/server/session';
 
 /**
  * BFF de cambio de contraseña. El access token vive en memoria del cliente, así que llega en el
@@ -10,6 +10,9 @@ import { nestUrl, setScopeCookie, setSessionCookie } from '@/lib/server/session'
  * revocado y el siguiente refresh fallaría) y devolvemos el nuevo access al cliente. Ver D-014.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  if (isCrossOrigin(req)) {
+    return NextResponse.json({ message: 'Origen no permitido' }, { status: 403 });
+  }
   const authorization = req.headers.get('authorization');
   if (!authorization) {
     return NextResponse.json({ message: 'No autenticado' }, { status: 401 });

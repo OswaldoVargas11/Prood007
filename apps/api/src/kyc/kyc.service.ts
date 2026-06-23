@@ -27,7 +27,9 @@ export class KycService {
   /** Perfil KYC de un cliente (o null si aún no se ha iniciado la diligencia). */
   async getForClient(user: RequestUser, clientId: string) {
     await this.assertClientInTenant(user, clientId);
-    return this.prisma.kycProfile.findUnique({ where: { clientId } });
+    // Scoping explícito por tenant (además del assert + RLS): no fiarse solo del pre-check por si se
+    // reordena en el futuro — se trata de datos AML (PEP, sanciones, riesgo).
+    return this.prisma.kycProfile.findFirst({ where: { clientId, tenantId: user.tenantId } });
   }
 
   /** Crea o actualiza el perfil KYC del cliente. Sella revisor/fecha en cada cambio. */

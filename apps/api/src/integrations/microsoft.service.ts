@@ -344,7 +344,7 @@ export class MicrosoftService {
     const q = new URLSearchParams({
       $select: 'subject,from,toRecipients,bodyPreview,receivedDateTime',
     });
-    const r = await fetch(`${GRAPH}/messages/${externalId}?${q.toString()}`, {
+    const r = await fetch(`${GRAPH}/messages/${encodeURIComponent(externalId)}?${q.toString()}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!r.ok) throw new BadRequestException({ messageKey: 'integrations.gmailFetchFailed' });
@@ -444,8 +444,10 @@ export class MicrosoftService {
     this.assertConfigured();
     const token = await this.accessTokenFor(user.userId);
     const headers = { Authorization: `Bearer ${token}` };
-    const base = opts.driveId ? `${GRAPH_ROOT}/drives/${opts.driveId}` : `${GRAPH}/drive`;
-    const node = opts.itemId ? `items/${opts.itemId}` : 'root';
+    const base = opts.driveId
+      ? `${GRAPH_ROOT}/drives/${encodeURIComponent(opts.driveId)}`
+      : `${GRAPH}/drive`;
+    const node = opts.itemId ? `items/${encodeURIComponent(opts.itemId)}` : 'root';
     const q = '?$select=id,name,size,folder,file,parentReference&$top=200&$orderby=name';
     const r = await fetch(`${base}/${node}/children${q}`, { headers });
     if (!r.ok) throw new BadRequestException({ messageKey: 'integrations.cloudListFailed' });
@@ -492,8 +494,10 @@ export class MicrosoftService {
     this.assertConfigured();
     const token = await this.accessTokenFor(user.userId);
     const headers = { Authorization: `Bearer ${token}` };
+    const drive = encodeURIComponent(driveId);
+    const item = encodeURIComponent(itemId);
     const metaRes = await fetch(
-      `${GRAPH_ROOT}/drives/${driveId}/items/${itemId}?$select=name,size,file`,
+      `${GRAPH_ROOT}/drives/${drive}/items/${item}?$select=name,size,file`,
       { headers },
     );
     if (!metaRes.ok) throw new BadRequestException({ messageKey: 'integrations.cloudFetchFailed' });
@@ -504,7 +508,7 @@ export class MicrosoftService {
     };
     // /content responde 302 a una URL de descarga preautenticada en otro host; fetch sigue el redirect y
     // (por spec) NO reenvía la cabecera Authorization a otro origen, que es justo lo que necesita esa URL.
-    const dl = await fetch(`${GRAPH_ROOT}/drives/${driveId}/items/${itemId}/content`, { headers });
+    const dl = await fetch(`${GRAPH_ROOT}/drives/${drive}/items/${item}/content`, { headers });
     if (!dl.ok) throw new BadRequestException({ messageKey: 'integrations.cloudFetchFailed' });
     const buffer = Buffer.from(await dl.arrayBuffer());
     return {

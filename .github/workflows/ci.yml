@@ -202,7 +202,7 @@ jobs:
           pnpm licenses list --prod --json > licenses.json
           node scripts/check-licenses.mjs licenses.json
       - name: Gitleaks (secretos)
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # CodeQL (análisis estático). El UPLOAD de resultados a code-scanning exige que la feature

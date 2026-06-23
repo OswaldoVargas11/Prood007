@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { TokenPair } from '@/lib/auth-types';
 import { jurisdictionFromAccessToken, scopeFromAccessToken } from '@/lib/scope';
 import {
+  isCrossOrigin,
   nestUrl,
   setJurisdictionCookie,
   setScopeCookie,
@@ -14,6 +15,9 @@ import {
  * y devuelve el access token. Igual que /auth/login.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  if (isCrossOrigin(req)) {
+    return NextResponse.json({ message: 'Origen no permitido' }, { status: 403 });
+  }
   const body = await req.json().catch(() => ({}));
   const res = await fetch(nestUrl('/auth/social/exchange'), {
     method: 'POST',

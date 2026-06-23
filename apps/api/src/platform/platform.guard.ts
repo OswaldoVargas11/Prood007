@@ -3,10 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { apiError } from '../common/api-messages';
+import { platformJwtSecret } from './platform-secret';
 
 /**
- * Guard del SUPER-ADMIN de plataforma (dueño de Lawzora). Verifica un JWT firmado con
- * `JWT_ACCESS_SECRET` que lleva el claim `platform: true` (lo emite PlatformAuthController). Las rutas
+ * Guard del SUPER-ADMIN de plataforma (dueño de Lawzora). Verifica un JWT firmado con el secreto
+ * dedicado de plataforma (`platformJwtSecret`) que lleva el claim `platform: true` (lo emite
+ * PlatformAuthController). Las rutas
  * de plataforma son `@Public` (saltan el guard de tenant) y NO llevan tenantId: operan cross-tenant
  * vía el rol de sistema (BYPASSRLS). Distinto del FIRM_ADMIN de un despacho.
  */
@@ -26,7 +28,7 @@ export class PlatformGuard implements CanActivate {
     try {
       const payload = await this.jwt.verifyAsync<{ sub?: string; platform?: boolean }>(
         header.slice(7),
-        { secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'), algorithms: ['HS256'] },
+        { secret: platformJwtSecret(this.config), algorithms: ['HS256'] },
       );
       if (payload.platform !== true) throw new Error('not platform');
       req.platformAdmin = payload.sub;

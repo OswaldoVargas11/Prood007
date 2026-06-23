@@ -12,6 +12,7 @@ import {
   type StorageProvider,
 } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
+import { AiQuotaService } from './ai-quota.service';
 import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -34,6 +35,7 @@ const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 export class AiService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly quota: AiQuotaService,
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
     @Inject(AI_ASSISTANT_PROVIDER) private readonly assistant: AiAssistantProvider,
     @Inject(AI_EMBEDDINGS) private readonly embeddings: EmbeddingsProvider,
@@ -51,6 +53,7 @@ export class AiService {
 
   /** Pregunta libre sobre un expediente, anclada a su contexto. */
   async askMatter(user: RequestUser, matterId: string, question: string): Promise<AiResponse> {
+    await this.quota.consume(user);
     const { sources } = await this.matterContext(user, matterId);
     const res = await this.assistant.draft({
       prompt: `Responde de forma precisa a la siguiente pregunta sobre el expediente, citando las fuentes pertinentes:\n\n${question}`,
@@ -62,6 +65,7 @@ export class AiService {
 
   /** Resumen estructurado del expediente. */
   async summarizeMatter(user: RequestUser, matterId: string): Promise<AiResponse> {
+    await this.quota.consume(user);
     const { sources } = await this.matterContext(user, matterId);
     const res = await this.assistant.summarize({ sources, locale: LOCALE });
     return this.withModel(res);
@@ -69,6 +73,7 @@ export class AiService {
 
   /** Resumen/extracción de un documento (se pasa al modelo como adjunto nativo cuando es PDF/imagen). */
   async summarizeDocument(user: RequestUser, documentId: string): Promise<AiResponse> {
+    await this.quota.consume(user);
     const doc = await this.prisma.document.findFirst({
       where: { id: documentId, tenantId: user.tenantId },
       include: { versions: { orderBy: { version: 'desc' }, take: 1 } },
@@ -118,6 +123,7 @@ export class AiService {
     matterId: string,
     instructions?: string,
   ): Promise<AiResponse> {
+    await this.quota.consume(user);
     const tpl = await this.prisma.documentTemplate.findFirst({
       where: { id: templateId, tenantId: user.tenantId },
     });
@@ -146,6 +152,7 @@ export class AiService {
     instructions: string,
     matterId?: string,
   ): Promise<AiResponse & { subject: string; body: string }> {
+    await this.quota.consume(user);
     const sources = matterId ? (await this.matterContext(user, matterId)).sources : [];
     const res = await this.assistant.draft({
       prompt: [

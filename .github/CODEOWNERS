@@ -26,3 +26,11 @@
 
 # ── Pipeline CI/CD y gobernanza ────────────────────────────────────────────────
 /.github/                           @OswaldoVargas11
+
+# ── Cadena de suministro / dependencias ────────────────────────────────────────
+# Cambios en dependencias, overrides de seguridad, allowlist de advisories (auditConfig.ignoreGhsas)
+# o config del registro son sensibles: exigen revisión aunque el CI esté verde (un Dependabot que afloje
+# un override o añada un ignoreGhsas no debe auto-mergearse sin owner).
+/package.json                       @OswaldoVargas11
+/pnpm-lock.yaml                     @OswaldoVargas11
+/.npmrc                             @OswaldoVargas11

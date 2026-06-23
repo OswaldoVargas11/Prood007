@@ -10,6 +10,7 @@ import { STORAGE_PROVIDER, type StorageProvider } from '@legalflow/domain';
 import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { apiError } from '../common/api-messages';
+import { assertUploadSafe } from '../common/safe-download';
 import type { RequestUser } from '../auth/auth.types';
 import {
   AnswerQuestionDto,
@@ -238,6 +239,7 @@ export class DataRoomService {
     file?: UploadedFile,
   ) {
     if (!file) throw new BadRequestException(apiError('documents.fileMissing'));
+    assertUploadSafe(file.mimetype, file.originalname, file.buffer);
     await this.getRoomOrThrow(user, roomId);
     if (folderId) await this.assertFolderInRoom(user, roomId, folderId);
     const created = await this.prisma.dataRoomDocument.create({

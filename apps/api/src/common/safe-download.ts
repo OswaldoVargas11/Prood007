@@ -1,3 +1,6 @@
+import { BadRequestException } from '@nestjs/common';
+import { apiError } from './api-messages';
+
 /**
  * Cabecera `Content-Disposition` segura para servir ficheros SUBIDOS por el usuario.
  *
@@ -37,6 +40,66 @@ export function isInlineSafeMime(mime: string | null | undefined): boolean {
  * `mimetype` declarado por el cliente, que es falsificable). Devuelve el tipo o `null`. Cubre PNG/JPEG/
  * GIF/WEBP/PDF. Evita subir, p. ej., HTML/SVG etiquetado como `image/png`.
  */
+/**
+ * Tipos/extensiones con CONTENIDO ACTIVO que el navegador puede ejecutar si se llegara a servir inline
+ * en el origen de la API (XSS almacenado). `safeContentDisposition` ya fuerza `attachment` para estos,
+ * pero la defensa correcta es además NO aceptarlos en la subida. Se bloquean por mimetype declarado,
+ * por extensión y por sniff de contenido (un HTML/SVG disfrazado de image/png también cae).
+ */
+const BLOCKED_UPLOAD_MIME = new Set([
+  'text/html',
+  'application/xhtml+xml',
+  'image/svg+xml',
+  'application/javascript',
+  'text/javascript',
+  'application/x-shockwave-flash',
+  'application/xml',
+  'text/xml',
+]);
+const BLOCKED_UPLOAD_EXT = new Set([
+  'html',
+  'htm',
+  'xhtml',
+  'shtml',
+  'svg',
+  'js',
+  'mjs',
+  'xml',
+  'swf',
+  'xsl',
+]);
+
+/** ¿El inicio del buffer parece markup activo (HTML/SVG/XML)? No se fía del mimetype declarado. */
+function sniffsAsActiveMarkup(buffer: Buffer): boolean {
+  const head = buffer.subarray(0, 1024).toString('utf8').trimStart().toLowerCase();
+  return (
+    head.startsWith('<!doctype html') ||
+    head.startsWith('<html') ||
+    head.startsWith('<svg') ||
+    head.startsWith('<?xml') ||
+    head.includes('<script')
+  );
+}
+
+/**
+ * Verifica que un fichero SUBIDO no sea contenido activo (HTML/SVG/JS/…) que habilite XSS almacenado.
+ * Lanza `BadRequestException` (`documents.uploadRejected`) si lo es. Pensado como red transversal en el
+ * pipeline de subida (documentos, data-room, portal, logo del despacho), complementando el `attachment`
+ * de la descarga. NO restringe a una allowlist cerrada (los despachos suben pdf/docx/xlsx/imágenes/txt):
+ * solo veta los tipos ejecutables.
+ */
+export function assertUploadSafe(
+  mime: string | null | undefined,
+  filename: string | null | undefined,
+  buffer: Buffer,
+): void {
+  const m = (mime || '').toLowerCase().split(';')[0]!.trim();
+  const ext = (filename || '').toLowerCase().split('.').pop() ?? '';
+  if (BLOCKED_UPLOAD_MIME.has(m) || BLOCKED_UPLOAD_EXT.has(ext) || sniffsAsActiveMarkup(buffer)) {
+    throw new BadRequestException(apiError('documents.uploadRejected'));
+  }
+}
+
 export function sniffSafeUploadType(buffer: Buffer): string | null {
   if (buffer.length < 12) return null;
   const b = buffer;

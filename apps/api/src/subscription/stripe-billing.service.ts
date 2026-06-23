@@ -366,18 +366,29 @@ export class StripeBillingService {
     // Plan Fundador: alta efectiva del beneficio si lo pidió, no lo era ya, y queda cupo. La tarifa queda
     // CONGELADA de por vida por estar en el Price de Fundador (inmutable; no se migra). Sin snapshot de
     // volumen (el descuento por volumen se eliminó).
+    //
+    // El cupo (FOUNDER_CAP) es GLOBAL, no por tenant: el conteo + la asignación de `founderNumber` deben
+    // serializarse o dos webhooks Fundador concurrentes leen el mismo `taken` y ambos confirman como #18
+    // (cupo superado + founderNumber duplicado). Se hace todo en UNA transacción del cliente de sistema
+    // (BYPASSRLS, requiere conteo cross-tenant) con un lock de aviso GLOBAL (espacio 3, clave 0; los
+    // espacios 1=plazas y 2=facturas son por tenant). El índice único en founderNumber es la red final.
     if (isFounderSub) {
-      const tenant = await this.system.tenant.findUnique({
-        where: { id: tenantId },
-        select: { isFounder: true },
-      });
-      if (!tenant?.isFounder) {
-        const taken = await this.system.tenant.count({ where: { isFounder: true } });
-        if (taken < FOUNDER_CAP) {
-          data.isFounder = true;
-          data.founderNumber = taken + 1;
+      await this.system.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(3, 0)`;
+        const fresh = await tx.tenant.findUnique({
+          where: { id: tenantId },
+          select: { isFounder: true },
+        });
+        if (!fresh?.isFounder) {
+          const taken = await tx.tenant.count({ where: { isFounder: true } });
+          if (taken < FOUNDER_CAP) {
+            data.isFounder = true;
+            data.founderNumber = taken + 1;
+          }
         }
-      }
+        await tx.tenant.update({ where: { id: tenantId }, data });
+      });
+      return;
     }
 
     await this.system.tenant.update({ where: { id: tenantId }, data });

@@ -68,7 +68,23 @@ export class LeadsService {
 
   async update(user: RequestUser, id: string, dto: UpdateLeadDto) {
     await this.get(user, id);
-    await this.prisma.lead.updateMany({ where: { id, tenantId: user.tenantId }, data: { ...dto } });
+    // Campos permitidos EXPLÍCITOS (no `...dto`): aunque `forbidNonWhitelisted` ya filtra extras, el spread
+    // dejaría que cualquier columna añadida al DTO en el futuro fuera escribible por el cliente (BOPLA).
+    await this.prisma.lead.updateMany({
+      where: { id, tenantId: user.tenantId },
+      data: {
+        name: dto.name,
+        email: dto.email,
+        phone: dto.phone,
+        company: dto.company,
+        subject: dto.subject,
+        notes: dto.notes,
+        source: dto.source,
+        estimatedValue: dto.estimatedValue,
+        assignedToId: dto.assignedToId,
+        status: dto.status,
+      },
+    });
     return this.get(user, id);
   }
 

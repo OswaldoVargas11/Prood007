@@ -49,7 +49,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
-      - uses: anthropics/claude-code-action@v1
+      - uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
         with:
           # Auth por SUSCRIPCIÓN (Pro/Max), no por API key de pago. Genera el token
           # con `claude setup-token` y guárdalo como secret CLAUDE_CODE_OAUTH_TOKEN.
@@ -94,3 +94,27 @@ jobs:
             --allowedTools "Bash(gh pr create:*),Bash(gh issue create:*),Bash(gh label create:*),Bash(git checkout:*),Bash(git switch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*)"
             --max-turns 25
             --model claude-sonnet-4-6
+
+      # Enforcement MECÁNICO de la frontera de rutas prohibidas (no solo por prompt): si algún PR del
+      # triaje toca migraciones/schema, RLS, los providers fiscales o los golden, se cierra y el job falla.
+      # Defensa frente a inyección de prompt desde el contenido del diff (.actual.json no es de fiar).
+      - name: Enforce prohibited-path frontier
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          PROTECTED='^(apps/api/prisma/migrations/|apps/api/prisma/schema\.prisma|apps/api/src/prisma/|packages/compliance/src/|packages/compliance/test/fiscal-conformance/golden/)|\.policy\.sql$'
+          violation=0
+          for num in $(gh pr list --label fiscal-triage --state open --json number --jq '.[].number'); do
+            files=$(gh pr diff "$num" --name-only 2>/dev/null || true)
+            bad=$(printf '%s\n' "$files" | grep -E "$PROTECTED" || true)
+            if [ -n "$bad" ]; then
+              echo "::error::El PR #$num del triaje toca rutas prohibidas:"; printf '%s\n' "$bad"
+              gh pr close "$num" --comment "Cerrado automáticamente: el triaje modificó rutas fiscales/RLS/migraciones prohibidas (enforcement mecánico). Escalar como issue para revisión humana." || true
+              violation=1
+            fi
+          done
+          if [ "$violation" = "1" ]; then
+            echo "Triaje violó la frontera de rutas prohibidas."; exit 1
+          fi

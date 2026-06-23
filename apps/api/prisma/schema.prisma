@@ -243,7 +243,9 @@ model Tenant {
   // tramos de volumen vigentes al darse de alta. `lockedSeatTiers` = snapshot [{upTo, pricePerSeatEur}].
   // El precio por plaza sigue dependiendo del nº de plazas (volumen); lo que se congela es la tarifa.
   isFounder             Boolean      @default(false)
-  founderNumber         Int?
+  // Único como red de seguridad del cupo Fundador global (la concesión ya se serializa con un advisory
+  // lock en applySubscription). Postgres permite múltiples NULL bajo índice único → no estorba a los no-fundadores.
+  founderNumber         Int?         @unique
   lockedSeatTiers       Json?
   // Serie fiscal: prefijo de la numeración de facturas (p. ej. "FAC", "A").
   invoiceSeries         String       @default("FAC")
@@ -309,6 +311,7 @@ model Tenant {
   oauthConnections    OAuthConnection[]
   matterEmails        MatterEmail[]
   aiEmbeddings        AiEmbedding[]
+  aiUsage             AiUsage[]
   closingChecklists   ClosingChecklist[]
   closingItems        ClosingChecklistItem[]
   dataRooms           DataRoom[]
@@ -1689,4 +1692,20 @@ model AiEmbedding {
 
   @@index([tenantId])
   @@index([tenantId, kind, refId])
+}
+
+/// Contador de uso de IA por tenant y día (cuota de coste). Incremento atómico vía upsert; el límite
+/// diario se aplica en AiQuotaService. Tenant-scoped con RLS fail-closed.
+model AiUsage {
+  id        String   @id @default(cuid())
+  tenantId  String
+  day       String // YYYY-MM-DD (UTC)
+  calls     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, day])
+  @@index([tenantId])
 }

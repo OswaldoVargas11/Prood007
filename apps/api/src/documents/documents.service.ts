@@ -14,6 +14,7 @@ import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CloudFilesService, type CloudFileRef } from '../integrations/cloud-files.service';
 import { apiError } from '../common/api-messages';
+import { assertUploadSafe } from '../common/safe-download';
 import { renderTemplate, type TemplateContext } from '../templates/render';
 import { buildDocumentPdf } from './document-pdf';
 import { extractText } from './text-extract';
@@ -104,6 +105,9 @@ export class DocumentsService {
     version: number,
     file: UploadedFile,
   ) {
+    // Red transversal anti-XSS-almacenado: rechaza contenido activo (HTML/SVG/JS) en CUALQUIER subida que
+    // pase por aquí (documentos, versiones, import de nube, portal del cliente). Ver assertUploadSafe.
+    assertUploadSafe(file.mimetype, file.originalname, file.buffer);
     const key = this.storageKey(user.tenantId, documentId, version);
     await this.storage.put(key, file.buffer, file.mimetype);
     const contentHash = createHash('sha256').update(file.buffer).digest('hex');

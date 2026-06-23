@@ -1,6 +1,7 @@
 import { Inject, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { AI_EMBEDDINGS, type EmbeddingsProvider } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
+import { AiQuotaService } from './ai-quota.service';
 import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -25,11 +26,13 @@ export class AiSearchService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly quota: AiQuotaService,
     @Inject(AI_EMBEDDINGS) private readonly embeddings: EmbeddingsProvider,
   ) {}
 
   /** (Re)indexa un expediente desde una ruta con sesión. */
-  indexMatter(user: RequestUser, matterId: string): Promise<{ chunks: number }> {
+  async indexMatter(user: RequestUser, matterId: string): Promise<{ chunks: number }> {
+    await this.quota.consume(user);
     return this.indexMatterForTenant(user.tenantId, matterId);
   }
 
@@ -111,6 +114,7 @@ export class AiSearchService {
   /** Busca por significado en lo indexado del despacho. */
   async search(user: RequestUser, query: string, limit = 8): Promise<SemanticHit[]> {
     this.assertEnabled();
+    await this.quota.consume(user);
     const [qvec] = await this.embeddings.embed([query]);
     if (!qvec) return [];
 

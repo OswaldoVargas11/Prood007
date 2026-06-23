@@ -213,9 +213,24 @@ export class AuthService {
     const user = await this.system.user.findUnique({ where: { id: userId } });
     if (!user || !user.isActive)
       throw new UnauthorizedException(apiError('auth.invalidCredentials'));
+    // El segundo factor comparte el lockout de la contraseña: sin esto, un atacante con la contraseña
+    // filtrada puede martillar el TOTP de 6 dígitos durante la vida del reto sin freno por cuenta. Si la
+    // cuenta ya está bloqueada (por fallos de password o de MFA), no se permite ni con el código correcto.
+    if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+      await this.auditLogin(user.tenantId, user.id, false, 'locked');
+      throw new UnauthorizedException(apiError('auth.accountLocked'));
+    }
     const ok = await this.mfa.verifyForLogin(userId, code);
     if (!ok) {
-      await this.auditLogin(user.tenantId, user.id, false, 'mfa_failed');
+      const attempts = user.failedLoginAttempts + 1;
+      const locks = attempts >= MAX_FAILED_ATTEMPTS;
+      await this.system.user.update({
+        where: { id: user.id },
+        data: locks
+          ? { failedLoginAttempts: 0, lockedUntil: new Date(Date.now() + LOCK_DURATION_MS) }
+          : { failedLoginAttempts: attempts },
+      });
+      await this.auditLogin(user.tenantId, user.id, false, locks ? 'mfa_locked_now' : 'mfa_failed');
       throw new UnauthorizedException(apiError('mfa.invalidCode'));
     }
     return this.issueForUser(user);
