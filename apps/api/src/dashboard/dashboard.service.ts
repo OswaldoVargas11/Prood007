@@ -151,4 +151,95 @@ export class DashboardService {
       recentActivity,
     };
   }
+
+  /**
+   * Series para los gráficos del panel (pastel/donut/barras). Todo acotado por tenant. Solo lectura.
+   * Cada serie es una lista de {label, value} lista para pintar.
+   */
+  async charts(user: RequestUser) {
+    const tenantId = user.tenantId;
+
+    const [byStatus, byType, tasksByStatus, invoicesByStatus, byLawyer, checklistItems] =
+      await Promise.all([
+        this.prisma.matter.groupBy({ by: ['status'], where: { tenantId }, _count: { _all: true } }),
+        this.prisma.matter.groupBy({ by: ['type'], where: { tenantId }, _count: { _all: true } }),
+        this.prisma.task.groupBy({ by: ['status'], where: { tenantId }, _count: { _all: true } }),
+        this.prisma.invoice.groupBy({
+          by: ['status'],
+          where: { tenantId },
+          _count: { _all: true },
+        }),
+        this.prisma.matter.groupBy({
+          by: ['lawyerId'],
+          where: { tenantId, status: { in: ACTIVE } },
+          _count: { _all: true },
+        }),
+        this.prisma.matterChecklistItem.groupBy({
+          by: ['status'],
+          where: { tenantId, required: true },
+          _count: { _all: true },
+        }),
+      ]);
+
+    // Expedientes por estado.
+    const mattersByStatus = byStatus.map((r) => ({ label: r.status, value: r._count._all }));
+
+    // Expedientes por tipo/sector (top 6; el resto se agrupa en «Otros»).
+    const typeSorted = byType
+      .map((r) => ({ label: r.type || '—', value: r._count._all }))
+      .sort((a, b) => b.value - a.value);
+    const topTypes = typeSorted.slice(0, 6);
+    const restTotal = typeSorted.slice(6).reduce((s, r) => s + r.value, 0);
+    const mattersBySector =
+      restTotal > 0 ? [...topTypes, { label: 'Otros', value: restTotal }] : topTypes;
+
+    // Tareas por estado.
+    const tasks = tasksByStatus.map((r) => ({ label: r.status, value: r._count._all }));
+
+    // Facturas: cobradas vs pendientes vs borrador/anuladas (donut).
+    const invCount = (sts: InvoiceStatus[]) =>
+      invoicesByStatus
+        .filter((r) => sts.includes(r.status as InvoiceStatus))
+        .reduce((s, r) => s + r._count._all, 0);
+    const invoices = [
+      { label: 'PAID', value: invCount([InvoiceStatus.PAID]) },
+      {
+        label: 'OUTSTANDING',
+        value: invCount([
+          InvoiceStatus.ISSUED,
+          InvoiceStatus.SENT,
+          InvoiceStatus.PARTIAL,
+          InvoiceStatus.OVERDUE,
+        ]),
+      },
+      { label: 'DRAFT', value: invCount([InvoiceStatus.DRAFT]) },
+    ].filter((x) => x.value > 0);
+
+    // Carga por letrado (expedientes activos por responsable). «Sin asignar» para los huérfanos.
+    const lawyerIds = byLawyer.map((r) => r.lawyerId).filter((x): x is string => Boolean(x));
+    const lawyers = lawyerIds.length
+      ? await this.prisma.user.findMany({
+          where: { tenantId, id: { in: lawyerIds } },
+          select: { id: true, fullName: true },
+        })
+      : [];
+    const lawyerName = new Map(lawyers.map((l) => [l.id, l.fullName]));
+    const workloadByLawyer = byLawyer
+      .map((r) => ({
+        label: r.lawyerId ? (lawyerName.get(r.lawyerId) ?? '—') : 'Sin asignar',
+        value: r._count._all,
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    // Cumplimiento de checklists (requisitos obligatorios, excluyendo «no aplica»).
+    const done = checklistItems
+      .filter((r) => r.status === 'UPLOADED')
+      .reduce((s, r) => s + r._count._all, 0);
+    const pending = checklistItems
+      .filter((r) => r.status === 'PENDING')
+      .reduce((s, r) => s + r._count._all, 0);
+    const checklist = { done, pending, total: done + pending };
+
+    return { mattersByStatus, mattersBySector, tasks, invoices, workloadByLawyer, checklist };
+  }
 }
