@@ -59,6 +59,7 @@ import type {
   MatterEmail,
   MatterLedger,
   MatterStatus,
+  MatterTeam,
   Message,
   Notification,
   CheckoutRequest,
@@ -200,6 +201,33 @@ export function useAssignMatterLawyer(id: string) {
       qc.setQueryData(['matter', id], data);
       void qc.invalidateQueries({ queryKey: ['matters'] });
     },
+  });
+}
+
+/** Equipo del expediente: líder + letrados adicionales asignados. */
+export function useMatterTeam(id: string) {
+  return useQuery({
+    queryKey: ['matter-team', id],
+    queryFn: () => api.get<MatterTeam>(`/matters/${id}/team`),
+    enabled: Boolean(id),
+  });
+}
+
+/** Añade un letrado adicional al equipo (solo admin). */
+export function useAddAssignee(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => api.post<MatterTeam>(`/matters/${id}/assignees`, { userId }),
+    onSuccess: (data) => qc.setQueryData(['matter-team', id], data),
+  });
+}
+
+/** Quita un letrado adicional del equipo (solo admin). */
+export function useRemoveAssignee(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => api.del<MatterTeam>(`/matters/${id}/assignees/${userId}`),
+    onSuccess: (data) => qc.setQueryData(['matter-team', id], data),
   });
 }
 

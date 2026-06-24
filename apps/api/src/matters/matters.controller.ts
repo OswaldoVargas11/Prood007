@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   DefaultValuePipe,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
@@ -15,6 +16,7 @@ import { CreateMatterDto } from './dto/create-matter.dto';
 import { UpdateMatterDto } from './dto/update-matter.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
 import { AssignLawyerDto } from './dto/assign-lawyer.dto';
+import { AddAssigneeDto } from './dto/add-assignee.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -78,6 +80,34 @@ export class MattersController {
     @Body() dto: AssignLawyerDto,
   ) {
     return this.matters.assignLawyer(user, id, dto.lawyerId);
+  }
+
+  /** Equipo del expediente (líder + letrados adicionales). Staff del despacho. */
+  @Get(':id/team')
+  team(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.matters.getTeam(user, id);
+  }
+
+  /** Añade un letrado adicional al equipo. Solo administrador del despacho. */
+  @Post(':id/assignees')
+  @Roles(Role.FIRM_ADMIN)
+  addAssignee(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: AddAssigneeDto,
+  ) {
+    return this.matters.addAssignee(user, id, dto.userId);
+  }
+
+  /** Quita un letrado adicional del equipo. Solo administrador del despacho. */
+  @Delete(':id/assignees/:userId')
+  @Roles(Role.FIRM_ADMIN)
+  removeAssignee(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+  ) {
+    return this.matters.removeAssignee(user, id, userId);
   }
 
   @Patch(':id/status')
