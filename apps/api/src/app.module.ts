@@ -41,6 +41,7 @@ import { CalendarModule } from './calendar/calendar.module';
 import { IntegrationsModule } from './integrations/integrations.module';
 import { AiModule } from './ai/ai.module';
 import { DgiiModule } from './dgii/dgii.module';
+import { VerifactuModule } from './verifactu/verifactu.module';
 import { ProductivityModule } from './productivity/productivity.module';
 import { SavedViewsModule } from './saved-views/saved-views.module';
 import { EmailSnippetsModule } from './email-snippets/email-snippets.module';
@@ -112,6 +113,7 @@ import { HealthController } from './health.controller';
     IntegrationsModule,
     AiModule,
     DgiiModule,
+    VerifactuModule,
     ProductivityModule,
     SavedViewsModule,
     EmailSnippetsModule,

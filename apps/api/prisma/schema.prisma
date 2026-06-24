@@ -255,12 +255,19 @@ model Tenant {
   // Festivos locales del despacho: array JSON [{ date: "yyyy-mm-dd", name }] que afina el cómputo de
   // plazos procesales (se suman a los festivos nacionales de la jurisdicción).
   holidays              Json?
-  // Certificado digital del despacho (para firmar/emitir). Metadatos; el fichero va al StorageProvider.
+  // Certificado digital del despacho para el e-CF de la DGII (RD). Metadatos; el .p12 va al StorageProvider.
   certificateName       String?
   certificateKey        String?
   certificateUploadedAt DateTime?
   // Contraseña del certificado .p12, CIFRADA (AES-256-GCM con DATA_ENCRYPTION_KEY); nunca en claro.
   certificatePasswordEnc String?
+  // Certificado de firma para Verifactu (ES) — FNMT/representante de persona jurídica. SEPARADO del de DGII
+  // (un despacho dual ES+DO necesita ambos). Mismo modelo de custodia: .p12 cifrado en storage + contraseña
+  // cifrada aparte. Lo sube el FIRM_ADMIN; la firma del registro Verifactu se enchufa en certificación.
+  verifactuCertName       String?
+  verifactuCertKey        String?
+  verifactuCertUploadedAt DateTime?
+  verifactuCertPasswordEnc String?
   savedViews             SavedView[]
   emailSnippets          EmailSnippet[]
   clauses                Clause[]
