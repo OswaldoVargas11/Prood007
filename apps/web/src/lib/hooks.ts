@@ -2787,12 +2787,17 @@ interface RequirementInput {
   description?: string;
   required?: boolean;
 }
+interface TaskTemplateInput {
+  title: string;
+  offsetDays?: number;
+}
 interface PresentationTypeInput {
   name: string;
   sector: string;
   jurisdiction?: 'es' | 'do' | null;
   description?: string;
   requirements?: RequirementInput[];
+  taskTemplates?: TaskTemplateInput[];
 }
 
 export function usePresentationTypes() {

@@ -612,6 +612,13 @@ export interface PresentationRequirement {
   order: number;
 }
 
+export interface PresentationTaskTemplate {
+  id: string;
+  title: string;
+  offsetDays: number;
+  order: number;
+}
+
 export interface PresentationType {
   id: string;
   name: string;
@@ -619,6 +626,7 @@ export interface PresentationType {
   jurisdiction: Jurisdiction | null;
   description: string | null;
   requirements: PresentationRequirement[];
+  taskTemplates?: PresentationTaskTemplate[];
   _count?: { checklists: number };
 }
 

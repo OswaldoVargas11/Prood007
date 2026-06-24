@@ -153,6 +153,11 @@ interface ReqRow {
   required: boolean;
 }
 
+interface TaskRow {
+  title: string;
+  offsetDays: number;
+}
+
 function PresentationTypeDialog({
   type,
   onClose,
@@ -171,6 +176,7 @@ function PresentationTypeDialog({
   const [jurisdiction, setJurisdiction] = useState<'' | 'es' | 'do'>('');
   const [description, setDescription] = useState('');
   const [reqs, setReqs] = useState<ReqRow[]>([]);
+  const [tasks, setTasks] = useState<TaskRow[]>([]);
   const [initId, setInitId] = useState<string | null>(null);
 
   const currentId = existing?.id ?? (type === 'new' ? 'new' : null);
@@ -187,6 +193,9 @@ function PresentationTypeDialog({
         required: r.required,
       })) ?? [{ name: '', description: '', required: true }],
     );
+    setTasks(
+      existing?.taskTemplates?.map((tt) => ({ title: tt.title, offsetDays: tt.offsetDays })) ?? [],
+    );
   }
 
   const valid = name.trim().length >= 2 && sector.trim().length >= 1;
@@ -194,6 +203,9 @@ function PresentationTypeDialog({
 
   function setReq(i: number, patch: Partial<ReqRow>) {
     setReqs((rs) => rs.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  }
+  function setTask(i: number, patch: Partial<TaskRow>) {
+    setTasks((ts) => ts.map((tk, idx) => (idx === i ? { ...tk, ...patch } : tk)));
   }
 
   async function submit() {
@@ -204,12 +216,16 @@ function PresentationTypeDialog({
         description: r.description.trim() || undefined,
         required: r.required,
       }));
+    const taskTemplates = tasks
+      .filter((tk) => tk.title.trim())
+      .map((tk) => ({ title: tk.title.trim(), offsetDays: Number(tk.offsetDays) || 0 }));
     const body = {
       name: name.trim(),
       sector: sector.trim(),
       jurisdiction: jurisdiction === '' ? null : jurisdiction,
       description: description.trim() || undefined,
       requirements,
+      taskTemplates,
     };
     if (existing) await update.mutateAsync({ id: existing.id, ...body });
     else await create.mutateAsync(body);
@@ -308,6 +324,51 @@ function PresentationTypeDialog({
               }
             >
               <Plus className="size-4" /> {t('addRequirement')}
+            </Button>
+          </div>
+
+          {/* Tareas/plazos: se crean al aplicar el tipo a un expediente (vencimiento relativo). */}
+          <div className="space-y-2">
+            <Label>{t('tasks')}</Label>
+            <p className="text-[11px] text-muted-foreground">{t('tasksHint')}</p>
+            {tasks.map((tk, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input
+                  value={tk.title}
+                  onChange={(e) => setTask(i, { title: e.target.value })}
+                  placeholder={t('taskTitlePlaceholder')}
+                  className="flex-1"
+                />
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min={0}
+                    value={String(tk.offsetDays)}
+                    onChange={(e) => setTask(i, { offsetDays: Number(e.target.value) })}
+                    className="w-20"
+                    aria-label={t('taskOffset')}
+                  />
+                  <span className="text-[11px] text-muted-foreground">{t('taskDays')}</span>
+                </div>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  className="size-7"
+                  aria-label={tc('delete')}
+                  onClick={() => setTasks((ts) => ts.filter((_, idx) => idx !== i))}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setTasks((ts) => [...ts, { title: '', offsetDays: 0 }])}
+            >
+              <Plus className="size-4" /> {t('addTask')}
             </Button>
           </div>
 
