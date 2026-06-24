@@ -174,13 +174,24 @@ export class AuthService {
     //  - 0 coinciden → credenciales inválidas;
     //  - >1 coinciden (misma contraseña en varios) → devolvemos la lista para que ELIJA el despacho.
     const matches: typeof candidates = [];
+    const failed: typeof candidates = [];
     for (const c of candidates) {
       if (!c.isActive) continue;
       if (c.lockedUntil && c.lockedUntil.getTime() > Date.now()) continue;
-      if (await argon2.verify(c.passwordHash, dto.password)) matches.push(c);
+      if (await argon2.verify(c.passwordHash, dto.password)) {
+        matches.push(c);
+      } else {
+        failed.push(c);
+      }
     }
 
     if (matches.length === 0) {
+      // D2-006: el flujo multi-despacho también debe contabilizar fallos y bloquear (igual que
+      // `verifyOrFail`); sin esto, un atacante con una contraseña a probar podía martillar las cuentas
+      // (mismo email en varios despachos) sin tope alguno. OJO: solo contamos el fallo cuando NINGÚN
+      // candidato coincidió. Si uno coincide, los demás "fallos" son benignos (la contraseña pertenece a
+      // otro despacho) y NO deben penalizar a las cuentas hermanas de un usuario multi-despacho legítimo.
+      for (const c of failed) await this.registerFailedAttempt(c);
       this.logger.warn(`Login fallido: sin coincidencia entre despachos (${email}).`);
       throw new UnauthorizedException(apiError('auth.invalidCredentials'));
     }
@@ -209,7 +220,7 @@ export class AuthService {
 
   /** Segundo paso del login con MFA: valida el desafío + el código (TOTP o de respaldo) y emite sesión. */
   async mfaLogin(mfaToken: string, code: string): Promise<TokenPair> {
-    const userId = await this.tokens.verifyMfaChallenge(mfaToken);
+    const { userId, jti } = await this.tokens.verifyMfaChallenge(mfaToken);
     const user = await this.system.user.findUnique({ where: { id: userId } });
     if (!user || !user.isActive)
       throw new UnauthorizedException(apiError('auth.invalidCredentials'));
@@ -222,17 +233,27 @@ export class AuthService {
     }
     const ok = await this.mfa.verifyForLogin(userId, code);
     if (!ok) {
-      const attempts = user.failedLoginAttempts + 1;
-      const locks = attempts >= MAX_FAILED_ATTEMPTS;
-      await this.system.user.update({
+      // D2-005: incremento ATÓMICO (evita el TOCTOU del snapshot: dos intentos MFA concurrentes con el
+      // valor leído una sola vez perdían cuentas). Leemos el valor YA incrementado del propio UPDATE y
+      // sobre él decidimos el bloqueo; si toca, un segundo UPDATE fija `lockedUntil` y resetea contador.
+      const updated = await this.system.user.update({
         where: { id: user.id },
-        data: locks
-          ? { failedLoginAttempts: 0, lockedUntil: new Date(Date.now() + LOCK_DURATION_MS) }
-          : { failedLoginAttempts: attempts },
+        data: { failedLoginAttempts: { increment: 1 } },
+        select: { failedLoginAttempts: true },
       });
+      const locks = updated.failedLoginAttempts >= MAX_FAILED_ATTEMPTS;
+      if (locks) {
+        await this.system.user.update({
+          where: { id: user.id },
+          data: { failedLoginAttempts: 0, lockedUntil: new Date(Date.now() + LOCK_DURATION_MS) },
+        });
+      }
       await this.auditLogin(user.tenantId, user.id, false, locks ? 'mfa_locked_now' : 'mfa_failed');
       throw new UnauthorizedException(apiError('mfa.invalidCode'));
     }
+    // D2-004: reto MFA de un solo uso. Se consume SOLO tras un código válido, de modo que un código
+    // erróneo no invalida el reto (el usuario puede reintentar) pero un reto ya canjeado no se reutiliza.
+    this.tokens.consumeMfaJti(jti);
     return this.issueForUser(user);
   }
 
@@ -261,17 +282,31 @@ export class AuthService {
     }
     const ok = await argon2.verify(user.passwordHash, password);
     if (!ok) {
-      const attempts = user.failedLoginAttempts + 1;
-      const locks = attempts >= MAX_FAILED_ATTEMPTS;
-      await this.system.user.update({
-        where: { id: user.id },
-        data: locks
-          ? { failedLoginAttempts: 0, lockedUntil: new Date(Date.now() + LOCK_DURATION_MS) }
-          : { failedLoginAttempts: attempts },
-      });
-      await this.auditLogin(user.tenantId, user.id, false, locks ? 'locked_now' : 'bad_password');
+      await this.registerFailedAttempt(user);
       throw new UnauthorizedException(apiError('auth.invalidCredentials'));
     }
+  }
+
+  /**
+   * Contabiliza un fallo de contraseña en una cuenta concreta: incrementa `failedLoginAttempts` y, al
+   * llegar a `MAX_FAILED_ATTEMPTS`, fija `lockedUntil` (y resetea el contador). Audita el fallo. Lo usan
+   * tanto `verifyOrFail` (candidato único) como el flujo multi-despacho (D2-006), para que el bloqueo
+   * por cuenta sea uniforme. Lee el contador del propio registro (el caller carga datos frescos).
+   */
+  private async registerFailedAttempt(user: {
+    id: string;
+    tenantId: string;
+    failedLoginAttempts: number;
+  }): Promise<void> {
+    const attempts = user.failedLoginAttempts + 1;
+    const locks = attempts >= MAX_FAILED_ATTEMPTS;
+    await this.system.user.update({
+      where: { id: user.id },
+      data: locks
+        ? { failedLoginAttempts: 0, lockedUntil: new Date(Date.now() + LOCK_DURATION_MS) }
+        : { failedLoginAttempts: attempts },
+    });
+    await this.auditLogin(user.tenantId, user.id, false, locks ? 'locked_now' : 'bad_password');
   }
 
   /** Perfil del usuario autenticado + su despacho (id, nombre, moneda) para el header y los informes. */

@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -18,6 +18,7 @@ interface UserForToken {
 const ACCESS_TTL_SECONDS = 15 * 60; // 15 min
 const REFRESH_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 días (ventana deslizante de inactividad)
 const ABSOLUTE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 días (tope absoluto de la sesión, SEC2)
+const MFA_CHALLENGE_TTL_SECONDS = 300; // 5 min (vida del reto MFA entre paso de contraseña y código)
 
 @Injectable()
 export class TokensService {
@@ -53,25 +54,61 @@ export class TokensService {
     return { accessToken, refreshToken, tokenType: 'Bearer', expiresIn: ACCESS_TTL_SECONDS };
   }
 
+  // D2-004: anti-replay del reto MFA SIN cambio de esquema. Cada reto lleva un `jti` aleatorio; al
+  // canjearlo con éxito lo marcamos como consumido en una tabla en memoria con expiración (la misma TTL
+  // del token). Reusar un reto ya consumido se rechaza. LIMITACIÓN: el estado es POR INSTANCIA — con
+  // varias réplicas un reto solo está protegido en la réplica que lo consumió; el blindaje completo es
+  // un `jti` persistido en BD (pendiente, requiere migración). Interino aceptable: el reto vive 5 min y
+  // el lockout por cuenta (H2/D2-005) limita el martilleo del segundo factor.
+  private readonly consumedMfaJtis = new Map<string, number>();
+
   /** Token CORTO (5 min) que identifica al usuario entre el paso de contraseña y el de MFA. No da acceso. */
   signMfaChallenge(userId: string): Promise<string> {
     return this.jwt.signAsync(
-      { sub: userId, typ: 'mfa' },
-      { secret: this.accessSecret, expiresIn: 300 },
+      { sub: userId, typ: 'mfa', jti: randomUUID() },
+      { secret: this.accessSecret, expiresIn: MFA_CHALLENGE_TTL_SECONDS },
     );
   }
 
-  /** Valida el token de desafío MFA y devuelve el userId. Lanza si es inválido/caducado. */
-  async verifyMfaChallenge(token: string): Promise<string> {
+  /** Valida el token de desafío MFA y devuelve {userId, jti}. Lanza si es inválido/caducado/consumido. */
+  async verifyMfaChallenge(token: string): Promise<{ userId: string; jti: string }> {
     try {
-      const payload = await this.jwt.verifyAsync<{ sub: string; typ?: string }>(token, {
-        secret: this.accessSecret,
-        algorithms: ['HS256'],
-      });
-      if (payload.typ !== 'mfa' || !payload.sub) throw new Error('bad mfa token');
-      return payload.sub;
+      const payload = await this.jwt.verifyAsync<{ sub: string; typ?: string; jti?: string }>(
+        token,
+        {
+          secret: this.accessSecret,
+          algorithms: ['HS256'],
+        },
+      );
+      if (payload.typ !== 'mfa' || !payload.sub || !payload.jti) throw new Error('bad mfa token');
+      if (this.isMfaJtiConsumed(payload.jti)) throw new Error('mfa challenge already used');
+      return { userId: payload.sub, jti: payload.jti };
     } catch {
       throw new UnauthorizedException(apiError('mfa.invalidChallenge'));
+    }
+  }
+
+  /** Marca un reto MFA como consumido (un solo uso). Lo invoca el login MFA tras emitir la sesión. */
+  consumeMfaJti(jti: string): void {
+    this.evictExpiredMfaJtis();
+    this.consumedMfaJtis.set(jti, Date.now() + MFA_CHALLENGE_TTL_SECONDS * 1000);
+  }
+
+  private isMfaJtiConsumed(jti: string): boolean {
+    const exp = this.consumedMfaJtis.get(jti);
+    if (exp == null) return false;
+    if (exp <= Date.now()) {
+      this.consumedMfaJtis.delete(jti);
+      return false;
+    }
+    return true;
+  }
+
+  /** Limpia jtis ya caducados para que el mapa no crezca sin límite (barrido perezoso). */
+  private evictExpiredMfaJtis(): void {
+    const now = Date.now();
+    for (const [jti, exp] of this.consumedMfaJtis) {
+      if (exp <= now) this.consumedMfaJtis.delete(jti);
     }
   }
 

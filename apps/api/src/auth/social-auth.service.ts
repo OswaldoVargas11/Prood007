@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from 'node:crypto';
 import { Injectable, NotImplementedException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -9,6 +10,19 @@ import type { TokenPair } from './auth.types';
 
 export type SocialProvider = 'google' | 'microsoft';
 
+/** Nombre de la cookie efímera que ata el flujo OAuth al navegador iniciador (D2-001). */
+export const SOCIAL_STATE_COOKIE = 'lf_oauth';
+
+/**
+ * Inicio del login social: además de la URL de consentimiento, devuelve el valor de una cookie efímera
+ * (`SOCIAL_STATE_COOKIE`) que el controlador debe fijar HttpOnly+SameSite=Lax en la respuesta. La cookie
+ * lleva el nonce (atado al `state`) y el `code_verifier` de PKCE — nunca viajan por la URL.
+ */
+export interface SocialAuthUrl {
+  url: string;
+  cookie: string;
+}
+
 interface ProviderConfig {
   clientId: string;
   clientSecret: string;
@@ -16,7 +30,6 @@ interface ProviderConfig {
   tokenUrl: string;
   redirectUri: string;
   scope: string;
-  requireVerified: boolean;
 }
 
 /** Resultado del callback: ticket de un solo uso (canjeable por sesión) o un código de error. */
@@ -55,7 +68,6 @@ export class SocialAuthService {
         tokenUrl: 'https://oauth2.googleapis.com/token',
         redirectUri: `${new URL(base).origin}/api/auth/social/google/callback`,
         scope: 'openid email profile',
-        requireVerified: true,
       };
     }
     const clientId = this.config.get<string>('MS_CLIENT_ID');
@@ -70,7 +82,10 @@ export class SocialAuthService {
       tokenUrl: `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`,
       redirectUri: `${new URL(base).origin}/api/auth/social/microsoft/callback`,
       scope: 'openid email profile',
-      requireVerified: false, // cuentas de organización: el correo viene verificado por el IdP
+      // D2-002: NO confiar en correos sin verificar. Con MS_TENANT=common (o sin fijar) cualquier tenant
+      // de Azure puede emitir un id_token; un atacante con un tenant malicioso podría reclamar el correo
+      // de una víctima. Exigimos `email_verified === true` igual que Google y emparejamos SOLO por el
+      // claim `email` verificado (nunca por preferred_username/upn, que NO están verificados).
     };
   }
 
@@ -79,12 +94,24 @@ export class SocialAuthService {
     return { google: this.cfg('google') !== null, microsoft: this.cfg('microsoft') !== null };
   }
 
-  /** URL de consentimiento del proveedor (el navegador se redirige a ella). */
-  async authUrl(provider: SocialProvider): Promise<string> {
+  /**
+   * URL de consentimiento del proveedor + cookie efímera que ATA el flujo al navegador (D2-001).
+   *
+   * Defensa contra login-CSRF y robo de `code`:
+   *  - `state` lleva un `nonce` aleatorio; ese mismo nonce se guarda en la cookie HttpOnly+SameSite=Lax.
+   *    En el callback exigimos que coincidan: un `state` que no traiga la cookie del MISMO navegador se
+   *    rechaza (un atacante no puede sembrar su propio `code`/`state` en la sesión de la víctima).
+   *  - PKCE (S256): generamos un `code_verifier` aleatorio (en la cookie) y enviamos su `code_challenge`
+   *    en la URL; el verifier se aporta al canjear el `code`. Un `code` interceptado es inservible sin él.
+   */
+  async authUrl(provider: SocialProvider): Promise<SocialAuthUrl> {
     const c = this.cfg(provider);
     if (!c) throw new NotImplementedException(apiError('social.notConfigured'));
+    const nonce = randomBytes(16).toString('base64url');
+    const codeVerifier = randomBytes(32).toString('base64url');
+    const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url');
     const state = await this.jwt.signAsync(
-      { typ: 'soc_state', p: provider },
+      { typ: 'soc_state', p: provider, n: nonce },
       { secret: this.secret, expiresIn: 600 },
     );
     const params = new URLSearchParams({
@@ -93,27 +120,47 @@ export class SocialAuthService {
       response_type: 'code',
       scope: c.scope,
       state,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
       ...(provider === 'microsoft'
         ? { response_mode: 'query', prompt: 'select_account' }
         : { access_type: 'online', prompt: 'select_account' }),
     });
-    return `${c.authUrl}?${params.toString()}`;
+    // La cookie liga nonce + verifier al navegador; el callback la valida. Opaca (no se firma: ya viaja
+    // HttpOnly y solo se compara contra el nonce del `state`, que sí está firmado).
+    const cookie = JSON.stringify({ n: nonce, v: codeVerifier });
+    return { url: `${c.authUrl}?${params.toString()}`, cookie };
   }
 
-  /** Intercambia el code, valida el correo y resuelve el usuario; devuelve ticket o error (no lanza). */
+  /**
+   * Intercambia el code, valida el correo y resuelve el usuario; devuelve ticket o error (no lanza).
+   * `cookie` es el valor de `SOCIAL_STATE_COOKIE` que sembró `authUrl` en el navegador (D2-001): de él
+   * salen el nonce a comparar con el `state` y el `code_verifier` de PKCE.
+   */
   async handleCallback(
     provider: SocialProvider,
     code: string,
     state: string,
+    cookie: string | undefined,
   ): Promise<CallbackResult> {
     const c = this.cfg(provider);
     if (!c) return { error: 'not_configured' };
+
+    // Cookie efímera del flujo (nonce + code_verifier de PKCE) sembrada por `authUrl` en este navegador.
+    const bound = this.parseStateCookie(cookie);
+
     try {
-      const s = await this.jwt.verifyAsync<{ typ?: string; p?: string }>(state, {
+      const s = await this.jwt.verifyAsync<{ typ?: string; p?: string; n?: string }>(state, {
         secret: this.secret,
         algorithms: ['HS256'],
       });
       if (s.typ !== 'soc_state' || s.p !== provider) return { error: 'state' };
+      // D2-001: si HAY cookie de flujo, el nonce del `state` (firmado) DEBE coincidir con el de la
+      // cookie (mismo navegador) → bloquea login-CSRF y `state` sembrado por un atacante. Si NO hay
+      // cookie (p. ej. cliente antiguo o el navegador no la reenvió), degradamos a la validación previa
+      // solo-`state` para no romper sesiones en curso; el blindaje pleno exige cookie + binding estricto
+      // (ver nota de despliegue).
+      if (bound && s.n && s.n !== bound.nonce) return { error: 'state' };
     } catch {
       return { error: 'state' };
     }
@@ -127,6 +174,9 @@ export class SocialAuthService {
         client_secret: c.clientSecret,
         redirect_uri: c.redirectUri,
         grant_type: 'authorization_code',
+        // PKCE: el verifier solo lo conoce el navegador iniciador (vía cookie). Un `code` interceptado
+        // es inservible sin él. Solo se aporta si tenemos la cookie del flujo.
+        ...(bound ? { code_verifier: bound.verifier } : {}),
         ...(provider === 'microsoft' ? { scope: c.scope } : {}),
       }),
     });
@@ -135,9 +185,14 @@ export class SocialAuthService {
     // El id_token llega por canal directo TLS servidor→servidor desde el tokenUrl del proveedor (no del
     // cliente), pero validamos además `aud` (== nuestro clientId) y `exp` como defensa en profundidad.
     const claims = this.decodeIdToken(tok.id_token, c.clientId);
-    const email = (claims.email ?? claims.preferred_username ?? claims.upn ?? '').toLowerCase();
+    // D2-002: emparejamos SOLO por el claim `email` (el único que el IdP marca como verificable).
+    // `preferred_username`/`upn` NO son correos verificados y un IdP malicioso los controla a voluntad,
+    // así que jamás se usan para resolver la cuenta (suplantación → toma de cuenta).
+    const email = (claims.email ?? '').toLowerCase();
     if (!email) return { error: 'no_email' };
-    if (c.requireVerified && claims.email_verified !== true && claims.email_verified !== 'true') {
+    // Para AMBOS proveedores exigimos correo verificado por el IdP. Con MS_TENANT=common esto es la
+    // única barrera real contra que un tenant de Azure cualquiera reclame el correo de una víctima.
+    if (claims.email_verified !== true && claims.email_verified !== 'true') {
       return { error: 'unverified' };
     }
 
@@ -180,14 +235,26 @@ export class SocialAuthService {
     return this.tokens.issuePair(userForToken);
   }
 
+  /** Parsea la cookie efímera del flujo OAuth ({n, v}); null si falta o está malformada. */
+  private parseStateCookie(cookie: string | undefined): { nonce: string; verifier: string } | null {
+    if (!cookie) return null;
+    try {
+      const parsed = JSON.parse(cookie) as { n?: unknown; v?: unknown };
+      if (typeof parsed.n !== 'string' || typeof parsed.v !== 'string' || !parsed.n || !parsed.v) {
+        return null;
+      }
+      return { nonce: parsed.n, verifier: parsed.v };
+    } catch {
+      return null;
+    }
+  }
+
   private decodeIdToken(
     idToken: string | undefined,
     expectedAud: string,
   ): {
     email?: string;
     email_verified?: boolean | string;
-    preferred_username?: string;
-    upn?: string;
   } {
     if (!idToken) return {};
     try {
@@ -196,8 +263,6 @@ export class SocialAuthService {
       ) as {
         email?: string;
         email_verified?: boolean | string;
-        preferred_username?: string;
-        upn?: string;
         aud?: string | string[];
         exp?: number;
       };

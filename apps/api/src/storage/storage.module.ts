@@ -4,7 +4,7 @@ import { STORAGE_PROVIDER, type StorageProvider } from '@legalflow/domain';
 import { LocalStorageProvider } from './local-storage.provider';
 import { S3StorageProvider } from './s3-storage.provider';
 import { EncryptedStorageProvider } from './encrypted-storage.provider';
-import { loadEncryptionKey } from './storage-crypto';
+import { loadEncryptionKeyring } from './storage-crypto';
 
 /**
  * Provee STORAGE_PROVIDER según STORAGE_DRIVER (local | minio | s3). El núcleo solo conoce la
@@ -25,9 +25,12 @@ import { loadEncryptionKey } from './storage-crypto';
         const base: StorageProvider =
           driver === 'local' ? new LocalStorageProvider(config) : new S3StorageProvider(config);
 
-        const key = loadEncryptionKey(config.get<string>('DATA_ENCRYPTION_KEY'));
-        if (key) {
-          return new EncryptedStorageProvider(base, key);
+        const keyring = loadEncryptionKeyring(
+          config.get<string>('DATA_ENCRYPTION_KEY'),
+          config.get<string>('DATA_ENCRYPTION_KEY_RETIRED'),
+        );
+        if (keyring) {
+          return new EncryptedStorageProvider(base, keyring);
         }
         if (config.get<string>('NODE_ENV') === 'production') {
           throw new Error(

@@ -65,6 +65,9 @@ export class DocumentsService {
     uploaderId: string,
     file: UploadedFile,
   ) {
+    // Los adjuntos de correo entrante son input NO confiable (un tercero/contraparte CC'd en la dirección
+    // BCC del expediente). Misma allowlist (mime+ext+sniff) que el resto de subidas: veta HTML/SVG/JS (D7-001).
+    assertUploadSafe(file.mimetype, file.originalname, file.buffer);
     const document = await this.system.document.create({
       data: { tenantId, matterId, name: file.originalname.slice(0, 200) || 'Adjunto' },
     });
@@ -331,6 +334,13 @@ export class DocumentsService {
     });
     if (!version) throw new NotFoundException(apiError('documents.versionNotFound'));
     const buffer = await this.storage.get(version.storageKey);
+    // Acceso a PII legal: deja traza de QUIÉN descarga QUÉ (D10-003). Sin esto, la exfiltración por un
+    // usuario interno no genera ningún evento auditable (contraste con el data-room externo, que sí lo hace).
+    await this.audit.log(user, 'document.downloaded', 'DocumentVersion', version.id, {
+      documentId: version.documentId,
+      version: version.version,
+      sizeBytes: version.sizeBytes,
+    });
     return { version, buffer };
   }
 

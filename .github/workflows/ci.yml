@@ -25,7 +25,7 @@ jobs:
     name: Setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - uses: ./.github/actions/setup
 
   # ── 2) LINT + TYPECHECK ─────────────────────────────────────────────────────
@@ -34,7 +34,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - uses: ./.github/actions/setup
       - name: Lint
         run: pnpm -r lint
@@ -48,7 +48,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - uses: ./.github/actions/setup
       - name: Compliance (Jest, ≥90% — GATE)
         run: pnpm --filter @legalflow/compliance test:coverage
@@ -60,7 +60,7 @@ jobs:
         run: pnpm --filter @legalflow/web test:coverage
       - name: Upload coverage
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage-unit
           path: |
@@ -96,7 +96,7 @@ jobs:
       STORAGE_DRIVER: local
       STORAGE_LOCAL_PATH: ./storage
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - uses: ./.github/actions/setup
       - name: Apply migrations (rol privilegiado · crea legalflow_app + legalflow_system + RLS)
         run: pnpm --filter @legalflow/api exec prisma migrate deploy
@@ -104,7 +104,7 @@ jobs:
         run: pnpm --filter @legalflow/api test:e2e:cov
       - name: Upload auth coverage
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage-api-auth
           path: apps/api/coverage-e2e
@@ -142,7 +142,7 @@ jobs:
       PLAYWRIGHT_BASE_URL: http://localhost:3000
       PLAYWRIGHT_API_URL: http://localhost:4000
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - uses: ./.github/actions/setup
       - name: Apply migrations
         run: pnpm --filter @legalflow/api exec prisma migrate deploy
@@ -167,7 +167,7 @@ jobs:
           echo "::group::web.log"; cat web.log || true; echo "::endgroup::"
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: playwright-report
           path: apps/web/playwright-report
@@ -189,7 +189,7 @@ jobs:
       # CodeQL analyze lee metadatos del workflow-run; en repo PRIVADA requiere actions:read.
       actions: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 0 # gitleaks escanea el historial
       - uses: ./.github/actions/setup
@@ -212,12 +212,12 @@ jobs:
       # el gate de seguridad: gitleaks + audit prod + licencias siguen siendo bloqueo DURO. Si en
       # el futuro se activa GHAS, CodeQL vuelve a subir y a reportar sin tocar nada más.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
         continue-on-error: true
         with:
           languages: javascript-typescript
       - name: CodeQL Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4
         continue-on-error: true
         with:
           category: '/language:javascript-typescript'
@@ -241,7 +241,7 @@ jobs:
     env:
       DIRECT_DATABASE_URL: postgresql://legalflow:legalflow@localhost:5432/legalflow?schema=public
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - uses: ./.github/actions/setup
       - name: Create shadow database
         run: |
@@ -262,7 +262,7 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       - uses: ./.github/actions/setup
       - name: Build (todo el monorepo)
         run: pnpm -r build

@@ -28,20 +28,26 @@ function assertSafeKey(key: string): void {
  * para documentos; si se habilitara descarga directa habría que cifrar/descifrar en el borde). Ver D-021.
  */
 export class EncryptedStorageProvider implements StorageProvider {
+  // Keyring de cifrado en reposo: `keyring[0]` (activa) cifra; todas se prueban al descifrar (rotación, D6-001).
+  private readonly activeKey: Buffer;
+
   constructor(
     private readonly inner: StorageProvider,
-    private readonly key: Buffer,
-  ) {}
+    private readonly keyring: Buffer[],
+  ) {
+    if (!keyring.length) throw new Error('Keyring de cifrado vacío.');
+    this.activeKey = keyring[0]!;
+  }
 
   async put(key: string, body: Buffer | Uint8Array, contentType: string): Promise<{ key: string }> {
     assertSafeKey(key);
     const plaintext = Buffer.isBuffer(body) ? body : Buffer.from(body);
-    return this.inner.put(key, encryptBlob(this.key, plaintext), contentType);
+    return this.inner.put(key, encryptBlob(this.activeKey, plaintext), contentType);
   }
 
   async get(key: string): Promise<Buffer> {
     assertSafeKey(key);
-    return decryptBlob(this.key, await this.inner.get(key));
+    return decryptBlob(this.keyring, await this.inner.get(key));
   }
 
   delete(key: string): Promise<void> {

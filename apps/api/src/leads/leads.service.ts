@@ -128,6 +128,11 @@ export class LeadsService {
     return { clientId: client.id, matterId };
   }
 
+  /** Genera un token de intake nuevo (no adivinable). */
+  private newIntakeToken(): string {
+    return randomBytes(18).toString('base64url');
+  }
+
   /** Devuelve (generándolo si falta) el token del formulario público de captación del despacho. */
   async intakeLink(user: RequestUser) {
     const tenant = await this.prisma.tenant.findUniqueOrThrow({
@@ -136,12 +141,26 @@ export class LeadsService {
     });
     let token = tenant.intakeToken;
     if (!token) {
-      token = randomBytes(18).toString('base64url');
+      token = this.newIntakeToken();
       await this.prisma.tenant.update({
         where: { id: user.tenantId },
         data: { intakeToken: token },
       });
     }
+    return { token };
+  }
+
+  /**
+   * Rota el token del formulario público de captación: sobrescribe `intakeToken` con un valor nuevo,
+   * invalidando el enlace anterior. Útil si el enlace se filtró o recibe spam. Solo FIRM_ADMIN.
+   */
+  async rotateIntakeToken(user: RequestUser) {
+    const token = this.newIntakeToken();
+    await this.prisma.tenant.update({
+      where: { id: user.tenantId },
+      data: { intakeToken: token },
+    });
+    await this.audit.log(user, 'lead.intake_token_rotated', 'Tenant', user.tenantId);
     return { token };
   }
 

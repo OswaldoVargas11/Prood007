@@ -3,7 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { STORAGE_PROVIDER } from '@legalflow/domain';
 import type { StorageProvider } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
-import { decryptBlob, encryptBlob, loadEncryptionKey } from '../storage/storage-crypto';
+import {
+  decryptBlob,
+  encryptBlob,
+  loadEncryptionKey,
+  loadEncryptionKeyring,
+} from '../storage/storage-crypto';
 import { loadCertFromP12 } from './dgii-cert';
 import type { DgiiCert } from './dgii-submission.service';
 
@@ -87,10 +92,15 @@ export class DgiiCredentialService {
     });
     if (!t?.certificateKey || !t.certificatePasswordEnc) return null;
     const p12 = await this.storage.get(t.certificateKey);
-    const password = decryptBlob(
-      this.key(),
-      Buffer.from(t.certificatePasswordEnc, 'base64'),
-    ).toString('utf8');
+    // Descifra con el keyring (activa + retiradas) para soportar rotación de la clave maestra (D6-001).
+    this.key(); // valida que hay clave maestra configurada (lanza si no)
+    const ring = loadEncryptionKeyring(
+      this.config.get<string>('DATA_ENCRYPTION_KEY'),
+      this.config.get<string>('DATA_ENCRYPTION_KEY_RETIRED'),
+    )!;
+    const password = decryptBlob(ring, Buffer.from(t.certificatePasswordEnc, 'base64')).toString(
+      'utf8',
+    );
     return { p12, password };
   }
 }

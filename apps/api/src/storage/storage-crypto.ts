@@ -14,14 +14,45 @@ const MAGIC = Buffer.from('LFENC1'); // 6 bytes: marca + versión de formato
 const IV_LEN = 12; // nonce GCM recomendado
 const TAG_LEN = 16; // tag de autenticación GCM
 
-/** Parsea y valida la clave base64. Devuelve null si no hay clave (cifrado desactivado). */
-export function loadEncryptionKey(raw: string | undefined): Buffer | null {
-  if (!raw) return null;
+/** Parsea y valida una clave base64 de 32 bytes (AES-256). */
+function parseKey(raw: string): Buffer {
   const key = Buffer.from(raw, 'base64');
   if (key.length !== 32) {
     throw new Error('DATA_ENCRYPTION_KEY debe ser 32 bytes codificados en base64 (AES-256).');
   }
   return key;
+}
+
+/** Parsea y valida la clave base64. Devuelve null si no hay clave (cifrado desactivado). */
+export function loadEncryptionKey(raw: string | undefined): Buffer | null {
+  if (!raw) return null;
+  return parseKey(raw);
+}
+
+/**
+ * KEYRING de cifrado en reposo (D6-001). Hace POSIBLE la rotación de la clave maestra (acción de owner
+ * pendiente tras la fuga de C1) SIN romper el descifrado de lo ya cifrado:
+ *  - `active` (`DATA_ENCRYPTION_KEY`) cifra SIEMPRE las escrituras nuevas.
+ *  - `retired` (`DATA_ENCRYPTION_KEY_RETIRED`, base64 separadas por coma) son claves antiguas que SOLO se
+ *    usan para descifrar blobs previos. Como el envelope no lleva keyId, el descifrado prueba cada clave
+ *    en orden y GCM (tag autenticado) confirma cuál es la correcta.
+ * Procedimiento de rotación 0-downtime: generar clave nueva → poner la vieja en `*_RETIRED` y la nueva en
+ * `DATA_ENCRYPTION_KEY` → desplegar (lo nuevo se cifra con la nueva; lo viejo aún se lee) → re-cifrar en
+ * segundo plano (script) → retirar la clave vieja de `*_RETIRED`.
+ * Devuelve null si no hay clave activa (cifrado desactivado). `[0]` es siempre la activa.
+ */
+export function loadEncryptionKeyring(
+  active: string | undefined,
+  retired?: string | undefined,
+): Buffer[] | null {
+  const activeKey = loadEncryptionKey(active);
+  if (!activeKey) return null;
+  const retiredKeys = (retired ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(parseKey);
+  return [activeKey, ...retiredKeys];
 }
 
 /** ¿El blob lleva la marca de cifrado de LegalFlow? */
@@ -39,13 +70,27 @@ export function encryptBlob(key: Buffer, plaintext: Buffer): Buffer {
   return Buffer.concat([MAGIC, iv, tag, ciphertext]);
 }
 
-/** Descifra un blob; si NO lleva la marca (legacy en claro), lo devuelve sin tocar. */
-export function decryptBlob(key: Buffer, blob: Buffer): Buffer {
+/**
+ * Descifra un blob; si NO lleva la marca (legacy en claro), lo devuelve sin tocar. Acepta una clave única
+ * o un keyring (Buffer[]): con keyring, prueba cada clave en orden y devuelve el primer descifrado válido
+ * (GCM autentica la clave correcta). Si ninguna funciona, propaga el error de la última (clave equivocada
+ * o blob manipulado). Soporta rotación de clave sin keyId en el envelope.
+ */
+export function decryptBlob(keyOrKeyring: Buffer | Buffer[], blob: Buffer): Buffer {
   if (!isEncrypted(blob)) return blob;
   const iv = blob.subarray(MAGIC.length, MAGIC.length + IV_LEN);
   const tag = blob.subarray(MAGIC.length + IV_LEN, MAGIC.length + IV_LEN + TAG_LEN);
   const ciphertext = blob.subarray(MAGIC.length + IV_LEN + TAG_LEN);
-  const decipher = createDecipheriv('aes-256-gcm', key, iv, { authTagLength: TAG_LEN });
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+  const keys = Array.isArray(keyOrKeyring) ? keyOrKeyring : [keyOrKeyring];
+  let lastErr: unknown = new Error('Keyring de descifrado vacío.');
+  for (const k of keys) {
+    try {
+      const decipher = createDecipheriv('aes-256-gcm', k, iv, { authTagLength: TAG_LEN });
+      decipher.setAuthTag(tag);
+      return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr;
 }

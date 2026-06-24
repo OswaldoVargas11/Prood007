@@ -24,6 +24,9 @@ function validateProdEnv(): void {
     'SYSTEM_DATABASE_URL',
     'CORS_ORIGINS',
     'PLATFORM_ADMIN_PASSWORD',
+    // Secreto DEDICADO del token de super-admin de plataforma: en producción es obligatorio (no se
+    // admite el fallback a JWT_ACCESS_SECRET, que anularía el aislamiento). Ver platformJwtSecret().
+    'PLATFORM_JWT_SECRET',
   ].filter((n) => !process.env[n]);
   if (missing.length > 0) {
     throw new Error(`Faltan variables obligatorias en producción: ${missing.join(', ')}`);
@@ -37,13 +40,13 @@ function validateProdEnv(): void {
   if (process.env.JWT_ACCESS_SECRET === process.env.JWT_REFRESH_SECRET) {
     warn('JWT_ACCESS_SECRET y JWT_REFRESH_SECRET deberían ser distintos.');
   }
-  if (!process.env.PLATFORM_JWT_SECRET) {
-    warn(
-      'PLATFORM_JWT_SECRET no definido: el token del super-admin se firma con JWT_ACCESS_SECRET. ' +
-        'Fija un secreto dedicado para aislarlo de los tokens de usuario.',
+  // FATAL: el secreto de plataforma debe estar AISLADO del de usuario. Su ausencia ya se captura en
+  // `missing`; aquí impedimos además que se reutilice JWT_ACCESS_SECRET (aislamiento ficticio).
+  if (process.env.PLATFORM_JWT_SECRET === process.env.JWT_ACCESS_SECRET) {
+    throw new Error(
+      'PLATFORM_JWT_SECRET no puede coincidir con JWT_ACCESS_SECRET: el token del super-admin de ' +
+        'plataforma debe firmarse con un secreto dedicado para aislarlo de los tokens de usuario.',
     );
-  } else if (process.env.PLATFORM_JWT_SECRET === process.env.JWT_ACCESS_SECRET) {
-    warn('PLATFORM_JWT_SECRET no debería coincidir con JWT_ACCESS_SECRET.');
   }
 }
 

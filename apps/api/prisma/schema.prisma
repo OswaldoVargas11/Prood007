@@ -1701,6 +1701,10 @@ model AiUsage {
   tenantId  String
   day       String // YYYY-MM-DD (UTC)
   calls     Int      @default(0)
+  // Tokens reales consumidos en el día (devueltos por el motor). El tope de coste se aplica sobre tokens,
+  // no sobre nº de llamadas: una llamada con adjunto de 8 MB cuesta órdenes de magnitud más que un `ask`.
+  inputTokens  Int   @default(0)
+  outputTokens Int   @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1708,4 +1712,40 @@ model AiUsage {
 
   @@unique([tenantId, day])
   @@index([tenantId])
+}
+
+// Contador monótono de emisión fiscal por tenant. Sustituye al frágil `COUNT(*)+1`: el correlativo de
+// factura se deriva de un contador persistido por (tenant, serie+año) y la posición en la cadena fiscal de
+// un contador por tenant (`scope = "__chain__"`). Se incrementa SIEMPRE dentro del `pg_advisory_xact_lock`
+// de emisión, así que no hay carrera ni huecos por borrado (el borrado de facturas emitidas está, además,
+// vetado a nivel de BD). RLS fail-closed como el resto.
+model InvoiceSequence {
+  tenantId String
+  // "<serie>:<año>" para la numeración · "__chain__" para la posición en la cadena fiscal del tenant.
+  scope    String
+  value    Int    @default(0)
+
+  @@id([tenantId, scope])
+  @@index([tenantId])
+}
+
+// Registro de eventos fiscal INMUTABLE y encadenado (RRSIF, art. registro de eventos). Append-only: el rol
+// de aplicación no tiene UPDATE/DELETE sobre esta tabla (solo INSERT/SELECT); el borrado en cascada al
+// eliminar un tenant lo ejecuta el rol de sistema. Cada evento encadena con la huella del anterior del mismo
+// tenant, de modo que un hueco o reordenación es detectable. Complementa la cadena de `Invoice`.
+model FiscalEvent {
+  id                String   @id @default(cuid())
+  tenantId          String
+  invoiceId         String?
+  // "invoice.issued" | "invoice.rectified" | "invoice.cancelled" | "ecf.transmitted" | ...
+  type              String
+  // Instantánea canónica del evento (número, total, huella del registro, estado e-CF…). Sin secretos.
+  payload           Json
+  // Huella del evento = SHA-256(canónico | previousEventHash). Encadenada por tenant.
+  recordHash        String
+  previousEventHash String?
+  createdAt         DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, invoiceId])
 }

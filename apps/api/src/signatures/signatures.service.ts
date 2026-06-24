@@ -4,7 +4,7 @@ import {
   type SignatureProvider,
   type SignatureProviderName,
 } from '@legalflow/compliance';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
 import { runWithTenant } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -27,6 +27,7 @@ export class SignaturesService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly system: SystemPrismaService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
   ) {}
@@ -118,8 +119,15 @@ export class SignaturesService {
 
   /**
    * Procesa un webhook del proveedor. Ruta PÚBLICA (la llama Signaturit, no un usuario): verifica la
-   * firma HMAC del cuerpo crudo y aplica el cambio de estado bajo el tenant que viaja en el evento
-   * verificado (igual que el webhook de cobros). Idempotente: re-aplicar el mismo estado no rompe.
+   * firma HMAC del cuerpo crudo y aplica el cambio de estado. Idempotente: re-aplicar el mismo estado
+   * no rompe.
+   *
+   * SEGURIDAD (D4-001): el `tenantId` NO se toma del payload del evento. El HMAC usa un secreto global
+   * compartido, así que si se filtra, un atacante podría forjar un webhook con el `tenantId` de otro
+   * despacho y forzar un cambio de estado de firma cross-tenant. En su lugar resolvemos el tenant desde
+   * la fila LOCAL `SignatureRequest` cuyo `externalId` coincide (consulta de SISTEMA, sin contexto de
+   * tenant, igual que inbound-email): el `externalId` lo emitió este backend y referencia un despacho
+   * concreto. Si no hay fila que coincida, se rechaza (no se procesa nada).
    */
   async handleWebhook(rawBody: Buffer | undefined, signature: string | undefined) {
     const secret = process.env.SIGNATURE_WEBHOOK_SECRET;
@@ -130,9 +138,17 @@ export class SignaturesService {
     const event = this.provider.parseWebhook(body);
     if (!event) throw new BadRequestException(apiError('signatures.webhookInvalid'));
 
-    await runWithTenant(event.tenantId, async () => {
+    // El tenant se deriva de la fila local por `externalId`, nunca del payload (ver D4-001 arriba).
+    const owner = await this.system.signatureRequest.findFirst({
+      where: { externalId: event.externalId },
+      select: { tenantId: true },
+    });
+    if (!owner) throw new BadRequestException(apiError('signatures.webhookInvalid'));
+    const tenantId = owner.tenantId;
+
+    await runWithTenant(tenantId, async () => {
       await this.prisma.signatureRequest.updateMany({
-        where: { tenantId: event.tenantId, externalId: event.externalId },
+        where: { tenantId, externalId: event.externalId },
         data: {
           status: event.status,
           detail: event.detail ?? null,
@@ -143,7 +159,7 @@ export class SignaturesService {
       // Avisa al solicitante cuando el documento queda firmado.
       if (event.status === 'SIGNED') {
         const affected = await this.prisma.signatureRequest.findMany({
-          where: { tenantId: event.tenantId, externalId: event.externalId },
+          where: { tenantId, externalId: event.externalId },
         });
         for (const s of affected) {
           await this.notifications.create({

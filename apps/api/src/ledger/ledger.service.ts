@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { EcfStatus, Prisma, type Currency } from '@prisma/client';
 import {
@@ -35,6 +36,11 @@ import {
   startOfTodayUtc,
 } from './overdue.util';
 import type { RequestUser } from '../auth/auth.types';
+
+// Huella de génesis de la cadena fiscal (RRSIF/e-CF): la primera factura/evento de un tenant encadena con
+// 64 ceros, NO con cadena vacía. Convención única y documentada, alineada con los golden de conformance, de
+// modo que la huella reproducible por un auditor coincida con la de producción.
+const GENESIS_HASH = '0'.repeat(64);
 
 /**
  * Ledger jurídico transparente + facturación.
@@ -374,17 +380,24 @@ export class LedgerService {
     // del de plazas). Evita que dos emisiones concurrentes calculen el mismo `number` (→ P2002 → reversión
     // → HUECO en la serie) o encadenen contra la MISMA huella anterior (→ bifurcación de la cadena fiscal).
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(2, hashtext(${user.tenantId}))`;
-    // Serie consumida dentro de la tx (count+1) → atómica con el resto: si algo revierte, no hay hueco.
-    const count = await tx.invoice.count({ where: { tenantId: user.tenantId } });
     const tenantRow = await tx.tenant.findUniqueOrThrow({
       where: { id: user.tenantId },
       select: { invoiceSeries: true },
     });
     const series = tenantRow.invoiceSeries || 'FAC';
-    const number = `${series}-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+    // Año fiscal de la factura (el de su fecha de expedición, NO el reloj de pared): el correlativo se
+    // resetea por año natural y por serie. La numeración sale de un contador monótono persistido
+    // (`InvoiceSequence`), NO de `COUNT(*)`: así no hay huecos ni duplicados ante un borrado o cambio de año
+    // (D8-002). El incremento es atómico y va dentro del advisory lock de emisión por tenant.
+    const fiscalYear = p.issueDate.slice(0, 4);
+    const numberScope = `${series}:${fiscalYear}`;
+    const next = await this.nextSequence(tx, user.tenantId, numberScope);
+    const number = `${series}-${fiscalYear}-${String(next).padStart(4, '0')}`;
+    // Enlace de la cadena: huella del último registro emitido del tenant. Orden determinista (createdAt, id)
+    // y, dado que el borrado de facturas emitidas está vetado a nivel de BD, la cadena no puede re-enraizarse.
     const previous = await tx.invoice.findFirst({
       where: { tenantId: user.tenantId, recordHash: { not: null } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       select: { recordHash: true },
     });
     const record = await provider.buildInvoiceRecord({
@@ -407,7 +420,7 @@ export class LedgerService {
             mode: p.rectification.mode,
           }
         : undefined,
-      previousRecordHash: previous?.recordHash ?? undefined,
+      previousRecordHash: previous?.recordHash ?? GENESIS_HASH,
     });
     const invoice = await tx.invoice.create({
       data: {
@@ -428,7 +441,7 @@ export class LedgerService {
         complianceFormat: record.format,
         complianceRecord: record.payload as object,
         recordHash: record.recordHash,
-        previousRecordHash: previous?.recordHash ?? null,
+        previousRecordHash: previous?.recordHash ?? GENESIS_HASH,
         // Estado inicial del e-CF: STUBBED para RD (lo transmite createInvoice tras emitir, si está
         // activado); NOT_APPLICABLE para ES/Verifactu. La transmisión real nunca va dentro de la tx.
         ecfStatus: record.format === 'ECF' ? EcfStatus.STUBBED : EcfStatus.NOT_APPLICABLE,
@@ -461,7 +474,106 @@ export class LedgerService {
         invoiceId: invoice.id,
       },
     });
+    // Registro de eventos fiscal INMUTABLE y encadenado (RRSIF, art. registro de eventos): alta de la
+    // factura emitida. La tabla es append-only para el rol de app (sin UPDATE/DELETE), de modo que el
+    // rastro de emisión no puede reescribirse ni borrarse aunque se altere la factura.
+    await this.appendFiscalEvent(tx, user.tenantId, invoice.id, 'invoice.issued', {
+      number,
+      total: record.totals.total,
+      format: record.format,
+      recordHash: record.recordHash,
+      documentType: invoice.documentType,
+    });
     return { invoice, record };
+  }
+
+  /**
+   * Incremento atómico del contador de emisión por tenant para un `scope` (p. ej. "FAC:2026"). Devuelve el
+   * nuevo valor. Va SIEMPRE dentro del advisory lock de emisión, así que es libre de carreras; el upsert raw
+   * garantiza que el primer uso arranca en 1 y nunca reutiliza un número (a diferencia de COUNT(*)+1).
+   */
+  private async nextSequence(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    scope: string,
+  ): Promise<number> {
+    const rows = await tx.$queryRaw<{ value: number }[]>`
+      INSERT INTO "InvoiceSequence" ("tenantId", "scope", "value")
+      VALUES (${tenantId}, ${scope}, 1)
+      ON CONFLICT ("tenantId", "scope")
+      DO UPDATE SET "value" = "InvoiceSequence"."value" + 1
+      RETURNING "value"`;
+    const row = rows[0];
+    if (!row) throw new Error('No se pudo obtener el correlativo de factura.');
+    return row.value;
+  }
+
+  /**
+   * Añade un evento al registro fiscal inmutable encadenándolo con la huella del evento anterior del tenant
+   * (génesis = 64 ceros). Determinista por orden (createdAt, id). El rol de app solo tiene INSERT/SELECT.
+   */
+  private async appendFiscalEvent(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    invoiceId: string | null,
+    type: string,
+    payload: Record<string, unknown>,
+  ): Promise<void> {
+    const prev = await tx.fiscalEvent.findFirst({
+      where: { tenantId },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: { recordHash: true },
+    });
+    const previousEventHash = prev?.recordHash ?? GENESIS_HASH;
+    const canonical = [type, invoiceId ?? '', JSON.stringify(payload), previousEventHash].join('|');
+    const recordHash = createHash('sha256').update(canonical).digest('hex');
+    await tx.fiscalEvent.create({
+      data: {
+        tenantId,
+        invoiceId,
+        type,
+        payload: payload as object,
+        recordHash,
+        previousEventHash,
+      },
+    });
+  }
+
+  /**
+   * Verifica la integridad de la cadena fiscal de un tenant (huella encadenada de eventos). Pensado para un
+   * cron/endpoint de conciliación: recorre los eventos en orden y comprueba que cada `previousEventHash`
+   * coincide con la huella del anterior y que la huella es reproducible. Devuelve el primer punto de ruptura.
+   */
+  async verifyFiscalChain(
+    tenantId: string,
+  ): Promise<{ ok: boolean; checked: number; brokenAt?: string }> {
+    const events = await this.prisma.fiscalEvent.findMany({
+      where: { tenantId },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      select: {
+        id: true,
+        type: true,
+        invoiceId: true,
+        payload: true,
+        recordHash: true,
+        previousEventHash: true,
+      },
+    });
+    let expectedPrev = GENESIS_HASH;
+    for (const e of events) {
+      const canonical = [
+        e.type,
+        e.invoiceId ?? '',
+        JSON.stringify(e.payload),
+        e.previousEventHash ?? '',
+      ].join('|');
+      const recomputed = createHash('sha256').update(canonical).digest('hex');
+      if (e.previousEventHash !== expectedPrev || recomputed !== e.recordHash) {
+        return { ok: false, checked: events.length, brokenAt: e.id };
+      }
+      expectedPrev = e.recordHash;
+    }
+    return { ok: true, checked: events.length };
   }
 
   async getInvoice(user: RequestUser, id: string) {

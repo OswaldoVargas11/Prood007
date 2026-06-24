@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -16,7 +17,7 @@ import { AuthService } from './auth.service';
 import { PasswordResetService } from './password-reset.service';
 import { MfaService } from './mfa.service';
 import { MfaCodeDto, MfaLoginDto } from './dto/mfa.dto';
-import { SocialAuthService, type SocialProvider } from './social-auth.service';
+import { SocialAuthService, SOCIAL_STATE_COOKIE, type SocialProvider } from './social-auth.service';
 import { SocialExchangeDto } from './dto/social.dto';
 import { EmailVerificationService } from './email-verification.service';
 import { VerifyEmailDto } from './dto/verify-email.dto';
@@ -79,7 +80,17 @@ export class AuthController {
     if (provider !== 'google' && provider !== 'microsoft') {
       return res.redirect(`${this.webBase()}/es/login?social_error=provider`);
     }
-    const url = await this.social.authUrl(provider as SocialProvider);
+    const { url, cookie } = await this.social.authUrl(provider as SocialProvider);
+    // D2-001: cookie efímera que ATA el flujo a ESTE navegador (nonce + code_verifier de PKCE).
+    // HttpOnly (el JS de cliente no la ve), SameSite=Lax (viaja en el redirect de vuelta del IdP,
+    // que es una navegación GET de nivel superior) y vida corta (10 min, igual que el `state`).
+    res.cookie(SOCIAL_STATE_COOKIE, cookie, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/api/auth/social',
+      maxAge: 600_000,
+    });
     return res.redirect(url);
   }
 
@@ -90,15 +101,38 @@ export class AuthController {
     @Param('provider') provider: string,
     @Query('code') code: string | undefined,
     @Query('state') state: string | undefined,
+    @Headers('cookie') cookieHeader: string | undefined,
     @Res() res: Response,
   ) {
     const web = this.webBase();
+    // La cookie del flujo se consume aquí (un solo uso), pase lo que pase con la validación.
+    res.clearCookie(SOCIAL_STATE_COOKIE, { path: '/api/auth/social' });
     if ((provider !== 'google' && provider !== 'microsoft') || !code || !state) {
       return res.redirect(`${web}/es/login?social_error=callback`);
     }
-    const result = await this.social.handleCallback(provider as SocialProvider, code, state);
+    // Extraemos el valor de la cookie del flujo del header crudo (la API no monta cookie-parser).
+    const cookie = this.readCookie(cookieHeader, SOCIAL_STATE_COOKIE);
+    const result = await this.social.handleCallback(
+      provider as SocialProvider,
+      code,
+      state,
+      cookie,
+    );
     if ('error' in result) return res.redirect(`${web}/es/login?social_error=${result.error}`);
     return res.redirect(`${web}/es/login?social_ticket=${result.ticket}`);
+  }
+
+  /** Lee una cookie por nombre del header `Cookie` crudo (la API no registra cookie-parser). */
+  private readCookie(header: string | undefined, name: string): string | undefined {
+    if (!header) return undefined;
+    for (const part of header.split(';')) {
+      const idx = part.indexOf('=');
+      if (idx < 0) continue;
+      if (part.slice(0, idx).trim() === name) {
+        return decodeURIComponent(part.slice(idx + 1).trim());
+      }
+    }
+    return undefined;
   }
 
   /** Canjea el ticket de un solo uso por una sesión (lo llama el BFF del web). */

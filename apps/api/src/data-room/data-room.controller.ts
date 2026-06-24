@@ -25,6 +25,8 @@ import {
   CreateFolderDto,
   CreateGrantDto,
   LinkDocumentDto,
+  UpdateDataRoomDto,
+  UploadDataRoomDocumentDto,
 } from './dto/data-room.dto';
 
 interface MulterFile {
@@ -99,7 +101,7 @@ export class DataRoomController {
   update(
     @CurrentUser() user: RequestUser,
     @Param('id') id: string,
-    @Body() dto: { name?: string; watermark?: boolean; status?: string },
+    @Body() dto: UpdateDataRoomDto,
   ) {
     return this.service.update(user, id, dto);
   }
@@ -132,7 +134,7 @@ export class DataRoomController {
   uploadDocument(
     @CurrentUser() user: RequestUser,
     @Param('id') id: string,
-    @Body() body: { folderId?: string; name?: string },
+    @Body() body: UploadDataRoomDocumentDto,
     @UploadedFile() file: MulterFile,
   ) {
     return this.service.uploadDocument(user, id, body.folderId, body.name, file);
