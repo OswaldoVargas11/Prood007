@@ -193,6 +193,22 @@ export interface Message {
   author: { id: string; fullName: string };
 }
 
+/** Acuse de lectura del chat: hasta cuándo ha leído cada participante. */
+export interface ChatRead {
+  userId: string;
+  fullName: string | null;
+  lastReadAt: string;
+}
+
+/** Conversación de la bandeja (`GET /messages/conversations`). */
+export interface ChatConversation {
+  matterId: string;
+  reference: string;
+  title: string;
+  last: { body: string; createdAt: string; authorName: string } | null;
+  unread: number;
+}
+
 export interface Notification {
   id: string;
   userId: string;

@@ -59,6 +59,8 @@ import type {
   MatterEmail,
   Folder,
   FolderKind,
+  ChatConversation,
+  ChatRead,
   ChecklistItem,
   ChecklistItemStatus,
   MatterChecklist,
@@ -1174,6 +1176,44 @@ export function useSendMessage(matterId: string) {
   return useMutation({
     mutationFn: (body: string) => api.post<Message>(`/matters/${matterId}/messages`, { body }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['messages', matterId] }),
+  });
+}
+
+/** Acuses de lectura del chat del expediente (quién ha leído hasta cuándo). */
+export function useChatReads(matterId: string) {
+  return useQuery({
+    queryKey: ['chat-reads', matterId],
+    queryFn: () => api.get<ChatRead[]>(`/matters/${matterId}/messages/reads`),
+    enabled: Boolean(matterId),
+  });
+}
+
+/** Marca el chat del expediente como leído por el usuario actual. */
+export function useMarkChatRead(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post(`/matters/${matterId}/messages/read`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['chat-conversations'] });
+      void qc.invalidateQueries({ queryKey: ['chat-unread'] });
+    },
+  });
+}
+
+/** Bandeja de conversaciones (una por expediente con mensajes) con no leídos. */
+export function useChatConversations() {
+  return useQuery({
+    queryKey: ['chat-conversations'],
+    queryFn: () => api.get<ChatConversation[]>('/messages/conversations'),
+  });
+}
+
+/** Total de mensajes no leídos (badge del sidebar). Sondeo ligero. */
+export function useChatUnreadCount() {
+  return useQuery({
+    queryKey: ['chat-unread'],
+    queryFn: () => api.get<{ count: number }>('/messages/unread-count'),
+    refetchInterval: 60_000,
   });
 }
 

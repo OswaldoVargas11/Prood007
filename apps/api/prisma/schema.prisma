@@ -333,6 +333,7 @@ model Tenant {
   presentationReqs       PresentationRequirement[]
   matterChecklists       MatterChecklist[]
   matterChecklistItems   MatterChecklistItem[]
+  matterReadStates       MatterReadState[]
 }
 
 model User {
@@ -584,6 +585,7 @@ model Matter {
   engagementLetter      EngagementLetter?
   folders               Folder[]
   checklists            MatterChecklist[]
+  readStates            MatterReadState[]
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -1842,6 +1844,23 @@ model EcfSequence {
 
   @@id([tenantId, ncfType])
   @@index([tenantId])
+}
+
+// Estado de lectura del chat por (expediente, usuario): marca de tiempo de la última lectura. Permite
+// recuento de no leídos y acuses «Leído» (un participante ha leído hasta `lastReadAt`). Tenant-scoped RLS.
+model MatterReadState {
+  id         String   @id @default(cuid())
+  tenantId   String
+  matterId   String
+  userId     String
+  lastReadAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@unique([matterId, userId])
+  @@index([tenantId])
+  @@index([tenantId, userId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
