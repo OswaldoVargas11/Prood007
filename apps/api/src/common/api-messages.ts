@@ -403,6 +403,23 @@ export const API_MESSAGES = {
     'es-ES': 'Factura no encontrada.',
     'es-DO': 'Factura no encontrada.',
   },
+  'dgii.encfRangeMissing': {
+    'es-ES': 'No hay un rango de eNCF autorizado para este tipo de comprobante.',
+    'es-DO':
+      'No hay un rango de eNCF autorizado para este tipo de comprobante. Regístralo en Ajustes con la autorización de la DGII.',
+  },
+  'dgii.encfRangeExpired': {
+    'es-ES': 'El rango de eNCF autorizado ha vencido.',
+    'es-DO': 'El rango de eNCF autorizado ha vencido. Solicita uno nuevo en la DGII y actualízalo.',
+  },
+  'dgii.encfRangeExhausted': {
+    'es-ES': 'Se han agotado los eNCF del rango autorizado.',
+    'es-DO': 'Se han agotado los eNCF del rango autorizado. Solicita un rango nuevo en la DGII.',
+  },
+  'dgii.encfRangeInvalid': {
+    'es-ES': 'Rango de eNCF inválido (revisa inicio/fin).',
+    'es-DO': 'Rango de eNCF inválido (revisa inicio/fin).',
+  },
   'ledger.entryNotFound': {
     'es-ES': 'Apunte no encontrado.',
     'es-DO': 'Apunte no encontrado.',

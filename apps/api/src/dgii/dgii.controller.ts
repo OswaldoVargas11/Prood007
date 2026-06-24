@@ -7,7 +7,9 @@ import type { RequestUser } from '../auth/auth.types';
 import { DgiiConfig } from './dgii.config';
 import { DgiiCredentialService } from './dgii-credential.service';
 import { EcfTransmissionService } from './ecf-transmission.service';
+import { EcfSequenceService } from './ecf-sequence.service';
 import { UploadCertDto } from './dto/upload-cert.dto';
+import { RegisterEcfSequenceDto } from './dto/ecf-sequence.dto';
 
 interface MulterFile {
   originalname: string;
@@ -27,7 +29,21 @@ export class DgiiController {
     private readonly config: DgiiConfig,
     private readonly credentials: DgiiCredentialService,
     private readonly transmission: EcfTransmissionService,
+    private readonly sequences: EcfSequenceService,
   ) {}
+
+  /** Rangos de eNCF autorizados por la DGII del despacho (con cuántos quedan). */
+  @Get('ecf-sequences')
+  listEcfSequences(@CurrentUser() user: RequestUser) {
+    return this.sequences.list(user);
+  }
+
+  /** Registra/renueva un rango de eNCF autorizado (solo admin). */
+  @Roles(Role.FIRM_ADMIN)
+  @Post('ecf-sequences')
+  registerEcfSequence(@CurrentUser() user: RequestUser, @Body() dto: RegisterEcfSequenceDto) {
+    return this.sequences.register(user, dto);
+  }
 
   /** ¿Transmisión activada en el servidor? + estado del certificado del despacho. */
   @Get('status')

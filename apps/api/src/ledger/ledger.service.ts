@@ -5,6 +5,7 @@ import {
   ApprovalStatus,
   InvoiceDocumentType,
   InvoiceStatus,
+  Jurisdiction,
   LedgerEntryType,
   RectificationMode,
   STORAGE_PROVIDER,
@@ -385,14 +386,25 @@ export class LedgerService {
       select: { invoiceSeries: true },
     });
     const series = tenantRow.invoiceSeries || 'FAC';
-    // Año fiscal de la factura (el de su fecha de expedición, NO el reloj de pared): el correlativo se
-    // resetea por año natural y por serie. La numeración sale de un contador monótono persistido
-    // (`InvoiceSequence`), NO de `COUNT(*)`: así no hay huecos ni duplicados ante un borrado o cambio de año
-    // (D8-002). El incremento es atómico y va dentro del advisory lock de emisión por tenant.
+    // Numeración fiscal del país. Todo bajo el advisory lock de emisión por tenant (sin carreras):
+    //  - RD (e-CF): el número ES el eNCF, tomado de un RANGO AUTORIZADO por la DGII del despacho
+    //    (`EcfSequence`), no de una serie interna (D8-005). Tipo 34 = nota de crédito (rectificativa); 31 =
+    //    crédito fiscal por defecto.
+    //  - ES (Verifactu) y resto: correlativo monótono por serie+año vía `InvoiceSequence` (no `COUNT(*)`,
+    //    sin huecos/duplicados, D8-002). Año = el de la fecha de expedición (no el reloj de pared).
     const fiscalYear = p.issueDate.slice(0, 4);
-    const numberScope = `${series}:${fiscalYear}`;
-    const next = await this.nextSequence(tx, user.tenantId, numberScope);
-    const number = `${series}-${fiscalYear}-${String(next).padStart(4, '0')}`;
+    let number: string | null = null;
+    if (invoiceFormat === Jurisdiction.DO) {
+      // Si el despacho YA registró un rango eNCF autorizado, numeramos desde él (34 nota de crédito para
+      // rectificativas, 31 crédito fiscal por defecto). Si AÚN no lo ha registrado, caemos a la serie
+      // interna (comportamiento previo): así el despacho sigue operando hasta dar de alta sus rangos en la
+      // DGII, y un rango vencido/agotado sí corta la emisión con un error claro (ver allocateEncf).
+      number = await this.allocateEncf(tx, user.tenantId, p.rectification ? '34' : '31');
+    }
+    if (number === null) {
+      const next = await this.nextSequence(tx, user.tenantId, `${series}:${fiscalYear}`);
+      number = `${series}-${fiscalYear}-${String(next).padStart(4, '0')}`;
+    }
     // Enlace de la cadena: huella del último registro emitido del tenant. Orden determinista (createdAt, id)
     // y, dado que el borrado de facturas emitidas está vetado a nivel de BD, la cadena no puede re-enraizarse.
     const previous = await tx.invoice.findFirst({
@@ -506,6 +518,38 @@ export class LedgerService {
     const row = rows[0];
     if (!row) throw new Error('No se pudo obtener el correlativo de factura.');
     return row.value;
+  }
+
+  /**
+   * Asigna el siguiente eNCF de un RANGO AUTORIZADO por la DGII para el despacho y tipo de comprobante
+   * (D8-005). Bajo el advisory lock de emisión (sin concurrencia por tenant): lee el rango, consume el
+   * número e incrementa `next`. eNCF = `E`+tipo+10 dígitos. Devuelve `null` si el despacho aún no tiene
+   * rango registrado (el llamador cae a la serie interna); lanza si el rango está VENCIDO o AGOTADO, para
+   * que el despacho lo renueve en la DGII antes de seguir emitiendo e-CF.
+   */
+  private async allocateEncf(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    ncfType: string,
+  ): Promise<string | null> {
+    const seq = await tx.ecfSequence.findUnique({
+      where: { tenantId_ncfType: { tenantId, ncfType } },
+    });
+    // Sin rango registrado → null: el llamador cae a la serie interna (el despacho aún no dio de alta sus
+    // eNCF en la DGII). Un rango vencido o agotado SÍ corta la emisión (es una incidencia a resolver).
+    if (!seq) return null;
+    if (seq.expiresAt && seq.expiresAt.getTime() < Date.now()) {
+      throw new BadRequestException(apiError('dgii.encfRangeExpired', { params: { ncfType } }));
+    }
+    if (seq.next > seq.rangeEnd) {
+      throw new BadRequestException(apiError('dgii.encfRangeExhausted', { params: { ncfType } }));
+    }
+    const used = seq.next;
+    await tx.ecfSequence.update({
+      where: { tenantId_ncfType: { tenantId, ncfType } },
+      data: { next: used + 1 },
+    });
+    return `E${ncfType}${String(used).padStart(10, '0')}`;
   }
 
   /**
