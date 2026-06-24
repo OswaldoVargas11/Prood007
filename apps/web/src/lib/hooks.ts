@@ -189,6 +189,19 @@ export function useChangeMatterStatus(id: string) {
   });
 }
 
+/** Cambia el estado de un expediente por id (para el tablero kanban; mueve entre columnas). */
+export function useSetMatterStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: MatterStatus }) =>
+      api.patch<MatterDetail>(`/matters/${id}/status`, { status }),
+    onSuccess: (data) => {
+      qc.setQueryData(['matter', data.id], data);
+      void qc.invalidateQueries({ queryKey: ['matters'] });
+    },
+  });
+}
+
 /** Línea de tiempo unificada del expediente (documentos, tareas, ledger, correos, chat). */
 export function useMatterTimeline(id: string) {
   return useQuery({

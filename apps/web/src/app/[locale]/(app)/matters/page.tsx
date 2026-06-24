@@ -5,8 +5,14 @@ import { useLocale, useTranslations } from 'next-intl';
 import { LayoutGrid, Loader2, Plus, Rows3 } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useAuth } from '@/lib/auth';
-import { useAssignees, useClients, useCreateMatter, useMatters } from '@/lib/hooks';
-import { MATTER_STATUSES } from '@/lib/matter-status';
+import {
+  useAssignees,
+  useClients,
+  useCreateMatter,
+  useMatters,
+  useSetMatterStatus,
+} from '@/lib/hooks';
+import { MATTER_STATUSES, MATTER_TRANSITIONS } from '@/lib/matter-status';
 import { formatDate } from '@/lib/format';
 import { ApiError } from '@/lib/api';
 import type { Matter, MatterStatus } from '@/lib/types';
@@ -235,6 +241,11 @@ function MatterBoard({
   tStatus: ReturnType<typeof useTranslations>;
   locale: string;
 }) {
+  const setStatus = useSetMatterStatus();
+  // Tarjeta que se arrastra (id + estado origen) para validar transiciones al sobrevolar columnas.
+  const [drag, setDrag] = useState<{ id: string; from: MatterStatus } | null>(null);
+  const [over, setOver] = useState<MatterStatus | null>(null);
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
@@ -244,12 +255,38 @@ function MatterBoard({
       </div>
     );
   }
+
+  // ¿Se puede soltar la tarjeta arrastrada en la columna `to`? (transición válida y distinta).
+  const canDrop = (to: MatterStatus) =>
+    drag !== null && drag.from !== to && (MATTER_TRANSITIONS[drag.from] ?? []).includes(to);
+
   return (
     <div className="grid grid-cols-2 items-start gap-3 md:grid-cols-3 xl:grid-cols-5">
       {MATTER_STATUSES.map((s) => {
         const col = items.filter((m) => m.status === s);
+        const droppable = canDrop(s);
         return (
-          <div key={s} className="rounded-xl border bg-card/50">
+          <div
+            key={s}
+            onDragOver={(e) => {
+              if (droppable) {
+                e.preventDefault();
+                setOver(s);
+              }
+            }}
+            onDragLeave={() => setOver((o) => (o === s ? null : o))}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (drag && droppable) setStatus.mutate({ id: drag.id, status: s });
+              setDrag(null);
+              setOver(null);
+            }}
+            className={cn(
+              'rounded-xl border bg-card/50 transition-colors',
+              over === s && droppable && 'border-[var(--brand)] bg-[var(--brand-soft)]',
+              drag && droppable && over !== s && 'border-dashed border-[var(--brand-line)]',
+            )}
+          >
             <div className="flex items-center justify-between border-b px-3 py-2.5">
               <StatusBadge status={s} />
               <span className="text-[11px] font-semibold tabular-nums text-[var(--text-subtle)]">
@@ -264,7 +301,16 @@ function MatterBoard({
                 <Link
                   key={m.id}
                   href={`/matters/${m.id}`}
-                  className="block rounded-lg border bg-card p-2.5 shadow-sm transition-colors hover:border-[var(--brand-line)]"
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = 'move';
+                    setDrag({ id: m.id, from: m.status });
+                  }}
+                  onDragEnd={() => {
+                    setDrag(null);
+                    setOver(null);
+                  }}
+                  className="block cursor-grab rounded-lg border bg-card p-2.5 shadow-sm transition-colors hover:border-[var(--brand-line)] active:cursor-grabbing"
                 >
                   <div className="font-mono text-[10.5px] text-[var(--text-subtle)]">
                     {m.reference}
