@@ -11,14 +11,15 @@ import {
 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/lib/auth';
-import { useDashboardSummary } from '@/lib/hooks';
+import { useDashboardCharts, useDashboardSummary } from '@/lib/hooks';
 import { activityColor, activityLabel, relativeTime } from '@/lib/activity';
 import { formatDate, formatMoney } from '@/lib/format';
-import type { DashboardSummary, MoneyByCurrency } from '@/lib/types';
+import type { ChartSlice, DashboardSummary, MoneyByCurrency } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FirstStepsCard } from '@/components/lexora/first-steps-card';
+import { CategoryBars, CategoryPie } from '@/components/lexora/dashboard-charts';
 import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
@@ -68,9 +69,99 @@ export default function DashboardPage() {
             <DeadlinesCard data={data} />
             <ActivityCard data={data} />
           </div>
+          <ChartsSection />
         </>
       )}
     </div>
+  );
+}
+
+/** Bloque de gráficos del panel (pastel/donut/barras). Carga independiente del resumen. */
+function ChartsSection() {
+  const t = useTranslations('dashboard');
+  const tStatus = useTranslations('matters.status');
+  const { data, isLoading } = useDashboardCharts();
+  const empty = t('charts.empty');
+
+  if (isLoading) {
+    return (
+      <div className="grid gap-4 lg:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-56" />
+        ))}
+      </div>
+    );
+  }
+  if (!data) return null;
+
+  const tr = (translate: (k: string) => string, label: string) => {
+    try {
+      const v = translate(label);
+      return v && !v.startsWith('matters.') ? v : label;
+    } catch {
+      return label;
+    }
+  };
+  const statusData: ChartSlice[] = data.mattersByStatus.map((s) => ({
+    label: tr(tStatus, s.label),
+    value: s.value,
+  }));
+  const taskLabels: Record<string, string> = {
+    TODO: t('charts.taskTodo'),
+    IN_PROGRESS: t('charts.taskInProgress'),
+    DONE: t('charts.taskDone'),
+    CANCELLED: t('charts.taskCancelled'),
+  };
+  const taskData: ChartSlice[] = data.tasks.map((s) => ({
+    label: taskLabels[s.label] ?? s.label,
+    value: s.value,
+  }));
+  const invoiceLabels: Record<string, string> = {
+    PAID: t('charts.invPaid'),
+    OUTSTANDING: t('charts.invOutstanding'),
+    DRAFT: t('charts.invDraft'),
+  };
+  const invoiceData: ChartSlice[] = data.invoices.map((s) => ({
+    label: invoiceLabels[s.label] ?? s.label,
+    value: s.value,
+  }));
+  const checklistData: ChartSlice[] = [
+    { label: t('charts.done'), value: data.checklist.done },
+    { label: t('charts.pending'), value: data.checklist.pending },
+  ];
+
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <ChartCard title={t('charts.mattersByStatus')}>
+        <CategoryPie data={statusData} donut emptyMessage={empty} />
+      </ChartCard>
+      <ChartCard title={t('charts.invoices')}>
+        <CategoryPie data={invoiceData} donut emptyMessage={empty} />
+      </ChartCard>
+      <ChartCard title={t('charts.tasks')}>
+        <CategoryPie data={taskData} emptyMessage={empty} />
+      </ChartCard>
+      <ChartCard title={t('charts.bySector')}>
+        <CategoryBars data={data.mattersBySector} emptyMessage={empty} />
+      </ChartCard>
+      <ChartCard title={t('charts.workload')}>
+        <CategoryBars data={data.workloadByLawyer} emptyMessage={empty} />
+      </ChartCard>
+      <ChartCard title={t('charts.checklist')}>
+        <CategoryPie data={checklistData} donut emptyMessage={empty} />
+      </ChartCard>
+    </div>
+  );
+}
+
+function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Card>
+      <CardContent className="p-4">
+        <div className="mb-2 text-sm font-semibold">{title}</div>
+        {children}
+      </CardContent>
+    </Card>
   );
 }
 

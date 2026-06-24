@@ -87,6 +87,20 @@ export interface MoneyByCurrency {
   amount: string;
 }
 
+/** Series para los gráficos del panel (`GET /dashboard/charts`). */
+export interface ChartSlice {
+  label: string;
+  value: number;
+}
+export interface DashboardCharts {
+  mattersByStatus: ChartSlice[];
+  mattersBySector: ChartSlice[];
+  tasks: ChartSlice[];
+  invoices: ChartSlice[];
+  workloadByLawyer: ChartSlice[];
+  checklist: { done: number; pending: number; total: number };
+}
+
 export interface DashboardSummary {
   /** Moneda principal del despacho (la del gráfico de tendencia y el desglose primero). */
   currency: string;

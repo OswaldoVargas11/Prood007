@@ -15,4 +15,10 @@ export class DashboardController {
   summary(@CurrentUser() user: RequestUser) {
     return this.dashboard.summary(user);
   }
+
+  /** Series para los gráficos del panel (pastel/donut/barras). */
+  @Get('charts')
+  charts(@CurrentUser() user: RequestUser) {
+    return this.dashboard.charts(user);
+  }
 }

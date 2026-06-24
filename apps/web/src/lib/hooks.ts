@@ -32,6 +32,7 @@ import type {
   CostApproval,
   CreateBillingScheduleBody,
   DashboardSummary,
+  DashboardCharts,
   DeadlineResult,
   DunningReminder,
   DunningRunSummary,
@@ -102,6 +103,14 @@ export function useDashboardSummary() {
     queryKey: ['dashboard', 'summary'],
     queryFn: () => api.get<DashboardSummary>('/dashboard/summary'),
     staleTime: 15_000,
+  });
+}
+
+export function useDashboardCharts() {
+  return useQuery({
+    queryKey: ['dashboard', 'charts'],
+    queryFn: () => api.get<DashboardCharts>('/dashboard/charts'),
+    staleTime: 30_000,
   });
 }
 
