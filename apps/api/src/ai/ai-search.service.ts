@@ -3,6 +3,7 @@ import { AI_EMBEDDINGS, type EmbeddingsProvider } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiQuotaService } from './ai-quota.service';
 import { apiError } from '../common/api-messages';
+import { extractText } from '../documents/text-extract';
 import type { RequestUser } from '../auth/auth.types';
 
 export interface SemanticHit {
@@ -111,6 +112,54 @@ export class AiSearchService {
     return { chunks: chunks.length };
   }
 
+  /**
+   * Indexa el CONTENIDO de una versión de documento (texto extraído) para la búsqueda semántica, con
+   * kind='document' y refId=documentId. Best-effort: no-op sin clave de embeddings o si el formato no
+   * es extraíble (PDF/imágenes). Reindexar reemplaza los fragmentos previos del documento. Pensado para
+   * llamarse fire-and-forget al subir/añadir versión (no debe bloquear ni romper la subida).
+   */
+  async indexDocumentVersionContent(
+    tenantId: string,
+    documentId: string,
+    mimeType: string,
+    buffer: Buffer,
+  ): Promise<void> {
+    if (!this.embeddings.isEnabled()) return;
+    const extracted = await extractText(mimeType, buffer);
+    if (!extracted.extractable || extracted.text.trim().length === 0) return;
+
+    const doc = await this.prisma.document.findFirst({
+      where: { id: documentId, tenantId },
+      select: { name: true, matter: { select: { reference: true } } },
+    });
+    if (!doc) return;
+    const label = doc.matter ? `${doc.name} · ${doc.matter.reference}` : doc.name;
+    const chunks = chunkText(extracted.text, 800, 30);
+    if (chunks.length === 0) return;
+
+    const vectors = await this.embeddings.embed(chunks);
+    const model = this.modelTag();
+    await this.prisma.aiEmbedding.deleteMany({
+      where: { tenantId, kind: 'document', refId: documentId },
+    });
+    await this.prisma.$transaction(
+      chunks.map((content, i) =>
+        this.prisma.aiEmbedding.create({
+          data: {
+            tenantId,
+            kind: 'document',
+            refId: documentId,
+            refLabel: label,
+            chunkIndex: i,
+            content,
+            embedding: vectors[i] ?? [],
+            model,
+          },
+        }),
+      ),
+    );
+  }
+
   /** Busca por significado en lo indexado del despacho. */
   async search(user: RequestUser, query: string, limit = 8): Promise<SemanticHit[]> {
     this.assertEnabled();
@@ -157,6 +206,28 @@ export class AiSearchService {
   private modelTag(): string {
     return `voyage:${this.embeddings.dimensions()}`;
   }
+}
+
+/**
+ * Trocea un texto largo en fragmentos de ~`maxLen` caracteres respetando límites de párrafo/frase
+ * cuando es posible. Limita a `maxChunks` para acotar el coste de embeddings de documentos enormes.
+ */
+function chunkText(text: string, maxLen: number, maxChunks: number): string[] {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) return [];
+  const chunks: string[] = [];
+  let i = 0;
+  while (i < normalized.length && chunks.length < maxChunks) {
+    let end = Math.min(i + maxLen, normalized.length);
+    if (end < normalized.length) {
+      // Corta en el último espacio para no partir palabras.
+      const lastSpace = normalized.lastIndexOf(' ', end);
+      if (lastSpace > i + maxLen * 0.6) end = lastSpace;
+    }
+    chunks.push(normalized.slice(i, end).trim());
+    i = end;
+  }
+  return chunks.filter((c) => c.length > 0);
 }
 
 /** Similitud coseno entre dos vectores. Devuelve 0 si alguno es nulo o de longitud distinta. */

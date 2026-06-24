@@ -13,6 +13,7 @@ import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CloudFilesService, type CloudFileRef } from '../integrations/cloud-files.service';
+import { AiSearchService } from '../ai/ai-search.service';
 import { apiError } from '../common/api-messages';
 import { assertUploadSafe } from '../common/safe-download';
 import { renderTemplate, type TemplateContext } from '../templates/render';
@@ -52,6 +53,7 @@ export class DocumentsService {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly cloudFiles: CloudFilesService,
+    private readonly aiSearch: AiSearchService,
   ) {}
 
   /**
@@ -132,7 +134,7 @@ export class DocumentsService {
     const key = this.storageKey(user.tenantId, documentId, version);
     await this.storage.put(key, file.buffer, file.mimetype);
     const contentHash = createHash('sha256').update(file.buffer).digest('hex');
-    return this.prisma.documentVersion.create({
+    const created = await this.prisma.documentVersion.create({
       data: {
         tenantId: user.tenantId,
         documentId,
@@ -145,6 +147,12 @@ export class DocumentsService {
         uploadedById: user.userId,
       },
     });
+    // Indexado semántico del CONTENIDO del documento (búsqueda «¿dónde dice X?»). Best-effort y
+    // fire-and-forget: no bloquea la subida y es no-op sin clave de embeddings o si no es extraíble.
+    void this.aiSearch
+      .indexDocumentVersionContent(user.tenantId, documentId, file.mimetype, file.buffer)
+      .catch(() => undefined);
+    return created;
   }
 
   /** Sube un documento nuevo (crea el Document + versión 1), opcionalmente dentro de una carpeta. */
