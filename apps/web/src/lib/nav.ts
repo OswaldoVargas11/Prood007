@@ -46,19 +46,26 @@ export interface NavGroup {
 }
 
 /**
- * Sidebar del despacho (staff), AGRUPADO igual que la plantilla (Lexora.dc.html 112–192):
- * Espacio de trabajo · Finanzas · Comunicación · Despacho.
+ * Sidebar del despacho (staff), AGRUPADO por afinidad de tarea para reducir el ruido y que sea fácil
+ * de escanear: Espacio de trabajo · Documentación · Comunicación · Finanzas · Tramitación · Despacho.
+ * El grupo «Despacho» es solo-admin; el resto, todo el staff (algún item puede bloquearse por plan).
  */
 export const NAV_GROUPS: NavGroup[] = [
   {
     key: 'workspace',
     items: [
       { key: 'dashboard', href: '/dashboard', icon: LayoutDashboard, enabled: true },
-      { key: 'leads', href: '/leads', icon: Target, enabled: true },
       { key: 'matters', href: '/matters', icon: Briefcase, enabled: true },
       { key: 'clients', href: '/clients', icon: Users, enabled: true },
+      { key: 'leads', href: '/leads', icon: Target, enabled: true },
       { key: 'tasks', href: '/tasks', icon: CheckSquare, enabled: true },
+      { key: 'calendar', href: '/calendar', icon: CalendarDays, enabled: true },
       { key: 'time', href: '/time', icon: Clock, enabled: true },
+    ],
+  },
+  {
+    key: 'docs',
+    items: [
       { key: 'documents', href: '/documents', icon: FileText, enabled: true },
       {
         key: 'templates',
@@ -71,6 +78,10 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    key: 'comms',
+    items: [{ key: 'chat', href: '/messages', icon: MessageSquare, enabled: true }],
+  },
+  {
     key: 'finance',
     items: [
       { key: 'billing', href: '/billing', icon: Receipt, enabled: true },
@@ -78,17 +89,17 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    key: 'comms',
-    items: [{ key: 'chat', href: '/messages', icon: MessageSquare, enabled: true }],
+    key: 'practice',
+    items: [
+      { key: 'scheduling', href: '/scheduling', icon: CalendarClock, enabled: true },
+      { key: 'lexnet', href: '/lexnet', icon: Gavel, enabled: true },
+      { key: 'aml', href: '/aml', icon: ShieldCheck, enabled: true },
+    ],
   },
   {
     key: 'admin',
     items: [
-      { key: 'calendar', href: '/calendar', icon: CalendarDays, enabled: true },
-      { key: 'scheduling', href: '/scheduling', icon: CalendarClock, enabled: true },
-      { key: 'lexnet', href: '/lexnet', icon: Gavel, enabled: true },
-      { key: 'aml', href: '/aml', icon: ShieldCheck, enabled: true },
-      // Grupo «Despacho» admin (Tanda B). Solo FIRM_ADMIN.
+      // Grupo «Despacho»: solo FIRM_ADMIN.
       { key: 'reports', href: '/reports', icon: BarChart3, enabled: true, adminOnly: true },
       { key: 'approvals', href: '/approvals', icon: BadgeCheck, enabled: true, adminOnly: true },
       { key: 'audit', href: '/audit', icon: ScrollText, enabled: true, adminOnly: true },

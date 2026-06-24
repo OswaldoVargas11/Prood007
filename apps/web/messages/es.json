@@ -213,8 +213,10 @@
     "skipToContent": "Saltar al contenido",
     "groups": {
       "workspace": "Espacio de trabajo",
+      "docs": "Documentación",
       "finance": "Finanzas",
       "comms": "Comunicación",
+      "practice": "Tramitación",
       "admin": "Despacho"
     },
     "templates": "Plantillas",
