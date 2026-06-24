@@ -1,11 +1,13 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   Briefcase,
   CalendarClock,
   FileCheck2,
   Receipt,
+  Settings2,
   Sparkles,
   type LucideIcon,
 } from 'lucide-react';
@@ -18,6 +20,12 @@ import type { ChartSlice, DashboardSummary, MoneyByCurrency } from '@/lib/types'
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { FirstStepsCard } from '@/components/lexora/first-steps-card';
 import { CategoryBars, CategoryPie } from '@/components/lexora/dashboard-charts';
 import { cn } from '@/lib/utils';
@@ -77,11 +85,36 @@ export default function DashboardPage() {
 }
 
 /** Bloque de gráficos del panel (pastel/donut/barras). Carga independiente del resumen. */
+const HIDDEN_CHARTS_KEY = 'lf_dashboard_hidden_charts';
+
 function ChartsSection() {
   const t = useTranslations('dashboard');
   const tStatus = useTranslations('matters.status');
   const { data, isLoading } = useDashboardCharts();
   const empty = t('charts.empty');
+
+  // Preferencia LOCAL del navegador: qué widgets del panel ha ocultado el usuario.
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(HIDDEN_CHARTS_KEY);
+      if (raw) setHidden(new Set(JSON.parse(raw) as string[]));
+    } catch {
+      /* preferencia no disponible: se muestran todos */
+    }
+  }, []);
+  const toggle = (key: string) =>
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        localStorage.setItem(HIDDEN_CHARTS_KEY, JSON.stringify([...next]));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
 
   if (isLoading) {
     return (
@@ -130,26 +163,78 @@ function ChartsSection() {
     { label: t('charts.pending'), value: data.checklist.pending },
   ];
 
+  // Widgets del panel; el usuario puede ocultar/mostrar cada uno (preferencia local del navegador).
+  const widgets: { key: string; title: string; node: React.ReactNode }[] = [
+    {
+      key: 'status',
+      title: t('charts.mattersByStatus'),
+      node: <CategoryPie data={statusData} donut emptyMessage={empty} />,
+    },
+    {
+      key: 'invoices',
+      title: t('charts.invoices'),
+      node: <CategoryPie data={invoiceData} donut emptyMessage={empty} />,
+    },
+    {
+      key: 'tasks',
+      title: t('charts.tasks'),
+      node: <CategoryPie data={taskData} emptyMessage={empty} />,
+    },
+    {
+      key: 'sector',
+      title: t('charts.bySector'),
+      node: <CategoryBars data={data.mattersBySector} emptyMessage={empty} />,
+    },
+    {
+      key: 'workload',
+      title: t('charts.workload'),
+      node: <CategoryBars data={data.workloadByLawyer} emptyMessage={empty} />,
+    },
+    {
+      key: 'checklist',
+      title: t('charts.checklist'),
+      node: <CategoryPie data={checklistData} donut emptyMessage={empty} />,
+    },
+  ];
+  const visible = widgets.filter((w) => !hidden.has(w.key));
+
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
-      <ChartCard title={t('charts.mattersByStatus')}>
-        <CategoryPie data={statusData} donut emptyMessage={empty} />
-      </ChartCard>
-      <ChartCard title={t('charts.invoices')}>
-        <CategoryPie data={invoiceData} donut emptyMessage={empty} />
-      </ChartCard>
-      <ChartCard title={t('charts.tasks')}>
-        <CategoryPie data={taskData} emptyMessage={empty} />
-      </ChartCard>
-      <ChartCard title={t('charts.bySector')}>
-        <CategoryBars data={data.mattersBySector} emptyMessage={empty} />
-      </ChartCard>
-      <ChartCard title={t('charts.workload')}>
-        <CategoryBars data={data.workloadByLawyer} emptyMessage={empty} />
-      </ChartCard>
-      <ChartCard title={t('charts.checklist')}>
-        <CategoryPie data={checklistData} donut emptyMessage={empty} />
-      </ChartCard>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-muted-foreground">{t('charts.section')}</h2>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="ghost">
+              <Settings2 className="size-4" /> {t('charts.customize')}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {widgets.map((w) => (
+              <DropdownMenuCheckboxItem
+                key={w.key}
+                checked={!hidden.has(w.key)}
+                onCheckedChange={() => toggle(w.key)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                {w.title}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+      {visible.length === 0 ? (
+        <p className="rounded-xl border border-dashed bg-card p-8 text-center text-sm text-muted-foreground">
+          {t('charts.allHidden')}
+        </p>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-3">
+          {visible.map((w) => (
+            <ChartCard key={w.key} title={w.title}>
+              {w.node}
+            </ChartCard>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
