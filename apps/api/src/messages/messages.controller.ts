@@ -21,4 +21,32 @@ export class MessagesController {
   list(@CurrentUser() user: RequestUser, @Param('matterId') matterId: string) {
     return this.messages.list(user, matterId);
   }
+
+  /** Acuses de lectura del expediente (quién ha leído hasta cuándo). */
+  @Get('reads')
+  reads(@CurrentUser() user: RequestUser, @Param('matterId') matterId: string) {
+    return this.messages.reads(user, matterId);
+  }
+
+  /** Marca el chat como leído por el usuario actual. */
+  @Post('read')
+  markRead(@CurrentUser() user: RequestUser, @Param('matterId') matterId: string) {
+    return this.messages.markRead(user, matterId);
+  }
+}
+
+/** Bandeja de conversaciones (firm-wide) y recuento de no leídos. */
+@Controller('messages')
+export class MessagesInboxController {
+  constructor(private readonly messages: MessagesService) {}
+
+  @Get('conversations')
+  conversations(@CurrentUser() user: RequestUser) {
+    return this.messages.listConversations(user);
+  }
+
+  @Get('unread-count')
+  unread(@CurrentUser() user: RequestUser) {
+    return this.messages.unreadCount(user);
+  }
 }

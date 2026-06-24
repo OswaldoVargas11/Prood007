@@ -1307,7 +1307,12 @@
     "placeholder": "Escribe un mensaje…",
     "empty": "Sin mensajes todavía. Empieza la conversación.",
     "loadError": "No se pudo cargar el chat",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "read": "Leído",
+    "onlineCount": "{count, plural, one {# participante conectado} other {# participantes conectados}}",
+    "noneOnline": "Nadie más conectado",
+    "typingOne": "{name} está escribiendo…",
+    "typingMany": "Varias personas están escribiendo…"
   },
   "notifications": {
     "open": "Abrir notificaciones",

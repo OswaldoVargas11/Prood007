@@ -11,7 +11,7 @@ import { getCurrentTenantId } from '../src/prisma/tenant-context';
  */
 describe('Realtime / WebSocket — contexto de tenant (RLS, sin fail-open)', () => {
   describe('RealtimeGateway.subscribeMatter', () => {
-    it('staff: ejecuta la query de BD bajo el contexto del tenant del socket y une la sala', async () => {
+    it('staff asignado: ejecuta la query de BD bajo el contexto del tenant del socket y une la sala', async () => {
       const tenantId = 'tenant-xyz';
       const matterId = 'matter-abc';
       let capturedTenant: string | undefined = 'NUNCA_SE_FIJÓ';
@@ -19,14 +19,23 @@ describe('Realtime / WebSocket — contexto de tenant (RLS, sin fail-open)', () 
         matter: {
           findFirst: async () => {
             capturedTenant = getCurrentTenantId();
-            // Forma que espera assertMatterAccess; para staff devuelve acceso sin mirar el cliente.
-            return { id: matterId, clientId: 'c1', client: { userId: null } };
+            // Forma que espera assertMatterChatAccess: el letrado 'u1' es el responsable (asignado).
+            return {
+              id: matterId,
+              clientId: 'c1',
+              lawyerId: 'u1',
+              client: { userId: null },
+              assignments: [],
+            };
           },
         },
       };
       const gateway = new RealtimeGateway(null as never, null as never, fakePrisma as never);
       const join = jest.fn().mockResolvedValue(undefined);
-      const client = { data: { tenantId, userId: 'u1', roles: ['LAWYER'] }, join } as never;
+      const client = {
+        data: { tenantId, userId: 'u1', roles: ['LAWYER'], matters: new Set<string>() },
+        join,
+      } as never;
 
       const res = await gateway.subscribeMatter(client, { matterId });
 

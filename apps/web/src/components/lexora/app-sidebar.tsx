@@ -5,6 +5,7 @@ import { Link, usePathname } from '@/i18n/navigation';
 import { Lock } from 'lucide-react';
 import { NAV_GROUPS, type NavItem } from '@/lib/nav';
 import { useAuth } from '@/lib/auth';
+import { useChatUnreadCount } from '@/lib/hooks';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
 import { Logo } from '@/components/lexora/logo';
@@ -24,6 +25,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { hasRole, user } = useAuth();
   const isAdmin = hasRole('FIRM_ADMIN');
+  const { data: unread } = useChatUnreadCount();
   const entitlements = user?.tenant?.entitlements;
   // Bloqueada = la sección requiere una función que el plan no incluye (entitlements undefined ⇒ permisivo).
   const isLocked = (item: NavItem) =>
@@ -48,6 +50,7 @@ function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                 label={t(item.key)}
                 soon={t('soon')}
                 locked={isLocked(item)}
+                badge={item.key === 'chat' ? (unread?.count ?? 0) : 0}
                 onNavigate={onNavigate}
               />
             ))}
@@ -100,6 +103,7 @@ function SidebarItem({
   label,
   soon,
   locked,
+  badge = 0,
   onNavigate,
 }: {
   item: NavItem;
@@ -107,6 +111,7 @@ function SidebarItem({
   label: string;
   soon: string;
   locked?: boolean;
+  badge?: number;
   onNavigate?: () => void;
 }) {
   const Icon = item.icon;
@@ -126,6 +131,11 @@ function SidebarItem({
       )}
       <Icon className="size-4 shrink-0" />
       {label}
+      {badge > 0 && (
+        <span className="ml-auto min-w-[18px] rounded-full bg-[var(--brand)] px-1.5 text-center text-[10px] font-semibold text-white tabular-nums">
+          {badge > 99 ? '99+' : badge}
+        </span>
+      )}
       {locked && <Lock className="ml-auto size-3.5 text-muted-foreground/60" aria-hidden />}
       {!item.enabled && !locked && (
         <span className="ml-auto text-[10px] uppercase tracking-wide text-muted-foreground/60">
