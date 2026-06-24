@@ -1641,6 +1641,10 @@ model Message {
   matterId  String
   authorId  String
   body      String
+  // Reacciones tipo red social: mapa { emoji: [userId, …] }. Null/{} = sin reacciones.
+  reactions Json?
+  // Documento del expediente adjuntado al mensaje (escalar, sin FK — patrón SignatureRequest).
+  attachmentDocumentId String?
   createdAt DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)

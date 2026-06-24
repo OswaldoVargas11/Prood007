@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { MessagesService } from './messages.service';
-import { CreateMessageDto } from './dto/create-message.dto';
+import { CreateMessageDto, ReactDto } from './dto/create-message.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -14,7 +14,18 @@ export class MessagesController {
     @Param('matterId') matterId: string,
     @Body() dto: CreateMessageDto,
   ) {
-    return this.messages.create(user, matterId, dto.body);
+    return this.messages.create(user, matterId, dto.body, dto.attachmentDocumentId);
+  }
+
+  /** Alterna una reacción emoji del usuario sobre un mensaje. */
+  @Post(':messageId/react')
+  react(
+    @CurrentUser() user: RequestUser,
+    @Param('matterId') matterId: string,
+    @Param('messageId') messageId: string,
+    @Body() dto: ReactDto,
+  ) {
+    return this.messages.react(user, matterId, messageId, dto.emoji);
   }
 
   @Get()

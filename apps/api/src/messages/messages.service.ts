@@ -1,8 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import type { Prisma } from '@prisma/client';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
+import { apiError } from '../common/api-messages';
 import { assertMatterChatAccess } from './matter-access';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -15,26 +18,139 @@ export class MessagesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
+    private readonly notifications: NotificationsService,
   ) {}
 
-  async create(user: RequestUser, matterId: string, body: string) {
+  async create(user: RequestUser, matterId: string, body: string, attachmentDocumentId?: string) {
     await assertMatterChatAccess(this.prisma, user, matterId);
+
+    // Adjunto: debe ser un documento del MISMO expediente (y tenant).
+    let attachmentId: string | null = null;
+    if (attachmentDocumentId) {
+      const doc = await this.prisma.document.findFirst({
+        where: { id: attachmentDocumentId, tenantId: user.tenantId, matterId },
+        select: { id: true },
+      });
+      if (!doc) throw new BadRequestException(apiError('checklists.documentMismatch'));
+      attachmentId = doc.id;
+    }
+
     const message = await this.prisma.message.create({
-      data: { tenantId: user.tenantId, matterId, authorId: user.userId, body },
+      data: {
+        tenantId: user.tenantId,
+        matterId,
+        authorId: user.userId,
+        body,
+        attachmentDocumentId: attachmentId,
+      },
       include: { author: { select: { id: true, fullName: true } } },
     });
-    this.realtime.emitToMatter(matterId, 'message:new', message);
-    return message;
+    const [enriched] = await this.enrich(user.tenantId, [message]);
+    this.realtime.emitToMatter(matterId, 'message:new', enriched);
+    await this.notifyMentions(user, matterId, body);
+    return enriched;
   }
 
   async list(user: RequestUser, matterId: string) {
     await assertMatterChatAccess(this.prisma, user, matterId);
-    return this.prisma.message.findMany({
+    const messages = await this.prisma.message.findMany({
       where: { tenantId: user.tenantId, matterId },
       orderBy: { createdAt: 'asc' },
       include: { author: { select: { id: true, fullName: true } } },
       take: 500,
     });
+    return this.enrich(user.tenantId, messages);
+  }
+
+  /** Añade el nombre del documento adjunto (si lo hay) a cada mensaje. */
+  private async enrich<T extends { attachmentDocumentId: string | null }>(
+    tenantId: string,
+    messages: T[],
+  ): Promise<(T & { attachment: { id: string; name: string } | null })[]> {
+    const ids = [
+      ...new Set(messages.map((m) => m.attachmentDocumentId).filter(Boolean) as string[]),
+    ];
+    const docs = ids.length
+      ? await this.prisma.document.findMany({
+          where: { tenantId, id: { in: ids } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const byId = new Map(docs.map((d) => [d.id, d]));
+    return messages.map((m) => ({
+      ...m,
+      attachment: m.attachmentDocumentId ? (byId.get(m.attachmentDocumentId) ?? null) : null,
+    }));
+  }
+
+  /**
+   * Reacción tipo red social: alterna el emoji del usuario en el mensaje (mapa { emoji: [userId] }).
+   * Avisa a la sala para refrescar.
+   */
+  async react(user: RequestUser, matterId: string, messageId: string, emoji: string) {
+    await assertMatterChatAccess(this.prisma, user, matterId);
+    const message = await this.prisma.message.findFirst({
+      where: { id: messageId, tenantId: user.tenantId, matterId },
+      select: { id: true, reactions: true },
+    });
+    if (!message) throw new NotFoundException(apiError('messages.notFound'));
+
+    const reactions = (message.reactions as Record<string, string[]> | null) ?? {};
+    const users = new Set(reactions[emoji] ?? []);
+    if (users.has(user.userId)) users.delete(user.userId);
+    else users.add(user.userId);
+    if (users.size > 0) reactions[emoji] = [...users];
+    else delete reactions[emoji];
+
+    await this.prisma.message.updateMany({
+      where: { id: messageId, tenantId: user.tenantId },
+      data: { reactions },
+    });
+    this.realtime.emitToMatter(matterId, 'message:reaction', { matterId, messageId, reactions });
+    return { messageId, reactions };
+  }
+
+  /**
+   * Menciones: notifica a los participantes (equipo asignado + cliente) cuyo nombre aparezca tras una
+   * «@» en el cuerpo. Best-effort; no bloquea el envío.
+   */
+  private async notifyMentions(user: RequestUser, matterId: string, body: string) {
+    if (!body.includes('@')) return;
+    const matter = await this.prisma.matter.findFirst({
+      where: { id: matterId, tenantId: user.tenantId },
+      select: {
+        lawyerId: true,
+        client: { select: { userId: true } },
+        assignments: { select: { userId: true } },
+      },
+    });
+    if (!matter) return;
+    const ids = new Set<string>();
+    if (matter.lawyerId) ids.add(matter.lawyerId);
+    for (const a of matter.assignments) ids.add(a.userId);
+    if (matter.client?.userId) ids.add(matter.client.userId);
+    ids.delete(user.userId);
+    if (ids.size === 0) return;
+
+    const participants = await this.prisma.user.findMany({
+      where: { tenantId: user.tenantId, id: { in: [...ids] } },
+      select: { id: true, fullName: true },
+    });
+    const lower = body.toLowerCase();
+    for (const p of participants) {
+      const name = p.fullName.toLowerCase();
+      const first = name.split(/\s+/)[0] ?? '';
+      if (lower.includes(`@${name}`) || (first.length >= 3 && lower.includes(`@${first}`))) {
+        await this.notifications.create({
+          tenantId: user.tenantId,
+          userId: p.id,
+          type: 'chat.mention',
+          title: `Te han mencionado en el chat`,
+          body: body.length > 140 ? `${body.slice(0, 140)}…` : body,
+          data: { matterId },
+        });
+      }
+    }
   }
 
   /** Marca el chat del expediente como leído por el usuario (ahora) y avisa a la sala. */
