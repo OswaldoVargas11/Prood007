@@ -10,6 +10,7 @@ import type { TaxSummaryJurisdiction } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CategoryBars } from '@/components/lexora/dashboard-charts';
 
 /** Descarga un CSV a partir de filas (array de objetos planos). Comillas seguras. */
 function downloadCsv(filename: string, rows: readonly object[]) {
@@ -280,6 +281,13 @@ export default function ReportsPage() {
                   {t('profit.foreignNote', { n: profit.data.foreignInvoices })}
                 </p>
               )}
+
+              {/* Rentabilidad por letrado (agregado de las filas por expediente). */}
+              <LawyerProfitabilityCharts
+                rows={profit.data.matters}
+                costRatesSet={profit.data.costRatesSet}
+              />
+
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="w-full text-sm">
                   <thead>
@@ -342,6 +350,52 @@ export default function ReportsPage() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+/**
+ * Gráficos de rentabilidad POR LETRADO: agrega las filas por expediente (cada una trae su letrado
+ * responsable) en producción (valor del trabajo) y margen. Reutiliza el gráfico de barras del panel.
+ */
+function LawyerProfitabilityCharts({
+  rows,
+  costRatesSet,
+}: {
+  rows: import('@/lib/types').ProfitabilityRow[];
+  costRatesSet: boolean;
+}) {
+  const t = useTranslations('reports');
+  const byLawyer = new Map<string, { workValue: number; margin: number }>();
+  for (const r of rows) {
+    const key = r.lawyer ?? t('profit.noLawyer');
+    const a = byLawyer.get(key) ?? { workValue: 0, margin: 0 };
+    a.workValue += r.workValue;
+    a.margin += r.margin;
+    byLawyer.set(key, a);
+  }
+  const entries = [...byLawyer.entries()];
+  if (entries.length === 0) return null;
+
+  const production = entries
+    .map(([label, v]) => ({ label, value: Math.round(v.workValue) }))
+    .sort((a, b) => b.value - a.value);
+  const margin = entries
+    .map(([label, v]) => ({ label, value: Math.round(v.margin) }))
+    .sort((a, b) => b.value - a.value);
+
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      <div className="rounded-lg border border-border p-3">
+        <div className="mb-2 text-[12.5px] font-semibold">{t('profit.byLawyerProduction')}</div>
+        <CategoryBars data={production} emptyMessage={t('profit.noData')} />
+      </div>
+      {costRatesSet && (
+        <div className="rounded-lg border border-border p-3">
+          <div className="mb-2 text-[12.5px] font-semibold">{t('profit.byLawyerMargin')}</div>
+          <CategoryBars data={margin} emptyMessage={t('profit.noData')} />
+        </div>
+      )}
     </div>
   );
 }
