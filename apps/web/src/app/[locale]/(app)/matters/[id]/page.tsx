@@ -23,6 +23,7 @@ import { CostsTab } from '@/components/lexora/costs-tab';
 import { RetainerTab } from '@/components/lexora/retainer';
 import { BillingPlansTab } from '@/components/lexora/billing-plans';
 import { ChatTab } from '@/components/lexora/chat-tab';
+import { ChecklistTab } from '@/components/lexora/checklist-tab';
 import { MatterEmails } from '@/components/lexora/matter-emails';
 import { MatterBudget } from '@/components/lexora/matter-budget';
 import { MatterPartiesCard } from '@/components/lexora/matter-parties';
@@ -56,6 +57,7 @@ export default function MatterDetailPage() {
   const validTabs = [
     'overview',
     'documents',
+    'checklist',
     'closing',
     'dataroom',
     'tasks',
@@ -142,6 +144,7 @@ export default function MatterDetailPage() {
         <TabsList className="w-full overflow-x-auto">
           <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
           <TabsTrigger value="documents">{t('tabs.documents')}</TabsTrigger>
+          <TabsTrigger value="checklist">{t('tabs.checklist')}</TabsTrigger>
           <TabsTrigger value="closing">{t('tabs.closing')}</TabsTrigger>
           <TabsTrigger value="dataroom">{t('tabs.dataroom')}</TabsTrigger>
           <TabsTrigger value="tasks">{t('tabs.tasks')}</TabsTrigger>
@@ -195,6 +198,10 @@ export default function MatterDetailPage() {
             </Link>
           </div>
           <DocumentsTab matterId={id} />
+        </TabsContent>
+
+        <TabsContent value="checklist">
+          <ChecklistTab matterId={id} />
         </TabsContent>
 
         <TabsContent value="closing">

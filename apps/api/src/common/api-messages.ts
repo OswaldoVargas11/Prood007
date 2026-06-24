@@ -211,6 +211,24 @@ export const API_MESSAGES = {
     'es-ES': 'No puedes mover una carpeta dentro de sí misma o de una subcarpeta suya.',
     'es-DO': 'No puedes mover una carpeta dentro de sí misma o de una subcarpeta suya.',
   },
+
+  // ── Checklists de presentación ────────────────────────────────────────────
+  'presentations.notFound': {
+    'es-ES': 'Tipo de presentación no encontrado.',
+    'es-DO': 'Tipo de presentación no encontrado.',
+  },
+  'checklists.notFound': {
+    'es-ES': 'Checklist no encontrada.',
+    'es-DO': 'Checklist no encontrada.',
+  },
+  'checklists.itemNotFound': {
+    'es-ES': 'Requisito de la checklist no encontrado.',
+    'es-DO': 'Requisito de la checklist no encontrado.',
+  },
+  'checklists.documentMismatch': {
+    'es-ES': 'El documento no pertenece a este expediente.',
+    'es-DO': 'El documento no pertenece a este expediente.',
+  },
   'matters.referenceExists': {
     'es-ES': 'Ya existe un expediente con esa referencia.',
     'es-DO': 'Ya existe un expediente con esa referencia.',
