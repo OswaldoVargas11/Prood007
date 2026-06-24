@@ -1,12 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { FileText, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useCreateTemplate, useDeleteTemplate, useTemplates, useUpdateTemplate } from '@/lib/hooks';
+import {
+  useCreateTemplate,
+  useDeleteTemplate,
+  useFolders,
+  useMoveTemplate,
+  useTemplates,
+  useUpdateTemplate,
+} from '@/lib/hooks';
 import { ApiError } from '@/lib/api';
 import { ConfirmDialog } from '@/components/lexora/confirm-dialog';
 import { ClausePicker } from '@/components/lexora/clause-picker';
+import { FolderBrowser, MoveToFolderControl } from '@/components/lexora/folder-browser';
 import { DocumentPackagesPanel } from '@/components/lexora/document-packages-panel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -42,9 +50,18 @@ export default function TemplatesPage() {
   const t = useTranslations('templates');
   const tc = useTranslations('common');
   const { data, isLoading } = useTemplates();
+  const { data: folders } = useFolders('TEMPLATE');
   const remove = useDeleteTemplate();
+  const move = useMoveTemplate();
   const [editing, setEditing] = useState<DocumentTemplate | 'new' | null>(null);
   const [deleting, setDeleting] = useState<DocumentTemplate | null>(null);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+
+  // Plantillas visibles = las de la carpeta actual (folderId nulo = raíz).
+  const visible = useMemo(
+    () => (data ?? []).filter((tpl) => (tpl.folderId ?? null) === currentFolderId),
+    [data, currentFolderId],
+  );
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6">
@@ -59,11 +76,21 @@ export default function TemplatesPage() {
       </div>
 
       {isLoading && <Skeleton className="h-40 w-full rounded-xl" />}
-      {!isLoading && data?.length === 0 && (
+
+      {!isLoading && data && (
+        <FolderBrowser
+          kind="TEMPLATE"
+          folders={folders ?? []}
+          currentFolderId={currentFolderId}
+          onNavigate={setCurrentFolderId}
+        />
+      )}
+
+      {!isLoading && data && visible.length === 0 && (
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center text-sm text-muted-foreground">
             <FileText className="size-6" />
-            {t('empty')}
+            {data.length === 0 ? t('empty') : t('emptyFolder')}
             <Button size="sm" variant="outline" onClick={() => setEditing('new')}>
               <Plus /> {t('createFirst')}
             </Button>
@@ -72,7 +99,7 @@ export default function TemplatesPage() {
       )}
 
       <div className="space-y-3">
-        {data?.map((tpl) => (
+        {visible.map((tpl) => (
           <Card key={tpl.id}>
             <CardContent className="flex items-start gap-3 p-4">
               <FileText className="mt-0.5 size-4 text-[var(--brand)]" />
@@ -94,7 +121,13 @@ export default function TemplatesPage() {
                   </div>
                 )}
               </div>
-              <div className="flex gap-1.5">
+              <div className="flex items-center gap-1.5">
+                <MoveToFolderControl
+                  folders={folders ?? []}
+                  value={tpl.folderId}
+                  disabled={move.isPending}
+                  onMove={(folderId) => move.mutate({ id: tpl.id, folderId })}
+                />
                 <Button size="sm" variant="ghost" onClick={() => setEditing(tpl)}>
                   <Pencil /> {t('edit')}
                 </Button>
@@ -116,7 +149,11 @@ export default function TemplatesPage() {
         <DocumentPackagesPanel />
       </div>
 
-      <TemplateDialog template={editing} onClose={() => setEditing(null)} />
+      <TemplateDialog
+        template={editing}
+        folderId={currentFolderId}
+        onClose={() => setEditing(null)}
+      />
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(o) => !o && setDeleting(null)}
@@ -133,9 +170,11 @@ export default function TemplatesPage() {
 
 function TemplateDialog({
   template,
+  folderId,
   onClose,
 }: {
   template: DocumentTemplate | 'new' | null;
+  folderId: string | null;
   onClose: () => void;
 }) {
   const t = useTranslations('templates');
@@ -174,7 +213,12 @@ function TemplateDialog({
           body,
         });
       } else {
-        await create.mutateAsync({ name: name.trim(), description: description.trim(), body });
+        await create.mutateAsync({
+          name: name.trim(),
+          description: description.trim(),
+          body,
+          folderId,
+        });
       }
       onClose();
     } catch (e) {

@@ -193,6 +193,24 @@ export const API_MESSAGES = {
     'es-ES': 'Solo el administrador del despacho puede asignar el letrado.',
     'es-DO': 'Solo el administrador del despacho puede asignar el abogado.',
   },
+
+  // ── Carpetas (sistema de ficheros) ────────────────────────────────────────
+  'folders.notFound': {
+    'es-ES': 'Carpeta no encontrada.',
+    'es-DO': 'Carpeta no encontrada.',
+  },
+  'folders.matterRequired': {
+    'es-ES': 'Falta el expediente de la carpeta de documentos.',
+    'es-DO': 'Falta el expediente de la carpeta de documentos.',
+  },
+  'folders.parentMismatch': {
+    'es-ES': 'La carpeta destino no es compatible (otro contexto o expediente).',
+    'es-DO': 'La carpeta destino no es compatible (otro contexto o expediente).',
+  },
+  'folders.cycle': {
+    'es-ES': 'No puedes mover una carpeta dentro de sí misma o de una subcarpeta suya.',
+    'es-DO': 'No puedes mover una carpeta dentro de sí misma o de una subcarpeta suya.',
+  },
   'matters.referenceExists': {
     'es-ES': 'Ya existe un expediente con esa referencia.',
     'es-DO': 'Ya existe un expediente con esa referencia.',

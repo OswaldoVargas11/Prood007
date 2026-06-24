@@ -17,6 +17,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ClientsModule } from './clients/clients.module';
 import { MattersModule } from './matters/matters.module';
 import { DocumentsModule } from './documents/documents.module';
+import { FoldersModule } from './folders/folders.module';
 import { TemplatesModule } from './templates/templates.module';
 import { SignaturesModule } from './signatures/signatures.module';
 import { SubscriptionModule } from './subscription/subscription.module';
@@ -89,6 +90,7 @@ import { HealthController } from './health.controller';
     ClientsModule,
     MattersModule,
     DocumentsModule,
+    FoldersModule,
     SignaturesModule,
     SubscriptionModule,
     PlatformModule,

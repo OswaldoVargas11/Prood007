@@ -98,6 +98,24 @@ export class DocumentsService {
     if (!matter) throw new BadRequestException(apiError('matters.notInFirm'));
   }
 
+  /**
+   * Valida que una carpeta (si se indica) pertenece al tenant, es de documentos y es del MISMO
+   * expediente. Devuelve la carpeta normalizada (null = raíz).
+   */
+  private async resolveDocumentFolder(
+    user: RequestUser,
+    matterId: string,
+    folderId: string | null | undefined,
+  ): Promise<string | null> {
+    if (!folderId) return null;
+    const folder = await this.prisma.folder.findFirst({
+      where: { id: folderId, tenantId: user.tenantId, kind: 'DOCUMENT', matterId },
+      select: { id: true },
+    });
+    if (!folder) throw new BadRequestException(apiError('folders.parentMismatch'));
+    return folder.id;
+  }
+
   private storageKey(tenantId: string, documentId: string, version: number): string {
     return `${tenantId}/documents/${documentId}/v${version}`;
   }
@@ -129,13 +147,25 @@ export class DocumentsService {
     });
   }
 
-  /** Sube un documento nuevo (crea el Document + versión 1). */
-  async upload(user: RequestUser, matterId: string, name: string | undefined, file?: UploadedFile) {
+  /** Sube un documento nuevo (crea el Document + versión 1), opcionalmente dentro de una carpeta. */
+  async upload(
+    user: RequestUser,
+    matterId: string,
+    name: string | undefined,
+    file?: UploadedFile,
+    folderId?: string | null,
+  ) {
     if (!file) throw new BadRequestException(apiError('documents.fileMissing'));
     await this.assertMatterInTenant(user, matterId);
+    const resolvedFolderId = await this.resolveDocumentFolder(user, matterId, folderId);
 
     const document = await this.prisma.document.create({
-      data: { tenantId: user.tenantId, matterId, name: name?.trim() || file.originalname },
+      data: {
+        tenantId: user.tenantId,
+        matterId,
+        folderId: resolvedFolderId,
+        name: name?.trim() || file.originalname,
+      },
     });
     const version = await this.persistVersion(user, document.id, 1, file);
     await this.audit.log(user, 'document.uploaded', 'Document', document.id, { version: 1 });
@@ -288,6 +318,22 @@ export class DocumentsService {
     const version = await this.persistVersion(user, documentId, next, file);
     await this.audit.log(user, 'document.version_added', 'Document', documentId, { version: next });
     return version;
+  }
+
+  /** Mueve un documento a otra carpeta del mismo expediente (o a la raíz con `null`). */
+  async move(user: RequestUser, documentId: string, folderId: string | null) {
+    const document = await this.prisma.document.findFirst({
+      where: { id: documentId, tenantId: user.tenantId },
+      select: { id: true, matterId: true },
+    });
+    if (!document) throw new NotFoundException(apiError('documents.notFound'));
+    const resolved = await this.resolveDocumentFolder(user, document.matterId, folderId);
+    await this.prisma.document.updateMany({
+      where: { id: documentId, tenantId: user.tenantId },
+      data: { folderId: resolved },
+    });
+    await this.audit.log(user, 'document.moved', 'Document', documentId, { folderId: resolved });
+    return { success: true as const, folderId: resolved };
   }
 
   async listByMatter(user: RequestUser, matterId: string) {

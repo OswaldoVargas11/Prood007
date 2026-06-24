@@ -1011,6 +1011,8 @@
     "loadError": "No se pudieron cargar los documentos",
     "retry": "Reintentar",
     "empty": "Aún no hay documentos en este expediente.",
+    "emptyFolder": "Esta carpeta no tiene documentos todavía.",
+    "folderLabel": "Carpeta",
     "newVersion": "Nueva versión",
     "versionCount": "{count, plural, one {# versión} other {# versiones}}",
     "download": "Descargar",
@@ -1068,6 +1070,7 @@
     "subtitle": "Crea contratos y escritos con campos combinados que se rellenan al generarlos en un expediente.",
     "new": "Nueva plantilla",
     "empty": "Aún no tienes plantillas.",
+    "emptyFolder": "Esta carpeta no tiene plantillas todavía.",
     "createFirst": "Crear la primera",
     "edit": "Editar",
     "delete": "Eliminar",
@@ -1865,7 +1868,19 @@
     "showPassword": "Mostrar contraseña",
     "hidePassword": "Ocultar contraseña",
     "cancel": "Cancelar",
-    "delete": "Eliminar"
+    "delete": "Eliminar",
+    "save": "Guardar"
+  },
+  "files": {
+    "root": "Inicio",
+    "newFolder": "Nueva carpeta",
+    "renameFolder": "Renombrar carpeta",
+    "folderName": "Nombre de la carpeta",
+    "rename": "Renombrar",
+    "folderActions": "Acciones de la carpeta",
+    "confirmDeleteFolder": "¿Eliminar la carpeta «{name}»? Su contenido se moverá a la carpeta superior.",
+    "moveTo": "Mover a",
+    "move": "Mover"
   },
   "toasts": {
     "newMessage": "Nuevo mensaje",

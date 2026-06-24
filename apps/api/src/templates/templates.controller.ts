@@ -3,6 +3,7 @@ import { Role } from '@legalflow/domain';
 import { TemplatesService } from './templates.service';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
+import { MoveTemplateDto } from './dto/move-template.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -37,6 +38,12 @@ export class TemplatesController {
     @Body() dto: UpdateTemplateDto,
   ) {
     return this.templates.update(user, id, dto);
+  }
+
+  /** Mueve una plantilla a otra carpeta (o a la raíz). */
+  @Patch(':id/move')
+  move(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() dto: MoveTemplateDto) {
+    return this.templates.move(user, id, dto.folderId);
   }
 
   @Delete(':id')

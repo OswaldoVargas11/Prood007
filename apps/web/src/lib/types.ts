@@ -561,8 +561,22 @@ export interface DocumentVersion {
 export interface MatterDocument {
   id: string;
   name: string;
+  /** Carpeta contenedora (sistema de ficheros). Null = raíz. */
+  folderId: string | null;
   createdAt: string;
   versions: DocumentVersion[];
+}
+
+/** Tipo de contexto de una carpeta (alineado con el enum del backend). */
+export type FolderKind = 'DOCUMENT' | 'TEMPLATE';
+
+/** Carpeta del sistema de ficheros (`GET /folders?kind=…`). Árbol vía `parentId`. */
+export interface Folder {
+  id: string;
+  name: string;
+  parentId: string | null;
+  kind: FolderKind;
+  matterId: string | null;
 }
 
 // ── Firma electrónica (Signaturit, Fase 5) ────────────────────────────────────
@@ -860,6 +874,8 @@ export interface DocumentTemplate {
   description: string | null;
   body: string;
   tokens?: string[];
+  /** Carpeta contenedora (sistema de ficheros). Null = raíz. */
+  folderId: string | null;
   createdAt: string;
   updatedAt: string;
 }

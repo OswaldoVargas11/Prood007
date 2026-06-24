@@ -5,13 +5,21 @@ import { useParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { Download, FileText, Loader2, Upload } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
-import { downloadVersion, useMatter, useMatterDocuments, useUploadDocument } from '@/lib/hooks';
+import {
+  downloadVersion,
+  useFolders,
+  useMatter,
+  useMatterDocuments,
+  useMoveDocument,
+  useUploadDocument,
+} from '@/lib/hooks';
 import { api } from '@/lib/api';
 import { docStatusVariant, formatBytes, mimeLabel } from '@/lib/doc-status';
 import { formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SignaturePanel } from '@/components/lexora/signature-panel';
+import { FolderBrowser, MoveToFolderControl } from '@/components/lexora/folder-browser';
 import { cn } from '@/lib/utils';
 import type { DocumentVersion, MatterDocument } from '@/lib/types';
 
@@ -24,19 +32,28 @@ export default function MatterDocumentsPage() {
 
   const matter = useMatter(id);
   const { data, isLoading, isError, refetch } = useMatterDocuments(id);
+  const { data: folders } = useFolders('DOCUMENT', id);
   const upload = useUploadDocument(id);
+  const move = useMoveDocument(id);
   const fileRef = useRef<HTMLInputElement>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+
+  // Documentos visibles = los de la carpeta actual (folderId nulo = raíz).
+  const visible = useMemo<MatterDocument[]>(
+    () => (data ?? []).filter((d) => (d.folderId ?? null) === currentFolderId),
+    [data, currentFolderId],
+  );
 
   const selected = useMemo<MatterDocument | null>(
-    () => data?.find((d) => d.id === selectedId) ?? data?.[0] ?? null,
-    [data, selectedId],
+    () => visible.find((d) => d.id === selectedId) ?? visible[0] ?? null,
+    [visible, selectedId],
   );
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) upload.mutate({ file, name: file.name });
+    if (file) upload.mutate({ file, name: file.name, folderId: currentFolderId });
     e.target.value = '';
   }
 
@@ -44,7 +61,7 @@ export default function MatterDocumentsPage() {
     e.preventDefault();
     setDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) upload.mutate({ file, name: file.name });
+    if (file) upload.mutate({ file, name: file.name, folderId: currentFolderId });
   }
 
   const latest = selected?.versions[0];
@@ -117,17 +134,31 @@ export default function MatterDocumentsPage() {
           </button>
         </div>
       )}
-      {!isLoading && !isError && data?.length === 0 && (
+
+      {!isLoading && !isError && data && (
+        <FolderBrowser
+          kind="DOCUMENT"
+          matterId={id}
+          folders={folders ?? []}
+          currentFolderId={currentFolderId}
+          onNavigate={(f) => {
+            setCurrentFolderId(f);
+            setSelectedId(null);
+          }}
+        />
+      )}
+
+      {!isLoading && !isError && data && visible.length === 0 && (
         <div className="rounded-xl border bg-card p-12 text-center text-sm text-muted-foreground">
-          {t('empty')}
+          {data.length === 0 ? t('empty') : t('emptyFolder')}
         </div>
       )}
 
-      {!isLoading && !isError && data && data.length > 0 && (
+      {!isLoading && !isError && visible.length > 0 && (
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.5fr_1fr]">
           {/* Lista agrupada por documento */}
           <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-            {data.map((doc) => {
+            {visible.map((doc) => {
               const top = doc.versions[0];
               const active = selected?.id === doc.id;
               return (
@@ -220,6 +251,15 @@ export default function MatterDocumentsPage() {
                   <Download className="size-3.5" />
                   {t('download')}
                 </button>
+                <div className="flex items-center justify-between gap-2 border-t pt-2">
+                  <span className="text-[var(--text-subtle)]">{t('folderLabel')}</span>
+                  <MoveToFolderControl
+                    folders={folders ?? []}
+                    value={selected.folderId}
+                    disabled={move.isPending}
+                    onMove={(folderId) => move.mutate({ documentId: selected.id, folderId })}
+                  />
+                </div>
                 <SignaturePanel documentId={selected.id} latestVersionId={latest.id} />
               </div>
             )}
