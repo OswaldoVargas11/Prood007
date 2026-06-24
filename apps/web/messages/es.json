@@ -1954,7 +1954,13 @@
     "requirements": "Documentos requeridos",
     "reqNamePlaceholder": "p. ej. Nota simple registral",
     "reqRequired": "Obligatorio",
-    "addRequirement": "Añadir documento"
+    "addRequirement": "Añadir documento",
+    "tasks": "Tareas y plazos",
+    "tasksHint": "Se crearán como tareas del expediente al aplicar este tipo, con vencimiento relativo a la fecha de aplicación.",
+    "taskTitlePlaceholder": "p. ej. Presentar liquidación de impuestos",
+    "taskOffset": "Días hasta el vencimiento",
+    "taskDays": "días",
+    "addTask": "Añadir tarea"
   },
   "checklist": {
     "applyLabel": "Aplicar un tipo de presentación",

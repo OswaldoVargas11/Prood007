@@ -331,6 +331,7 @@ model Tenant {
   folders             Folder[]
   presentationTypes      PresentationType[]
   presentationReqs       PresentationRequirement[]
+  presentationTaskTpls   PresentationTaskTemplate[]
   matterChecklists       MatterChecklist[]
   matterChecklistItems   MatterChecklistItem[]
   matterReadStates       MatterReadState[]
@@ -1889,12 +1890,31 @@ model PresentationType {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  tenant       Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  requirements PresentationRequirement[]
-  checklists   MatterChecklist[]
+  tenant        Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requirements  PresentationRequirement[]
+  taskTemplates PresentationTaskTemplate[]
+  checklists    MatterChecklist[]
 
   @@index([tenantId])
   @@index([tenantId, sector])
+}
+
+// Plantilla de TAREA/plazo de un tipo de presentación: al aplicar el tipo a un expediente se crea una
+// Task con vencimiento relativo (`offsetDays` días desde la aplicación). Tenant-scoped con RLS.
+model PresentationTaskTemplate {
+  id                 String @id @default(cuid())
+  tenantId           String
+  presentationTypeId String
+  title              String
+  // Días desde que se aplica el tipo hasta el vencimiento de la tarea (0 = mismo día).
+  offsetDays         Int    @default(0)
+  order              Int    @default(0)
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type   PresentationType @relation(fields: [presentationTypeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([presentationTypeId])
 }
 
 model PresentationRequirement {

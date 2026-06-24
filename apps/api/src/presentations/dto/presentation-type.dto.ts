@@ -34,6 +34,23 @@ export class RequirementInputDto {
   order?: number;
 }
 
+export class TaskTemplateInputDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  title!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  offsetDays?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  order?: number;
+}
+
 export class CreatePresentationTypeDto {
   @IsString()
   @MinLength(2)
@@ -59,6 +76,12 @@ export class CreatePresentationTypeDto {
   @ValidateNested({ each: true })
   @Type(() => RequirementInputDto)
   requirements?: RequirementInputDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TaskTemplateInputDto)
+  taskTemplates?: TaskTemplateInputDto[];
 }
 
 export class UpdatePresentationTypeDto {
@@ -89,4 +112,11 @@ export class UpdatePresentationTypeDto {
   @ValidateNested({ each: true })
   @Type(() => RequirementInputDto)
   requirements?: RequirementInputDto[];
+
+  // Si se envía, REEMPLAZA el conjunto de plantillas de tarea del tipo.
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TaskTemplateInputDto)
+  taskTemplates?: TaskTemplateInputDto[];
 }

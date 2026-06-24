@@ -9,6 +9,7 @@ import { buildChecklistPdf } from './checklist-pdf';
 import {
   CreatePresentationTypeDto,
   RequirementInputDto,
+  TaskTemplateInputDto,
   UpdatePresentationTypeDto,
 } from './dto/presentation-type.dto';
 import { UpdateChecklistItemDto } from './dto/checklist.dto';
@@ -32,6 +33,7 @@ export class PresentationsService {
       where: { tenantId: user.tenantId },
       include: {
         requirements: { orderBy: { order: 'asc' } },
+        taskTemplates: { orderBy: { order: 'asc' } },
         _count: { select: { checklists: true } },
       },
       orderBy: [{ sector: 'asc' }, { name: 'asc' }],
@@ -41,10 +43,22 @@ export class PresentationsService {
   async getType(user: RequestUser, id: string) {
     const type = await this.prisma.presentationType.findFirst({
       where: { id, tenantId: user.tenantId },
-      include: { requirements: { orderBy: { order: 'asc' } } },
+      include: {
+        requirements: { orderBy: { order: 'asc' } },
+        taskTemplates: { orderBy: { order: 'asc' } },
+      },
     });
     if (!type) throw new NotFoundException(apiError('presentations.notFound'));
     return type;
+  }
+
+  private taskTemplateRows(tenantId: string, tpls: TaskTemplateInputDto[] | undefined) {
+    return (tpls ?? []).map((tt, i) => ({
+      tenantId,
+      title: tt.title.trim(),
+      offsetDays: tt.offsetDays ?? 0,
+      order: tt.order ?? i,
+    }));
   }
 
   private requirementRows(tenantId: string, reqs: RequirementInputDto[] | undefined) {
@@ -66,8 +80,12 @@ export class PresentationsService {
         jurisdiction: dto.jurisdiction ?? null,
         description: dto.description?.trim() || null,
         requirements: { create: this.requirementRows(user.tenantId, dto.requirements) },
+        taskTemplates: { create: this.taskTemplateRows(user.tenantId, dto.taskTemplates) },
       },
-      include: { requirements: { orderBy: { order: 'asc' } } },
+      include: {
+        requirements: { orderBy: { order: 'asc' } },
+        taskTemplates: { orderBy: { order: 'asc' } },
+      },
     });
     await this.audit.log(user, 'presentation_type.created', 'PresentationType', created.id, {
       name: created.name,
@@ -101,9 +119,24 @@ export class PresentationsService {
           })),
         });
       }
+      // Si llegan plantillas de tarea, se reemplaza el conjunto completo.
+      if (dto.taskTemplates !== undefined) {
+        await tx.presentationTaskTemplate.deleteMany({
+          where: { tenantId: user.tenantId, presentationTypeId: id },
+        });
+        await tx.presentationTaskTemplate.createMany({
+          data: this.taskTemplateRows(user.tenantId, dto.taskTemplates).map((r) => ({
+            ...r,
+            presentationTypeId: id,
+          })),
+        });
+      }
       return tx.presentationType.findFirst({
         where: { id, tenantId: user.tenantId },
-        include: { requirements: { orderBy: { order: 'asc' } } },
+        include: {
+          requirements: { orderBy: { order: 'asc' } },
+          taskTemplates: { orderBy: { order: 'asc' } },
+        },
       });
     });
     await this.audit.log(user, 'presentation_type.updated', 'PresentationType', id);
@@ -194,9 +227,22 @@ export class PresentationsService {
       },
       include: { items: { orderBy: { order: 'asc' } } },
     });
+    // Plantillas de tarea: crea las tareas/plazos del tipo con vencimiento relativo a hoy.
+    if (type.taskTemplates.length > 0) {
+      const now = Date.now();
+      await this.prisma.task.createMany({
+        data: type.taskTemplates.map((tt) => ({
+          tenantId: user.tenantId,
+          matterId,
+          title: tt.title,
+          dueDate: new Date(now + tt.offsetDays * 86_400_000),
+        })),
+      });
+    }
     await this.audit.log(user, 'checklist.applied', 'MatterChecklist', checklist.id, {
       matterId,
       presentationTypeId: type.id,
+      tasksCreated: type.taskTemplates.length,
     });
     return checklist;
   }
