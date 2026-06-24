@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Res,
@@ -14,6 +15,7 @@ import type { Response } from 'express';
 import { Role } from '@legalflow/domain';
 import { DocumentsService } from './documents.service';
 import { UploadDocumentDto } from './dto/upload-document.dto';
+import { MoveDocumentDto } from './dto/move-document.dto';
 import { ReviewDocumentDto } from './dto/review-document.dto';
 import { GenerateFromTemplateDto } from './dto/generate-from-template.dto';
 import { GenerateFromTemplatesDto } from './dto/generate-from-templates.dto';
@@ -47,7 +49,13 @@ export class DocumentsController {
     @Body() dto: UploadDocumentDto,
     @UploadedFile() file: MulterFile,
   ) {
-    return this.documents.upload(user, dto.matterId, dto.name, file);
+    return this.documents.upload(user, dto.matterId, dto.name, file, dto.folderId ?? null);
+  }
+
+  /** Mueve un documento a otra carpeta del expediente (o a la raíz). */
+  @Patch(':id/move')
+  move(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() dto: MoveDocumentDto) {
+    return this.documents.move(user, id, dto.folderId);
   }
 
   @Post(':id/versions')

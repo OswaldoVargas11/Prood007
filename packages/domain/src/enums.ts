@@ -291,6 +291,15 @@ export enum TaxIdKind {
   OTHER = 'OTHER',
 }
 
+/**
+ * Contexto de una carpeta del sistema de ficheros: documentos de un expediente o plantillas del
+ * despacho. Una carpeta sirve un único contexto (no se mezclan documentos y plantillas).
+ */
+export enum FolderKind {
+  DOCUMENT = 'DOCUMENT',
+  TEMPLATE = 'TEMPLATE',
+}
+
 /** Embudo de captación (mini-CRM): estado de un prospecto (lead). */
 export enum LeadStatus {
   NEW = 'NEW',

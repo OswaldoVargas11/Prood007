@@ -16,4 +16,9 @@ export class CreateTemplateDto {
   @MinLength(1)
   @MaxLength(100_000)
   body!: string;
+
+  /** Carpeta destino (sistema de ficheros de plantillas). Vacío/ausente = raíz. */
+  @IsOptional()
+  @IsString()
+  folderId?: string;
 }

@@ -9,4 +9,9 @@ export class UploadDocumentDto {
   @MinLength(1)
   @MaxLength(200)
   name?: string;
+
+  /** Carpeta destino (sistema de ficheros del expediente). Vacío/ausente = raíz. */
+  @IsOptional()
+  @IsString()
+  folderId?: string;
 }

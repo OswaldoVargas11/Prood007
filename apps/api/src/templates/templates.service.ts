@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { CreateTemplateDto } from './dto/create-template.dto';
@@ -34,19 +34,47 @@ export class TemplatesService {
     return { ...tpl, tokens: extractTokens(tpl.body) };
   }
 
+  /** Valida que una carpeta (si se indica) pertenece al tenant y es de plantillas. Devuelve id o null. */
+  private async resolveTemplateFolder(
+    user: RequestUser,
+    folderId: string | null | undefined,
+  ): Promise<string | null> {
+    if (!folderId) return null;
+    const folder = await this.prisma.folder.findFirst({
+      where: { id: folderId, tenantId: user.tenantId, kind: 'TEMPLATE' },
+      select: { id: true },
+    });
+    if (!folder) throw new BadRequestException(apiError('folders.parentMismatch'));
+    return folder.id;
+  }
+
   async create(user: RequestUser, dto: CreateTemplateDto) {
+    const folderId = await this.resolveTemplateFolder(user, dto.folderId);
     const created = await this.prisma.documentTemplate.create({
       data: {
         tenantId: user.tenantId,
         name: dto.name.trim(),
         description: dto.description?.trim() || null,
         body: dto.body,
+        folderId,
       },
     });
     await this.audit.log(user, 'template.created', 'DocumentTemplate', created.id, {
       name: created.name,
     });
     return created;
+  }
+
+  /** Mueve una plantilla a otra carpeta (o a la raíz con `null`). */
+  async move(user: RequestUser, id: string, folderId: string | null) {
+    await this.get(user, id);
+    const resolved = await this.resolveTemplateFolder(user, folderId);
+    await this.prisma.documentTemplate.updateMany({
+      where: { id, tenantId: user.tenantId },
+      data: { folderId: resolved },
+    });
+    await this.audit.log(user, 'template.moved', 'DocumentTemplate', id, { folderId: resolved });
+    return { success: true as const, folderId: resolved };
   }
 
   async update(user: RequestUser, id: string, dto: UpdateTemplateDto) {

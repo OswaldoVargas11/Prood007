@@ -57,6 +57,8 @@ import type {
   MatterDetail,
   MatterDocument,
   MatterEmail,
+  Folder,
+  FolderKind,
   MatterLedger,
   MatterStatus,
   MatterTeam,
@@ -252,14 +254,90 @@ export function useDocument(id: string) {
 export function useUploadDocument(matterId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ file, name }: { file: File; name?: string }) => {
+    mutationFn: ({
+      file,
+      name,
+      folderId,
+    }: {
+      file: File;
+      name?: string;
+      folderId?: string | null;
+    }) => {
       const form = new FormData();
       form.append('file', file);
       form.append('matterId', matterId);
       if (name) form.append('name', name);
+      if (folderId) form.append('folderId', folderId);
       return api.upload<MatterDocument>('/documents', form);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', matterId] }),
+  });
+}
+
+/** Mueve un documento a otra carpeta del expediente (o a la raíz con `null`). */
+export function useMoveDocument(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ documentId, folderId }: { documentId: string; folderId: string | null }) =>
+      api.patch(`/documents/${documentId}/move`, { folderId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents', matterId] }),
+  });
+}
+
+// ── Carpetas (sistema de ficheros, compartido documentos/plantillas) ──────────
+const foldersKey = (kind: FolderKind, matterId?: string) =>
+  ['folders', kind, matterId ?? null] as const;
+
+/** Lista (plana) de carpetas de un contexto. El árbol se reconstruye con `parentId`. */
+export function useFolders(kind: FolderKind, matterId?: string) {
+  return useQuery({
+    queryKey: foldersKey(kind, matterId),
+    queryFn: () => {
+      const qs = new URLSearchParams({ kind });
+      if (matterId) qs.set('matterId', matterId);
+      return api.get<Folder[]>(`/folders?${qs.toString()}`);
+    },
+    enabled: kind === 'TEMPLATE' || Boolean(matterId),
+  });
+}
+
+export function useCreateFolder(kind: FolderKind, matterId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string; parentId?: string | null }) =>
+      api.post<Folder>('/folders', {
+        kind,
+        matterId,
+        parentId: input.parentId ?? undefined,
+        name: input.name,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: foldersKey(kind, matterId) }),
+  });
+}
+
+/** Renombra y/o mueve una carpeta (parentId: id destino, o null para la raíz). */
+export function useUpdateFolder(kind: FolderKind, matterId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string; name?: string; parentId?: string | null }) =>
+      api.patch<Folder>(`/folders/${id}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: foldersKey(kind, matterId) }),
+  });
+}
+
+export function useDeleteFolder(kind: FolderKind, matterId?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del(`/folders/${id}`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: foldersKey(kind, matterId) });
+      // El contenido huérfano sube al padre: refresca también documentos/plantillas afectados.
+      if (kind === 'DOCUMENT' && matterId) {
+        void qc.invalidateQueries({ queryKey: ['documents', matterId] });
+      } else {
+        void qc.invalidateQueries({ queryKey: ['templates'] });
+      }
+    },
   });
 }
 
@@ -560,10 +638,24 @@ export function useTemplates() {
 export function useCreateTemplate() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name: string; description?: string; body: string }) =>
-      api.post<DocumentTemplate>('/templates', body),
+    mutationFn: (body: {
+      name: string;
+      description?: string;
+      body: string;
+      folderId?: string | null;
+    }) => api.post<DocumentTemplate>('/templates', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
     meta: { successToast: toastMsg.templateCreated },
+  });
+}
+
+/** Mueve una plantilla a otra carpeta (o a la raíz con `null`). */
+export function useMoveTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, folderId }: { id: string; folderId: string | null }) =>
+      api.patch(`/templates/${id}/move`, { folderId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['templates'] }),
   });
 }
 

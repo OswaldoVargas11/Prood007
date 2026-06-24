@@ -328,6 +328,7 @@ model Tenant {
   shareTransfers      ShareTransfer[]
   registryObligations RegistryObligation[]
   matterAssignments   MatterAssignment[]
+  folders             Folder[]
 }
 
 model User {
@@ -577,6 +578,7 @@ model Matter {
   closingChecklists     ClosingChecklist[]
   dataRooms             DataRoom[]
   engagementLetter      EngagementLetter?
+  folders               Folder[]
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -612,16 +614,20 @@ model Document {
   id        String   @id @default(cuid())
   tenantId  String
   matterId  String
+  // Carpeta (sistema de ficheros del expediente). Null = raíz. Ver modelo Folder.
+  folderId  String?
   name      String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   tenant   Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   matter   Matter            @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  folder   Folder?           @relation("DocumentFolder", fields: [folderId], references: [id], onDelete: SetNull)
   versions DocumentVersion[]
 
   @@index([tenantId])
   @@index([tenantId, matterId])
+  @@index([folderId])
 }
 
 // Plantilla de documento del despacho (contrato/escrito) con campos combinados {{cliente.nombre}}…
@@ -633,12 +639,46 @@ model DocumentTemplate {
   description String?
   // Cuerpo con marcadores {{campo}} que se sustituyen al generar (cliente/expediente/despacho).
   body        String
+  // Carpeta (sistema de ficheros de plantillas del despacho). Null = raíz. Ver modelo Folder.
+  folderId    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  folder Folder? @relation("TemplateFolder", fields: [folderId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
+  @@index([folderId])
+}
+
+// Sistema de ficheros (carpetas anidadas) reutilizable en dos contextos: documentos de un
+// expediente (kind=DOCUMENT, matterId presente) y plantillas del despacho (kind=TEMPLATE,
+// matterId nulo). Árbol vía auto-relación parent/children. Tenant-scoped con RLS fail-closed.
+enum FolderKind {
+  DOCUMENT
+  TEMPLATE
+}
+
+model Folder {
+  id        String     @id @default(cuid())
+  tenantId  String
+  kind      FolderKind
+  matterId  String?
+  parentId  String?
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  tenant    Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter    Matter?            @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  parent    Folder?            @relation("FolderTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Folder[]           @relation("FolderTree")
+  documents Document[]         @relation("DocumentFolder")
+  templates DocumentTemplate[] @relation("TemplateFolder")
+
+  @@index([tenantId])
+  @@index([tenantId, kind, matterId])
+  @@index([parentId])
 }
 
 model DocumentVersion {
