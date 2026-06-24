@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { type APIRequestContext, request } from '@playwright/test';
 
@@ -98,11 +98,54 @@ function invoiceOf(body: unknown): SeededInvoice | null {
   };
 }
 
+/**
+ * POST `/api/auth/login` con reintentos ante 429. `/auth/login` está limitado a 10/min por IP y entre
+ * el setup y los specs varios logins comparten la misma IP en CI; un 429 esporádico no debe tumbar la
+ * siembra ni el re-acuñado de sesión. Backoff fijo y acotado (la ventana del limitador es de 1 min).
+ */
+async function postLoginWithBackoff(
+  ctx: APIRequestContext,
+  email: string,
+  password: string,
+): Promise<Awaited<ReturnType<APIRequestContext['post']>>> {
+  const delaysMs = [0, 1_000, 2_500, 5_000, 9_000, 13_000];
+  let last: Awaited<ReturnType<APIRequestContext['post']>> | undefined;
+  for (const delay of delaysMs) {
+    if (delay) await new Promise((r) => setTimeout(r, delay));
+    last = await ctx.post('/api/auth/login', { data: { email, password } });
+    if (last.status() !== 429) return last;
+  }
+  return last as Awaited<ReturnType<APIRequestContext['post']>>;
+}
+
 /** Login por el BFF del web: fija la cookie de sesión en `ctx` y devuelve el access token. */
 async function webLogin(ctx: APIRequestContext, email: string, password: string): Promise<string> {
-  const res = await ctx.post('/api/auth/login', { data: { email, password } });
+  const res = await postLoginWithBackoff(ctx, email, password);
   await expectOk(`web login ${email}`, res);
   return ((await res.json()) as { accessToken: string }).accessToken;
+}
+
+/**
+ * Re-acuña una sesión CLIENT FRESCA por test (lazy), en vez de reusar el `CLIENT_STATE` del setup.
+ *
+ * Motivo (flakiness de role-isolation): el refresh token es **rotativo con detección de reutilización**
+ * (apps/api tokens.service `rotate`). El `storageState` compartido guarda UN refresh `R0`; el access
+ * vive en memoria, así que cada context restaurado arranca pidiendo `/api/auth/refresh`. El primer spec
+ * CLIENT (portal) consume `R0` (lo rota y revoca); el siguiente que restaura el MISMO fichero presenta
+ * `R0` ya revocado → la detección de reutilización dispara `revokeAllForUser` + 401 → el BFF limpia la
+ * cookie → rebote a `/login`, que compite con la aserción de URL. Acuñando un login fresco por test,
+ * cada sesión es válida y nadie reutiliza un token rotado (no se dispara el blast). Idempotente y barato.
+ */
+export async function mintClientState(): Promise<
+  Awaited<ReturnType<APIRequestContext['storageState']>>
+> {
+  const creds = JSON.parse(readFileSync(CREDS_PATH, 'utf8')) as SeedCreds;
+  const ctx = await request.newContext({ baseURL: WEB_URL });
+  const res = await postLoginWithBackoff(ctx, creds.client.email, creds.client.password);
+  await expectOk('mint client state', res);
+  const state = await ctx.storageState();
+  await ctx.dispose();
+  return state;
 }
 
 export default async function globalSetup(): Promise<void> {

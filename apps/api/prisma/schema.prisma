@@ -1749,3 +1749,22 @@ model FiscalEvent {
   @@index([tenantId, createdAt])
   @@index([tenantId, invoiceId])
 }
+
+// Rangos de eNCF AUTORIZADOS por la DGII (RD) para un despacho, por tipo de comprobante (31 crédito fiscal,
+// 32 consumo, 34 nota de crédito…). El emisor e-CF debe usar números de un rango autorizado, NO una serie
+// interna: el despacho registra aquí los rangos que DGII le aprueba en la Oficina Virtual. `next` es el
+// próximo a asignar (rangeStart..rangeEnd); al agotarse o vencer (`expiresAt`), la emisión DO se bloquea
+// con un error claro. eNCF = `E` + ncfType(2) + secuencia(10). RLS fail-closed por tenant.
+model EcfSequence {
+  tenantId   String
+  ncfType    String // "31" | "32" | "33" | "34" | "44" | ...
+  rangeStart Int
+  rangeEnd   Int
+  next       Int
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@id([tenantId, ncfType])
+  @@index([tenantId])
+}

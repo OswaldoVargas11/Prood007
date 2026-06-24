@@ -3,6 +3,7 @@ import { DgiiConfig } from './dgii.config';
 import { DgiiSubmissionService } from './dgii-submission.service';
 import { DgiiCredentialService } from './dgii-credential.service';
 import { EcfTransmissionService } from './ecf-transmission.service';
+import { EcfSequenceService } from './ecf-sequence.service';
 import { DgiiController } from './dgii.controller';
 
 /**
@@ -12,7 +13,13 @@ import { DgiiController } from './dgii.controller';
  */
 @Module({
   controllers: [DgiiController],
-  providers: [DgiiConfig, DgiiSubmissionService, DgiiCredentialService, EcfTransmissionService],
+  providers: [
+    DgiiConfig,
+    DgiiSubmissionService,
+    DgiiCredentialService,
+    EcfTransmissionService,
+    EcfSequenceService,
+  ],
   exports: [DgiiConfig, DgiiSubmissionService, EcfTransmissionService, DgiiCredentialService],
 })
 export class DgiiModule {}
