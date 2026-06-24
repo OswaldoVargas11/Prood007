@@ -1041,6 +1041,7 @@
     "empty": "Aún no hay documentos en este expediente.",
     "emptyFolder": "Esta carpeta no tiene documentos todavía.",
     "folderLabel": "Carpeta",
+    "batchSign": "Firmar en lote",
     "newVersion": "Nueva versión",
     "versionCount": "{count, plural, one {# versión} other {# versiones}}",
     "download": "Descargar",
@@ -1915,6 +1916,19 @@
     "moveTo": "Mover a",
     "move": "Mover",
     "dragHint": "Arrastra a una carpeta para mover"
+  },
+  "signBatch": {
+    "title": "Firmar en lote",
+    "desc": "Envía a firma la versión más reciente de los documentos seleccionados, con un mismo firmante.",
+    "documents": "Documentos",
+    "noDocs": "No hay documentos para firmar.",
+    "signerName": "Nombre del firmante",
+    "signerEmail": "Email del firmante",
+    "send": "Enviar {count} a firma",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "error": "No se pudo enviar a firma.",
+    "result": "Enviados {created} a firma. {failed} con error."
   },
   "presentations": {
     "title": "Tipos de presentación",

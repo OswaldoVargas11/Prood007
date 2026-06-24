@@ -19,6 +19,9 @@ import { formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SignaturePanel } from '@/components/lexora/signature-panel';
+import { BatchSignatureDialog } from '@/components/lexora/batch-signature-dialog';
+import { useEntitlement } from '@/lib/entitlements';
+import { Button } from '@/components/ui/button';
 import {
   FolderBrowser,
   ITEM_DRAG_MIME,
@@ -43,6 +46,8 @@ export default function MatterDocumentsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [batchSignOpen, setBatchSignOpen] = useState(false);
+  const canSign = useEntitlement('signatures');
 
   // Documentos visibles = los de la carpeta actual (folderId nulo = raíz).
   const visible = useMemo<MatterDocument[]>(
@@ -91,6 +96,11 @@ export default function MatterDocumentsPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
             <p className="mt-1 text-[13.5px] text-muted-foreground">{t('groupedSubtitle')}</p>
           </div>
+          {canSign && (data?.length ?? 0) > 0 && (
+            <Button size="sm" variant="outline" onClick={() => setBatchSignOpen(true)}>
+              {t('batchSign')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -284,6 +294,15 @@ export default function MatterDocumentsPage() {
             )}
           </div>
         </div>
+      )}
+
+      {canSign && (
+        <BatchSignatureDialog
+          open={batchSignOpen}
+          onClose={() => setBatchSignOpen(false)}
+          matterId={id}
+          documents={data ?? []}
+        />
       )}
     </div>
   );
