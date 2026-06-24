@@ -59,6 +59,10 @@ import type {
   MatterEmail,
   Folder,
   FolderKind,
+  ChecklistItem,
+  ChecklistItemStatus,
+  MatterChecklist,
+  PresentationType,
   MatterLedger,
   MatterStatus,
   MatterTeam,
@@ -2689,4 +2693,101 @@ export function useCompanySecretaryActions(clientId: string) {
       onSuccess: (d) => d && set(d),
     }),
   };
+}
+
+// ── Checklists de presentación (catálogo + instancia por expediente) ──────────
+interface RequirementInput {
+  name: string;
+  description?: string;
+  required?: boolean;
+}
+interface PresentationTypeInput {
+  name: string;
+  sector: string;
+  jurisdiction?: 'es' | 'do' | null;
+  description?: string;
+  requirements?: RequirementInput[];
+}
+
+export function usePresentationTypes() {
+  return useQuery({
+    queryKey: ['presentation-types'],
+    queryFn: () => api.get<PresentationType[]>('/presentation-types'),
+  });
+}
+
+export function useCreatePresentationType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: PresentationTypeInput) =>
+      api.post<PresentationType>('/presentation-types', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['presentation-types'] }),
+  });
+}
+
+export function useUpdatePresentationType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }: { id: string } & Partial<PresentationTypeInput>) =>
+      api.patch<PresentationType>(`/presentation-types/${id}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['presentation-types'] }),
+  });
+}
+
+export function useDeletePresentationType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del(`/presentation-types/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['presentation-types'] }),
+  });
+}
+
+/** Importa el catálogo de ejemplo (idempotente). Solo admin. */
+export function useSeedPresentationCatalog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<{ created: number }>('/presentation-types/seed'),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['presentation-types'] }),
+  });
+}
+
+export function usePresentationChecklists(matterId: string) {
+  return useQuery({
+    queryKey: ['presentation-checklists', matterId],
+    queryFn: () => api.get<MatterChecklist[]>(`/presentation-checklists?matterId=${matterId}`),
+    enabled: Boolean(matterId),
+  });
+}
+
+export function useApplyPresentationChecklist(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (presentationTypeId: string) =>
+      api.post<MatterChecklist>('/presentation-checklists', { matterId, presentationTypeId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['presentation-checklists', matterId] }),
+  });
+}
+
+export function useUpdatePresentationItem(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      itemId,
+      ...body
+    }: {
+      itemId: string;
+      status?: ChecklistItemStatus;
+      documentId?: string | null;
+    }) => api.patch<ChecklistItem>(`/presentation-checklists/items/${itemId}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['presentation-checklists', matterId] }),
+  });
+}
+
+export function useRemovePresentationChecklist(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (checklistId: string) =>
+      api.del(`/presentation-checklists/${checklistId}?matterId=${matterId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['presentation-checklists', matterId] }),
+  });
 }

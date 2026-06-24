@@ -7,6 +7,7 @@ import {
   CheckSquare,
   Clock,
   CreditCard,
+  ClipboardList,
   FileText,
   Gavel,
   LayoutTemplate,
@@ -66,6 +67,7 @@ export const NAV_GROUPS: NavGroup[] = [
         enabled: true,
         feature: 'templates',
       },
+      { key: 'presentations', href: '/presentations', icon: ClipboardList, enabled: true },
     ],
   },
   {

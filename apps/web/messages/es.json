@@ -218,6 +218,7 @@
       "admin": "Despacho"
     },
     "templates": "Plantillas",
+    "presentations": "Presentaciones",
     "aml": "AML",
     "reports": "Informes"
   },
@@ -553,6 +554,7 @@
     "tabs": {
       "overview": "Resumen",
       "documents": "Documentos",
+      "checklist": "Requisitos",
       "closing": "Cierre",
       "dataroom": "Data room",
       "tasks": "Tareas",
@@ -1881,6 +1883,48 @@
     "confirmDeleteFolder": "¿Eliminar la carpeta «{name}»? Su contenido se moverá a la carpeta superior.",
     "moveTo": "Mover a",
     "move": "Mover"
+  },
+  "presentations": {
+    "title": "Tipos de presentación",
+    "subtitle": "Define, por sector y jurisdicción, qué documentos se deben aportar en cada gestión. Luego aplica un tipo a un expediente para seguir su cumplimiento.",
+    "reviewNotice": "El catálogo de ejemplo es orientativo y editable: revísalo y adáptalo a tu práctica y a la normativa vigente. No constituye asesoramiento legal.",
+    "new": "Nuevo tipo",
+    "importSample": "Importar catálogo de ejemplo",
+    "empty": "Aún no hay tipos de presentación. Crea uno o importa el catálogo de ejemplo.",
+    "edit": "Editar",
+    "reqCount": "{count, plural, one {# documento requerido} other {# documentos requeridos}}",
+    "confirmDelete": "¿Eliminar el tipo de presentación «{name}»?",
+    "newTitle": "Nuevo tipo de presentación",
+    "editTitle": "Editar tipo de presentación",
+    "dialogDesc": "Nombre, sector, jurisdicción y la lista de documentos requeridos.",
+    "name": "Nombre",
+    "sector": "Sector",
+    "jurisdiction": "Jurisdicción",
+    "jurBoth": "Ambas (ES y RD)",
+    "description": "Descripción",
+    "requirements": "Documentos requeridos",
+    "reqNamePlaceholder": "p. ej. Nota simple registral",
+    "reqRequired": "Obligatorio",
+    "addRequirement": "Añadir documento"
+  },
+  "checklist": {
+    "applyLabel": "Aplicar un tipo de presentación",
+    "applyPlaceholder": "Elige un tipo…",
+    "apply": "Aplicar",
+    "noTypes": "Aún no hay tipos de presentación.",
+    "manageCatalog": "Gestionar catálogo",
+    "empty": "Este expediente no tiene checklists. Aplica un tipo de presentación para empezar.",
+    "progress": "{done}/{total} aportados",
+    "removeChecklist": "Quitar checklist",
+    "required": "Obligatorio",
+    "linkDoc": "Documento aportado",
+    "noDoc": "Sin documento",
+    "statusLabel": "Estado",
+    "status": {
+      "PENDING": "Pendiente",
+      "UPLOADED": "Aportado",
+      "NA": "No aplica"
+    }
   },
   "toasts": {
     "newMessage": "Nuevo mensaje",

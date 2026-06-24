@@ -300,6 +300,18 @@ export enum FolderKind {
   TEMPLATE = 'TEMPLATE',
 }
 
+/**
+ * Estado de un requisito documental de una checklist de presentación aplicada a un expediente.
+ * - PENDING: aún no aportado.
+ * - UPLOADED: aportado (normalmente con un documento enlazado).
+ * - NA: no aplica a este expediente.
+ */
+export enum ChecklistItemStatus {
+  PENDING = 'PENDING',
+  UPLOADED = 'UPLOADED',
+  NA = 'NA',
+}
+
 /** Embudo de captación (mini-CRM): estado de un prospecto (lead). */
 export enum LeadStatus {
   NEW = 'NEW',

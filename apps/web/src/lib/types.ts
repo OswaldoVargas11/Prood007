@@ -570,6 +570,50 @@ export interface MatterDocument {
 /** Tipo de contexto de una carpeta (alineado con el enum del backend). */
 export type FolderKind = 'DOCUMENT' | 'TEMPLATE';
 
+// ── Checklists de presentación ────────────────────────────────────────────────
+export type ChecklistItemStatus = 'PENDING' | 'UPLOADED' | 'NA';
+export type Jurisdiction = 'es' | 'do';
+
+export interface PresentationRequirement {
+  id: string;
+  name: string;
+  description: string | null;
+  required: boolean;
+  order: number;
+}
+
+export interface PresentationType {
+  id: string;
+  name: string;
+  sector: string;
+  jurisdiction: Jurisdiction | null;
+  description: string | null;
+  requirements: PresentationRequirement[];
+  _count?: { checklists: number };
+}
+
+export interface ChecklistItem {
+  id: string;
+  checklistId: string;
+  requirementId: string | null;
+  name: string;
+  description: string | null;
+  required: boolean;
+  status: ChecklistItemStatus;
+  documentId: string | null;
+  order: number;
+}
+
+export interface MatterChecklist {
+  id: string;
+  matterId: string;
+  presentationTypeId: string | null;
+  title: string;
+  createdAt: string;
+  items: ChecklistItem[];
+  progress: { total: number; done: number; percent: number };
+}
+
 /** Carpeta del sistema de ficheros (`GET /folders?kind=…`). Árbol vía `parentId`. */
 export interface Folder {
   id: string;

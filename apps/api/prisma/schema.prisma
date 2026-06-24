@@ -329,6 +329,10 @@ model Tenant {
   registryObligations RegistryObligation[]
   matterAssignments   MatterAssignment[]
   folders             Folder[]
+  presentationTypes      PresentationType[]
+  presentationReqs       PresentationRequirement[]
+  matterChecklists       MatterChecklist[]
+  matterChecklistItems   MatterChecklistItem[]
 }
 
 model User {
@@ -579,6 +583,7 @@ model Matter {
   dataRooms             DataRoom[]
   engagementLetter      EngagementLetter?
   folders               Folder[]
+  checklists            MatterChecklist[]
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -1837,4 +1842,93 @@ model EcfSequence {
 
   @@id([tenantId, ncfType])
   @@index([tenantId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Checklists de presentación por tipo de gestión (inmobiliario, familia, mercantil, minería…).
+// Catálogo EDITABLE por despacho (PresentationType + PresentationRequirement). Al aplicar un tipo a
+// un expediente se instancia una MatterChecklist con sus MatterChecklistItem (copia de los requisitos,
+// con estado y documento aportado). Tenant-scoped con RLS fail-closed.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Estado de un requisito documental de una checklist aplicada (ver @legalflow/domain).
+enum ChecklistItemStatus {
+  PENDING
+  UPLOADED
+  NA
+}
+
+model PresentationType {
+  id          String        @id @default(cuid())
+  tenantId    String
+  name        String
+  // Sector/área (texto libre; agrupación en la UI): inmobiliario, familia, mercantil, minería…
+  sector      String
+  // Jurisdicción a la que aplica; null = ambas (ES y RD).
+  jurisdiction Jurisdiction?
+  description String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  tenant       Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requirements PresentationRequirement[]
+  checklists   MatterChecklist[]
+
+  @@index([tenantId])
+  @@index([tenantId, sector])
+}
+
+model PresentationRequirement {
+  id                 String  @id @default(cuid())
+  tenantId           String
+  presentationTypeId String
+  name               String
+  description        String?
+  required           Boolean @default(true)
+  order              Int     @default(0)
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  type   PresentationType @relation(fields: [presentationTypeId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([presentationTypeId])
+}
+
+model MatterChecklist {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  matterId           String
+  // Tipo de presentación de origen; null si el tipo se borró luego (se conserva el `title` y los ítems).
+  presentationTypeId String?
+  title              String
+  createdAt          DateTime @default(now())
+
+  tenant Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter                @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  type   PresentationType?     @relation(fields: [presentationTypeId], references: [id], onDelete: SetNull)
+  items  MatterChecklistItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+}
+
+model MatterChecklistItem {
+  id            String              @id @default(cuid())
+  tenantId      String
+  checklistId   String
+  // Requisito de origen (puede quedar null si el catálogo cambió); el `name` se conserva siempre.
+  requirementId String?
+  name          String
+  description   String?
+  required      Boolean             @default(true)
+  status        ChecklistItemStatus @default(PENDING)
+  // Documento del expediente que satisface el requisito (escalar, sin FK — patrón SignatureRequest).
+  documentId    String?
+  order         Int                 @default(0)
+
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  checklist MatterChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([checklistId])
 }
