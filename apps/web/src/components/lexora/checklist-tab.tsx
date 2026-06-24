@@ -2,9 +2,19 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { CheckCircle2, Circle, ListChecks, Loader2, MinusCircle, Plus, Trash2 } from 'lucide-react';
+import {
+  CheckCircle2,
+  Circle,
+  Download,
+  ListChecks,
+  Loader2,
+  MinusCircle,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import {
+  downloadChecklistPdf,
   useApplyPresentationChecklist,
   useMatterDocuments,
   usePresentationChecklists,
@@ -105,6 +115,16 @@ export function ChecklistTab({ matterId }: { matterId: string }) {
                   </span>
                 </div>
               </div>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-7"
+                aria-label={t('exportPdf')}
+                title={t('exportPdf')}
+                onClick={() => void downloadChecklistPdf(cl.id, `${cl.title}.pdf`)}
+              >
+                <Download className="size-4" />
+              </Button>
               <Button
                 size="icon"
                 variant="ghost"

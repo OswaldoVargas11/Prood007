@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { Role } from '@legalflow/domain';
 import { PresentationsService } from './presentations.service';
 import { CreatePresentationTypeDto, UpdatePresentationTypeDto } from './dto/presentation-type.dto';
@@ -66,6 +67,20 @@ export class PresentationChecklistsController {
   @Post()
   apply(@CurrentUser() user: RequestUser, @Body() dto: ApplyChecklistDto) {
     return this.presentations.applyToMatter(user, dto.matterId, dto.presentationTypeId);
+  }
+
+  /** Descarga el PDF del estado de la checklist (qué falta / qué está aportado). */
+  @Get(':id/pdf')
+  async pdf(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { filename, buffer } = await this.presentations.checklistPdf(user, id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', String(buffer.length));
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
   }
 
   /** Actualiza un ítem (estado y/o documento aportado). */
