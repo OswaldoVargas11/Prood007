@@ -1904,6 +1904,17 @@ export async function downloadVersion(versionId: string, filename: string): Prom
  * Descarga el PDF de una factura (despacho: `/ledger/invoices/:id/pdf`; portal:
  * `/portal/invoices/:id/pdf`) y dispara la descarga en el navegador.
  */
+/** Descarga el PDF del estado de una checklist de presentación. */
+export async function downloadChecklistPdf(checklistId: string, filename: string): Promise<void> {
+  const blob = await api.download(`/presentation-checklists/${checklistId}/pdf`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function downloadInvoicePdf(path: string, filename: string): Promise<void> {
   const blob = await api.download(path);
   const url = URL.createObjectURL(blob);

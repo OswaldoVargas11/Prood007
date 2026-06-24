@@ -1948,6 +1948,7 @@
     "empty": "Este expediente no tiene checklists. Aplica un tipo de presentación para empezar.",
     "progress": "{done}/{total} aportados",
     "removeChecklist": "Quitar checklist",
+    "exportPdf": "Exportar a PDF",
     "required": "Obligatorio",
     "linkDoc": "Documento aportado",
     "noDoc": "Sin documento",

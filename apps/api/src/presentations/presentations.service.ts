@@ -5,6 +5,7 @@ import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { apiError } from '../common/api-messages';
 import { PRESENTATION_SEED_CATALOG } from './seed-catalog';
+import { buildChecklistPdf } from './checklist-pdf';
 import {
   CreatePresentationTypeDto,
   RequirementInputDto,
@@ -233,6 +234,48 @@ export class PresentationsService {
     });
     await this.audit.log(user, 'checklist.removed', 'MatterChecklist', checklistId, { matterId });
     return { success: true as const };
+  }
+
+  /** Genera el PDF del estado de una checklist (qué se ha aportado y qué falta) para enviar al cliente. */
+  async checklistPdf(user: RequestUser, checklistId: string) {
+    const checklist = await this.prisma.matterChecklist.findFirst({
+      where: { id: checklistId, tenantId: user.tenantId },
+      include: {
+        items: { orderBy: { order: 'asc' } },
+        matter: {
+          select: { reference: true, title: true, client: { select: { name: true } } },
+        },
+      },
+    });
+    if (!checklist) throw new NotFoundException(apiError('checklists.notFound'));
+    const tenant = await this.prisma.tenant.findFirst({
+      where: { id: user.tenantId },
+      select: { name: true, taxId: true },
+    });
+    const required = checklist.items.filter((i) => i.required && i.status !== 'NA');
+    const done = required.filter((i) => i.status === 'UPLOADED');
+    const buffer = await buildChecklistPdf({
+      firmName: tenant?.name ?? 'Despacho',
+      firmTaxId: tenant?.taxId ?? null,
+      matterReference: checklist.matter.reference,
+      matterTitle: checklist.matter.title,
+      clientName: checklist.matter.client?.name ?? null,
+      title: checklist.title,
+      items: checklist.items.map((i) => ({
+        name: i.name,
+        description: i.description,
+        required: i.required,
+        status: i.status,
+      })),
+      progress: {
+        done: done.length,
+        total: required.length,
+        percent: required.length === 0 ? 100 : Math.round((done.length / required.length) * 100),
+      },
+      generatedAt: new Date(),
+    });
+    await this.audit.log(user, 'checklist.exported_pdf', 'MatterChecklist', checklistId);
+    return { filename: `checklist-${checklist.matter.reference}.pdf`, buffer };
   }
 
   async updateItem(user: RequestUser, itemId: string, dto: UpdateChecklistItemDto) {
