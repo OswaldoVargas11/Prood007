@@ -298,6 +298,54 @@ export class MattersService {
     return this.findOne(user, id);
   }
 
+  /**
+   * Equipo del expediente: letrado responsable/líder (`Matter.lawyerId`) + letrados adicionales
+   * asignados (`MatterAssignment`). Lectura para staff del despacho. El chat (PR-4) restringe la
+   * participación a este equipo + el cliente.
+   */
+  async getTeam(user: RequestUser, id: string) {
+    const matter = await this.prisma.matter.findFirst({
+      where: { id, tenantId: user.tenantId },
+      select: {
+        lawyer: { select: { id: true, fullName: true } },
+        assignments: {
+          include: { user: { select: { id: true, fullName: true } } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+    if (!matter) throw new NotFoundException(apiError('matters.notFound'));
+    return {
+      lead: matter.lawyer ?? null,
+      members: matter.assignments.map((a) => a.user),
+    };
+  }
+
+  /** Añade un letrado adicional al equipo. Solo administrador. Idempotente (no duplica). */
+  async addAssignee(user: RequestUser, id: string, userId: string) {
+    this.assertCanAssignLawyer(user);
+    await this.findOne(user, id);
+    await this.assertLawyerInTenant(user, userId);
+    await this.prisma.matterAssignment.upsert({
+      where: { matterId_userId: { matterId: id, userId } },
+      create: { tenantId: user.tenantId, matterId: id, userId },
+      update: {},
+    });
+    await this.audit.log(user, 'matter.assignee_added', 'Matter', id, { userId });
+    return this.getTeam(user, id);
+  }
+
+  /** Quita un letrado adicional del equipo. Solo administrador. */
+  async removeAssignee(user: RequestUser, id: string, userId: string) {
+    this.assertCanAssignLawyer(user);
+    await this.findOne(user, id);
+    await this.prisma.matterAssignment.deleteMany({
+      where: { tenantId: user.tenantId, matterId: id, userId },
+    });
+    await this.audit.log(user, 'matter.assignee_removed', 'Matter', id, { userId });
+    return this.getTeam(user, id);
+  }
+
   /** Cambia el estado validando la transición contra la máquina de estados. */
   async changeStatus(user: RequestUser, id: string, next: MatterStatus) {
     const matter = await this.findOne(user, id);

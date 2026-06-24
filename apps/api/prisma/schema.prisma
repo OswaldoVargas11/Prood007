@@ -327,6 +327,7 @@ model Tenant {
   shareholders        Shareholder[]
   shareTransfers      ShareTransfer[]
   registryObligations RegistryObligation[]
+  matterAssignments   MatterAssignment[]
 }
 
 model User {
@@ -370,6 +371,7 @@ model User {
 
   // Relaciones de negocio
   responsibleMatters Matter[]          @relation("MatterLawyer")
+  matterAssignments  MatterAssignment[] @relation("MatterAssignee")
   clientProfile      Client?           @relation("ClientUser")
   assignedTasks      Task[]            @relation("TaskAssignee")
   timeEntries        TimeEntry[]
@@ -560,6 +562,7 @@ model Matter {
   tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client           Client            @relation(fields: [clientId], references: [id])
   lawyer           User?             @relation("MatterLawyer", fields: [lawyerId], references: [id])
+  assignments      MatterAssignment[]
   documents        Document[]
   tasks            Task[]
   timeEntries      TimeEntry[]
@@ -579,6 +582,26 @@ model Matter {
   @@index([tenantId])
   @@index([tenantId, clientId])
   @@index([tenantId, status])
+}
+
+// Letrados ADICIONALES asignados a un expediente. El responsable/líder sigue en `Matter.lawyerId`;
+// esta tabla suma colaboradores para trabajar en equipo. El chat por expediente restringe la
+// participación a los asignados (líder + estos) + el cliente. Tenant-scoped con RLS fail-closed.
+model MatterAssignment {
+  id        String   @id @default(cuid())
+  tenantId  String
+  matterId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  user   User   @relation("MatterAssignee", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([matterId, userId])
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+  @@index([tenantId, userId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

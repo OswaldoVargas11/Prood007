@@ -12,6 +12,7 @@ import { nextStatuses } from '@/lib/matter-status';
 import { formatDate } from '@/lib/format';
 import { StatusBadge } from '@/components/lexora/status-badge';
 import { MatterRail } from '@/components/lexora/matter-rail';
+import { MatterTeamCard } from '@/components/lexora/matter-team';
 import { LegalResearchLinks } from '@/components/lexora/legal-research-links';
 import { DocumentsTab } from '@/components/lexora/documents-tab';
 import { ClosingChecklistTab } from '@/components/lexora/closing-checklist-tab';
@@ -174,6 +175,7 @@ export default function MatterDetailPage() {
               </Card>
               <div className="space-y-4">
                 <MatterRail matterId={id} onOpenLedger={() => setTab('costs')} />
+                <MatterTeamCard matterId={id} />
                 <MatterBudget matter={matter} />
                 <LegalResearchLinks matter={matter} />
               </div>

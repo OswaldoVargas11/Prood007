@@ -46,6 +46,12 @@ export interface Assignee {
   fullName: string;
 }
 
+/** Equipo del expediente (`GET /matters/:id/team`): líder + letrados adicionales asignados. */
+export interface MatterTeam {
+  lead: { id: string; fullName: string } | null;
+  members: { id: string; fullName: string }[];
+}
+
 export interface Client {
   id: string;
   name: string;
