@@ -141,18 +141,24 @@ export default function MatterDetailPage() {
       {changeStatus.isError && <p className="text-sm text-[var(--danger)]">{t('statusError')}</p>}
 
       <Tabs value={tab} onValueChange={setTab}>
+        {/* Pestañas agrupadas por afinidad (Trabajo · Económico · Comunicación) con separadores
+            sutiles, para que el hub del expediente sea fácil de escanear pese a tener muchas secciones. */}
         <TabsList className="w-full overflow-x-auto">
           <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
+          <TabGroupDivider label={t('tabGroups.work')} />
           <TabsTrigger value="documents">{t('tabs.documents')}</TabsTrigger>
           <TabsTrigger value="checklist">{t('tabs.checklist')}</TabsTrigger>
+          <TabsTrigger value="tasks">{t('tabs.tasks')}</TabsTrigger>
           <TabsTrigger value="closing">{t('tabs.closing')}</TabsTrigger>
           <TabsTrigger value="dataroom">{t('tabs.dataroom')}</TabsTrigger>
-          <TabsTrigger value="tasks">{t('tabs.tasks')}</TabsTrigger>
+          <TabGroupDivider label={t('tabGroups.finance')} />
           <TabsTrigger value="costs">{t('tabs.costs')}</TabsTrigger>
           <TabsTrigger value="provision">{t('tabs.provision')}</TabsTrigger>
           <TabsTrigger value="billing">{t('tabs.billing')}</TabsTrigger>
+          <TabGroupDivider label={t('tabGroups.comms')} />
           <TabsTrigger value="chat">{t('tabs.chat')}</TabsTrigger>
           <TabsTrigger value="emails">{t('tabs.emails')}</TabsTrigger>
+          <TabGroupDivider label={t('tabGroups.more')} />
           <TabsTrigger value="activity">{t('tabs.activity')}</TabsTrigger>
           <TabsTrigger value="assistant">{t('tabs.assistant')}</TabsTrigger>
         </TabsList>
@@ -293,6 +299,19 @@ function LawyerField({ matter }: { matter: MatterDetail }) {
       </select>
       {assign.isError && <p className="text-[11px] text-[var(--danger)]">{t('assignError')}</p>}
     </div>
+  );
+}
+
+/** Separador con etiqueta entre grupos de pestañas (no interactivo). */
+function TabGroupDivider({ label }: { label: string }) {
+  return (
+    <span
+      aria-hidden
+      className="mx-1 hidden select-none items-center gap-2 pl-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-subtle)] sm:inline-flex"
+    >
+      <span className="h-4 w-px bg-border" />
+      {label}
+    </span>
   );
 }
 

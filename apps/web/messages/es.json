@@ -587,6 +587,12 @@
       "billing": "Facturación",
       "emails": "Correos"
     },
+    "tabGroups": {
+      "work": "Trabajo",
+      "finance": "Económico",
+      "comms": "Comunicación",
+      "more": "Más"
+    },
     "openDocuments": "Abrir vista de documentos",
     "research": {
       "title": "Investigación jurídica",
