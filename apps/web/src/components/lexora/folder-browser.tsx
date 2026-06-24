@@ -14,6 +14,7 @@ import {
 import { useCreateFolder, useDeleteFolder, useUpdateFolder } from '@/lib/hooks';
 import type { Folder, FolderKind } from '@/lib/types';
 import { ConfirmDialog } from '@/components/lexora/confirm-dialog';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +31,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+
+/**
+ * Tipo MIME del arrastre de un ítem (documento/plantilla) hacia una carpeta. La fuente del arrastre
+ * (la fila del documento/plantilla) hace `setData(ITEM_DRAG_MIME, id)`; las carpetas son destinos.
+ */
+export const ITEM_DRAG_MIME = 'application/x-lf-item';
 
 /** Construye la ruta (raíz→actual) de una carpeta subiendo por `parentId`. */
 export function folderPath(folders: Folder[], folderId: string | null): Folder[] {
@@ -56,12 +63,15 @@ export function FolderBrowser({
   folders,
   currentFolderId,
   onNavigate,
+  onItemDrop,
 }: {
   kind: FolderKind;
   matterId?: string;
   folders: Folder[];
   currentFolderId: string | null;
   onNavigate: (folderId: string | null) => void;
+  /** Si se define, las carpetas (y «Inicio») aceptan soltar un ítem arrastrado para moverlo. */
+  onItemDrop?: (folderId: string | null, itemId: string) => void;
 }) {
   const t = useTranslations('files');
   const tc = useTranslations('common');
@@ -72,6 +82,28 @@ export function FolderBrowser({
   const [dialog, setDialog] = useState<{ mode: 'new' | 'rename'; folder?: Folder } | null>(null);
   const [name, setName] = useState('');
   const [deleting, setDeleting] = useState<Folder | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  // Handlers de soltar para un destino (carpeta o raíz=null). Solo activos si hay onItemDrop.
+  const dropProps = (target: string | null) =>
+    onItemDrop
+      ? {
+          onDragOver: (e: React.DragEvent) => {
+            if (e.dataTransfer.types.includes(ITEM_DRAG_MIME)) {
+              e.preventDefault();
+              setDropTarget(target ?? '__root__');
+            }
+          },
+          onDragLeave: () => setDropTarget(null),
+          onDrop: (e: React.DragEvent) => {
+            e.preventDefault();
+            const id = e.dataTransfer.getData(ITEM_DRAG_MIME);
+            setDropTarget(null);
+            if (id) onItemDrop(target, id);
+          },
+        }
+      : {};
+  const isDropping = (target: string | null) => dropTarget === (target ?? '__root__');
 
   const path = useMemo(() => folderPath(folders, currentFolderId), [folders, currentFolderId]);
   const subfolders = useMemo(
@@ -109,7 +141,12 @@ export function FolderBrowser({
         <button
           type="button"
           onClick={() => onNavigate(null)}
-          className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground"
+          {...dropProps(null)}
+          className={cn(
+            'inline-flex items-center gap-1 rounded-md px-2 py-1 text-muted-foreground transition-colors hover:bg-accent/60 hover:text-foreground',
+            isDropping(null) &&
+              'bg-[var(--brand-soft)] text-[var(--brand)] ring-1 ring-[var(--brand)]',
+          )}
         >
           <Home className="size-3.5" /> {t('root')}
         </button>
@@ -136,7 +173,12 @@ export function FolderBrowser({
           {subfolders.map((f) => (
             <div
               key={f.id}
-              className="group flex items-center gap-2 rounded-lg border bg-card px-3 py-2.5 transition-colors hover:border-[var(--brand-line)]"
+              {...dropProps(f.id)}
+              className={cn(
+                'group flex items-center gap-2 rounded-lg border bg-card px-3 py-2.5 transition-colors hover:border-[var(--brand-line)]',
+                isDropping(f.id) &&
+                  'border-[var(--brand)] bg-[var(--brand-soft)] ring-1 ring-[var(--brand)]',
+              )}
             >
               <button
                 type="button"

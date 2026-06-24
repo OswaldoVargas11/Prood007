@@ -14,7 +14,11 @@ import {
 import { ApiError } from '@/lib/api';
 import { ConfirmDialog } from '@/components/lexora/confirm-dialog';
 import { ClausePicker } from '@/components/lexora/clause-picker';
-import { FolderBrowser, MoveToFolderControl } from '@/components/lexora/folder-browser';
+import {
+  FolderBrowser,
+  ITEM_DRAG_MIME,
+  MoveToFolderControl,
+} from '@/components/lexora/folder-browser';
 import { DocumentPackagesPanel } from '@/components/lexora/document-packages-panel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -83,6 +87,7 @@ export default function TemplatesPage() {
           folders={folders ?? []}
           currentFolderId={currentFolderId}
           onNavigate={setCurrentFolderId}
+          onItemDrop={(folderId, id) => move.mutate({ id, folderId })}
         />
       )}
 
@@ -100,7 +105,15 @@ export default function TemplatesPage() {
 
       <div className="space-y-3">
         {visible.map((tpl) => (
-          <Card key={tpl.id}>
+          <Card
+            key={tpl.id}
+            draggable
+            onDragStart={(e) => {
+              e.dataTransfer.setData(ITEM_DRAG_MIME, tpl.id);
+              e.dataTransfer.effectAllowed = 'move';
+            }}
+            className="cursor-grab active:cursor-grabbing"
+          >
             <CardContent className="flex items-start gap-3 p-4">
               <FileText className="mt-0.5 size-4 text-[var(--brand)]" />
               <div className="min-w-0 flex-1">

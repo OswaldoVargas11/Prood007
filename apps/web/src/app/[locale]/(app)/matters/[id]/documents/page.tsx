@@ -19,7 +19,11 @@ import { formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SignaturePanel } from '@/components/lexora/signature-panel';
-import { FolderBrowser, MoveToFolderControl } from '@/components/lexora/folder-browser';
+import {
+  FolderBrowser,
+  ITEM_DRAG_MIME,
+  MoveToFolderControl,
+} from '@/components/lexora/folder-browser';
 import { cn } from '@/lib/utils';
 import type { DocumentVersion, MatterDocument } from '@/lib/types';
 
@@ -51,17 +55,24 @@ export default function MatterDocumentsPage() {
     [visible, selectedId],
   );
 
+  // Sube uno o varios ficheros a la carpeta actual.
+  function uploadFiles(files: FileList | File[]) {
+    for (const file of Array.from(files)) {
+      upload.mutate({ file, name: file.name, folderId: currentFolderId });
+    }
+  }
+
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) upload.mutate({ file, name: file.name, folderId: currentFolderId });
+    if (e.target.files?.length) uploadFiles(e.target.files);
     e.target.value = '';
   }
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) upload.mutate({ file, name: file.name, folderId: currentFolderId });
+    // Si lo que se suelta es un documento que se arrastra entre carpetas, lo ignora la dropzone
+    // (esa caída la gestionan las carpetas del FolderBrowser); aquí solo ficheros del sistema.
+    if (e.dataTransfer.files?.length) uploadFiles(e.dataTransfer.files);
   }
 
   const latest = selected?.versions[0];
@@ -111,6 +122,7 @@ export default function MatterDocumentsPage() {
       <input
         ref={fileRef}
         type="file"
+        multiple
         accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.webp,.txt"
         className="hidden"
         onChange={onFile}
@@ -145,6 +157,7 @@ export default function MatterDocumentsPage() {
             setCurrentFolderId(f);
             setSelectedId(null);
           }}
+          onItemDrop={(folderId, documentId) => move.mutate({ documentId, folderId })}
         />
       )}
 
@@ -165,9 +178,15 @@ export default function MatterDocumentsPage() {
                 <div key={doc.id} className="border-b last:border-b-0">
                   <button
                     type="button"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(ITEM_DRAG_MIME, doc.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
                     onClick={() => setSelectedId(doc.id)}
+                    title={t('dragHint')}
                     className={cn(
-                      'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/60',
+                      'flex w-full cursor-grab items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-accent/60 active:cursor-grabbing',
                       active && 'bg-[var(--brand-soft)]',
                     )}
                   >
