@@ -523,6 +523,19 @@ export function useCancelSignature(documentId: string) {
   });
 }
 
+/** Envía varias versiones a firma de una vez (mismo firmante). */
+export function useRequestBatchSignature(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { versionIds: string[]; signerName: string; signerEmail: string }) =>
+      api.post<{ created: number; failed: number }>('/signatures/batch', body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['signatures'] });
+      void qc.invalidateQueries({ queryKey: ['documents', matterId] });
+    },
+  });
+}
+
 // ── KYC / AML (Fase 4) ────────────────────────────────────────────────────────
 export function useKycOverview() {
   return useQuery({ queryKey: ['kyc'], queryFn: () => api.get<KycOverviewRow[]>('/kyc') });

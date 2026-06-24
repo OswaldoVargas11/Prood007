@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import { SignaturesService } from './signatures.service';
 import { RequestSignatureDto } from './dto/request-signature.dto';
+import { BatchSignatureDto } from './dto/batch-signature.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -16,6 +17,12 @@ export class SignaturesController {
   @Post()
   request(@CurrentUser() user: RequestUser, @Body() dto: RequestSignatureDto) {
     return this.signatures.request(user, dto);
+  }
+
+  /** Envía varias versiones a firma de una vez (mismo firmante). */
+  @Post('batch')
+  requestBatch(@CurrentUser() user: RequestUser, @Body() dto: BatchSignatureDto) {
+    return this.signatures.requestBatch(user, dto);
   }
 
   @Get('by-matter/:matterId')

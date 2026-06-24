@@ -73,6 +73,37 @@ export class SignaturesService {
     return signature;
   }
 
+  /**
+   * Envía un CONJUNTO de versiones a firma (mismo firmante). Reutiliza `request` por versión, así que
+   * cada una crea su propia SignatureRequest y pasa por el mismo adaptador. Las versiones que fallen no
+   * abortan el resto: se devuelven los aciertos y la lista de errores.
+   */
+  async requestBatch(
+    user: RequestUser,
+    dto: { versionIds: string[]; signerName: string; signerEmail: string },
+  ) {
+    const unique = [...new Set(dto.versionIds)];
+    const created = [];
+    const failed: { versionId: string }[] = [];
+    for (const versionId of unique) {
+      try {
+        const sig = await this.request(user, {
+          versionId,
+          signerName: dto.signerName,
+          signerEmail: dto.signerEmail,
+        });
+        created.push(sig);
+      } catch {
+        failed.push({ versionId });
+      }
+    }
+    await this.audit.log(user, 'signature.requested_batch', 'SignatureRequest', user.tenantId, {
+      requested: unique.length,
+      created: created.length,
+    });
+    return { created: created.length, failed: failed.length, signatures: created };
+  }
+
   async listByDocument(user: RequestUser, documentId: string) {
     const document = await this.prisma.document.findFirst({
       where: { id: documentId, tenantId: user.tenantId },
