@@ -2261,7 +2261,11 @@
       "collection": "Cobro",
       "noCostRates": "Configura las tarifas de coste de los letrados en Ajustes para ver el margen real (rentabilidad).",
       "missingCost": "{n, plural, one {# parte de horas sin tarifa de coste (margen infravalorado)} other {# partes de horas sin tarifa de coste (margen infravalorado)}}",
-      "foreignNote": "{n, plural, one {# factura en otra moneda no incluida (se muestra en la moneda base)} other {# facturas en otra moneda no incluidas (se muestran en la moneda base)}}"
+      "foreignNote": "{n, plural, one {# factura en otra moneda no incluida (se muestra en la moneda base)} other {# facturas en otra moneda no incluidas (se muestran en la moneda base)}}",
+      "byLawyerProduction": "Producción por letrado",
+      "byLawyerMargin": "Margen por letrado",
+      "noLawyer": "Sin asignar",
+      "noData": "Sin datos todavía"
     }
   }
 }
