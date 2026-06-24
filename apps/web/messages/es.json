@@ -1913,7 +1913,8 @@
     "folderActions": "Acciones de la carpeta",
     "confirmDeleteFolder": "¿Eliminar la carpeta «{name}»? Su contenido se moverá a la carpeta superior.",
     "moveTo": "Mover a",
-    "move": "Mover"
+    "move": "Mover",
+    "dragHint": "Arrastra a una carpeta para mover"
   },
   "presentations": {
     "title": "Tipos de presentación",
