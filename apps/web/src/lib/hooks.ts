@@ -1209,7 +1209,21 @@ export function useMessages(matterId: string) {
 export function useSendMessage(matterId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: string) => api.post<Message>(`/matters/${matterId}/messages`, { body }),
+    mutationFn: (input: { body: string; attachmentDocumentId?: string | null }) =>
+      api.post<Message>(`/matters/${matterId}/messages`, {
+        body: input.body,
+        attachmentDocumentId: input.attachmentDocumentId ?? undefined,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['messages', matterId] }),
+  });
+}
+
+/** Alterna una reacción emoji sobre un mensaje del chat. */
+export function useReactMessage(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ messageId, emoji }: { messageId: string; emoji: string }) =>
+      api.post(`/matters/${matterId}/messages/${messageId}/react`, { emoji }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['messages', matterId] }),
   });
 }

@@ -205,6 +205,11 @@ export interface Message {
   body: string;
   createdAt: string;
   author: { id: string; fullName: string };
+  /** Reacciones tipo red social: { emoji: [userId, …] }. */
+  reactions?: Record<string, string[]> | null;
+  attachmentDocumentId?: string | null;
+  /** Documento del expediente adjunto (resuelto por el backend). */
+  attachment?: { id: string; name: string } | null;
 }
 
 /** Acuse de lectura del chat: hasta cuándo ha leído cada participante. */

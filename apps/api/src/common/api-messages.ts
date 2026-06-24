@@ -229,6 +229,10 @@ export const API_MESSAGES = {
     'es-ES': 'El documento no pertenece a este expediente.',
     'es-DO': 'El documento no pertenece a este expediente.',
   },
+  'messages.notFound': {
+    'es-ES': 'Mensaje no encontrado.',
+    'es-DO': 'Mensaje no encontrado.',
+  },
   'matters.referenceExists': {
     'es-ES': 'Ya existe un expediente con esa referencia.',
     'es-DO': 'Ya existe un expediente con esa referencia.',

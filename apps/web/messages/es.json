@@ -1342,7 +1342,11 @@
     "onlineCount": "{count, plural, one {# participante conectado} other {# participantes conectados}}",
     "noneOnline": "Nadie más conectado",
     "typingOne": "{name} está escribiendo…",
-    "typingMany": "Varias personas están escribiendo…"
+    "typingMany": "Varias personas están escribiendo…",
+    "react": "Reaccionar",
+    "attach": "Adjuntar documento",
+    "removeAttachment": "Quitar adjunto",
+    "noDocs": "No hay documentos en este expediente."
   },
   "notifications": {
     "open": "Abrir notificaciones",
