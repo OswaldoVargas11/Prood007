@@ -107,6 +107,13 @@ export class AiService {
           : undefined,
     });
 
+    // Contabiliza el coste real (tokens) del adjunto: este es el peor caso de denial-of-wallet (PDF 8 MB).
+    await this.quota.recordUsage(
+      user,
+      completion.usage?.inputTokens ?? 0,
+      completion.usage?.outputTokens ?? 0,
+    );
+
     return {
       output: completion.text,
       citations: [{ sourceId: `documento:${doc.id}` }],

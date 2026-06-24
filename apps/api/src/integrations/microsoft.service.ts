@@ -3,7 +3,12 @@ import { ConfigService } from '@nestjs/config';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { TaskStatus } from '@legalflow/domain';
 import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
-import { decryptBlob, encryptBlob, loadEncryptionKey } from '../storage/storage-crypto';
+import {
+  decryptBlob,
+  encryptBlob,
+  loadEncryptionKey,
+  loadEncryptionKeyring,
+} from '../storage/storage-crypto';
 import type { RequestUser } from '../auth/auth.types';
 
 const OPEN = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
@@ -78,7 +83,12 @@ export class MicrosoftService {
     return encryptBlob(this.key()!, Buffer.from(s, 'utf8')).toString('base64');
   }
   private dec(b64: string): string {
-    return decryptBlob(this.key()!, Buffer.from(b64, 'base64')).toString('utf8');
+    // Keyring (activa + retiradas) para soportar rotación de la clave maestra (D6-001).
+    const ring = loadEncryptionKeyring(
+      this.config.get<string>('DATA_ENCRYPTION_KEY'),
+      this.config.get<string>('DATA_ENCRYPTION_KEY_RETIRED'),
+    )!;
+    return decryptBlob(ring, Buffer.from(b64, 'base64')).toString('utf8');
   }
 
   // ── State firmado ─────────────────────────────────────────────────────────────
@@ -470,7 +480,9 @@ export class MicrosoftService {
     for (const s of sites) {
       let driveId: string | null = null;
       try {
-        const dr = await fetch(`${GRAPH_ROOT}/sites/${s.id}/drive?$select=id`, { headers });
+        const dr = await fetch(`${GRAPH_ROOT}/sites/${encodeURIComponent(s.id)}/drive?$select=id`, {
+          headers,
+        });
         if (dr.ok) driveId = ((await dr.json()) as { id?: string }).id ?? null;
       } catch {
         driveId = null;

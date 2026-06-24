@@ -98,6 +98,31 @@ export class ClosingService {
     return checklist;
   }
 
+  /**
+   * Valida que las FK escalares de una partida (assigneeId/documentId) pertenezcan al despacho antes de
+   * persistirlas: el DTO trae ids planos sin relación tipada, así que sin esta comprobación se podría
+   * vincular un usuario o documento de OTRO tenant (D1-002). Solo verifica los ids realmente provistos.
+   */
+  private async assertItemRefsInFirm(
+    user: RequestUser,
+    refs: { assigneeId?: string | null; documentId?: string | null },
+  ) {
+    if (refs.assigneeId) {
+      const assignee = await this.prisma.user.findFirst({
+        where: { id: refs.assigneeId, tenantId: user.tenantId },
+        select: { id: true },
+      });
+      if (!assignee) throw new NotFoundException(apiError('tasks.assigneeNotInFirm'));
+    }
+    if (refs.documentId) {
+      const document = await this.prisma.document.findFirst({
+        where: { id: refs.documentId, tenantId: user.tenantId },
+        select: { id: true },
+      });
+      if (!document) throw new NotFoundException(apiError('documents.notFound'));
+    }
+  }
+
   /** Lista los checklists de un expediente con un resumen de progreso. */
   async listByMatter(user: RequestUser, matterId: string) {
     await this.assertMatterInTenant(user, matterId);
@@ -206,6 +231,10 @@ export class ClosingService {
 
   async addItem(user: RequestUser, checklistId: string, dto: CreateItemDto) {
     await this.getChecklistOrThrow(user, checklistId);
+    await this.assertItemRefsInFirm(user, {
+      assigneeId: nullable(dto.assigneeId),
+      documentId: nullable(dto.documentId),
+    });
     const last = await this.prisma.closingChecklistItem.findFirst({
       where: { checklistId, tenantId: user.tenantId },
       orderBy: { sortOrder: 'desc' },
@@ -234,6 +263,11 @@ export class ClosingService {
       select: { id: true, checklistId: true },
     });
     if (!item) throw new NotFoundException(apiError('closing.itemNotFound'));
+
+    await this.assertItemRefsInFirm(user, {
+      assigneeId: nullable(dto.assigneeId),
+      documentId: nullable(dto.documentId),
+    });
 
     await this.prisma.closingChecklistItem.updateMany({
       where: { id: itemId, tenantId: user.tenantId },

@@ -5,7 +5,12 @@ import * as argon2 from 'argon2';
 import * as QRCode from 'qrcode';
 import { SystemPrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
-import { decryptBlob, encryptBlob, loadEncryptionKey } from '../storage/storage-crypto';
+import {
+  decryptBlob,
+  encryptBlob,
+  loadEncryptionKey,
+  loadEncryptionKeyring,
+} from '../storage/storage-crypto';
 import { generateTotpSecret, otpauthUri, verifyTotp } from './totp.util';
 import { apiError } from '../common/api-messages';
 import type { RequestUser } from './auth.types';
@@ -34,7 +39,13 @@ export class MfaService {
     return encryptBlob(this.key(), Buffer.from(s, 'utf8')).toString('base64');
   }
   private dec(b64: string): string {
-    return decryptBlob(this.key(), Buffer.from(b64, 'base64')).toString('utf8');
+    // Descifra con el keyring (clave activa + retiradas) para soportar rotación de la clave maestra (D6-001).
+    const ring = loadEncryptionKeyring(
+      this.config.get<string>('DATA_ENCRYPTION_KEY'),
+      this.config.get<string>('DATA_ENCRYPTION_KEY_RETIRED'),
+    );
+    if (!ring) throw new BadRequestException(apiError('mfa.notConfigured'));
+    return decryptBlob(ring, Buffer.from(b64, 'base64')).toString('utf8');
   }
 
   async status(user: RequestUser) {

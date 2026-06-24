@@ -25,6 +25,13 @@ export class LeadsController {
     return this.leads.intakeLink(user);
   }
 
+  /** Rota el token del formulario público (invalida el enlace anterior). Solo FIRM_ADMIN. */
+  @Roles(Role.FIRM_ADMIN)
+  @Post('intake-token/rotate')
+  rotateIntakeToken(@CurrentUser() user: RequestUser) {
+    return this.leads.rotateIntakeToken(user);
+  }
+
   @Post()
   create(@CurrentUser() user: RequestUser, @Body() dto: CreateLeadDto) {
     return this.leads.create(user, dto);

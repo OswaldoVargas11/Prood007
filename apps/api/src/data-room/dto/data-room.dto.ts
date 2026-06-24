@@ -3,6 +3,7 @@ import {
   IsArray,
   IsBoolean,
   IsEmail,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -80,6 +81,35 @@ export class CreateGrantDto {
   @Min(1)
   @Max(365)
   expiresInDays?: number;
+}
+
+/** Edición del data room: renombrar, alternar marca de agua o abrir/cerrar la sala. */
+export class UpdateDataRoomDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(160)
+  name?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  watermark?: boolean;
+
+  @IsOptional()
+  @IsIn(['OPEN', 'CLOSED'])
+  status?: string;
+}
+
+/** Subida de un documento al data room (multipart): los campos viajan junto al fichero. */
+export class UploadDataRoomDocumentDto {
+  @IsOptional()
+  @IsString()
+  folderId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  name?: string;
 }
 
 /** Respuesta del despacho a una pregunta de la sala (Q&A). */

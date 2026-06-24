@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { apiError } from '../common/api-messages';
 import { platformJwtSecret } from './platform-secret';
+import { PLATFORM_TOKEN_AUDIENCE } from './platform-auth.controller';
 
 /**
  * Guard del SUPER-ADMIN de plataforma (dueño de Lawzora). Verifica un JWT firmado con el secreto
@@ -28,7 +29,13 @@ export class PlatformGuard implements CanActivate {
     try {
       const payload = await this.jwt.verifyAsync<{ sub?: string; platform?: boolean }>(
         header.slice(7),
-        { secret: platformJwtSecret(this.config), algorithms: ['HS256'] },
+        {
+          secret: platformJwtSecret(this.config),
+          algorithms: ['HS256'],
+          // Audiencia DEDICADA: discriminador extra junto a `platform: true`. jwt.verify rechaza el token
+          // si `aud` no coincide, de modo que un token sin esta audiencia no pasa el guard.
+          audience: PLATFORM_TOKEN_AUDIENCE,
+        },
       );
       if (payload.platform !== true) throw new Error('not platform');
       req.platformAdmin = payload.sub;
