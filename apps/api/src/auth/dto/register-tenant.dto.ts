@@ -3,6 +3,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  MaxLength,
   MinLength,
   ValidateNested,
 } from 'class-validator';
@@ -15,6 +16,8 @@ class AdminUserDto {
 
   @IsString()
   @MinLength(10, { message: 'La contraseña debe tener al menos 10 caracteres.' })
+  // Tope de 128 (igual que cambio/reset): acota el coste de argon2 y evita DoS por entradas enormes.
+  @MaxLength(128, { message: 'La contraseña no puede superar los 128 caracteres.' })
   password!: string;
 
   @IsString()

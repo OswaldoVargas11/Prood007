@@ -202,7 +202,10 @@ export class AuthController {
     return this.mfa.disable(user, dto.code);
   }
 
+  // M-6: throttle estricto. `rotate()` revoca TODA la familia de sesiones ante un mismatch de token, así
+  // que sin límite por ruta un atacante tendría a la vez fuerza bruta de refresh y palanca de DoS de sesión.
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   refresh(@Body() dto: RefreshDto) {
@@ -210,6 +213,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   logout(@Body() dto: RefreshDto) {
