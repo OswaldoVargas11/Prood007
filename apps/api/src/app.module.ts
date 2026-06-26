@@ -16,6 +16,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ClientsModule } from './clients/clients.module';
 import { MattersModule } from './matters/matters.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 import { DocumentsModule } from './documents/documents.module';
 import { FoldersModule } from './folders/folders.module';
 import { PresentationsModule } from './presentations/presentations.module';
@@ -92,6 +93,7 @@ import { HealthController } from './health.controller';
     AuthModule,
     ClientsModule,
     MattersModule,
+    WebhooksModule,
     DocumentsModule,
     FoldersModule,
     PresentationsModule,

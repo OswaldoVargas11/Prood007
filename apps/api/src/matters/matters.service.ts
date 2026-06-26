@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { tenantTransaction } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { AiSearchService } from '../ai/ai-search.service';
+import { WebhooksService } from '../webhooks/webhooks.service';
 import { CreateMatterDto } from './dto/create-matter.dto';
 import { UpdateMatterDto } from './dto/update-matter.dto';
 import { canTransition } from './matter-status';
@@ -22,6 +23,7 @@ export class MattersService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly aiSearch: AiSearchService,
+    private readonly webhooks: WebhooksService,
   ) {}
 
   /** Comprueba que el cliente pertenece al tenant. */
@@ -110,6 +112,15 @@ export class MattersService {
     // Auto-indexado semántico best-effort para la búsqueda de conocimiento del despacho. No-op sin clave
     // de embeddings; no bloquea la creación (fire-and-forget) y el cron nocturno lo respalda.
     void this.aiSearch.indexMatter(user, matter.id).catch(() => undefined);
+    // Webhook saliente best-effort: notifica a los sistemas de terceros suscritos. No bloquea ni puede
+    // hacer fallar la creación del expediente (fire-and-forget, el servicio nunca lanza).
+    void this.webhooks.dispatch(user.tenantId, 'matter.created', {
+      id: matter.id,
+      reference: matter.reference,
+      title: matter.title,
+      type: matter.type,
+      status: matter.status,
+    });
     return matter;
   }
 

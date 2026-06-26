@@ -408,6 +408,7 @@ model Tenant {
   conversations        Conversation[]
   conversationMembers  ConversationMember[]
   chatMessages         ChatMessage[]
+  webhookEndpoints     WebhookEndpoint[]
 }
 
 model User {
@@ -2283,4 +2284,23 @@ model ProcessedStripeEvent {
   id          String   @id
   type        String
   processedAt DateTime @default(now())
+}
+
+/// Endpoint de WEBHOOK SALIENTE por despacho: notifica a sistemas de terceros cuando ocurren eventos
+/// (p. ej. `matter.created`). El cuerpo se firma con HMAC-SHA256 usando `secret` (cabecera
+/// `X-Lawzora-Signature`). `events` es una lista CSV de tipos suscritos. RLS por tenant (fail-closed).
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  tenantId  String
+  url       String
+  secret    String
+  /// CSV de tipos de evento suscritos, p. ej. "matter.created,task.created".
+  events    String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
 }
