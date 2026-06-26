@@ -720,6 +720,28 @@ export const API_MESSAGES = {
     'es-ES': 'Escribe una instrucción para la IA.',
     'es-DO': 'Escribe una instrucción para la IA.',
   },
+
+  // ── Webhooks salientes ────────────────────────────────────────────────────
+  'webhooks.notFound': {
+    'es-ES': 'Endpoint de webhook no encontrado.',
+    'es-DO': 'Endpoint de webhook no encontrado.',
+  },
+  'webhooks.invalidUrl': {
+    'es-ES': 'La URL del webhook no es válida.',
+    'es-DO': 'La URL del webhook no es válida.',
+  },
+  'webhooks.httpsRequired': {
+    'es-ES': 'La URL del webhook debe usar HTTPS.',
+    'es-DO': 'La URL del webhook debe usar HTTPS.',
+  },
+  'webhooks.privateHostBlocked': {
+    'es-ES': 'No se permiten URLs hacia direcciones internas o privadas.',
+    'es-DO': 'No se permiten URLs hacia direcciones internas o privadas.',
+  },
+  'webhooks.eventsRequired': {
+    'es-ES': 'Indica al menos un tipo de evento válido para suscribir.',
+    'es-DO': 'Indica al menos un tipo de evento válido para suscribir.',
+  },
 } as const;
 
 export type ApiMessageKey = keyof typeof API_MESSAGES;
