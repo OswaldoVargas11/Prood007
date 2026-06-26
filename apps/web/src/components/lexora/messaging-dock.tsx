@@ -63,7 +63,12 @@ export function MessagingDock() {
   const [filter, setFilter] = useState('');
   const [online, setOnline] = useState<string[]>([]);
 
-  const { data: directory } = useDirectory();
+  const {
+    data: directory,
+    isLoading: dirLoading,
+    isError: dirError,
+    refetch: refetchDir,
+  } = useDirectory();
   const { data: conversations } = useMessagingConversations();
   const { data: unread } = useMessagingUnreadCount();
   const openDirect = useOpenDirect();
@@ -96,11 +101,6 @@ export function MessagingDock() {
     }
     return map;
   }, [conversations]);
-
-  const general = useMemo(
-    () => (conversations ?? []).find((c) => c.kind === 'CHANNEL') ?? null,
-    [conversations],
-  );
 
   const people = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -180,35 +180,58 @@ export function MessagingDock() {
               </div>
 
               <div className="flex-1 overflow-y-auto">
-                {/* Canal «General» */}
-                {general && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openConversation({
-                        id: general.id,
-                        kind: 'CHANNEL',
-                        title: general.title,
-                        peer: null,
-                      })
-                    }
-                    className="flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left hover:bg-accent"
-                  >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--brand-soft)] text-[var(--brand)]">
-                      <Hash className="size-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-medium">{t('general')}</span>
-                      <span className="block truncate text-[11.5px] text-muted-foreground">
-                        {general.last?.body ?? t('generalHint')}
+                {/* Conversaciones: canal «General» + DMs con actividad (siempre visibles como filas) */}
+                {(conversations ?? []).map((c) => {
+                  const isChannel = c.kind === 'CHANNEL';
+                  const name = isChannel ? t('general') : (c.peer?.fullName ?? '—');
+                  const isOnline = c.peer ? onlineSet.has(c.peer.id) : false;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() =>
+                        openConversation({ id: c.id, kind: c.kind, title: c.title, peer: c.peer })
+                      }
+                      className="flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left hover:bg-accent"
+                    >
+                      <span className="relative shrink-0">
+                        <span
+                          className={cn(
+                            'flex size-9 items-center justify-center rounded-full text-xs font-semibold uppercase',
+                            isChannel
+                              ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
+                              : 'bg-[var(--surface-2)]',
+                          )}
+                        >
+                          {isChannel ? <Hash className="size-4" /> : initials(name)}
+                        </span>
+                        {!isChannel && (
+                          <span
+                            className={cn(
+                              'absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card',
+                              isOnline ? 'bg-[var(--success)]' : 'bg-[var(--text-subtle)]',
+                            )}
+                          />
+                        )}
                       </span>
-                    </span>
-                    {general.unread > 0 && <UnreadDot count={general.unread} />}
-                  </button>
-                )}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{name}</span>
+                        <span className="block truncate text-[11.5px] text-muted-foreground">
+                          {c.last?.body ?? (isChannel ? t('generalHint') : t('online'))}
+                        </span>
+                      </span>
+                      {c.unread > 0 && <UnreadDot count={c.unread} />}
+                    </button>
+                  );
+                })}
+
+                {/* Iniciar conversación: directorio de compañeros del despacho */}
+                <div className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t('startChat')}
+                </div>
 
                 {/* Buscador de personas */}
-                <div className="px-3 py-2">
+                <div className="px-3 pb-2">
                   <div className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5">
                     <Search className="size-3.5 text-muted-foreground" />
                     <input
@@ -221,46 +244,62 @@ export function MessagingDock() {
                   </div>
                 </div>
 
-                {/* Directorio de compañeros */}
-                <ul>
-                  {people.map((p) => {
-                    const dm = dmByPeer.get(p.id);
-                    const isOnline = onlineSet.has(p.id);
-                    return (
-                      <li key={p.id}>
-                        <button
-                          type="button"
-                          onClick={() => void openPerson(p.id, p.fullName)}
-                          className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-accent"
-                        >
-                          <span className="relative shrink-0">
-                            <span className="flex size-9 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-semibold uppercase">
-                              {initials(p.fullName)}
+                {/* Directorio con estados explícitos (carga / error / vacío) — nunca un blanco silencioso */}
+                {dirLoading && (
+                  <div className="space-y-2 px-4 py-2">
+                    <Skeleton className="h-9 w-full" />
+                    <Skeleton className="h-9 w-full" />
+                  </div>
+                )}
+                {dirError && (
+                  <div className="space-y-2 px-4 py-4 text-center">
+                    <p className="text-[13px] text-[var(--danger)]">{t('directoryError')}</p>
+                    <Button size="sm" variant="outline" onClick={() => refetchDir()}>
+                      {t('retry')}
+                    </Button>
+                  </div>
+                )}
+                {!dirLoading && !dirError && (
+                  <ul>
+                    {people.map((p) => {
+                      const isOnline = onlineSet.has(p.id);
+                      return (
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            onClick={() => void openPerson(p.id, p.fullName)}
+                            className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-accent"
+                          >
+                            <span className="relative shrink-0">
+                              <span className="flex size-9 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-semibold uppercase">
+                                {initials(p.fullName)}
+                              </span>
+                              <span
+                                className={cn(
+                                  'absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card',
+                                  isOnline ? 'bg-[var(--success)]' : 'bg-[var(--text-subtle)]',
+                                )}
+                              />
                             </span>
-                            <span
-                              className={cn(
-                                'absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card',
-                                isOnline ? 'bg-[var(--success)]' : 'bg-[var(--text-subtle)]',
-                              )}
-                            />
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-medium">{p.fullName}</span>
-                            <span className="block truncate text-[11.5px] text-muted-foreground">
-                              {dm?.last?.body ?? (isOnline ? t('online') : t('offline'))}
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium">
+                                {p.fullName}
+                              </span>
+                              <span className="block truncate text-[11.5px] text-muted-foreground">
+                                {isOnline ? t('online') : t('offline')}
+                              </span>
                             </span>
-                          </span>
-                          {dm && dm.unread > 0 && <UnreadDot count={dm.unread} />}
-                        </button>
+                          </button>
+                        </li>
+                      );
+                    })}
+                    {people.length === 0 && (
+                      <li className="px-4 py-6 text-center text-[13px] text-muted-foreground">
+                        {filter ? t('noMatches') : t('noPeople')}
                       </li>
-                    );
-                  })}
-                  {people.length === 0 && (
-                    <li className="px-4 py-6 text-center text-[13px] text-muted-foreground">
-                      {t('noPeople')}
-                    </li>
-                  )}
-                </ul>
+                    )}
+                  </ul>
+                )}
               </div>
             </>
           )}
