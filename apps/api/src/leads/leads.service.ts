@@ -29,6 +29,20 @@ export class LeadsService {
 
   private readonly include = { assignedTo: { select: { id: true, fullName: true } } };
 
+  /**
+   * L-6 (CWE-639): valida que `assignedToId` referencie a un usuario del MISMO despacho. Sin esto, un
+   * staffer podía asignar un lead a un id de usuario de OTRO tenant, cuyo `fullName` se reflejaba al leer
+   * (fuga menor cross-tenant). La RLS ya acotaría la lectura, pero validamos explícitamente al escribir.
+   */
+  private async assertAssignable(user: RequestUser, assignedToId?: string | null): Promise<void> {
+    if (!assignedToId) return;
+    const exists = await this.prisma.user.findFirst({
+      where: { id: assignedToId, tenantId: user.tenantId },
+      select: { id: true },
+    });
+    if (!exists) throw new BadRequestException(apiError('leads.assigneeNotInFirm'));
+  }
+
   async list(user: RequestUser, status?: LeadStatus) {
     return this.prisma.lead.findMany({
       where: { tenantId: user.tenantId, ...(status ? { status } : {}) },
@@ -38,6 +52,7 @@ export class LeadsService {
   }
 
   async create(user: RequestUser, dto: CreateLeadDto) {
+    await this.assertAssignable(user, dto.assignedToId);
     const lead = await this.prisma.lead.create({
       data: {
         tenantId: user.tenantId,
@@ -68,6 +83,7 @@ export class LeadsService {
 
   async update(user: RequestUser, id: string, dto: UpdateLeadDto) {
     await this.get(user, id);
+    await this.assertAssignable(user, dto.assignedToId);
     // Campos permitidos EXPLÍCITOS (no `...dto`): aunque `forbidNonWhitelisted` ya filtra extras, el spread
     // dejaría que cualquier columna añadida al DTO en el futuro fuera escribible por el cliente (BOPLA).
     await this.prisma.lead.updateMany({

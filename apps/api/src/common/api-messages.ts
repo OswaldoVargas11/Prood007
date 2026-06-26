@@ -155,6 +155,10 @@ export const API_MESSAGES = {
     'es-ES': 'Formulario de captación no disponible.',
     'es-DO': 'Formulario de captación no disponible.',
   },
+  'leads.assigneeNotInFirm': {
+    'es-ES': 'El usuario asignado no pertenece al despacho.',
+    'es-DO': 'El usuario asignado no pertenece al despacho.',
+  },
   'clients.notFound': {
     'es-ES': 'Cliente no encontrado.',
     'es-DO': 'Cliente no encontrado.',

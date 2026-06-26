@@ -42,10 +42,21 @@ function docxXmlToText(xml: string): string {
     .trim();
 }
 
+/** Tope del tamaño DESCOMPRIMIDO de document.xml (anti zip-bomb). */
+const MAX_DOCX_UNCOMPRESSED_BYTES = 50 * 1024 * 1024; // 50 MB
+
 async function extractDocx(buffer: Buffer): Promise<string> {
   const zip = await JSZip.loadAsync(buffer);
   const main = zip.file('word/document.xml');
   if (!main) return '';
+  // L-1 (CWE-409): el límite de subida (25 MB) acota el ZIP COMPRIMIDO, no lo inflado. Un `.docx` cuyo
+  // document.xml sea un zip-bomb descomprimiría a cientos de MB/GB en una sola string en memoria. JSZip
+  // expone el tamaño descomprimido del directorio central tras `loadAsync`; lo comprobamos ANTES de inflar.
+  const uncompressed = (main as unknown as { _data?: { uncompressedSize?: number } })._data
+    ?.uncompressedSize;
+  if (typeof uncompressed === 'number' && uncompressed > MAX_DOCX_UNCOMPRESSED_BYTES) {
+    throw new Error('document.xml descomprimido excede el límite permitido (posible zip-bomb)');
+  }
   const xml = await main.async('string');
   return docxXmlToText(xml);
 }

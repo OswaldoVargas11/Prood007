@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   SignatureProviderFactory,
@@ -56,7 +57,11 @@ export class SignaturesService {
         versionId: version.id,
         matterId: version.document.matterId,
         provider: this.provider.provider.toLowerCase(),
-        externalId: result.externalId ?? '',
+        // L-9 (CWE-639): nunca persistir un externalId vacío. El webhook resuelve el tenant por
+        // externalId; dos filas con '' podrían colisionar entre despachos. Si el proveedor no devuelve
+        // uno (p. ej. adaptador STUBBED, que no transmite ni recibe webhooks), generamos un sentinel
+        // local único que no puede casar con un externalId real del proveedor.
+        externalId: result.externalId || `local-${randomBytes(12).toString('hex')}`,
         status,
         signerName: dto.signerName,
         signerEmail: dto.signerEmail,
@@ -168,6 +173,8 @@ export class SignaturesService {
     }
     const event = this.provider.parseWebhook(body);
     if (!event) throw new BadRequestException(apiError('signatures.webhookInvalid'));
+    // L-9: defensa en profundidad — un externalId vacío jamás debe usarse para resolver el tenant.
+    if (!event.externalId) throw new BadRequestException(apiError('signatures.webhookInvalid'));
 
     // El tenant se deriva de la fila local por `externalId`, nunca del payload (ver D4-001 arriba).
     const owner = await this.system.signatureRequest.findFirst({
