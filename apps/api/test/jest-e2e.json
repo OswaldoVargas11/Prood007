@@ -12,6 +12,7 @@
     "src/auth/**/*.ts",
     "!src/**/*.module.ts",
     "!src/**/*.dto.ts",
+    "!src/**/*.spec.ts",
     "!src/**/index.ts"
   ],
   "coverageDirectory": "coverage-e2e",

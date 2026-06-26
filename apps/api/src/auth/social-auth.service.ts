@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { SystemPrismaService } from '../prisma/prisma.service';
 import { TokensService } from './tokens.service';
 import { apiError } from '../common/api-messages';
+import { verifyIdToken } from './oidc-verify';
 import type { MfaChallenge } from './auth.service';
 import type { TokenPair } from './auth.types';
 
@@ -30,6 +31,10 @@ interface ProviderConfig {
   tokenUrl: string;
   redirectUri: string;
   scope: string;
+  /** Endpoint JWKS del IdP para verificar la FIRMA del id_token (H-1). */
+  jwksUri: string;
+  /** Validación del emisor del id_token (Google exacto; Microsoft `common` → tenant variable). */
+  issuer: (iss: string) => boolean;
 }
 
 /** Resultado del callback: ticket de un solo uso (canjeable por sesión) o un código de error. */
@@ -68,6 +73,8 @@ export class SocialAuthService {
         tokenUrl: 'https://oauth2.googleapis.com/token',
         redirectUri: `${new URL(base).origin}/api/auth/social/google/callback`,
         scope: 'openid email profile',
+        jwksUri: 'https://www.googleapis.com/oauth2/v3/certs',
+        issuer: (iss) => iss === 'https://accounts.google.com' || iss === 'accounts.google.com',
       };
     }
     const clientId = this.config.get<string>('MS_CLIENT_ID');
@@ -82,10 +89,14 @@ export class SocialAuthService {
       tokenUrl: `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`,
       redirectUri: `${new URL(base).origin}/api/auth/social/microsoft/callback`,
       scope: 'openid email profile',
-      // D2-002: NO confiar en correos sin verificar. Con MS_TENANT=common (o sin fijar) cualquier tenant
-      // de Azure puede emitir un id_token; un atacante con un tenant malicioso podría reclamar el correo
-      // de una víctima. Exigimos `email_verified === true` igual que Google y emparejamos SOLO por el
-      // claim `email` verificado (nunca por preferred_username/upn, que NO están verificados).
+      jwksUri: `https://login.microsoftonline.com/${tenant}/discovery/v2.0/keys`,
+      // Con `common` el `tid` (y por tanto el `iss`) varía por tenant de Azure; aceptamos cualquier emisor
+      // `https://login.microsoftonline.com/<tenant>/v2.0` cuya FIRMA case con el JWKS de Microsoft. La
+      // barrera real contra un tenant malicioso es la firma + `email_verified` + el emparejamiento por
+      // `email` verificado (nunca preferred_username/upn).
+      issuer: (iss) =>
+        /^https:\/\/login\.microsoftonline\.com\/[^/]+\/v2\.0$/.test(iss) ||
+        /^https:\/\/sts\.windows\.net\/[^/]+\/$/.test(iss),
     };
   }
 
@@ -120,6 +131,9 @@ export class SocialAuthService {
       response_type: 'code',
       scope: c.scope,
       state,
+      // Nonce OIDC: el IdP lo refleja DENTRO del id_token firmado; en el callback exigimos que coincida
+      // con el de la cookie del flujo (anti login-CSRF / inyección de código). Mismo valor que ata el state.
+      nonce,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
       ...(provider === 'microsoft'
@@ -147,7 +161,10 @@ export class SocialAuthService {
     if (!c) return { error: 'not_configured' };
 
     // Cookie efímera del flujo (nonce + code_verifier de PKCE) sembrada por `authUrl` en este navegador.
+    // M-1: la cookie es OBLIGATORIA. Sin ella no hay binding de nonce ni PKCE, así que rechazamos el
+    // flujo en vez de degradar a la validación solo-`state` (que un atacante puede sembrar él mismo).
     const bound = this.parseStateCookie(cookie);
+    if (!bound) return { error: 'state' };
 
     try {
       const s = await this.jwt.verifyAsync<{ typ?: string; p?: string; n?: string }>(state, {
@@ -155,12 +172,9 @@ export class SocialAuthService {
         algorithms: ['HS256'],
       });
       if (s.typ !== 'soc_state' || s.p !== provider) return { error: 'state' };
-      // D2-001: si HAY cookie de flujo, el nonce del `state` (firmado) DEBE coincidir con el de la
-      // cookie (mismo navegador) → bloquea login-CSRF y `state` sembrado por un atacante. Si NO hay
-      // cookie (p. ej. cliente antiguo o el navegador no la reenvió), degradamos a la validación previa
-      // solo-`state` para no romper sesiones en curso; el blindaje pleno exige cookie + binding estricto
-      // (ver nota de despliegue).
-      if (bound && s.n && s.n !== bound.nonce) return { error: 'state' };
+      // D2-001: el nonce del `state` (firmado) DEBE coincidir con el de la cookie (mismo navegador) →
+      // bloquea login-CSRF y `state` sembrado por un atacante.
+      if (s.n !== bound.nonce) return { error: 'state' };
     } catch {
       return { error: 'state' };
     }
@@ -175,16 +189,27 @@ export class SocialAuthService {
         redirect_uri: c.redirectUri,
         grant_type: 'authorization_code',
         // PKCE: el verifier solo lo conoce el navegador iniciador (vía cookie). Un `code` interceptado
-        // es inservible sin él. Solo se aporta si tenemos la cookie del flujo.
-        ...(bound ? { code_verifier: bound.verifier } : {}),
+        // es inservible sin él.
+        code_verifier: bound.verifier,
         ...(provider === 'microsoft' ? { scope: c.scope } : {}),
       }),
     });
     if (!res.ok) return { error: 'exchange' };
     const tok = (await res.json()) as { id_token?: string };
-    // El id_token llega por canal directo TLS servidor→servidor desde el tokenUrl del proveedor (no del
-    // cliente), pero validamos además `aud` (== nuestro clientId) y `exp` como defensa en profundidad.
-    const claims = this.decodeIdToken(tok.id_token, c.clientId);
+    if (!tok.id_token) return { error: 'no_id_token' };
+    // H-1: verificamos la FIRMA del id_token contra el JWKS del IdP (RS256), además de iss/aud/exp y el
+    // nonce OIDC (atado a la cookie del flujo). No se confía en el transporte TLS como control de integridad.
+    let claims: { email?: string; email_verified?: boolean | string };
+    try {
+      claims = await verifyIdToken(tok.id_token, {
+        jwksUri: c.jwksUri,
+        audience: c.clientId,
+        issuer: c.issuer,
+        nonce: bound.nonce,
+      });
+    } catch {
+      return { error: 'id_token' };
+    }
     // D2-002: emparejamos SOLO por el claim `email` (el único que el IdP marca como verificable).
     // `preferred_username`/`upn` NO son correos verificados y un IdP malicioso los controla a voluntad,
     // así que jamás se usan para resolver la cuenta (suplantación → toma de cuenta).
@@ -246,35 +271,6 @@ export class SocialAuthService {
       return { nonce: parsed.n, verifier: parsed.v };
     } catch {
       return null;
-    }
-  }
-
-  private decodeIdToken(
-    idToken: string | undefined,
-    expectedAud: string,
-  ): {
-    email?: string;
-    email_verified?: boolean | string;
-  } {
-    if (!idToken) return {};
-    try {
-      const claims = JSON.parse(
-        Buffer.from(idToken.split('.')[1]!, 'base64url').toString('utf8'),
-      ) as {
-        email?: string;
-        email_verified?: boolean | string;
-        aud?: string | string[];
-        exp?: number;
-      };
-      // Rechaza un id_token caducado o cuyo `aud` no sea nuestro clientId (no se confía solo en TLS).
-      const now = Math.floor(Date.now() / 1000);
-      if (typeof claims.exp === 'number' && claims.exp < now) return {};
-      const aud = claims.aud;
-      const audOk = Array.isArray(aud) ? aud.includes(expectedAud) : aud === expectedAud;
-      if (!audOk) return {};
-      return claims;
-    } catch {
-      return {};
     }
   }
 }
