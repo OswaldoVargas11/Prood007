@@ -1,9 +1,11 @@
+import { createSign, generateKeyPairSync } from 'node:crypto';
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { SystemPrismaService } from '../src/prisma/prisma.service';
+import { SOCIAL_STATE_COOKIE } from '../src/auth/social-auth.service';
 import { createValidationPipe } from '../src/common/validation';
 
 // Configura SOLO Google (Microsoft queda sin configurar a propósito, para cubrir la rama "no configurado").
@@ -19,12 +21,37 @@ process.env.APP_PUBLIC_URL = process.env.APP_PUBLIC_URL || 'https://lawzora.com'
 process.env.DATA_ENCRYPTION_KEY =
   process.env.DATA_ENCRYPTION_KEY || Buffer.alloc(32, 9).toString('base64');
 
-// El id_token que devolvería Google: lo controla cada test mediante `mockClaims`.
+// Par RSA del "IdP": el servidor verifica la FIRMA del id_token contra este JWKS (mock de fetch).
+const KID = 'test-kid';
+const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+const PUBLIC_JWK = {
+  ...(publicKey.export({ format: 'jwk' }) as Record<string, unknown>),
+  kid: KID,
+  use: 'sig',
+  alg: 'RS256',
+};
+
+// Estado controlado por cada test: claims del id_token, si el token-endpoint responde OK, y el nonce
+// OIDC vigente (debe coincidir con el de la cookie/state del flujo).
 let mockClaims: Record<string, unknown> = {};
 let mockTokenOk = true;
+let currentNonce = 'n0';
 const realFetch = global.fetch;
 
-/** E2E del login social: flujo OAuth con la llamada al endpoint de token del proveedor mockeada. */
+function b64url(input: Buffer | string): string {
+  return Buffer.from(input).toString('base64url');
+}
+
+/** Firma un id_token RS256 con la clave del "IdP" (lo que devolvería el token-endpoint del proveedor). */
+function signIdToken(claims: Record<string, unknown>): string {
+  const header = { alg: 'RS256', typ: 'JWT', kid: KID };
+  const signingInput = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(claims))}`;
+  const signer = createSign('RSA-SHA256');
+  signer.update(signingInput);
+  return `${signingInput}.${b64url(signer.sign(privateKey))}`;
+}
+
+/** E2E del login social: token-endpoint + JWKS del proveedor mockeados; cookie de flujo + nonce reales. */
 describe('Login social (e2e)', () => {
   let app: INestApplication;
   let system: SystemPrismaService;
@@ -35,20 +62,26 @@ describe('Login social (e2e)', () => {
   let tenantId: string;
 
   beforeAll(async () => {
-    // Mock de fetch: intercepta SOLO el endpoint de token del proveedor; el resto pasa al fetch real.
+    // Mock de fetch: intercepta el JWKS y el token-endpoint del proveedor; el resto pasa al fetch real.
     global.fetch = ((url: unknown, init?: unknown) => {
       const u = String(url);
+      if (u.includes('/oauth2/v3/certs') || u.includes('/discovery/v2.0/keys')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ keys: [PUBLIC_JWK] }), { status: 200 }),
+        );
+      }
       if (u.includes('oauth2.googleapis.com/token') || u.includes('login.microsoftonline.com')) {
         if (!mockTokenOk) return Promise.resolve(new Response('nope', { status: 400 }));
-        // Los id_token reales llevan `aud` (= clientId) y `exp`; el servidor ahora los valida.
         const claims = {
+          iss: 'https://accounts.google.com',
           aud: u.includes('googleapis') ? process.env.GOOGLE_CLIENT_ID : process.env.MS_CLIENT_ID,
           exp: Math.floor(Date.now() / 1000) + 600,
+          iat: Math.floor(Date.now() / 1000),
+          nonce: currentNonce,
           ...mockClaims,
         };
-        const idToken = 'h.' + Buffer.from(JSON.stringify(claims)).toString('base64url') + '.s';
         return Promise.resolve(
-          new Response(JSON.stringify({ id_token: idToken }), { status: 200 }),
+          new Response(JSON.stringify({ id_token: signIdToken(claims) }), { status: 200 }),
         );
       }
       return (realFetch as typeof fetch)(url as never, init as never);
@@ -84,18 +117,32 @@ describe('Login social (e2e)', () => {
   });
 
   const server = () => app.getHttpServer();
-  const state = (p = 'google') =>
-    jwt.sign({ typ: 'soc_state', p }, { secret: SECRET, expiresIn: 600 });
+
+  /**
+   * Prepara un flujo OAuth válido: fija el nonce vigente (lo reflejará el id_token mockeado), firma el
+   * `state` con ese nonce y construye la cookie HttpOnly del flujo (nonce + code_verifier). M-1: la cookie
+   * es obligatoria, así que todos los callback "de éxito" deben enviarla.
+   */
+  function flow(p = 'google') {
+    const nonce = `nonce-${unique}-${Math.floor(Math.random() * 1e9)}`;
+    currentNonce = nonce;
+    const st = jwt.sign({ typ: 'soc_state', p, n: nonce }, { secret: SECRET, expiresIn: 600 });
+    const cookie = `${SOCIAL_STATE_COOKIE}=${encodeURIComponent(
+      JSON.stringify({ n: nonce, v: 'verifier-x' }),
+    )}`;
+    return { state: st, cookie };
+  }
 
   it('providers refleja lo configurado (google sí, microsoft no)', async () => {
     const res = await request(server()).get('/api/auth/social/providers').expect(200);
     expect(res.body).toEqual({ google: true, microsoft: false });
   });
 
-  it('start de google redirige a accounts.google.com', async () => {
+  it('start de google redirige a accounts.google.com (con nonce)', async () => {
     const res = await request(server()).get('/api/auth/social/google').expect(302);
     expect(res.headers.location).toContain('https://accounts.google.com/o/oauth2/v2/auth');
     expect(res.headers.location).toContain('scope=openid+email+profile');
+    expect(res.headers.location).toContain('nonce=');
   });
 
   it('start de un proveedor no configurado (microsoft) → 501', async () => {
@@ -112,9 +159,19 @@ describe('Login social (e2e)', () => {
     expect(res.headers.location).toContain('social_error=callback');
   });
 
-  it('callback con state inválido → error de state', async () => {
+  it('callback SIN cookie de flujo → error de state (M-1: la cookie es obligatoria)', async () => {
+    const f = flow();
+    const res = await request(server())
+      .get(`/api/auth/social/google/callback?code=x&state=${f.state}`)
+      .expect(302);
+    expect(res.headers.location).toContain('social_error=state');
+  });
+
+  it('callback con state inválido (con cookie) → error de state', async () => {
+    const f = flow();
     const res = await request(server())
       .get('/api/auth/social/google/callback?code=x&state=basura')
+      .set('Cookie', f.cookie)
       .expect(302);
     expect(res.headers.location).toContain('social_error=state');
   });
@@ -122,24 +179,41 @@ describe('Login social (e2e)', () => {
   it('callback con email no verificado → error unverified', async () => {
     mockClaims = { email, email_verified: false };
     mockTokenOk = true;
+    const f = flow();
     const res = await request(server())
-      .get(`/api/auth/social/google/callback?code=x&state=${state()}`)
+      .get(`/api/auth/social/google/callback?code=x&state=${f.state}`)
+      .set('Cookie', f.cookie)
       .expect(302);
     expect(res.headers.location).toContain('social_error=unverified');
   });
 
   it('callback con un email desconocido → error no_account', async () => {
     mockClaims = { email: `nadie_${unique}@x.test`, email_verified: true };
+    const f = flow();
     const res = await request(server())
-      .get(`/api/auth/social/google/callback?code=x&state=${state()}`)
+      .get(`/api/auth/social/google/callback?code=x&state=${f.state}`)
+      .set('Cookie', f.cookie)
       .expect(302);
     expect(res.headers.location).toContain('social_error=no_account');
   });
 
+  it('callback con id_token cuyo nonce no coincide → error id_token', async () => {
+    mockClaims = { email, email_verified: true, nonce: 'nonce-distinto' };
+    const f = flow();
+    const res = await request(server())
+      .get(`/api/auth/social/google/callback?code=x&state=${f.state}`)
+      .set('Cookie', f.cookie)
+      .expect(302);
+    expect(res.headers.location).toContain('social_error=id_token');
+    mockClaims = {};
+  });
+
   it('callback con fallo al intercambiar el code → error exchange', async () => {
     mockTokenOk = false;
+    const f = flow();
     const res = await request(server())
-      .get(`/api/auth/social/google/callback?code=x&state=${state()}`)
+      .get(`/api/auth/social/google/callback?code=x&state=${f.state}`)
+      .set('Cookie', f.cookie)
       .expect(302);
     expect(res.headers.location).toContain('social_error=exchange');
     mockTokenOk = true;
@@ -147,8 +221,10 @@ describe('Login social (e2e)', () => {
 
   it('flujo correcto: callback → ticket → exchange → sesión', async () => {
     mockClaims = { email, email_verified: true };
+    const f = flow();
     const cb = await request(server())
-      .get(`/api/auth/social/google/callback?code=x&state=${state()}`)
+      .get(`/api/auth/social/google/callback?code=x&state=${f.state}`)
+      .set('Cookie', f.cookie)
       .expect(302);
     const loc = cb.headers.location as string;
     expect(loc).toContain('social_ticket=');
@@ -187,8 +263,10 @@ describe('Login social (e2e)', () => {
       .expect(200);
 
     mockClaims = { email, email_verified: true };
+    const f = flow();
     const cb = await request(server())
-      .get(`/api/auth/social/google/callback?code=x&state=${state()}`)
+      .get(`/api/auth/social/google/callback?code=x&state=${f.state}`)
+      .set('Cookie', f.cookie)
       .expect(302);
     const ticket = new URL(cb.headers.location as string).searchParams.get('social_ticket')!;
     const ex = await request(server())
