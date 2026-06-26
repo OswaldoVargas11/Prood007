@@ -2274,3 +2274,13 @@ model ChatMessage {
 
   @@index([tenantId, conversationId])
 }
+
+/// Idempotencia del webhook de suscripción de la PLATAFORMA (M-2). `id` = `event.id` de Stripe; el primer
+/// INSERT gana y los reenvíos/replays del mismo evento se descartan (P2002). Global (no por tenant): lo
+/// escribe el cliente de sistema dentro del webhook. Distinto del webhook de `payments` (idempotente por
+/// `providerRef` en su propia tabla).
+model ProcessedStripeEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now())
+}

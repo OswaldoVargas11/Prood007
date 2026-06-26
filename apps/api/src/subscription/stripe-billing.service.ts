@@ -39,7 +39,14 @@ interface SubLike {
   status: string;
   current_period_end?: number;
   cancel_at_period_end?: boolean;
-  items: { data: Array<{ quantity?: number | null; current_period_end?: number }> };
+  items: {
+    data: Array<{
+      quantity?: number | null;
+      current_period_end?: number;
+      // M-3: el Price realmente cobrado. Es la fuente de verdad del tier/ciclo (la metadata no lo es).
+      price?: { id?: string } | null;
+    }>;
+  };
   metadata?: Record<string, string> | null;
 }
 
@@ -74,6 +81,8 @@ export class StripeBillingService {
   private readonly stripe: StripeClient | null;
   /** Mapa de Price IDs del esquema nuevo (clave tier|FOUNDER:ciclo:moneda → price_…). */
   private readonly priceMap: Record<string, string>;
+  /** Mapa INVERSO (price_… → {plan, cycle}) para derivar el tier del Price realmente cobrado (M-3). */
+  private readonly priceToPlan: Record<string, { plan: string; cycle: BillingCycle }>;
 
   constructor(
     private readonly config: ConfigService,
@@ -83,6 +92,13 @@ export class StripeBillingService {
     const key = config.get<string>('STRIPE_SECRET_KEY');
     this.stripe = key ? new Stripe(key) : null;
     this.priceMap = loadPriceMap(config);
+    // Clave del priceMap = `PLAN:CYCLE:CURRENCY`. Invertimos a price_… → {plan, cycle} para no confiar
+    // en la metadata (manipulable) al fijar entitlements: el plan sale del Price que se pagó de verdad.
+    this.priceToPlan = {};
+    for (const [k, priceId] of Object.entries(this.priceMap)) {
+      const [plan, cycle] = k.split(':');
+      if (plan && cycle) this.priceToPlan[priceId] = { plan, cycle: cycle as BillingCycle };
+    }
   }
 
   isEnabled(): boolean {
@@ -335,13 +351,19 @@ export class StripeBillingService {
   private async applySubscription(tenantId: string, sub: SubLike): Promise<void> {
     const item = sub.items.data[0];
     const seats = item?.quantity ?? 0;
+    // M-3: el plan y el ciclo se derivan del PRICE realmente cobrado (mapa inverso), no de la metadata
+    // —que no es un campo plenamente controlado por el servidor—. Solo si el Price no está en el mapa
+    // (configuración incompleta) caemos a la metadata como pista. Esto evita desbloquear un tier superior
+    // al pagado manipulando la metadata de la suscripción.
+    const fromPrice = item?.price?.id ? this.priceToPlan[item.price.id] : undefined;
+    const cycleRaw = fromPrice?.cycle ?? sub.metadata?.cycle;
     const cycle: BillingCycle =
-      sub.metadata?.cycle === 'ANNUAL' || sub.metadata?.cycle === 'BIENNIAL'
-        ? (sub.metadata.cycle as BillingCycle)
-        : 'MONTHLY';
-    const isFounderSub = sub.metadata?.founder === 'true';
-    // Plan elegido (tier o FOUNDER). Solo se fija al crear/cambiar quantity NO lo toca (preserva el plan).
-    const plan = isFounderSub ? 'FOUNDER' : (sub.metadata?.tier ?? sub.metadata?.plan);
+      cycleRaw === 'ANNUAL' || cycleRaw === 'BIENNIAL' ? (cycleRaw as BillingCycle) : 'MONTHLY';
+    // Founder y tier salen del Price; la metadata es solo respaldo cuando el Price no está mapeado.
+    const plan =
+      fromPrice?.plan ??
+      (sub.metadata?.founder === 'true' ? 'FOUNDER' : (sub.metadata?.tier ?? sub.metadata?.plan));
+    const isFounderSub = plan === 'FOUNDER';
     // Fin de periodo: en API basil/dahlia vive en el item; fallback al nivel superior (versiones viejas).
     const periodEndUnix = item?.current_period_end ?? sub.current_period_end;
 
@@ -397,6 +419,17 @@ export class StripeBillingService {
   async handleWebhook(rawBody: Buffer, signature: string): Promise<{ received: true }> {
     const stripe = this.client();
     const event = this.verify(rawBody, signature);
+    // M-2: idempotencia. Registramos el event.id ANTES de procesar; si ya estaba (reenvío/replay de un
+    // evento firmado), no reaplicamos el estado (que podría revertir seats/periodo o re-ejecutar founder).
+    try {
+      await this.system.processedStripeEvent.create({
+        data: { id: event.id, type: event.type },
+      });
+    } catch (e) {
+      // P2002 = ya procesado: descartamos silenciosamente (200 para que Stripe no siga reintentando).
+      if ((e as { code?: string }).code === 'P2002') return { received: true };
+      throw e;
+    }
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as {
