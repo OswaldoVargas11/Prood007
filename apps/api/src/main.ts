@@ -6,6 +6,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { createValidationPipe } from './common/validation';
 
@@ -48,6 +49,45 @@ function validateProdEnv(): void {
         'plataforma debe firmarse con un secreto dedicado para aislarlo de los tokens de usuario.',
     );
   }
+}
+
+/**
+ * Documentación OpenAPI/Swagger PÚBLICA (gated por `API_DOCS_ENABLED`, por defecto activa). Expone el
+ * contrato de la API REST para integradores y para due-diligence técnica: UI navegable en `/api/docs` y
+ * especificación OpenAPI JSON en `/api/docs-json`. Swagger UI sirve sus propios estilos/scripts, que la
+ * CSP estricta de helmet bloquearía; por eso se relaja la CSP SOLO en las rutas de documentación (el resto
+ * de la API conserva la CSP por defecto de helmet). Cierra el gap de "API pública documentada" frente a
+ * Clio/Aranzadi/Lefebvre — ver docs/strategy/COMPETITIVE-GAP-ANALYSIS.md.
+ */
+function setupOpenApi(app: NestExpressApplication): void {
+  app.use(
+    ['/api/docs', '/api/docs-json'],
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+        },
+      },
+    }),
+  );
+
+  const docConfig = new DocumentBuilder()
+    .setTitle('Lawzora API')
+    .setDescription(
+      'API REST de Lawzora: gestión de despachos, facturación fiscal (e-CF DGII / Verifactu), ' +
+        'módulo transaccional, IA y portal de cliente. Autenticación por Bearer JWT.',
+    )
+    .setVersion('0.3.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, docConfig);
+  SwaggerModule.setup('api/docs', app, document, {
+    jsonDocumentUrl: 'api/docs-json',
+    swaggerOptions: { persistAuthorization: true },
+  });
 }
 
 async function bootstrap() {
@@ -98,6 +138,10 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   const config = app.get(ConfigService);
+  if (config.get<string>('API_DOCS_ENABLED') !== 'false') {
+    setupOpenApi(app);
+  }
+
   const port = config.get<number>('API_PORT', 4000);
   await app.listen(port);
   // eslint-disable-next-line no-console

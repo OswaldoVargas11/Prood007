@@ -48,12 +48,81 @@ export interface AiCompletion {
   model?: string;
 }
 
+/**
+ * ── Capa AGÉNTICA (tool-use) ──────────────────────────────────────────────────────────────────────
+ * Encima del `complete` one-shot, el motor puede ejecutar un turno con HERRAMIENTAS: el modelo pide una
+ * acción (tool_use), el motor la ejecuta vía un callback que provee la app y le devuelve el resultado,
+ * iterando hasta que el modelo responde sin más herramientas o se alcanza `maxSteps` (defensa anti-bucle).
+ * La definición de las herramientas y su ejecución (acotada por tenant + permisos) viven en la app; el
+ * motor solo orquesta el protocolo del proveedor. Así el asistente pasa de "sugerir" a "consultar datos
+ * reales y actuar", sin acoplar el dominio a un proveedor concreto.
+ */
+
+/** Definición declarativa de una herramienta que el modelo puede invocar. */
+export interface AiToolDefinition {
+  name: string;
+  description: string;
+  /** JSON Schema del input (objeto). */
+  inputSchema: Record<string, unknown>;
+}
+
+/** Invocación de una herramienta solicitada por el modelo. */
+export interface AiToolInvocation {
+  name: string;
+  input: Record<string, unknown>;
+}
+
+/** Resultado de ejecutar una herramienta; `content` es lo que se devuelve al modelo. */
+export interface AiToolOutcome {
+  content: string;
+  isError?: boolean;
+}
+
+/** Callback que la app provee al motor para ejecutar una herramienta pedida por el modelo. */
+export type AiToolExecutor = (invocation: AiToolInvocation) => Promise<AiToolOutcome>;
+
+/** Traza de un paso agéntico (para transparencia/auditoría). */
+export interface AiAgentStep {
+  tool: string;
+  input: Record<string, unknown>;
+  output: string;
+  isError: boolean;
+}
+
+export interface AiAgentRequest {
+  /** Instrucciones de sistema (persona/reglas). */
+  system?: string;
+  /** Mensaje del usuario que inicia el turno agéntico. */
+  userMessage: string;
+  /** Herramientas disponibles para este turno. */
+  tools: AiToolDefinition[];
+  /** Nº máximo de iteraciones de herramienta (el motor aplica además su propio tope de seguridad). */
+  maxSteps?: number;
+  maxTokens?: number;
+}
+
+export interface AiAgentResult {
+  /** Respuesta final en texto del modelo. */
+  text: string;
+  /** Pasos de herramienta ejecutados, en orden. */
+  steps: AiAgentStep[];
+  usage?: AiUsage;
+  model?: string;
+  /** Motivo de parada final (p. ej. 'end_turn', 'max_steps'). */
+  stopReason: string;
+}
+
 export interface AiEngine {
   /** ¿Hay un modelo configurado y listo para usar? Si no, las features de IA se muestran deshabilitadas. */
   isEnabled(): boolean;
   /** Identificador del modelo activo (p. ej. 'claude-opus-4-6'); null si está deshabilitado. */
   model(): string | null;
   complete(req: AiCompletionRequest): Promise<AiCompletion>;
+  /**
+   * Ejecuta un turno AGÉNTICO con tool-use. Los motores sin soporte (o deshabilitados) deben lanzar de
+   * forma segura (p. ej. 503 ai.notConfigured) en vez de degradar silenciosamente.
+   */
+  runAgent(req: AiAgentRequest, exec: AiToolExecutor): Promise<AiAgentResult>;
 }
 
 export const AI_ENGINE = Symbol('AI_ENGINE');

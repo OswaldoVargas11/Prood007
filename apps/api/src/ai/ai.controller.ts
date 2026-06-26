@@ -3,7 +3,14 @@ import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import { Role } from '@legalflow/domain';
 import { AiService } from './ai.service';
 import { AiSearchService } from './ai-search.service';
-import { AskDto, DraftEmailDto, DraftFromTemplateDto, SemanticSearchDto } from './dto/ai.dto';
+import { AiAgentService } from './ai-agent.service';
+import {
+  AgentDto,
+  AskDto,
+  DraftEmailDto,
+  DraftFromTemplateDto,
+  SemanticSearchDto,
+} from './dto/ai.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -25,6 +32,7 @@ export class AiController {
   constructor(
     private readonly ai: AiService,
     private readonly search: AiSearchService,
+    private readonly agent: AiAgentService,
   ) {}
 
   /** ¿Está la IA disponible y con qué modelo? (para gating de la UI). No llama al modelo → sin throttle estricto. */
@@ -71,6 +79,17 @@ export class AiController {
   @Post('email/draft')
   draftEmail(@CurrentUser() user: RequestUser, @Body() dto: DraftEmailDto) {
     return this.ai.draftEmail(user, dto.instructions, dto.matterId);
+  }
+
+  /**
+   * Asistente AGÉNTICO (tool-use): responde consultando datos reales del despacho con herramientas de
+   * SOLO LECTURA (expedientes, tareas, clientes, documentos), no solo generando texto. Devuelve la
+   * respuesta final + la traza de herramientas usadas.
+   */
+  @RequiresFeature('ai')
+  @Post('agent')
+  agentRun(@CurrentUser() user: RequestUser, @Body() dto: AgentDto) {
+    return this.agent.run(user, dto.message);
   }
 
   /** Búsqueda semántica en lo indexado del despacho. (Avanzado: indexación/RAG.) */

@@ -1,5 +1,5 @@
 import { ServiceUnavailableException } from '@nestjs/common';
-import type { AiCompletion, AiEngine } from '@legalflow/domain';
+import type { AiAgentResult, AiCompletion, AiEngine } from '@legalflow/domain';
 import { apiError } from '../../common/api-messages';
 
 /**
@@ -17,6 +17,10 @@ export class DisabledEngine implements AiEngine {
   }
 
   async complete(): Promise<AiCompletion> {
+    throw new ServiceUnavailableException(apiError('ai.notConfigured'));
+  }
+
+  async runAgent(): Promise<AiAgentResult> {
     throw new ServiceUnavailableException(apiError('ai.notConfigured'));
   }
 }
