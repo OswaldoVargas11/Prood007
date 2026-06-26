@@ -202,10 +202,14 @@ export class AuthController {
     return this.mfa.disable(user, dto.code);
   }
 
-  // M-6: throttle estricto. `rotate()` revoca TODA la familia de sesiones ante un mismatch de token, así
-  // que sin límite por ruta un atacante tendría a la vez fuerza bruta de refresh y palanca de DoS de sesión.
+  // M-6: `/refresh` se queda en el límite GLOBAL (300/min/IP), NO en uno por-ruta más estricto. El BFF
+  // del web solo guarda el refresh token (cookie httpOnly) y reacuña el access en CADA navegación SSR,
+  // así que /refresh es alto-volumen por diseño; un límite estricto por IP rompería a los despachos tras
+  // un NAT compartido (varios usuarios, misma IP pública). El riesgo real de M-6 es acotado: los refresh
+  // son JWT de 7 días no adivinables (sin fuerza bruta práctica) y la revocación de familia solo se
+  // dispara al RE-USAR un token válido ya rotado (no con uno desconocido). `logout` sí lleva límite
+  // estricto: es de bajo volumen (acción explícita del usuario, no por navegación).
   @Public()
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   refresh(@Body() dto: RefreshDto) {
@@ -213,7 +217,7 @@ export class AuthController {
   }
 
   @Public()
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   logout(@Body() dto: RefreshDto) {
