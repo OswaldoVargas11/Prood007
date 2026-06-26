@@ -679,6 +679,12 @@ export const API_MESSAGES = {
     'es-DO': 'Límite de licencia alcanzado: {max} {role}. Amplía el plan o desactiva un usuario.',
   },
 
+  // ── Mensajería interna (chat social del staff) ────────────────────────────
+  'messaging.selfDirect': {
+    'es-ES': 'No puedes abrir una conversación contigo mismo.',
+    'es-DO': 'No puedes abrir una conversación contigo mismo.',
+  },
+
   // ── Asistente de IA ───────────────────────────────────────────────────────
   'ai.notConfigured': {
     'es-ES': 'El asistente de IA no está configurado en el servidor todavía.',

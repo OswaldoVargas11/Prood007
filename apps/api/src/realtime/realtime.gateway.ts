@@ -72,19 +72,23 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
       client.data.tenantId = payload.tid;
       client.data.roles = payload.roles ?? [];
       client.data.matters = new Set<string>();
+      client.data.conversations = new Set<string>();
       await client.join(`user:${payload.sub}`);
       await client.join(`tenant:${payload.tid}`);
+      // Presencia a nivel de despacho (para el directorio del chat social): el staff recién conectado.
+      void this.emitTenantPresence(payload.tid);
     } catch {
       client.emit('error', { message: 'No autenticado.' });
       client.disconnect(true);
     }
   }
 
-  /** Al desconectar (salas ya liberadas), recalcula la presencia de los expedientes que tenía abiertos. */
+  /** Al desconectar (salas ya liberadas), recalcula la presencia de expedientes y del despacho. */
   handleDisconnect(client: Socket): void {
     const matters = client.data.matters as Set<string> | undefined;
-    if (!matters) return;
-    for (const matterId of matters) void this.emitPresence(matterId);
+    if (matters) for (const matterId of matters) void this.emitPresence(matterId);
+    const tenantId = client.data.tenantId as string | undefined;
+    if (tenantId) void this.emitTenantPresence(tenantId);
   }
 
   /**
@@ -157,11 +161,111 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     }
   }
 
+  // ── Mensajería interna (chat social): conversaciones, presencia de despacho y «escribiendo…» ──
+
+  /** El cliente pide la presencia actual del despacho (al montar el dock). Respuesta solo a ese socket. */
+  @SubscribeMessage('presence:request')
+  async presenceRequest(@ConnectedSocket() client: Socket): Promise<void> {
+    const tenantId = client.data.tenantId as string | undefined;
+    if (!tenantId || !this.server) return;
+    const online = await this.tenantOnline(tenantId);
+    client.emit('presence:tenant', { online });
+  }
+
+  /**
+   * Suscripción a la sala de una conversación (DM o canal). Verifica el acceso por tenant (RLS):
+   * canal → cualquier staff del despacho; DM → solo los dos participantes.
+   */
+  @SubscribeMessage('conversation:subscribe')
+  async subscribeConversation(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string },
+  ): Promise<{ ok: boolean }> {
+    const tenantId = client.data.tenantId as string | undefined;
+    const userId = client.data.userId as string | undefined;
+    const roles = (client.data.roles as string[] | undefined) ?? [];
+    if (!tenantId || !userId || !data?.conversationId) return { ok: false };
+    const ok = await runWithTenant(tenantId, () =>
+      this.canAccessConversation(tenantId, userId, roles, data.conversationId),
+    ).catch(() => false);
+    if (!ok) return { ok: false };
+    await client.join(`conversation:${data.conversationId}`);
+    (client.data.conversations as Set<string>).add(data.conversationId);
+    return { ok: true };
+  }
+
+  @SubscribeMessage('conversation:unsubscribe')
+  async unsubscribeConversation(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string },
+  ): Promise<{ ok: boolean }> {
+    if (!data?.conversationId) return { ok: false };
+    await client.leave(`conversation:${data.conversationId}`);
+    (client.data.conversations as Set<string> | undefined)?.delete(data.conversationId);
+    return { ok: true };
+  }
+
+  /** «Escribiendo…» en una conversación: se reenvía al resto de la sala (no al emisor). Efímero. */
+  @SubscribeMessage('conversation:typing')
+  conversationTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { conversationId: string; isTyping: boolean },
+  ): void {
+    const userId = client.data.userId as string | undefined;
+    const subs = client.data.conversations as Set<string> | undefined;
+    if (!userId || !data?.conversationId || !subs?.has(data.conversationId)) return;
+    client.to(`conversation:${data.conversationId}`).emit('dm:typing', {
+      conversationId: data.conversationId,
+      userId,
+      isTyping: Boolean(data.isTyping),
+    });
+  }
+
+  /** ¿Puede el usuario acceder a la conversación? Canal: cualquier staff del tenant; DM: ser miembro. */
+  private async canAccessConversation(
+    tenantId: string,
+    userId: string,
+    roles: string[],
+    conversationId: string,
+  ): Promise<boolean> {
+    const isStaff = roles.includes('FIRM_ADMIN') || roles.includes('LAWYER');
+    if (!isStaff) return false;
+    const conv = await this.prisma.conversation.findFirst({
+      where: { id: conversationId, tenantId },
+      select: { kind: true, members: { select: { userId: true } } },
+    });
+    if (!conv) return false;
+    if (conv.kind === 'CHANNEL') return true;
+    return conv.members.some((m) => m.userId === userId);
+  }
+
+  /** IDs de usuarios del despacho con algún socket conectado (presencia de despacho). */
+  private async tenantOnline(tenantId: string): Promise<string[]> {
+    if (!this.server) return [];
+    try {
+      const sockets = await this.server.in(`tenant:${tenantId}`).fetchSockets();
+      return [...new Set(sockets.map((s) => s.data.userId as string).filter(Boolean))];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Difunde la presencia del despacho a todos sus sockets (directorio del chat social). */
+  private async emitTenantPresence(tenantId: string): Promise<void> {
+    if (!this.server) return;
+    const online = await this.tenantOnline(tenantId);
+    this.server.to(`tenant:${tenantId}`).emit('presence:tenant', { online });
+  }
+
   emitToUser(userId: string, event: string, payload: unknown): void {
     this.server?.to(`user:${userId}`).emit(event, payload);
   }
 
   emitToMatter(matterId: string, event: string, payload: unknown): void {
     this.server?.to(`matter:${matterId}`).emit(event, payload);
+  }
+
+  emitToConversation(conversationId: string, event: string, payload: unknown): void {
+    this.server?.to(`conversation:${conversationId}`).emit(event, payload);
   }
 }

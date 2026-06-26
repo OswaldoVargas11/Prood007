@@ -1498,6 +1498,23 @@
     "removeAttachment": "Quitar adjunto",
     "noDocs": "No hay documentos en este expediente."
   },
+  "messaging": {
+    "title": "Mensajería",
+    "open": "Abrir mensajería",
+    "close": "Cerrar",
+    "back": "Volver",
+    "general": "General",
+    "generalHint": "Canal de todo el equipo",
+    "searchPeople": "Buscar compañero…",
+    "online": "En línea",
+    "offline": "Desconectado",
+    "noPeople": "No hay compañeros en el despacho.",
+    "react": "Reaccionar",
+    "empty": "Sin mensajes todavía. Saluda al equipo.",
+    "placeholder": "Escribe un mensaje…",
+    "typingOne": "{name} está escribiendo…",
+    "typingMany": "Varias personas están escribiendo…"
+  },
   "notifications": {
     "open": "Abrir notificaciones",
     "openWithCount": "Abrir notificaciones, {count} sin leer",

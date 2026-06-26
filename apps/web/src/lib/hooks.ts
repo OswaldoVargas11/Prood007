@@ -71,6 +71,9 @@ import type {
   FolderKind,
   ChatConversation,
   ChatRead,
+  DirectoryUser,
+  MessagingConversation,
+  ConversationMessage,
   ChecklistItem,
   ChecklistItemStatus,
   MatterChecklist,
@@ -1272,6 +1275,92 @@ export function useChatUnreadCount() {
     queryKey: ['chat-unread'],
     queryFn: () => api.get<{ count: number }>('/messages/unread-count'),
     refetchInterval: 60_000,
+  });
+}
+
+// ── Mensajería interna (chat social del staff): directorio + DM 1:1 + canal «General» ──
+
+/** Directorio de usuarios del despacho para el dock. */
+export function useDirectory() {
+  return useQuery({
+    queryKey: ['messaging-directory'],
+    queryFn: () => api.get<DirectoryUser[]>('/messaging/directory'),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Conversaciones del dock (canal «General» + DMs) con último mensaje y no leídos. */
+export function useMessagingConversations() {
+  return useQuery({
+    queryKey: ['messaging-conversations'],
+    queryFn: () => api.get<MessagingConversation[]>('/messaging/conversations'),
+  });
+}
+
+/** Total de no leídos de mensajería interna (badge del dock). Sondeo ligero. */
+export function useMessagingUnreadCount() {
+  return useQuery({
+    queryKey: ['messaging-unread'],
+    queryFn: () => api.get<{ count: number }>('/messaging/unread-count'),
+    refetchInterval: 60_000,
+  });
+}
+
+/** Abre (o reutiliza) un DM 1:1 con otro usuario del despacho. */
+export function useOpenDirect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) =>
+      api.post<MessagingConversation>('/messaging/direct', { userId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['messaging-conversations'] }),
+  });
+}
+
+/** Mensajes de una conversación interna. */
+export function useConversationMessages(conversationId: string | null) {
+  return useQuery({
+    queryKey: ['conversation-messages', conversationId],
+    queryFn: () =>
+      api.get<ConversationMessage[]>(`/messaging/conversations/${conversationId}/messages`),
+    enabled: Boolean(conversationId),
+  });
+}
+
+/** Envía un mensaje a una conversación interna. */
+export function useSendConversationMessage(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { body: string; attachmentDocumentId?: string | null }) =>
+      api.post<ConversationMessage>(`/messaging/conversations/${conversationId}/messages`, {
+        body: input.body,
+        attachmentDocumentId: input.attachmentDocumentId ?? undefined,
+      }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['conversation-messages', conversationId] });
+      void qc.invalidateQueries({ queryKey: ['messaging-conversations'] });
+    },
+  });
+}
+
+/** Alterna una reacción emoji sobre un mensaje de la conversación. */
+export function useReactConversationMessage(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ messageId, emoji }: { messageId: string; emoji: string }) =>
+      api.post(`/messaging/conversations/${conversationId}/messages/${messageId}/react`, { emoji }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['conversation-messages', conversationId] }),
+  });
+}
+
+/** Marca una conversación interna como leída por el usuario actual. */
+export function useMarkConversationRead(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post(`/messaging/conversations/${conversationId}/read`),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['messaging-conversations'] });
+      void qc.invalidateQueries({ queryKey: ['messaging-unread'] });
+    },
   });
 }
 

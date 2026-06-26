@@ -33,6 +33,7 @@ import { DunningModule } from './dunning/dunning.module';
 import { RetainerModule } from './retainer/retainer.module';
 import { BillingModule } from './billing/billing.module';
 import { MessagesModule } from './messages/messages.module';
+import { MessagingModule } from './messaging/messaging.module';
 import { PortalModule } from './portal/portal.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { UsersModule } from './users/users.module';
@@ -108,6 +109,7 @@ import { HealthController } from './health.controller';
     RetainerModule,
     BillingModule,
     MessagesModule,
+    MessagingModule,
     PortalModule,
     DashboardModule,
     UsersModule,

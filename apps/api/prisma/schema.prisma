@@ -405,6 +405,9 @@ model Tenant {
   matterChecklists     MatterChecklist[]
   matterChecklistItems MatterChecklistItem[]
   matterReadStates     MatterReadState[]
+  conversations        Conversation[]
+  conversationMembers  ConversationMember[]
+  chatMessages         ChatMessage[]
 }
 
 model User {
@@ -2203,4 +2206,71 @@ model MatterChecklistItem {
 
   @@index([tenantId])
   @@index([checklistId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mensajería interna del despacho (chat social del staff): mensajería directa 1:1 (DIRECT) y canales
+// (CHANNEL, p. ej. «General» con todo el equipo). Es INDEPENDIENTE del chat por expediente (Message):
+// aquí no hay matter, la participación es entre usuarios del despacho. Solo staff (FIRM_ADMIN/LAWYER);
+// los clientes quedan fuera. Aislamiento por tenant con RLS fail-closed.
+
+enum ConversationKind {
+  DIRECT
+  CHANNEL
+}
+
+model Conversation {
+  id        String           @id @default(cuid())
+  tenantId  String
+  kind      ConversationKind
+  // Título del canal (p. ej. «General»). Null en los DM (la UI lo deriva del otro participante).
+  title     String?
+  // Clave canónica para idempotencia y unicidad por tenant:
+  //  - DIRECT: "<userIdMenor>:<userIdMayor>" (un único hilo entre dos personas).
+  //  - CHANNEL «General»: el centinela "__general__" (un único canal general por despacho).
+  // Null permitido para otros canales futuros (Postgres no colisiona NULLs en el índice único).
+  directKey String?
+  createdAt DateTime         @default(now())
+
+  tenant   Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  members  ConversationMember[]
+  messages ChatMessage[]
+
+  @@unique([tenantId, directKey])
+  @@index([tenantId])
+}
+
+model ConversationMember {
+  id             String    @id @default(cuid())
+  tenantId       String
+  conversationId String
+  // Usuario miembro (escalar, sin FK — patrón SignatureRequest; los usuarios se desactivan, no se borran).
+  userId         String
+  // Última lectura del usuario en esta conversación (recuento de no leídos y acuse «Leído»).
+  lastReadAt     DateTime?
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([tenantId])
+  @@index([tenantId, userId])
+}
+
+model ChatMessage {
+  id                   String   @id @default(cuid())
+  tenantId             String
+  conversationId       String
+  authorId             String
+  body                 String
+  // Reacciones tipo red social: mapa { emoji: [userId, …] }. Null/{} = sin reacciones.
+  reactions            Json?
+  // Documento adjunto (escalar, sin FK — patrón Message). En DMs internos puede ser cualquier doc del tenant.
+  attachmentDocumentId String?
+  createdAt            DateTime @default(now())
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, conversationId])
 }
