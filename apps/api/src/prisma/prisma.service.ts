@@ -37,6 +37,55 @@ export function createTenantAwarePrisma() {
 export type TenantAwarePrisma = ReturnType<typeof createTenantAwarePrisma>;
 
 /**
+ * M-4 (CWE-732): afirma al arranque que el rol con el que conecta la app (DATABASE_URL) es de MÍNIMO
+ * privilegio. La inmutabilidad fiscal (no UPDATE sobre columnas de Invoice ya emitida) y la RLS dependen
+ * de que ese rol NO sea superusuario, NO tenga BYPASSRLS y NO tenga UPDATE sobre las columnas fiscales.
+ * Antes esto solo se garantizaba por convención de despliegue, sin verificación: una sola mala config
+ * (apuntar DATABASE_URL a postgres/owner) anulaba silenciosamente toda la inmutabilidad.
+ *
+ * En PRODUCCIÓN es FATAL (aborta el arranque); en dev/CI solo avisa (allí la app suele conectar como
+ * propietario y romper el arranque pesaría más que la separación estricta). Si la verificación no puede
+ * ejecutarse (tabla aún sin migrar), no bloquea.
+ */
+export async function assertAppRoleLeastPrivilege(client: PrismaClient): Promise<void> {
+  const isProd = process.env.NODE_ENV === 'production';
+  let row:
+    | { role: string; is_super: boolean; bypass_rls: boolean; can_update_total: boolean }
+    | undefined;
+  try {
+    const rows = await client.$queryRaw<
+      { role: string; is_super: boolean; bypass_rls: boolean; can_update_total: boolean }[]
+    >`
+      SELECT current_user::text AS role,
+             COALESCE((SELECT rolsuper FROM pg_roles WHERE rolname = current_user), false) AS is_super,
+             COALESCE((SELECT rolbypassrls FROM pg_roles WHERE rolname = current_user), false) AS bypass_rls,
+             has_column_privilege('"Invoice"', 'total', 'UPDATE') AS can_update_total`;
+    row = rows[0];
+  } catch (err) {
+    // p. ej. la tabla Invoice aún no existe (test/CI sin migrar): no bloquear el arranque.
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[seguridad] no se pudo verificar el privilegio del rol de la app: ${String(err)}`,
+    );
+    return;
+  }
+  if (!row) return;
+  const violations: string[] = [];
+  if (row.is_super) violations.push('es SUPERUSER');
+  if (row.bypass_rls) violations.push('tiene BYPASSRLS (anula la RLS multi-tenant)');
+  if (row.can_update_total) {
+    violations.push('puede UPDATE sobre Invoice.total (anula la inmutabilidad fiscal)');
+  }
+  if (violations.length === 0) return;
+  const msg =
+    `El rol de la app (${row.role}) NO es de mínimo privilegio: ${violations.join('; ')}. ` +
+    'Apunta DATABASE_URL al rol restringido (legalflow_app), no al propietario/superusuario.';
+  if (isProd) throw new Error(msg);
+  // eslint-disable-next-line no-console
+  console.warn(`[seguridad] ${msg} (solo dev/CI; en producción esto abortaría el arranque)`);
+}
+
+/**
  * Token de inyección. Se declara extendiendo `PrismaClient` para que los servicios mantengan el
  * tipado de modelos y métodos; en runtime el provider devuelve el cliente extendido
  * (`createTenantAwarePrisma`). Ver prisma.module.ts.

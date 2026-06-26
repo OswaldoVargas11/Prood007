@@ -33,10 +33,32 @@ export class EcfSequenceService {
     }));
   }
 
-  /** Registra/renueva un rango autorizado. Re-registrar el mismo tipo reinicia `next` al inicio del rango nuevo. */
+  /**
+   * Registra/renueva un rango autorizado por la DGII.
+   *
+   * H-2 (CWE-840): el contador `next` NUNCA retrocede. Antes, re-registrar el mismo tipo reiniciaba
+   * `next` al inicio del rango, lo que podía reemitir eNCF ya consumidos — el `@@unique([tenantId,
+   * number])` lo cortaría con P2002, pero eso rompe la emisión y pierde la posición. Ahora:
+   *  - Renovar con un rango NUEVO (rangeStart > posición consumida) arranca `next` en el inicio nuevo.
+   *  - Re-registrar un rango que SOLAPA la porción ya consumida conserva `next` (= max(actual, inicio)),
+   *    de modo que jamás se reutiliza un número ya emitido.
+   */
   async register(user: RequestUser, dto: RegisterEcfSequenceDto) {
     if (dto.rangeEnd < dto.rangeStart) {
       throw new BadRequestException(apiError('dgii.encfRangeInvalid'));
+    }
+    const existing = await this.prisma.ecfSequence.findUnique({
+      where: { tenantId_ncfType: { tenantId: user.tenantId, ncfType: dto.ncfType } },
+    });
+    // `next` resultante: nunca por debajo de lo ya consumido. Si el rango nuevo empieza por encima del
+    // contador actual (renovación limpia), arranca ahí; si solapa lo consumido, mantiene el contador.
+    const nextStart = existing ? Math.max(existing.next, dto.rangeStart) : dto.rangeStart;
+    // Un rango nuevo cuyo fin queda por debajo de lo ya consumido no aporta números utilizables: lo
+    // rechazamos para que el despacho registre un rango válido (no es un reinicio silencioso).
+    if (nextStart > dto.rangeEnd) {
+      throw new BadRequestException(
+        apiError('dgii.encfRangeExhausted', { params: { ncfType: dto.ncfType } }),
+      );
     }
     const row = await this.prisma.ecfSequence.upsert({
       where: { tenantId_ncfType: { tenantId: user.tenantId, ncfType: dto.ncfType } },
@@ -45,13 +67,13 @@ export class EcfSequenceService {
         ncfType: dto.ncfType,
         rangeStart: dto.rangeStart,
         rangeEnd: dto.rangeEnd,
-        next: dto.rangeStart,
+        next: nextStart,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
       },
       update: {
         rangeStart: dto.rangeStart,
         rangeEnd: dto.rangeEnd,
-        next: dto.rangeStart,
+        next: nextStart,
         expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null,
       },
     });

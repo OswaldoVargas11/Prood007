@@ -71,6 +71,17 @@ export class LedgerController {
     return this.ledger.listApprovals(user);
   }
 
+  /**
+   * M-4: verificación de integridad de la cadena fiscal inmutable del despacho (huella encadenada de
+   * FiscalEvent). Devuelve `{ ok, checked, brokenAt? }`. Pensado para conciliación periódica — además del
+   * assert de mínimo privilegio del rol de BD al arranque, da detección activa de manipulación. Solo admin.
+   */
+  @Roles(Role.FIRM_ADMIN)
+  @Get('fiscal-chain/verify')
+  verifyFiscalChain(@CurrentUser() user: RequestUser) {
+    return this.ledger.verifyFiscalChain(user.tenantId);
+  }
+
   @Roles(Role.FIRM_ADMIN)
   @Post('approvals/:id/approve')
   approveCost(

@@ -1,6 +1,7 @@
 import { Global, Inject, Module, OnApplicationShutdown } from '@nestjs/common';
 import type { PrismaClient } from '@prisma/client';
 import {
+  assertAppRoleLeastPrivilege,
   createSystemPrisma,
   createTenantAwarePrisma,
   PrismaService,
@@ -26,6 +27,9 @@ import {
       useFactory: async () => {
         const client = createTenantAwarePrisma();
         await (client as unknown as PrismaClient).$connect();
+        // M-4: el rol de la app debe ser de mínimo privilegio (no superuser/bypassrls, sin UPDATE sobre
+        // columnas fiscales). Fatal en prod, aviso en dev. Sostiene la inmutabilidad fiscal y la RLS.
+        await assertAppRoleLeastPrivilege(client as unknown as PrismaClient);
         return client;
       },
     },
