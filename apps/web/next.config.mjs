@@ -5,16 +5,33 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 // Cabeceras de seguridad para TODA la web (la API ya las pone con helmet; el front no las tenía).
 // Anti-clickjacking (frame-ancestors + X-Frame-Options), HSTS, nosniff y Referrer-Policy.
-// NOTA: una CSP completa (script-src/default-src con nonce) queda como mejora a probar aparte, para no
-// romper el render de Next (scripts inline de hidratación). `frame-ancestors 'none'` es seguro y cierra
-// el clickjacking sin afectar al funcionamiento.
+//
+// CSP de contenido: se añaden las directivas que endurecen sin tocar la ejecución de scripts/estilos
+// (NO se pone `default-src`, que cascadearía a script/style/connect/img y rompería el inline de
+// hidratación de Next, el OAuth de Google y las llamadas al API). Estas son seguras y de alto valor:
+//   - base-uri 'self'   → bloquea inyección de <base> (secuestro de URLs relativas).
+//   - object-src 'none'  → mata plugins/<object>/<embed> (vector clásico de XSS).
+//   - form-action 'self' → los formularios solo pueden enviar a nuestro propio origen.
+// El `script-src`/`default-src` con nonce (que requiere wiring en middleware + validación en preview por
+// el riesgo de hidratación) queda como follow-up; ver docs/security/CSP-ROLLOUT.md.
 const securityHeaders = [
   { key: 'X-Frame-Options', value: 'DENY' },
-  { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+  {
+    key: 'Content-Security-Policy',
+    value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'",
+  },
   { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'X-DNS-Prefetch-Control', value: 'off' },
+  // Capacidades del navegador: cámara/micrófono solo para nuestro origen (dictado/escaneo), el resto
+  // desactivado. COOP `same-origin-allow-popups` aísla el documento PERO deja funcionar los popups de
+  // OAuth (Google/Microsoft) y el Google Picker del cloud-import (que usan window.opener/postMessage).
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(self), microphone=(self), geolocation=(), browsing-topics=()',
+  },
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
 ];
 
 // Excepción para el add-in de Office (Word/Outlook): el host de Office EMBEBE el panel en un iframe
@@ -24,7 +41,7 @@ const officeAddinHeaders = [
   {
     key: 'Content-Security-Policy',
     value:
-      "frame-ancestors 'self' https://*.officeapps.live.com https://*.office.com https://*.office365.com https://*.microsoft.com",
+      "frame-ancestors 'self' https://*.officeapps.live.com https://*.office.com https://*.office365.com https://*.microsoft.com; base-uri 'self'; object-src 'none'",
   },
   { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
