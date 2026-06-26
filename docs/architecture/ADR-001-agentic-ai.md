@@ -2,13 +2,22 @@
 
 > Documento vivo del programa de mejora continua — generado 2026-06-27.
 
-| Campo      | Valor                                                                 |
-| ---------- | --------------------------------------------------------------------- |
-| Estado     | En implementación (rama `feat/continuous-improvement-program`, Ola 1) |
-| Fecha      | 2026-06-27                                                            |
-| Ámbito     | Capa de IA — `packages/domain`, `apps/api`                            |
-| Decisión   | Añadir tool-use agéntico **aditivo** sobre `AiEngine`                 |
-| Reversible | Sí (capa nueva; no toca rutas existentes ni fiscales)                 |
+| Campo      | Valor                                                               |
+| ---------- | ------------------------------------------------------------------- |
+| Estado     | Ola 1 desplegada (PR #195); Ola 2a escritura `create_task` en curso |
+| Fecha      | 2026-06-27                                                          |
+| Ámbito     | Capa de IA — `packages/domain`, `apps/api`                          |
+| Decisión   | Añadir tool-use agéntico **aditivo** sobre `AiEngine`               |
+| Reversible | Sí (capa nueva; no toca rutas existentes ni fiscales)               |
+
+> **Actualización Ola 2a (2026-06-27):** se incorpora la **primera herramienta de ESCRITURA**,
+> `create_task`. Decisión de seguridad: la IA solo ejecuta acciones **reversibles y no fiscales**,
+> reutilizando los servicios existentes con sus validaciones (`TasksService.create`: valida tenant del
+> expediente, audita `task.created`, notifica al asignado). Deliberadamente **fuera de alcance** para la
+> IA: facturas, pagos, firmas, envío de correos, cambios de estado de expediente y borrados. El executor
+> resuelve la referencia del expediente a su id (acotado por `tenantId`) y rechaza referencias
+> inexistentes sin escribir. Próximas escrituras (p. ej. `draft_and_save_document`) seguirán el mismo
+> criterio: reversibles, no fiscales, vía servicio existente, auditadas.
 
 ## Contexto
 

@@ -10,6 +10,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AiQuotaService } from './ai-quota.service';
 import { AuditService } from '../audit/audit.service';
+import { TasksService } from '../tasks/tasks.service';
 import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS } from './ai-agent.tools';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -29,8 +30,9 @@ const OPEN_TASK_STATUSES = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
  * Asistente AGÉNTICO del despacho: a diferencia de los métodos one-shot de `AiService`, aquí el modelo
  * dispone de HERRAMIENTAS (tool-use) y el motor itera hasta resolver la petición consultando datos reales.
  * El executor mapea cada herramienta a una consulta Prisma SIEMPRE acotada por `tenantId` (defensa en
- * profundidad sobre la RLS). MVP de SOLO LECTURA: no muta nada. Consume cuota y deja traza de auditoría
- * (`ai.agent_run`), contabilizando el coste real en tokens de TODAS las llamadas del turno.
+ * profundidad sobre la RLS). Mayoría de herramientas de LECTURA + una de ESCRITURA acotada (`create_task`,
+ * reversible y no fiscal, que reutiliza `TasksService` con sus validaciones). Consume cuota y deja traza de
+ * auditoría (`ai.agent_run`), contabilizando el coste real en tokens de TODAS las llamadas del turno.
  */
 @Injectable()
 export class AiAgentService {
@@ -38,6 +40,7 @@ export class AiAgentService {
     private readonly prisma: PrismaService,
     private readonly quota: AiQuotaService,
     private readonly audit: AuditService,
+    private readonly tasks: TasksService,
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
   ) {}
 
@@ -88,6 +91,8 @@ export class AiAgentService {
           return { content: await this.findClient(user, inv.input) };
         case 'list_documents':
           return { content: await this.listDocuments(user, inv.input) };
+        case 'create_task':
+          return { content: await this.createTask(user, inv.input) };
         default:
           return { content: `Herramienta desconocida: ${inv.name}`, isError: true };
       }
@@ -262,6 +267,62 @@ export class AiAgentService {
       matter: matterReference,
       count: documents.length,
       documents: documents.map((d) => d.name),
+    });
+  }
+
+  // ── Escritura (acotada, reversible, no fiscal) ────────────────────────────────────────────────────
+
+  /**
+   * CREA una tarea/plazo reutilizando `TasksService` (valida tenant del expediente, audita `task.created`
+   * y notifica). Resuelve la referencia del expediente a su id (acotado por tenant). No toca nada fiscal.
+   */
+  private async createTask(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const title = str(input, 'title');
+    if (!title || title.length < 2) {
+      return json({ error: 'El título de la tarea es obligatorio (mínimo 2 caracteres).' });
+    }
+    const description = str(input, 'description');
+
+    const dueRaw = str(input, 'dueDate');
+    let dueDate: string | undefined;
+    if (dueRaw) {
+      const d = new Date(dueRaw);
+      if (Number.isNaN(d.getTime())) {
+        return json({
+          error: `Fecha de vencimiento no válida: ${dueRaw}. Usa el formato YYYY-MM-DD.`,
+        });
+      }
+      dueDate = d.toISOString();
+    }
+
+    const matterReference = str(input, 'matterReference');
+    let matterId: string | undefined;
+    if (matterReference) {
+      const matter = await this.prisma.matter.findFirst({
+        where: { tenantId: user.tenantId, reference: matterReference },
+        select: { id: true },
+      });
+      if (!matter) {
+        return json({
+          created: false,
+          note: `No existe expediente con referencia ${matterReference}; no se ha creado la tarea.`,
+        });
+      }
+      matterId = matter.id;
+    }
+
+    const task = await this.tasks.create(user, {
+      title: title.slice(0, 200),
+      description,
+      dueDate,
+      matterId,
+    });
+    return json({
+      created: true,
+      taskId: task.id,
+      title: task.title,
+      matter: matterReference ?? null,
+      dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
     });
   }
 }
