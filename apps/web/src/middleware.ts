@@ -41,6 +41,13 @@ export default function middleware(req: NextRequest) {
     return intlMiddleware(req);
   }
 
+  // Rutas de imagen de metadatos (Open Graph / Twitter Card) generadas por Next: públicas, las sirve
+  // como imagen. Sin esto, el gate de sesión las redirige a /login y no hay preview social. Tienen el
+  // segmento de locale (p. ej. /es/opengraph-image), por eso se filtran aquí tras quitar el locale.
+  if (rest.startsWith('/opengraph-image') || rest.startsWith('/twitter-image')) {
+    return intlMiddleware(req);
+  }
+
   // Páginas legales (privacidad, términos): públicas SIEMPRE, con o sin sesión (sin redirecciones).
   if (rest === '/privacy' || rest === '/terms') {
     return intlMiddleware(req);
