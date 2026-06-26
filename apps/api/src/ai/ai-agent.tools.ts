@@ -91,6 +91,30 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
     },
   },
   {
+    name: 'legal_research',
+    description:
+      'Devuelve enlaces a FUENTES JURÍDICAS OFICIALES (jurisprudencia y legislación) con los términos ' +
+      'de búsqueda ya cargados, por jurisdicción (ES: CENDOJ/BOE; RD: Poder Judicial/DGII). Úsala cuando ' +
+      'el usuario pregunte por jurisprudencia, legislación o normativa. NO inventes citas legales: ofrece ' +
+      'estos enlaces para que el letrado consulte y verifique la fuente primaria.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description:
+            'Términos de búsqueda jurídica (materia, artículos, partes, nº de procedimiento...).',
+        },
+        jurisdiction: {
+          type: 'string',
+          enum: ['es', 'do'],
+          description: 'Jurisdicción a consultar (por defecto la del despacho).',
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
     name: 'create_task',
     description:
       'CREA una tarea o plazo en el despacho (acción de ESCRITURA, reversible). Úsala SOLO cuando el ' +
@@ -126,6 +150,8 @@ export const AGENT_SYSTEM_PROMPT = [
   '- Si una herramienta no devuelve resultados, dilo con claridad y sugiere cómo afinar la búsqueda.',
   '- Cita las referencias de expediente (p. ej. EXP-2026-0042) cuando te bases en ellas.',
   '- Responde en español, de forma concisa y profesional.',
+  '- Para preguntas de jurisprudencia/legislación usa legal_research y ofrece los enlaces a fuentes',
+  '  oficiales; NUNCA inventes sentencias, artículos ni citas: remite a la fuente primaria.',
   '- Puedes CREAR tareas/plazos con create_task, pero SOLO cuando el usuario lo pida explícitamente.',
   '  Tras crear una tarea, confirma lo que has creado (título, expediente, fecha de vencimiento).',
   '- No puedes modificar ni borrar nada más, ni emitir facturas, cobrar, firmar documentos ni enviar',

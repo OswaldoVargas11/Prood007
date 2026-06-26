@@ -173,6 +173,29 @@ describe('AiAgentService', () => {
     expect(JSON.parse(out.content)).toMatchObject({ count: 1, tasks: [{ dueDate: '2026-07-01' }] });
   });
 
+  it('legal_research devuelve fuentes oficiales (ES por defecto) sin tocar la BD', async () => {
+    const { service, engine, prisma } = makeDeps([]);
+    await service.run(user, 'hola');
+    const out = await engine.lastExec!({ name: 'legal_research', input: { query: 'despido' } });
+    const parsed = JSON.parse(out.content) as {
+      jurisdiction: string;
+      sources: { source: string }[];
+    };
+    expect(parsed.jurisdiction).toBe('es');
+    expect(parsed.sources.map((s) => s.source)).toEqual(expect.arrayContaining(['BOE']));
+    expect(prisma.matter.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('legal_research respeta la jurisdicción indicada (do)', async () => {
+    const { service, engine } = makeDeps([]);
+    await service.run(user, 'hola');
+    const out = await engine.lastExec!({
+      name: 'legal_research',
+      input: { query: 'amparo', jurisdiction: 'do' },
+    });
+    expect((JSON.parse(out.content) as { jurisdiction: string }).jurisdiction).toBe('do');
+  });
+
   it('create_task crea la tarea vía TasksService resolviendo la referencia del expediente', async () => {
     const { service, engine, prisma, tasks } = makeDeps([]);
     prisma.matter.findFirst.mockResolvedValue({ id: 'm-1' });

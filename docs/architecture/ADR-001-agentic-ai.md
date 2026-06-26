@@ -19,6 +19,14 @@
 > inexistentes sin escribir. Próximas escrituras (p. ej. `draft_and_save_document`) seguirán el mismo
 > criterio: reversibles, no fiscales, vía servicio existente, auditadas.
 
+> **Actualización Ola 2b (2026-06-27):** herramienta `legal_research`. Devuelve enlaces a **fuentes
+> jurídicas oficiales** (CENDOJ/BOE en ES; Poder Judicial/DGII en RD) con los términos ya cargados, por
+> jurisdicción (la indicada o la del despacho). Decisión: **no se ingiere ni reproduce contenido**
+> (evita scraping/copyright/ToS y la alucinación de jurisprudencia) — se apunta a la fuente primaria
+> para que el letrado verifique. El prompt prohíbe inventar sentencias/artículos. La **ingesta +
+> embeddings (RAG real sobre el texto legal)** queda como evolución futura, reutilizando el motor
+> Voyage + coseno ya existente.
+
 ## Contexto
 
 La IA actual de Lawzora es **one-shot**: el modelo genera texto (asistente, resúmenes, plantillas, borradores de correo) y el humano ejecuta cualquier acción derivada. La arquitectura es limpia e intercambiable:
