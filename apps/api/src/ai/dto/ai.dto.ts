@@ -34,6 +34,14 @@ export class DraftEmailDto {
   matterId?: string;
 }
 
+/** Petición al asistente agéntico (tool-use): un mensaje en lenguaje natural sobre el despacho. */
+export class AgentDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(2000)
+  message!: string;
+}
+
 /** Búsqueda semántica. */
 export class SemanticSearchDto {
   @IsString()

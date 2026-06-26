@@ -15,6 +15,7 @@ import { VoyageEmbeddingsProvider } from './providers/voyage-embeddings.provider
 import { DisabledEmbeddingsProvider } from './providers/disabled-embeddings.provider';
 import { AiService } from './ai.service';
 import { AiSearchService } from './ai-search.service';
+import { AiAgentService } from './ai-agent.service';
 import { AiQuotaService } from './ai-quota.service';
 import { AiIndexCron } from './ai-index.cron';
 import { AiController } from './ai.controller';
@@ -64,9 +65,17 @@ import { AiController } from './ai.controller';
     },
     AiService,
     AiSearchService,
+    AiAgentService,
     AiQuotaService,
     AiIndexCron,
   ],
-  exports: [AI_ENGINE, AI_ASSISTANT_PROVIDER, AI_EMBEDDINGS, AiService, AiSearchService],
+  exports: [
+    AI_ENGINE,
+    AI_ASSISTANT_PROVIDER,
+    AI_EMBEDDINGS,
+    AiService,
+    AiSearchService,
+    AiAgentService,
+  ],
 })
 export class AiModule {}
