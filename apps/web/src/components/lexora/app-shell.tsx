@@ -12,6 +12,7 @@ import { QuickAdd } from './quick-add';
 import { AiPanel } from './ai-panel';
 import { NotificationsBell } from './notifications-bell';
 import { RealtimeToasts } from './realtime-toasts';
+import { MessagingDock } from './messaging-dock';
 import { ForcePasswordChange } from './force-password-change';
 import { ConfirmEmail } from './confirm-email';
 import { FirmBadge } from './firm-badge';
@@ -122,6 +123,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <CommandMenu open={open} onOpenChange={setOpen} />
       <Toaster />
       <RealtimeToasts />
+      <MessagingDock />
       <WhatsNewDialog />
     </div>
   );

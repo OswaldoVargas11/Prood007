@@ -228,6 +228,38 @@ export interface ChatConversation {
   unread: number;
 }
 
+// ── Mensajería interna (chat social del staff): directorio + DM 1:1 + canal «General» ──
+
+/** Usuario del despacho en el directorio del dock (`GET /messaging/directory`). */
+export interface DirectoryUser {
+  id: string;
+  fullName: string;
+  isSelf: boolean;
+}
+
+/** Conversación del dock (`GET /messaging/conversations`): canal «General» o DM 1:1. */
+export interface MessagingConversation {
+  id: string;
+  kind: 'DIRECT' | 'CHANNEL';
+  title: string | null;
+  peer: { id: string; fullName: string } | null;
+  last: { body: string; createdAt: string; authorId: string } | null;
+  unread: number;
+}
+
+/** Mensaje de una conversación interna (DM o canal). */
+export interface ConversationMessage {
+  id: string;
+  conversationId: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+  author: { id: string; fullName: string };
+  reactions?: Record<string, string[]> | null;
+  attachmentDocumentId?: string | null;
+  attachment?: { id: string; name: string } | null;
+}
+
 export interface Notification {
   id: string;
   userId: string;
