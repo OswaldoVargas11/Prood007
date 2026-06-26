@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   AI_ENGINE,
+  Jurisdiction,
   TaskStatus,
   type AiEngine,
   type AiToolExecutor,
@@ -12,6 +13,7 @@ import { AiQuotaService } from './ai-quota.service';
 import { AuditService } from '../audit/audit.service';
 import { TasksService } from '../tasks/tasks.service';
 import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS } from './ai-agent.tools';
+import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Respuesta del asistente agéntico: texto final + traza de herramientas usadas (transparencia). */
@@ -76,7 +78,7 @@ export class AiAgentService {
     };
   }
 
-  // ── Executor de herramientas (SOLO LECTURA, tenant-scoped) ────────────────────────────────────────
+  // ── Executor de herramientas (tenant-scoped; lectura + escritura acotada) ──────────────────────────
 
   private async execute(user: RequestUser, inv: AiToolInvocation): Promise<AiToolOutcome> {
     try {
@@ -91,6 +93,8 @@ export class AiAgentService {
           return { content: await this.findClient(user, inv.input) };
         case 'list_documents':
           return { content: await this.listDocuments(user, inv.input) };
+        case 'legal_research':
+          return { content: this.legalResearch(user, inv.input) };
         case 'create_task':
           return { content: await this.createTask(user, inv.input) };
         default:
@@ -267,6 +271,27 @@ export class AiAgentService {
       matter: matterReference,
       count: documents.length,
       documents: documents.map((d) => d.name),
+    });
+  }
+
+  /**
+   * Investigación jurídica: enlaces a fuentes oficiales (CENDOJ/BOE en ES, Poder Judicial/DGII en RD)
+   * con los términos ya cargados. No descarga contenido (sin scraping/copyright); apunta a la fuente
+   * primaria. Jurisdicción: la indicada o, por defecto, la del despacho.
+   */
+  private legalResearch(user: RequestUser, input: Record<string, unknown>): string {
+    const query = str(input, 'query');
+    if (!query) return json({ error: 'Indica los términos de búsqueda jurídica.' });
+    const j = str(input, 'jurisdiction');
+    const jurisdiction: LegalJurisdiction =
+      j === 'do' || j === 'es' ? j : user.jurisdiction === Jurisdiction.DO ? 'do' : 'es';
+    return json({
+      jurisdiction,
+      query,
+      sources: legalSourceLinks(jurisdiction, query),
+      disclaimer:
+        'Enlaces a fuentes oficiales para verificar la fuente primaria. No sustituye el criterio del ' +
+        'letrado ni constituye asesoramiento.',
     });
   }
 
