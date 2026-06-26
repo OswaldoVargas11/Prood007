@@ -29,7 +29,7 @@ import {
 } from '@/lib/hooks';
 import { formatBytes } from '@/lib/doc-status';
 import { formatDateTime } from '@/lib/format';
-import type { DataRoomDetail } from '@/lib/types';
+import type { DataRoomDetail, DataRoomGroup } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -314,6 +314,9 @@ function RoomManager({
           </div>
         </section>
 
+        {/* Grupos de permisos */}
+        <GroupsSection room={room} actions={actions} />
+
         {/* Accesos (enlaces mágicos) */}
         <GrantsSection room={room} actions={actions} />
 
@@ -418,6 +421,166 @@ function LinkDocButton({
   );
 }
 
+function GroupsSection({
+  room,
+  actions,
+}: {
+  room: DataRoomDetail;
+  actions: ReturnType<typeof useDataRoomActions>;
+}) {
+  const t = useTranslations('dataRoom');
+  const [editing, setEditing] = useState<DataRoomGroup | null>(null);
+  const [adding, setAdding] = useState(false);
+
+  const folderName = (id: string) => room.folders.find((f) => f.id === id)?.name ?? '—';
+
+  return (
+    <section className="space-y-2">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold text-[var(--brand-strong)]">{t('groups')}</h4>
+        <Button size="sm" variant="outline" className="h-8" onClick={() => setAdding(true)}>
+          <Plus className="size-4" /> {t('newGroup')}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">{t('groupsHint')}</p>
+      <div className="divide-y divide-border rounded-md border">
+        {room.groups.map((g) => (
+          <div key={g.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+            <span className="min-w-0 flex-1 truncate font-medium">{g.name}</span>
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              {g.folderIds.length > 0 ? g.folderIds.map(folderName).join(', ') : t('allFolders')}
+            </span>
+            {!g.canDownload && <Badge variant="secondary">{t('viewOnly')}</Badge>}
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-xs"
+              onClick={() => setEditing(g)}
+            >
+              {t('editGroup')}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2"
+              aria-label={t('delete')}
+              onClick={() => actions.removeGroup.mutate(g.id)}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        ))}
+        {room.groups.length === 0 && (
+          <div className="px-3 py-6 text-center text-xs text-muted-foreground">{t('noGroups')}</div>
+        )}
+      </div>
+
+      {(adding || editing) && (
+        <GroupEditor
+          room={room}
+          actions={actions}
+          group={editing}
+          onClose={() => {
+            setAdding(false);
+            setEditing(null);
+          }}
+        />
+      )}
+    </section>
+  );
+}
+
+function GroupEditor({
+  room,
+  actions,
+  group,
+  onClose,
+}: {
+  room: DataRoomDetail;
+  actions: ReturnType<typeof useDataRoomActions>;
+  group: DataRoomGroup | null;
+  onClose: () => void;
+}) {
+  const t = useTranslations('dataRoom');
+  const [name, setName] = useState(group?.name ?? '');
+  const [folderIds, setFolderIds] = useState<string[]>(group?.folderIds ?? []);
+  const [canDownload, setCanDownload] = useState(group?.canDownload ?? true);
+
+  const pending = actions.addGroup.isPending || actions.updateGroup.isPending;
+
+  const toggleFolder = (id: string) =>
+    setFolderIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
+  const save = () => {
+    if (!name.trim()) return;
+    if (group) {
+      actions.updateGroup.mutate(
+        { groupId: group.id, name: name.trim(), folderIds, canDownload },
+        { onSuccess: onClose },
+      );
+    } else {
+      actions.addGroup.mutate(
+        { name: name.trim(), folderIds, canDownload },
+        { onSuccess: onClose },
+      );
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{group ? t('editGroupTitle') : t('newGroupTitle')}</DialogTitle>
+          <DialogDescription>{t('groupsHint')}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="grp-name">{t('groupName')}</Label>
+            <Input id="grp-name" value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>{t('groupFolders')}</Label>
+            <p className="text-xs text-muted-foreground">{t('groupFoldersHint')}</p>
+            <div className="max-h-40 space-y-1 overflow-auto rounded-md border p-2">
+              {room.folders.length === 0 ? (
+                <span className="text-xs text-muted-foreground">{t('noFolders')}</span>
+              ) : (
+                room.folders.map((f) => (
+                  <label key={f.id} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={folderIds.includes(f.id)}
+                      onChange={() => toggleFolder(f.id)}
+                    />
+                    {f.name}
+                  </label>
+                ))
+              )}
+            </div>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={canDownload}
+              onChange={(e) => setCanDownload(e.target.checked)}
+            />
+            {t('allowDownload')}
+          </label>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {t('cancel')}
+          </Button>
+          <Button onClick={save} disabled={!name.trim() || pending}>
+            {pending && <Loader2 className="size-4 animate-spin" />}
+            {t('save')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function GrantsSection({
   room,
   actions,
@@ -431,14 +594,19 @@ function GrantsSection({
   const [email, setEmail] = useState('');
   const [canDownload, setCanDownload] = useState(true);
   const [expiresInDays, setExpiresInDays] = useState('30');
+  const [groupId, setGroupId] = useState('');
   const [createdLink, setCreatedLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const groupName = (id: string | null) =>
+    id ? (room.groups.find((g) => g.id === id)?.name ?? null) : null;
 
   const submit = () => {
     actions.createGrant.mutate(
       {
         email: email.trim(),
         canDownload,
+        groupId: groupId || undefined,
         expiresInDays: expiresInDays ? Number(expiresInDays) : undefined,
       },
       {
@@ -471,6 +639,7 @@ function GrantsSection({
         {room.grants.map((g) => (
           <div key={g.id} className="flex items-center gap-3 px-3 py-2 text-sm">
             <span className="min-w-0 flex-1 truncate">{g.email}</span>
+            {groupName(g.groupId) && <Badge variant="outline">{groupName(g.groupId)}</Badge>}
             {g.revokedAt ? (
               <Badge variant="outline">{t('revoked')}</Badge>
             ) : g.expiresAt && new Date(g.expiresAt) < new Date() ? (
@@ -532,6 +701,27 @@ function GrantsSection({
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
+              {room.groups.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="dr-group">{t('grantGroup')}</Label>
+                  <select
+                    id="dr-group"
+                    value={groupId}
+                    onChange={(e) => setGroupId(e.target.value)}
+                    className={selectClass}
+                  >
+                    <option value="">{t('noGroup')}</option>
+                    {room.groups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                  {groupId && (
+                    <p className="text-xs text-muted-foreground">{t('grantGroupInherits')}</p>
+                  )}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="dr-exp">{t('expiresInDays')}</Label>
@@ -546,6 +736,7 @@ function GrantsSection({
                   <input
                     type="checkbox"
                     checked={canDownload}
+                    disabled={Boolean(groupId)}
                     onChange={(e) => setCanDownload(e.target.checked)}
                   />
                   {t('allowDownload')}

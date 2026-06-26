@@ -1,10 +1,26 @@
-import { IsEnum, IsISO8601, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
-import { ClosingItemCategory } from '@legalflow/domain';
+import {
+  IsBoolean,
+  IsEnum,
+  IsISO8601,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import { ClosingItemCategory, ClosingItemPhase } from '@legalflow/domain';
 
 /** Alta de una partida del checklist de cierre. */
 export class CreateItemDto {
   @IsEnum(ClosingItemCategory)
   category!: ClosingItemCategory;
+
+  @IsOptional()
+  @IsEnum(ClosingItemPhase)
+  phase?: ClosingItemPhase;
+
+  @IsOptional()
+  @IsBoolean()
+  inEscrow?: boolean;
 
   @IsString()
   @MinLength(2)

@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { BookText, Loader2, Plus, ScrollText, Trash2, Users } from 'lucide-react';
 import { useCompanySecretary, useCompanySecretaryActions } from '@/lib/hooks';
 import { formatDate } from '@/lib/format';
+import type { RegistryKind } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -120,6 +121,14 @@ export function CompanySecretaryTab({ clientId }: { clientId: string }) {
             {data.obligations.map((o) => (
               <div key={o.id} className="flex items-center gap-3 px-4 py-2 text-sm">
                 <span className="min-w-0 flex-1 truncate">{o.title}</span>
+                <Badge variant="outline" className="hidden sm:inline-flex">
+                  {t(`registry.${o.registry}`)}
+                </Badge>
+                {o.referenceCode && (
+                  <span className="hidden font-mono text-xs text-muted-foreground md:inline">
+                    {o.referenceCode}
+                  </span>
+                )}
                 <span className="text-xs text-muted-foreground">
                   {formatDate(o.dueDate, locale)}
                 </span>
@@ -427,18 +436,40 @@ function AddMinute({ actions }: { actions: Actions }) {
   );
 }
 
+const REGISTRIES: RegistryKind[] = [
+  'REGISTRO_MERCANTIL',
+  'REGISTRO_PROPIEDAD',
+  'INDICE_UNICO_NOTARIAL',
+  'NOTARIA',
+  'REGISTRO_TITULOS_RD',
+  'CAMARA_COMERCIO_RD',
+  'OTHER',
+];
+
+const obSelectClass =
+  'flex h-9 w-44 rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring';
+
 function AddObligation({ actions }: { actions: Actions }) {
   const t = useTranslations('companySecretary');
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [registry, setRegistry] = useState<RegistryKind>('REGISTRO_MERCANTIL');
+  const [referenceCode, setReferenceCode] = useState('');
   const submit = () => {
     if (!title.trim() || !dueDate) return;
     actions.addObligation.mutate(
-      { title: title.trim(), dueDate, recurrence: 'ANNUAL' },
+      {
+        title: title.trim(),
+        dueDate,
+        recurrence: 'ANNUAL',
+        registry,
+        referenceCode: referenceCode.trim() || undefined,
+      },
       {
         onSuccess: () => {
           setTitle('');
           setDueDate('');
+          setReferenceCode('');
         },
       },
     );
@@ -450,6 +481,23 @@ function AddObligation({ actions }: { actions: Actions }) {
         placeholder={t('obTitle')}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
+      />
+      <select
+        className={obSelectClass}
+        value={registry}
+        onChange={(e) => setRegistry(e.target.value as RegistryKind)}
+      >
+        {REGISTRIES.map((r) => (
+          <option key={r} value={r}>
+            {t(`registry.${r}`)}
+          </option>
+        ))}
+      </select>
+      <Input
+        className={`${inputClass} w-36`}
+        placeholder={t('obReferenceCode')}
+        value={referenceCode}
+        onChange={(e) => setReferenceCode(e.target.value)}
       />
       <Input
         className={`${inputClass} w-40`}

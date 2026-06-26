@@ -23,8 +23,17 @@ import type {
   ClosingChecklistDetail,
   ClosingChecklistSummary,
   ClosingItemCategory,
+  ClosingItemPhase,
   ClosingItemStatus,
   ClosingTemplate,
+  DealOverview,
+  DealMilestoneStatus,
+  DealPartyRole,
+  DealPartySide,
+  DealMilestoneKind,
+  DisclosureScheduleStatus,
+  RegistryKind,
+  RegistryFilingStatus,
   Client,
   ClientsPage,
   ConflictResult,
@@ -2478,8 +2487,16 @@ export function useCreateChecklist(matterId: string) {
 export function useUpdateChecklist(matterId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: string; title?: string; closingDate?: string }) =>
-      api.patch<ClosingChecklistDetail>(`/closing/${id}`, body),
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      title?: string;
+      closingDate?: string;
+      signingDate?: string;
+      longstopDate?: string;
+    }) => api.patch<ClosingChecklistDetail>(`/closing/${id}`, body),
     onSuccess: (data) => {
       qc.setQueryData(['closing', 'checklist', data.id], data);
       void qc.invalidateQueries({ queryKey: ['closing', 'by-matter', matterId] });
@@ -2505,6 +2522,8 @@ interface ChecklistItemInput {
   documentId?: string;
   dueDate?: string;
   sortOrder?: number;
+  phase?: ClosingItemPhase;
+  inEscrow?: boolean;
 }
 
 export function useAddChecklistItem(matterId: string) {
@@ -2551,6 +2570,164 @@ export async function downloadClosingBinder(checklistId: string, filename: strin
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ── Operación (deal cockpit): partes, hitos, disclosures, presentaciones ──────
+
+export interface CreatePartyInput {
+  name: string;
+  side?: DealPartySide;
+  role?: DealPartyRole;
+  organization?: string;
+  email?: string;
+  phone?: string;
+  isDistribution?: boolean;
+  notes?: string;
+  sortOrder?: number;
+}
+export interface UpdatePartyInput {
+  side?: DealPartySide;
+  role?: DealPartyRole;
+  name?: string;
+  organization?: string;
+  email?: string;
+  phone?: string;
+  isDistribution?: boolean;
+  notes?: string;
+  sortOrder?: number;
+}
+export interface CreateMilestoneInput {
+  title: string;
+  targetDate: string;
+  kind?: DealMilestoneKind;
+  status?: DealMilestoneStatus;
+  notes?: string;
+  sortOrder?: number;
+}
+export interface UpdateMilestoneInput {
+  kind?: DealMilestoneKind;
+  title?: string;
+  targetDate?: string;
+  status?: DealMilestoneStatus;
+  notes?: string;
+  sortOrder?: number;
+}
+export interface CreateDisclosureInput {
+  number: string;
+  title: string;
+  repWarranty?: string;
+  body?: string;
+  documentId?: string;
+  status?: DisclosureScheduleStatus;
+  sortOrder?: number;
+}
+export interface UpdateDisclosureInput {
+  number?: string;
+  title?: string;
+  repWarranty?: string;
+  body?: string;
+  documentId?: string;
+  status?: DisclosureScheduleStatus;
+  sortOrder?: number;
+}
+export interface CreateFilingInput {
+  title: string;
+  registry?: RegistryKind;
+  referenceCode?: string;
+  status?: RegistryFilingStatus;
+  submittedAt?: string;
+  registeredAt?: string;
+  documentId?: string;
+  notes?: string;
+  sortOrder?: number;
+}
+export interface UpdateFilingInput {
+  registry?: RegistryKind;
+  title?: string;
+  referenceCode?: string;
+  status?: RegistryFilingStatus;
+  submittedAt?: string;
+  registeredAt?: string;
+  documentId?: string;
+  notes?: string;
+  sortOrder?: number;
+}
+
+const dealKey = (matterId: string) => ['deal', matterId] as const;
+
+export function useDeal(matterId: string) {
+  return useQuery({
+    queryKey: dealKey(matterId),
+    queryFn: () => api.get<DealOverview>(`/deal/${matterId}`),
+    enabled: Boolean(matterId),
+  });
+}
+
+/**
+ * Mutaciones de la operación. Cada endpoint devuelve el overview completo, así que el éxito
+ * simplemente fija el resultado en la caché de la query del expediente.
+ */
+export function useDealActions(matterId: string) {
+  const qc = useQueryClient();
+  const set = (data: DealOverview) => qc.setQueryData(dealKey(matterId), data);
+  return {
+    addParty: useMutation({
+      mutationFn: (body: CreatePartyInput) =>
+        api.post<DealOverview>(`/deal/${matterId}/parties`, body),
+      onSuccess: set,
+    }),
+    updateParty: useMutation({
+      mutationFn: ({ id, ...body }: UpdatePartyInput & { id: string }) =>
+        api.patch<DealOverview>(`/deal/parties/${id}`, body),
+      onSuccess: set,
+    }),
+    removeParty: useMutation({
+      mutationFn: (id: string) => api.del<DealOverview>(`/deal/parties/${id}`),
+      onSuccess: (d) => d && set(d),
+    }),
+    addMilestone: useMutation({
+      mutationFn: (body: CreateMilestoneInput) =>
+        api.post<DealOverview>(`/deal/${matterId}/milestones`, body),
+      onSuccess: set,
+    }),
+    updateMilestone: useMutation({
+      mutationFn: ({ id, ...body }: UpdateMilestoneInput & { id: string }) =>
+        api.patch<DealOverview>(`/deal/milestones/${id}`, body),
+      onSuccess: set,
+    }),
+    removeMilestone: useMutation({
+      mutationFn: (id: string) => api.del<DealOverview>(`/deal/milestones/${id}`),
+      onSuccess: (d) => d && set(d),
+    }),
+    addDisclosure: useMutation({
+      mutationFn: (body: CreateDisclosureInput) =>
+        api.post<DealOverview>(`/deal/${matterId}/disclosures`, body),
+      onSuccess: set,
+    }),
+    updateDisclosure: useMutation({
+      mutationFn: ({ id, ...body }: UpdateDisclosureInput & { id: string }) =>
+        api.patch<DealOverview>(`/deal/disclosures/${id}`, body),
+      onSuccess: set,
+    }),
+    removeDisclosure: useMutation({
+      mutationFn: (id: string) => api.del<DealOverview>(`/deal/disclosures/${id}`),
+      onSuccess: (d) => d && set(d),
+    }),
+    addFiling: useMutation({
+      mutationFn: (body: CreateFilingInput) =>
+        api.post<DealOverview>(`/deal/${matterId}/filings`, body),
+      onSuccess: set,
+    }),
+    updateFiling: useMutation({
+      mutationFn: ({ id, ...body }: UpdateFilingInput & { id: string }) =>
+        api.patch<DealOverview>(`/deal/filings/${id}`, body),
+      onSuccess: set,
+    }),
+    removeFiling: useMutation({
+      mutationFn: (id: string) => api.del<DealOverview>(`/deal/filings/${id}`),
+      onSuccess: (d) => d && set(d),
+    }),
+  };
 }
 
 // ── Data room (due diligence) ─────────────────────────────────────────────────
@@ -2637,12 +2814,34 @@ export function useDataRoomActions(roomId: string, matterId: string) {
         name?: string;
         canDownload?: boolean;
         folderIds?: string[];
+        groupId?: string;
         expiresInDays?: number;
       }) => api.post<CreateGrantResult>(`/data-rooms/${roomId}/grants`, body),
       onSuccess: () => void qc.invalidateQueries({ queryKey: ['dataroom', roomId] }),
     }),
     revokeGrant: useMutation({
       mutationFn: (grantId: string) => api.del<DataRoomDetail>(`/data-rooms/grants/${grantId}`),
+      onSuccess: (d) => d && refresh(d),
+    }),
+    addGroup: useMutation({
+      mutationFn: (body: { name: string; folderIds?: string[]; canDownload?: boolean }) =>
+        api.post<DataRoomDetail>(`/data-rooms/${roomId}/groups`, body),
+      onSuccess: refresh,
+    }),
+    updateGroup: useMutation({
+      mutationFn: ({
+        groupId,
+        ...body
+      }: {
+        groupId: string;
+        name?: string;
+        folderIds?: string[];
+        canDownload?: boolean;
+      }) => api.patch<DataRoomDetail>(`/data-rooms/groups/${groupId}`, body),
+      onSuccess: refresh,
+    }),
+    removeGroup: useMutation({
+      mutationFn: (groupId: string) => api.del<DataRoomDetail>(`/data-rooms/groups/${groupId}`),
       onSuccess: (d) => d && refresh(d),
     }),
   };
@@ -2784,6 +2983,8 @@ export function useCompanySecretaryActions(clientId: string) {
         title?: string;
         dueDate?: string;
         status?: string;
+        registry?: RegistryKind;
+        referenceCode?: string;
       }) => api.patch<CompanySecretaryOverview>(`/company-secretary/obligations/${id}`, body),
       onSuccess: set,
     }),

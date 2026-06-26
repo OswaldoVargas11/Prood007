@@ -18,7 +18,12 @@ import {
   useUpdateChecklistItem,
 } from '@/lib/hooks';
 import { formatDate } from '@/lib/format';
-import type { ClosingChecklistItem, ClosingItemCategory, ClosingItemStatus } from '@/lib/types';
+import type {
+  ClosingChecklistItem,
+  ClosingItemCategory,
+  ClosingItemPhase,
+  ClosingItemStatus,
+} from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -42,6 +47,7 @@ const CATEGORY_ORDER: ClosingItemCategory[] = [
   'OTHER',
 ];
 const STATUSES: ClosingItemStatus[] = ['PENDING', 'IN_PROGRESS', 'WAIVED', 'SATISFIED'];
+const PHASES: ClosingItemPhase[] = ['AT_SIGNING', 'AT_CLOSING', 'POST_CLOSING'];
 
 const selectClass =
   'flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring';
@@ -255,21 +261,55 @@ function ChecklistDetail({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">{checklist.title}</h3>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Label htmlFor="cl-date" className="text-xs">
-                {t('closingDate')}
-              </Label>
-              <Input
-                id="cl-date"
-                type="date"
-                className="h-8 w-40"
-                defaultValue={checklist.closingDate?.slice(0, 10) ?? ''}
-                onBlur={(e) => {
-                  if (e.target.value) {
-                    updateChecklist.mutate({ id: checklistId, closingDate: e.target.value });
-                  }
-                }}
-              />
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="cl-signing" className="text-xs">
+                  {t('signingDate')}
+                </Label>
+                <Input
+                  id="cl-signing"
+                  type="date"
+                  className="h-8 w-40"
+                  defaultValue={checklist.signingDate?.slice(0, 10) ?? ''}
+                  onBlur={(e) => {
+                    if (e.target.value) {
+                      updateChecklist.mutate({ id: checklistId, signingDate: e.target.value });
+                    }
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="cl-date" className="text-xs">
+                  {t('closingDate')}
+                </Label>
+                <Input
+                  id="cl-date"
+                  type="date"
+                  className="h-8 w-40"
+                  defaultValue={checklist.closingDate?.slice(0, 10) ?? ''}
+                  onBlur={(e) => {
+                    if (e.target.value) {
+                      updateChecklist.mutate({ id: checklistId, closingDate: e.target.value });
+                    }
+                  }}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="cl-longstop" className="text-xs">
+                  {t('longstopDate')}
+                </Label>
+                <Input
+                  id="cl-longstop"
+                  type="date"
+                  className="h-8 w-40"
+                  defaultValue={checklist.longstopDate?.slice(0, 10) ?? ''}
+                  onBlur={(e) => {
+                    if (e.target.value) {
+                      updateChecklist.mutate({ id: checklistId, longstopDate: e.target.value });
+                    }
+                  }}
+                />
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -353,6 +393,7 @@ function ItemRow({
 }) {
   const t = useTranslations('closing');
   const tStatus = useTranslations('closing.status');
+  const tPhase = useTranslations('closing.phase');
   const update = useUpdateChecklistItem(matterId, checklistId);
   const remove = useDeleteChecklistItem(matterId, checklistId);
   const { data: assignees } = useAssignees();
@@ -387,6 +428,8 @@ function ItemRow({
           <p className="text-sm font-medium">{item.title}</p>
           {item.detail && <p className="mt-0.5 text-xs text-muted-foreground">{item.detail}</p>}
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <Badge variant="outline">{tPhase(item.phase)}</Badge>
+            {item.inEscrow && <Badge variant="secondary">{t('inEscrow')}</Badge>}
             {meta.length > 0 && <span>{meta.join(' · ')}</span>}
             {docName && (
               <Badge variant="outline" className="gap-1">
@@ -449,6 +492,8 @@ function ItemEditor({
   const [assigneeId, setAssigneeId] = useState(item.assigneeId ?? '');
   const [documentId, setDocumentId] = useState(item.documentId ?? '');
   const [dueDate, setDueDate] = useState(item.dueDate?.slice(0, 10) ?? '');
+  const [phase, setPhase] = useState<ClosingItemPhase>(item.phase);
+  const [inEscrow, setInEscrow] = useState(item.inEscrow);
 
   const save = () => {
     update.mutate(
@@ -460,6 +505,8 @@ function ItemEditor({
         assigneeId,
         documentId,
         dueDate: dueDate || '',
+        phase,
+        inEscrow,
       },
       { onSuccess: onClose },
     );
@@ -535,6 +582,29 @@ function ItemEditor({
                 ))}
               </select>
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="it-phase">{t('phaseLabel')}</Label>
+              <select
+                id="it-phase"
+                value={phase}
+                onChange={(e) => setPhase(e.target.value as ClosingItemPhase)}
+                className={selectClass}
+              >
+                {PHASES.map((p) => (
+                  <option key={p} value={p}>
+                    {t(`phase.${p}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="flex items-end gap-2 pb-2 text-sm">
+              <input
+                type="checkbox"
+                checked={inEscrow}
+                onChange={(e) => setInEscrow(e.target.checked)}
+              />
+              {t('inEscrowLabel')}
+            </label>
           </div>
         </div>
         <DialogFooter>

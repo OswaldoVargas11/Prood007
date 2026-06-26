@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { RegistryKind } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
@@ -52,7 +53,9 @@ export class CompanySecretaryService {
         orderBy: { dueDate: 'asc' },
         select: {
           id: true,
+          registry: true,
           title: true,
+          referenceCode: true,
           dueDate: true,
           recurrence: true,
           status: true,
@@ -168,7 +171,9 @@ export class CompanySecretaryService {
       data: {
         tenantId: user.tenantId,
         clientId,
+        ...(dto.registry ? { registry: dto.registry as RegistryKind } : {}),
         title: dto.title.trim(),
+        referenceCode: dto.referenceCode?.trim() || null,
         dueDate: new Date(dto.dueDate),
         recurrence: dto.recurrence ?? 'ANNUAL',
       },
@@ -183,7 +188,15 @@ export class CompanySecretaryService {
   async updateObligation(user: RequestUser, id: string, dto: UpdateObligationDto) {
     const row = await this.prisma.registryObligation.findFirst({
       where: { id, tenantId: user.tenantId },
-      select: { clientId: true, title: true, dueDate: true, recurrence: true, status: true },
+      select: {
+        clientId: true,
+        registry: true,
+        title: true,
+        referenceCode: true,
+        dueDate: true,
+        recurrence: true,
+        status: true,
+      },
     });
     if (!row) throw new NotFoundException(apiError('companySecretary.notFound'));
 
@@ -191,7 +204,11 @@ export class CompanySecretaryService {
     await this.prisma.registryObligation.updateMany({
       where: { id, tenantId: user.tenantId },
       data: {
+        ...(dto.registry !== undefined ? { registry: dto.registry as RegistryKind } : {}),
         ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
+        ...(dto.referenceCode !== undefined
+          ? { referenceCode: dto.referenceCode.trim() || null }
+          : {}),
         ...(dto.dueDate !== undefined ? { dueDate: new Date(dto.dueDate) } : {}),
         ...(dto.recurrence !== undefined ? { recurrence: dto.recurrence } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
@@ -207,7 +224,9 @@ export class CompanySecretaryService {
         data: {
           tenantId: user.tenantId,
           clientId: row.clientId,
+          registry: (dto.registry as RegistryKind) ?? row.registry,
           title: dto.title?.trim() ?? row.title,
+          referenceCode: dto.referenceCode?.trim() ?? row.referenceCode,
           dueDate: next,
           recurrence: 'ANNUAL',
         },

@@ -15,9 +15,12 @@ import { buildClosingBinderIndex, type BinderGroup, type BinderItem } from './cl
 const ITEM_SELECT = {
   id: true,
   category: true,
+  phase: true,
   title: true,
   detail: true,
   status: true,
+  inEscrow: true,
+  releasedAt: true,
   responsibleParty: true,
   assigneeId: true,
   documentId: true,
@@ -92,7 +95,14 @@ export class ClosingService {
   private async getChecklistOrThrow(user: RequestUser, id: string) {
     const checklist = await this.prisma.closingChecklist.findFirst({
       where: { id, tenantId: user.tenantId },
-      select: { id: true, matterId: true, title: true, closingDate: true },
+      select: {
+        id: true,
+        matterId: true,
+        title: true,
+        signingDate: true,
+        closingDate: true,
+        longstopDate: true,
+      },
     });
     if (!checklist) throw new NotFoundException(apiError('closing.checklistNotFound'));
     return checklist;
@@ -132,7 +142,9 @@ export class ClosingService {
       select: {
         id: true,
         title: true,
+        signingDate: true,
         closingDate: true,
+        longstopDate: true,
         createdAt: true,
         items: { select: { status: true } },
       },
@@ -145,7 +157,9 @@ export class ClosingService {
       return {
         id: c.id,
         title: c.title,
+        signingDate: c.signingDate,
         closingDate: c.closingDate,
+        longstopDate: c.longstopDate,
         createdAt: c.createdAt,
         total,
         satisfied,
@@ -161,7 +175,9 @@ export class ClosingService {
         id: true,
         matterId: true,
         title: true,
+        signingDate: true,
         closingDate: true,
+        longstopDate: true,
         items: { select: ITEM_SELECT },
       },
     });
@@ -193,8 +209,10 @@ export class ClosingService {
           tenantId: user.tenantId,
           checklistId: checklist.id,
           category: item.category,
+          phase: item.phase ?? undefined,
           title: item.title,
           detail: item.detail ?? null,
+          inEscrow: item.inEscrow ?? false,
           responsibleParty: item.responsibleParty ?? null,
           sortOrder: idx,
         })),
@@ -214,7 +232,9 @@ export class ClosingService {
       where: { id, tenantId: user.tenantId },
       data: {
         ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
+        ...(dto.signingDate !== undefined ? { signingDate: new Date(dto.signingDate) } : {}),
         ...(dto.closingDate !== undefined ? { closingDate: new Date(dto.closingDate) } : {}),
+        ...(dto.longstopDate !== undefined ? { longstopDate: new Date(dto.longstopDate) } : {}),
       },
     });
     return this.getOne(user, id);
@@ -245,6 +265,8 @@ export class ClosingService {
         tenantId: user.tenantId,
         checklistId,
         category: dto.category,
+        ...(dto.phase !== undefined ? { phase: dto.phase } : {}),
+        inEscrow: dto.inEscrow ?? false,
         title: dto.title.trim(),
         detail: nullable(dto.detail) ?? null,
         responsibleParty: nullable(dto.responsibleParty) ?? null,
@@ -260,7 +282,7 @@ export class ClosingService {
   async updateItem(user: RequestUser, itemId: string, dto: UpdateItemDto) {
     const item = await this.prisma.closingChecklistItem.findFirst({
       where: { id: itemId, tenantId: user.tenantId },
-      select: { id: true, checklistId: true },
+      select: { id: true, checklistId: true, inEscrow: true, releasedAt: true },
     });
     if (!item) throw new NotFoundException(apiError('closing.itemNotFound'));
 
@@ -269,11 +291,23 @@ export class ClosingService {
       documentId: nullable(dto.documentId),
     });
 
+    // Depósito (escrow) de hojas de firma: al liberarlas (inEscrow false estando aún retenidas) se sella la
+    // fecha de liberación; al volver a retenerlas se limpia. Es el mecanismo "firmas en depósito hasta el cierre".
+    let escrowPatch: { inEscrow?: boolean; releasedAt?: Date | null } = {};
+    if (dto.inEscrow !== undefined && dto.inEscrow !== item.inEscrow) {
+      escrowPatch = {
+        inEscrow: dto.inEscrow,
+        releasedAt: dto.inEscrow ? null : (item.releasedAt ?? new Date()),
+      };
+    }
+
     await this.prisma.closingChecklistItem.updateMany({
       where: { id: itemId, tenantId: user.tenantId },
       data: {
         ...(dto.category !== undefined ? { category: dto.category } : {}),
+        ...(dto.phase !== undefined ? { phase: dto.phase } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
+        ...escrowPatch,
         ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
         ...(dto.detail !== undefined ? { detail: nullable(dto.detail) } : {}),
         ...(dto.responsibleParty !== undefined
@@ -315,7 +349,9 @@ export class ClosingService {
       select: {
         id: true,
         title: true,
+        signingDate: true,
         closingDate: true,
+        longstopDate: true,
         items: { select: ITEM_SELECT },
         matter: { select: { reference: true, title: true } },
       },
@@ -393,6 +429,9 @@ export class ClosingService {
           title: item.title,
           detail: item.detail,
           status: item.status,
+          phase: item.phase,
+          inEscrow: item.inEscrow,
+          releasedAt: item.releasedAt,
           responsibleParty: item.responsibleParty,
           assigneeName: item.assigneeId ? (assigneeName.get(item.assigneeId) ?? null) : null,
           dueDate: item.dueDate,
@@ -409,7 +448,9 @@ export class ClosingService {
       matterReference: checklist.matter.reference,
       matterTitle: checklist.matter.title,
       checklistTitle: checklist.title,
+      signingDate: checklist.signingDate,
       closingDate: checklist.closingDate,
+      longstopDate: checklist.longstopDate,
       generatedAt: new Date(),
       groups,
     });

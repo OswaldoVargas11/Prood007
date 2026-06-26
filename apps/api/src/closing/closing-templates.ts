@@ -1,16 +1,22 @@
-import { ClosingItemCategory } from '@legalflow/domain';
+import { ClosingItemCategory, ClosingItemPhase } from '@legalflow/domain';
 
 /**
  * Plantillas de checklist de cierre PRECARGADAS por tipo de operación. Son el punto de partida que el
  * despacho instancia en un expediente y luego adapta. No dependen de jurisdicción concreta (los textos
  * son neutros); lo específico se ajusta editando las partidas en la UI.
+ *
+ * Cada partida lleva su FASE (a la firma / al cierre / post-cierre) y las hojas de firma pueden nacer EN
+ * DEPÓSITO (escrow): pre-firmadas y retenidas hasta la consumación del cierre.
  */
 
 export interface ClosingTemplateItem {
   category: ClosingItemCategory;
+  phase?: ClosingItemPhase;
   title: string;
   detail?: string;
   responsibleParty?: string;
+  /** Hoja de firmas pre-firmada y retenida en depósito hasta el cierre. */
+  inEscrow?: boolean;
 }
 
 export interface ClosingTemplate {
@@ -23,6 +29,10 @@ export interface ClosingTemplate {
 const CP = ClosingItemCategory.CONDITION_PRECEDENT;
 const DEL = ClosingItemCategory.DELIVERABLE;
 const SIG = ClosingItemCategory.SIGNATURE_PAGE;
+
+const SIGNING = ClosingItemPhase.AT_SIGNING;
+const CLOSING = ClosingItemPhase.AT_CLOSING;
+const POST = ClosingItemPhase.POST_CLOSING;
 
 export const CLOSING_TEMPLATES: ClosingTemplate[] = [
   {
@@ -70,11 +80,12 @@ export const CLOSING_TEMPLATES: ClosingTemplate[] = [
       },
       {
         category: DEL,
+        phase: SIGNING,
         title: 'Contrato de compraventa (SPA)',
         detail: 'Versión final acordada para firma.',
         responsibleParty: 'Despacho',
       },
-      { category: DEL, title: 'Pacto de socios', responsibleParty: 'Despacho' },
+      { category: DEL, phase: SIGNING, title: 'Pacto de socios', responsibleParty: 'Despacho' },
       {
         category: DEL,
         title: 'Certificado de titularidad de las participaciones',
@@ -88,18 +99,30 @@ export const CLOSING_TEMPLATES: ClosingTemplate[] = [
       { category: DEL, title: 'Justificante de pago del precio', responsibleParty: 'Comprador' },
       {
         category: SIG,
+        phase: CLOSING,
         title: 'Escritura pública de compraventa',
-        detail: 'Elevación a público ante notario.',
+        detail: 'Elevación a público ante notario en la fecha de cierre.',
         responsibleParty: 'Notaría',
       },
-      { category: SIG, title: 'Hoja de firmas del SPA', responsibleParty: 'Ambas partes' },
       {
         category: SIG,
-        title: 'Hoja de firmas del pacto de socios',
+        phase: CLOSING,
+        title: 'Hoja de firmas del SPA',
+        detail: 'Pre-firmada y retenida en depósito hasta el cierre.',
         responsibleParty: 'Ambas partes',
+        inEscrow: true,
+      },
+      {
+        category: SIG,
+        phase: CLOSING,
+        title: 'Hoja de firmas del pacto de socios',
+        detail: 'Pre-firmada y retenida en depósito hasta el cierre.',
+        responsibleParty: 'Ambas partes',
+        inEscrow: true,
       },
       {
         category: DEL,
+        phase: POST,
         title: 'Inscripción de la transmisión en el Libro Registro de Socios',
         responsibleParty: 'Despacho',
       },
@@ -137,17 +160,33 @@ export const CLOSING_TEMPLATES: ClosingTemplate[] = [
         title: 'Financiación del comprador confirmada',
         responsibleParty: 'Comprador',
       },
-      { category: DEL, title: 'Contrato de arras / señal', responsibleParty: 'Despacho' },
+      {
+        category: DEL,
+        phase: SIGNING,
+        title: 'Contrato de arras / señal',
+        responsibleParty: 'Despacho',
+      },
       {
         category: DEL,
         title: 'Provisión de fondos para gastos e impuestos',
         responsibleParty: 'Comprador',
       },
       { category: DEL, title: 'Cédula de habitabilidad', responsibleParty: 'Vendedor' },
-      { category: SIG, title: 'Escritura pública de compraventa', responsibleParty: 'Notaría' },
-      { category: DEL, title: 'Liquidación de ITP / IVA', responsibleParty: 'Despacho' },
+      {
+        category: SIG,
+        phase: CLOSING,
+        title: 'Escritura pública de compraventa',
+        responsibleParty: 'Notaría',
+      },
       {
         category: DEL,
+        phase: POST,
+        title: 'Liquidación de ITP / IVA',
+        responsibleParty: 'Despacho',
+      },
+      {
+        category: DEL,
+        phase: POST,
         title: 'Inscripción en el Registro de la Propiedad',
         responsibleParty: 'Despacho',
       },
@@ -170,16 +209,39 @@ export const CLOSING_TEMPLATES: ClosingTemplate[] = [
         title: 'Cumplimiento de ratios / covenants iniciales',
         responsibleParty: 'Prestatario',
       },
-      { category: DEL, title: 'Contrato de financiación', responsibleParty: 'Despacho' },
-      { category: DEL, title: 'Documentos de garantía', responsibleParty: 'Despacho' },
+      {
+        category: DEL,
+        phase: SIGNING,
+        title: 'Contrato de financiación',
+        responsibleParty: 'Despacho',
+      },
+      {
+        category: DEL,
+        phase: SIGNING,
+        title: 'Documentos de garantía',
+        responsibleParty: 'Despacho',
+      },
       { category: DEL, title: 'Certificados de seguro', responsibleParty: 'Prestatario' },
       {
         category: SIG,
+        phase: CLOSING,
         title: 'Hoja de firmas del contrato de financiación',
+        detail: 'Retenida en depósito hasta el cumplimiento de las condiciones de disposición.',
         responsibleParty: 'Ambas partes',
+        inEscrow: true,
       },
-      { category: SIG, title: 'Elevación a público de las garantías', responsibleParty: 'Notaría' },
-      { category: DEL, title: 'Disposición de fondos', responsibleParty: 'Entidad financiera' },
+      {
+        category: SIG,
+        phase: CLOSING,
+        title: 'Elevación a público de las garantías',
+        responsibleParty: 'Notaría',
+      },
+      {
+        category: DEL,
+        phase: CLOSING,
+        title: 'Disposición de fondos',
+        responsibleParty: 'Entidad financiera',
+      },
     ],
   },
   {

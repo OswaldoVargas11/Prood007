@@ -16,6 +16,7 @@ import { MatterTeamCard } from '@/components/lexora/matter-team';
 import { LegalResearchLinks } from '@/components/lexora/legal-research-links';
 import { DocumentsTab } from '@/components/lexora/documents-tab';
 import { ClosingChecklistTab } from '@/components/lexora/closing-checklist-tab';
+import { DealCockpitTab } from '@/components/lexora/deal-cockpit-tab';
 import { DataRoomTab } from '@/components/lexora/data-room-tab';
 import { EngagementLetterCard } from '@/components/lexora/engagement-letter-card';
 import { TasksPanel } from '@/components/lexora/tasks-panel';
@@ -59,6 +60,7 @@ export default function MatterDetailPage() {
     'documents',
     'checklist',
     'closing',
+    'deal',
     'dataroom',
     'tasks',
     'costs',
@@ -150,6 +152,7 @@ export default function MatterDetailPage() {
           <TabsTrigger value="checklist">{t('tabs.checklist')}</TabsTrigger>
           <TabsTrigger value="tasks">{t('tabs.tasks')}</TabsTrigger>
           <TabsTrigger value="closing">{t('tabs.closing')}</TabsTrigger>
+          <TabsTrigger value="deal">{t('tabs.deal')}</TabsTrigger>
           <TabsTrigger value="dataroom">{t('tabs.dataroom')}</TabsTrigger>
           <TabGroupDivider label={t('tabGroups.finance')} />
           <TabsTrigger value="costs">{t('tabs.costs')}</TabsTrigger>
@@ -215,6 +218,14 @@ export default function MatterDetailPage() {
             <ClosingChecklistTab matterId={id} />
           ) : (
             <UpgradeNotice feature={t('tabs.closing')} tier="Profesional" />
+          )}
+        </TabsContent>
+
+        <TabsContent value="deal">
+          {canClosing ? (
+            <DealCockpitTab matterId={id} />
+          ) : (
+            <UpgradeNotice feature={t('tabs.deal')} tier="Profesional" />
           )}
         </TabsContent>
 

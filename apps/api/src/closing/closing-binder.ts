@@ -13,11 +13,16 @@ import {
 // renderizado del binder del tipo concreto: tanto la salida de Prisma como el enum de dominio asignan.
 type ClosingItemCategory = 'CONDITION_PRECEDENT' | 'DELIVERABLE' | 'SIGNATURE_PAGE' | 'OTHER';
 type ClosingItemStatus = 'PENDING' | 'IN_PROGRESS' | 'WAIVED' | 'SATISFIED';
+type ClosingItemPhase = 'AT_SIGNING' | 'AT_CLOSING' | 'POST_CLOSING';
 
 export interface BinderItem {
   title: string;
   detail?: string | null;
   status: ClosingItemStatus;
+  phase?: ClosingItemPhase | null;
+  /** Hoja de firmas retenida en depósito (escrow) hasta el cierre. */
+  inEscrow?: boolean | null;
+  releasedAt?: Date | null;
   responsibleParty?: string | null;
   assigneeName?: string | null;
   dueDate?: Date | null;
@@ -37,7 +42,9 @@ export interface ClosingBinderData {
   matterReference: string;
   matterTitle: string;
   checklistTitle: string;
+  signingDate: Date | null;
   closingDate: Date | null;
+  longstopDate: Date | null;
   generatedAt: Date;
   groups: BinderGroup[];
 }
@@ -54,6 +61,12 @@ const STATUS_LABEL: Record<ClosingItemStatus, string> = {
   IN_PROGRESS: 'En curso',
   WAIVED: 'Dispensada',
   SATISFIED: 'Cumplida',
+};
+
+const PHASE_LABEL: Record<ClosingItemPhase, string> = {
+  AT_SIGNING: 'A la firma',
+  AT_CLOSING: 'Al cierre',
+  POST_CLOSING: 'Post-cierre',
 };
 
 function formatDate(d: Date): string {
@@ -94,12 +107,16 @@ export function buildClosingBinderIndex(data: ClosingBinderData): Promise<Buffer
       .fontSize(10)
       .text(`${data.matterReference} · ${data.matterTitle}`, left, y, { width });
     y = doc.y + 2;
-    if (data.closingDate) {
+    const calendar: string[] = [];
+    if (data.signingDate) calendar.push(`Firma: ${formatDate(data.signingDate)}`);
+    if (data.closingDate) calendar.push(`Cierre: ${formatDate(data.closingDate)}`);
+    if (data.longstopDate) calendar.push(`Longstop: ${formatDate(data.longstopDate)}`);
+    if (calendar.length > 0) {
       doc
         .fillColor(PDF_MUTED)
         .font('Helvetica')
         .fontSize(10)
-        .text(`Fecha de cierre: ${formatDate(data.closingDate)}`, left, y, { width });
+        .text(calendar.join('   ·   '), left, y, { width });
       y = doc.y;
     }
     y += 14;
@@ -135,6 +152,9 @@ export function buildClosingBinderIndex(data: ClosingBinderData): Promise<Buffer
         y = doc.y + 1;
 
         const meta: string[] = [`Estado: ${STATUS_LABEL[item.status]}`];
+        if (item.phase) meta.push(`Fase: ${PHASE_LABEL[item.phase]}`);
+        if (item.inEscrow) meta.push('En depósito (escrow)');
+        else if (item.releasedAt) meta.push(`Liberada: ${formatDate(item.releasedAt)}`);
         if (item.responsibleParty) meta.push(`Responsable: ${item.responsibleParty}`);
         if (item.assigneeName) meta.push(`Asignado a: ${item.assigneeName}`);
         if (item.dueDate) meta.push(`Vence: ${formatDate(item.dueDate)}`);

@@ -86,11 +86,31 @@ export class CreateTransferDto {
   note?: string;
 }
 
+// Registros/oficinas por jurisdicción (ES: RM, RP, notaría/índice único; RD: Registro de Títulos, Cámara).
+const REGISTRY_KINDS = [
+  'REGISTRO_MERCANTIL',
+  'REGISTRO_PROPIEDAD',
+  'INDICE_UNICO_NOTARIAL',
+  'NOTARIA',
+  'REGISTRO_TITULOS_RD',
+  'CAMARA_COMERCIO_RD',
+  'OTHER',
+] as const;
+
 export class CreateObligationDto {
+  @IsOptional()
+  @IsIn(REGISTRY_KINDS)
+  registry?: string;
+
   @IsString()
   @MinLength(2)
   @MaxLength(200)
   title!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  referenceCode?: string;
 
   @IsISO8601()
   dueDate!: string;
@@ -102,10 +122,19 @@ export class CreateObligationDto {
 
 export class UpdateObligationDto {
   @IsOptional()
+  @IsIn(REGISTRY_KINDS)
+  registry?: string;
+
+  @IsOptional()
   @IsString()
   @MinLength(2)
   @MaxLength(200)
   title?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  referenceCode?: string;
 
   @IsOptional()
   @IsISO8601()
