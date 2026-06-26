@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEnum,
   IsISO8601,
   IsInt,
@@ -7,7 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
-import { ClosingItemCategory, ClosingItemStatus } from '@legalflow/domain';
+import { ClosingItemCategory, ClosingItemPhase, ClosingItemStatus } from '@legalflow/domain';
 
 /**
  * Edición parcial de una partida. Todos los campos opcionales; `documentId`/`assigneeId`/`detail`/
@@ -19,8 +20,17 @@ export class UpdateItemDto {
   category?: ClosingItemCategory;
 
   @IsOptional()
+  @IsEnum(ClosingItemPhase)
+  phase?: ClosingItemPhase;
+
+  @IsOptional()
   @IsEnum(ClosingItemStatus)
   status?: ClosingItemStatus;
+
+  // Hoja de firmas en depósito (escrow). Al pasar a false el servicio sella releasedAt (liberación al cierre).
+  @IsOptional()
+  @IsBoolean()
+  inEscrow?: boolean;
 
   @IsOptional()
   @IsString()

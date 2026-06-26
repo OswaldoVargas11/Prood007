@@ -252,6 +252,12 @@ export const API_MESSAGES = {
     'es-DO': 'Partida del checklist no encontrada.',
   },
 
+  // ── Operación transaccional (deal) ────────────────────────────────────────
+  'deal.notFound': {
+    'es-ES': 'Elemento de la operación no encontrado.',
+    'es-DO': 'Elemento de la operación no encontrado.',
+  },
+
   // ── Data room (due diligence) ─────────────────────────────────────────────
   'dataRoom.notFound': {
     'es-ES': 'Data room no encontrado.',
@@ -268,6 +274,10 @@ export const API_MESSAGES = {
   'dataRoom.grantNotFound': {
     'es-ES': 'Acceso no encontrado.',
     'es-DO': 'Acceso no encontrado.',
+  },
+  'dataRoom.groupNotFound': {
+    'es-ES': 'Grupo de permisos no encontrado en este data room.',
+    'es-DO': 'Grupo de permisos no encontrado en este data room.',
   },
   'dataRoom.questionNotFound': {
     'es-ES': 'Pregunta no encontrada.',

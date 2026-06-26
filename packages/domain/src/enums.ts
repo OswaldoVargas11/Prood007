@@ -65,6 +65,87 @@ export enum ClosingItemStatus {
   SATISFIED = 'SATISFIED',
 }
 
+/**
+ * Fase de la operación en la que opera una partida del checklist de cierre. Separa el SIGNING (firma de
+ * los contratos) del CLOSING (consumación: pago, entrega, elevación a público) — distinción nuclear de un
+ * transaccional. POST_CLOSING agrupa las obligaciones posteriores al cierre (inscripciones, saneamientos).
+ */
+export enum ClosingItemPhase {
+  AT_SIGNING = 'AT_SIGNING',
+  AT_CLOSING = 'AT_CLOSING',
+  POST_CLOSING = 'POST_CLOSING',
+}
+
+/** Lado de una parte en la operación (working group list). */
+export enum DealPartySide {
+  BUYER = 'BUYER',
+  SELLER = 'SELLER',
+  COMPANY = 'COMPANY',
+  LENDER = 'LENDER',
+  BORROWER = 'BORROWER',
+  OTHER = 'OTHER',
+}
+
+/** Rol de una parte dentro de su lado (principal, asesor legal, asesor financiero, notaría…). */
+export enum DealPartyRole {
+  PRINCIPAL = 'PRINCIPAL',
+  LEGAL_COUNSEL = 'LEGAL_COUNSEL',
+  FINANCIAL_ADVISOR = 'FINANCIAL_ADVISOR',
+  NOTARY = 'NOTARY',
+  OTHER = 'OTHER',
+}
+
+/**
+ * Naturaleza de un hito del calendario de la operación. NO son plazos procesales (días hábiles, festivos,
+ * calendario judicial): son fechas de la transacción computadas en días naturales — con la LONGSTOP
+ * (drop-dead date) como hito límite a partir del cual cualquiera de las partes puede desistir.
+ */
+export enum DealMilestoneKind {
+  SIGNING = 'SIGNING',
+  CLOSING = 'CLOSING',
+  LONGSTOP = 'LONGSTOP',
+  CONDITIONS_DEADLINE = 'CONDITIONS_DEADLINE',
+  FUNDS_FLOW = 'FUNDS_FLOW',
+  FILING = 'FILING',
+  CUSTOM = 'CUSTOM',
+}
+
+/** Estado de un hito de la operación. */
+export enum DealMilestoneStatus {
+  PENDING = 'PENDING',
+  DONE = 'DONE',
+  MISSED = 'MISSED',
+}
+
+/**
+ * Registro/oficina pública con la que engancha una obligación o presentación, por jurisdicción.
+ * ES: Registro Mercantil, Registro de la Propiedad, notaría e índice único notarial.
+ * RD: Registro de Títulos (jurisdicción inmobiliaria) y Cámara de Comercio y Producción.
+ */
+export enum RegistryKind {
+  REGISTRO_MERCANTIL = 'REGISTRO_MERCANTIL',
+  REGISTRO_PROPIEDAD = 'REGISTRO_PROPIEDAD',
+  INDICE_UNICO_NOTARIAL = 'INDICE_UNICO_NOTARIAL',
+  NOTARIA = 'NOTARIA',
+  REGISTRO_TITULOS_RD = 'REGISTRO_TITULOS_RD',
+  CAMARA_COMERCIO_RD = 'CAMARA_COMERCIO_RD',
+  OTHER = 'OTHER',
+}
+
+/** Estado de una presentación registral a nivel de operación. */
+export enum RegistryFilingStatus {
+  PENDING = 'PENDING',
+  SUBMITTED = 'SUBMITTED',
+  REGISTERED = 'REGISTERED',
+  REJECTED = 'REJECTED',
+}
+
+/** Estado de un anexo de manifestaciones (disclosure schedule). */
+export enum DisclosureScheduleStatus {
+  DRAFT = 'DRAFT',
+  AGREED = 'AGREED',
+}
+
 /** Estado de una tarea. */
 export enum TaskStatus {
   TODO = 'TODO',

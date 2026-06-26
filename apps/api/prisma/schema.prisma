@@ -54,16 +54,82 @@ enum DocumentReviewStatus {
 // Naturaleza de cada partida del checklist de cierre de una operación transaccional.
 enum ClosingItemCategory {
   CONDITION_PRECEDENT // condición previa al cierre
-  DELIVERABLE         // entregable / documento de la operación
-  SIGNATURE_PAGE      // hoja de firmas
+  DELIVERABLE // entregable / documento de la operación
+  SIGNATURE_PAGE // hoja de firmas
   OTHER
 }
 
 enum ClosingItemStatus {
   PENDING
   IN_PROGRESS
-  WAIVED     // dispensada (la parte renuncia a la condición)
-  SATISFIED  // cumplida / entregada / firmada
+  WAIVED // dispensada (la parte renuncia a la condición)
+  SATISFIED // cumplida / entregada / firmada
+}
+
+// Fase: SIGNING (firma de contratos) vs CLOSING (consumación) vs POST_CLOSING (obligaciones posteriores).
+enum ClosingItemPhase {
+  AT_SIGNING
+  AT_CLOSING
+  POST_CLOSING
+}
+
+// Lado de una parte en la operación (working group list).
+enum DealPartySide {
+  BUYER
+  SELLER
+  COMPANY
+  LENDER
+  BORROWER
+  OTHER
+}
+
+// Rol de una parte dentro de su lado.
+enum DealPartyRole {
+  PRINCIPAL
+  LEGAL_COUNSEL
+  FINANCIAL_ADVISOR
+  NOTARY
+  OTHER
+}
+
+// Hito del calendario de la operación (días naturales; NO plazo procesal). LONGSTOP = drop-dead date.
+enum DealMilestoneKind {
+  SIGNING
+  CLOSING
+  LONGSTOP
+  CONDITIONS_DEADLINE
+  FUNDS_FLOW
+  FILING
+  CUSTOM
+}
+
+enum DealMilestoneStatus {
+  PENDING
+  DONE
+  MISSED
+}
+
+// Registro/oficina pública por jurisdicción (ES: RM, RP, notaría/índice único; RD: Registro de Títulos, Cámara de Comercio).
+enum RegistryKind {
+  REGISTRO_MERCANTIL
+  REGISTRO_PROPIEDAD
+  INDICE_UNICO_NOTARIAL
+  NOTARIA
+  REGISTRO_TITULOS_RD
+  CAMARA_COMERCIO_RD
+  OTHER
+}
+
+enum RegistryFilingStatus {
+  PENDING
+  SUBMITTED
+  REGISTERED
+  REJECTED
+}
+
+enum DisclosureScheduleStatus {
+  DRAFT
+  AGREED
 }
 
 enum TaskStatus {
@@ -213,163 +279,167 @@ enum BillingInstallmentStatus {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Tenant {
-  id                    String       @id @default(cuid())
-  name                  String
+  id                            String                 @id @default(cuid())
+  name                          String
   // Identificador fiscal del despacho emisor (NIF/CIF en ES, RNC en RD). Necesario para facturar.
-  taxId                 String?
-  jurisdiction          Jurisdiction
-  currency              Currency
-  locale                String       @default("es-ES")
+  taxId                         String?
+  jurisdiction                  Jurisdiction
+  currency                      Currency
+  locale                        String                 @default("es-ES")
   // Licencia / suscripción: plan y plazas contratadas (asientos) por rol de staff.
-  plan                  String       @default("Profesional")
+  plan                          String                 @default("Profesional")
   // Máximo de usuarios ACTIVOS por rol (la licencia del despacho).
-  maxAdmins             Int          @default(2)
-  maxLawyers            Int          @default(5)
+  maxAdmins                     Int                    @default(2)
+  maxLawyers                    Int                    @default(5)
   // SaaS de plataforma (suscripción del despacho a Lawzora; distinto del cobro despacho→cliente).
   // Prueba de 15 días con todo desbloqueado; al expirar sin suscripción → muro (SubscriptionGuard).
-  subscriptionStatus    String       @default("TRIALING") // TRIALING|ACTIVE|PAST_DUE|SUSPENDED|CANCELED
+  subscriptionStatus            String                 @default("TRIALING") // TRIALING|ACTIVE|PAST_DUE|SUSPENDED|CANCELED
   // Modelo POR USUARIO: producto completo, se paga por plaza de staff. `seats` = plazas contratadas
   // (0 = en prueba, sin compra). Precio por plaza con descuento por volumen (ver subscription/plans.ts).
-  seats                 Int          @default(0)
-  trialEndsAt           DateTime?
-  currentPeriodEnd      DateTime?
+  seats                         Int                    @default(0)
+  trialEndsAt                   DateTime?
+  currentPeriodEnd              DateTime?
   // Ciclo de facturación de la suscripción: MONTHLY | ANNUAL (anual = 2 meses gratis, ver plans.ts).
-  billingCycle          String       @default("MONTHLY")
+  billingCycle                  String                 @default("MONTHLY")
   // Cancelación programada: el admin canceló y la suscripción seguirá ACTIVE hasta `currentPeriodEnd`,
   // momento en que Stripe emite `customer.subscription.deleted` y pasa a CANCELED. true = baja agendada
   // (la UI muestra "se cancelará el …" y ofrece reanudar). Lo sincroniza el webhook de Stripe.
-  cancelAtPeriodEnd     Boolean      @default(false)
+  cancelAtPeriodEnd             Boolean                @default(false)
   // Plan Fundador (primeros N despachos): el precio POR PLAZA queda bloqueado de por vida según los
   // tramos de volumen vigentes al darse de alta. `lockedSeatTiers` = snapshot [{upTo, pricePerSeatEur}].
   // El precio por plaza sigue dependiendo del nº de plazas (volumen); lo que se congela es la tarifa.
-  isFounder             Boolean      @default(false)
+  isFounder                     Boolean                @default(false)
   // Único como red de seguridad del cupo Fundador global (la concesión ya se serializa con un advisory
   // lock en applySubscription). Postgres permite múltiples NULL bajo índice único → no estorba a los no-fundadores.
-  founderNumber         Int?         @unique
-  lockedSeatTiers       Json?
+  founderNumber                 Int?                   @unique
+  lockedSeatTiers               Json?
   // Serie fiscal: prefijo de la numeración de facturas (p. ej. "FAC", "A").
-  invoiceSeries         String       @default("FAC")
+  invoiceSeries                 String                 @default("FAC")
   // Canal de correo de los recordatorios de plazos: interruptor del DESPACHO. En false no se envía
   // ningún recordatorio por email a nadie del despacho (el aviso in-app se mantiene siempre).
-  deadlineEmailRemindersEnabled Boolean @default(true)
+  deadlineEmailRemindersEnabled Boolean                @default(true)
   // Festivos locales del despacho: array JSON [{ date: "yyyy-mm-dd", name }] que afina el cómputo de
   // plazos procesales (se suman a los festivos nacionales de la jurisdicción).
-  holidays              Json?
+  holidays                      Json?
   // Certificado digital del despacho para el e-CF de la DGII (RD). Metadatos; el .p12 va al StorageProvider.
-  certificateName       String?
-  certificateKey        String?
-  certificateUploadedAt DateTime?
+  certificateName               String?
+  certificateKey                String?
+  certificateUploadedAt         DateTime?
   // Contraseña del certificado .p12, CIFRADA (AES-256-GCM con DATA_ENCRYPTION_KEY); nunca en claro.
-  certificatePasswordEnc String?
+  certificatePasswordEnc        String?
   // Certificado de firma para Verifactu (ES) — FNMT/representante de persona jurídica. SEPARADO del de DGII
   // (un despacho dual ES+DO necesita ambos). Mismo modelo de custodia: .p12 cifrado en storage + contraseña
   // cifrada aparte. Lo sube el FIRM_ADMIN; la firma del registro Verifactu se enchufa en certificación.
-  verifactuCertName       String?
-  verifactuCertKey        String?
-  verifactuCertUploadedAt DateTime?
-  verifactuCertPasswordEnc String?
-  savedViews             SavedView[]
-  emailSnippets          EmailSnippet[]
-  clauses                Clause[]
-  schedulingConfigs      SchedulingConfig[]
-  appointments           Appointment[]
-  judicialNotifications  JudicialNotification[]
-  documentPackages       DocumentPackage[]
+  verifactuCertName             String?
+  verifactuCertKey              String?
+  verifactuCertUploadedAt       DateTime?
+  verifactuCertPasswordEnc      String?
+  savedViews                    SavedView[]
+  emailSnippets                 EmailSnippet[]
+  clauses                       Clause[]
+  schedulingConfigs             SchedulingConfig[]
+  appointments                  Appointment[]
+  judicialNotifications         JudicialNotification[]
+  documentPackages              DocumentPackage[]
   // RGPD/Ley 172-13 — gobernanza de datos (D-022): región de residencia de datos del despacho
   // (p. ej. "EU" para ES; a definir para RD) y política de conservación configurable en meses. La
   // RETENCIÓN es metadato/política (la conservación legal prevalece sobre el borrado); no auto-purga.
-  dataRegion            String?
-  retentionMonths       Int?
+  dataRegion                    String?
+  retentionMonths               Int?
   // Cuenta conectada de Stripe (Connect Standard) del despacho. El cobro online va a SU cuenta, no a la
   // plataforma (evita ser transmisor de fondos). Vacío = el despacho aún no ha conectado Stripe. Ver D-024.
-  stripeAccountId       String?
+  stripeAccountId               String?
   // Suscripción de PLATAFORMA: el despacho como cliente de Lawzora en el Stripe de la plataforma
   // (distinto de stripeAccountId, que es su cuenta Connect para cobrar a SUS clientes).
-  stripeCustomerId      String?
-  stripeSubscriptionId  String?
+  stripeCustomerId              String?
+  stripeSubscriptionId          String?
   // Captación (CRM): token público del formulario de intake del despacho. Vacío hasta generarlo en Ajustes.
-  intakeToken           String?      @unique
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
+  intakeToken                   String?                @unique
+  createdAt                     DateTime               @default(now())
+  updatedAt                     DateTime               @updatedAt
 
-  users               User[]
-  roles               Role[]
-  clients             Client[]
-  matters             Matter[]
-  documents           Document[]
-  documentTemplates   DocumentTemplate[]
-  kycProfiles         KycProfile[]
-  tasks               Task[]
-  timeEntries         TimeEntry[]
-  ledgerEntries       LedgerEntry[]
-  invoices            Invoice[]
-  payments            Payment[]
-  dunningRules        DunningRule[]
-  dunningReminders    DunningReminder[]
-  retainerAccounts    RetainerAccount[]
-  retainerEntries     RetainerEntry[]
-  billingSchedules    BillingSchedule[]
-  billingInstallments BillingInstallment[]
-  notifications       Notification[]
-  messages            Message[]
-  auditLogs           AuditLog[]
-  signatureRequests   SignatureRequest[]
-  leads               Lead[]
-  oauthConnections    OAuthConnection[]
-  matterEmails        MatterEmail[]
-  aiEmbeddings        AiEmbedding[]
-  aiUsage             AiUsage[]
-  closingChecklists   ClosingChecklist[]
-  closingItems        ClosingChecklistItem[]
-  dataRooms           DataRoom[]
-  engagementLetters   EngagementLetter[]
-  corporateMinutes    CorporateMinute[]
-  shareholders        Shareholder[]
-  shareTransfers      ShareTransfer[]
-  registryObligations RegistryObligation[]
-  matterAssignments   MatterAssignment[]
-  folders             Folder[]
-  presentationTypes      PresentationType[]
-  presentationReqs       PresentationRequirement[]
-  presentationTaskTpls   PresentationTaskTemplate[]
-  matterChecklists       MatterChecklist[]
-  matterChecklistItems   MatterChecklistItem[]
-  matterReadStates       MatterReadState[]
+  users                User[]
+  roles                Role[]
+  clients              Client[]
+  matters              Matter[]
+  documents            Document[]
+  documentTemplates    DocumentTemplate[]
+  kycProfiles          KycProfile[]
+  tasks                Task[]
+  timeEntries          TimeEntry[]
+  ledgerEntries        LedgerEntry[]
+  invoices             Invoice[]
+  payments             Payment[]
+  dunningRules         DunningRule[]
+  dunningReminders     DunningReminder[]
+  retainerAccounts     RetainerAccount[]
+  retainerEntries      RetainerEntry[]
+  billingSchedules     BillingSchedule[]
+  billingInstallments  BillingInstallment[]
+  notifications        Notification[]
+  messages             Message[]
+  auditLogs            AuditLog[]
+  signatureRequests    SignatureRequest[]
+  leads                Lead[]
+  oauthConnections     OAuthConnection[]
+  matterEmails         MatterEmail[]
+  aiEmbeddings         AiEmbedding[]
+  aiUsage              AiUsage[]
+  closingChecklists    ClosingChecklist[]
+  closingItems         ClosingChecklistItem[]
+  dataRooms            DataRoom[]
+  dealParties          DealParty[]
+  dealMilestones       DealMilestone[]
+  disclosureSchedules  DisclosureSchedule[]
+  registryFilings      RegistryFiling[]
+  engagementLetters    EngagementLetter[]
+  corporateMinutes     CorporateMinute[]
+  shareholders         Shareholder[]
+  shareTransfers       ShareTransfer[]
+  registryObligations  RegistryObligation[]
+  matterAssignments    MatterAssignment[]
+  folders              Folder[]
+  presentationTypes    PresentationType[]
+  presentationReqs     PresentationRequirement[]
+  presentationTaskTpls PresentationTaskTemplate[]
+  matterChecklists     MatterChecklist[]
+  matterChecklistItems MatterChecklistItem[]
+  matterReadStates     MatterReadState[]
 }
 
 model User {
-  id           String   @id @default(cuid())
-  tenantId     String
-  email        String
-  passwordHash String
-  fullName     String
-  isActive     Boolean  @default(true)
+  id                            String    @id @default(cuid())
+  tenantId                      String
+  email                         String
+  passwordHash                  String
+  fullName                      String
+  isActive                      Boolean   @default(true)
   // Momento del último cambio de contraseña (auditoría + invalidación inmediata de access tokens, SEC4).
-  passwordChangedAt DateTime?
+  passwordChangedAt             DateTime?
   // Lockout por cuenta (SEC4): contador de fallos consecutivos y, en su caso, fin del bloqueo.
-  failedLoginAttempts Int       @default(0)
-  lockedUntil         DateTime?
+  failedLoginAttempts           Int       @default(0)
+  lockedUntil                   DateTime?
   // Obliga a cambiar la contraseña en el próximo acceso (alta por staff/portal o reset por admin, SEC4).
-  mustChangePassword  Boolean   @default(false)
+  mustChangePassword            Boolean   @default(false)
   // Email verificado: anti-bots. Auto-registro (registerTenant) nace false y se bloquea hasta confirmar;
   // los invitados quedan verificados al activar su cuenta por el enlace del correo (prueba de posesión).
-  emailVerified       Boolean   @default(false)
+  emailVerified                 Boolean   @default(false)
   // Tarifas del letrado (rate card): facturación (autorellena el parte de horas) y coste/hora interno
   // (sueldo cargado) para calcular el MARGEN real por expediente. Nullable = sin tarifa configurada.
-  billRate     Decimal? @db.Decimal(18, 2)
-  costRate     Decimal? @db.Decimal(18, 2)
+  billRate                      Decimal?  @db.Decimal(18, 2)
+  costRate                      Decimal?  @db.Decimal(18, 2)
   // Recordatorios de plazos por correo: interruptor del USUARIO (self-service). En false, este usuario
   // no recibe el email del recordatorio (pero sí el aviso in-app). Combina con el flag del despacho.
-  deadlineEmailRemindersEnabled Boolean @default(true)
+  deadlineEmailRemindersEnabled Boolean   @default(true)
   // MFA (2FA TOTP): secreto base32 CIFRADO (AES-256-GCM) y códigos de respaldo (hashes argon2 en JSON).
   // mfaEnabled false con mfaSecret presente = configuración a medias (pendiente de confirmar el código).
-  mfaEnabled     Boolean @default(false)
-  mfaSecret      String?
-  mfaBackupCodes String?
+  mfaEnabled                    Boolean   @default(false)
+  mfaSecret                     String?
+  mfaBackupCodes                String?
   // Anti-replay TOTP: último contador de ventana TOTP aceptado; se rechaza reusar un código ya usado.
-  lastTotpCounter Int?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  lastTotpCounter               Int?
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
 
   tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   roles          UserRole[]
@@ -377,18 +447,18 @@ model User {
   passwordResets PasswordReset[]
 
   // Relaciones de negocio
-  responsibleMatters Matter[]          @relation("MatterLawyer")
+  responsibleMatters Matter[]           @relation("MatterLawyer")
   matterAssignments  MatterAssignment[] @relation("MatterAssignee")
-  clientProfile      Client?           @relation("ClientUser")
-  assignedTasks      Task[]            @relation("TaskAssignee")
+  clientProfile      Client?            @relation("ClientUser")
+  assignedTasks      Task[]             @relation("TaskAssignee")
   timeEntries        TimeEntry[]
-  uploadedVersions   DocumentVersion[] @relation("VersionUploader")
+  uploadedVersions   DocumentVersion[]  @relation("VersionUploader")
   reviews            DocumentReview[]
   messages           Message[]
-  assignedLeads      Lead[]            @relation("LeadAssignee")
+  assignedLeads      Lead[]             @relation("LeadAssignee")
   oauthConnections   OAuthConnection[]
-  schedulingConfig   SchedulingConfig? @relation("LawyerScheduling")
-  appointments       Appointment[]     @relation("LawyerAppointments")
+  schedulingConfig   SchedulingConfig?  @relation("LawyerScheduling")
+  appointments       Appointment[]      @relation("LawyerAppointments")
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -440,17 +510,17 @@ model UserRole {
 }
 
 model RefreshToken {
-  id        String    @id @default(cuid())
-  userId    String
+  id                String    @id @default(cuid())
+  userId            String
   // Hash del refresh token (nunca se guarda en claro). Rotación + revocación.
-  tokenHash String
-  expiresAt DateTime
+  tokenHash         String
+  expiresAt         DateTime
   // Tope ABSOLUTO de la familia de sesión: la rotación arrastra este valor (no lo extiende), así una
   // sesión activa deja de "deslizar" indefinidamente. Nullable por compatibilidad con sesiones previas
   // (se tratan como legacy y caducan por `expiresAt`). Ver SEC2.
   absoluteExpiresAt DateTime?
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+  revokedAt         DateTime?
+  createdAt         DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -498,13 +568,13 @@ model Client {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  user             User?             @relation("ClientUser", fields: [userId], references: [id])
-  matters          Matter[]
-  invoices         Invoice[]
-  billingSchedules BillingSchedule[]
-  kyc              KycProfile?
-  appointments     Appointment[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                User?                @relation("ClientUser", fields: [userId], references: [id])
+  matters             Matter[]
+  invoices            Invoice[]
+  billingSchedules    BillingSchedule[]
+  kyc                 KycProfile?
+  appointments        Appointment[]
   corporateMinutes    CorporateMinute[]
   shareholders        Shareholder[]
   shareTransfers      ShareTransfer[]
@@ -541,48 +611,52 @@ model KycProfile {
 }
 
 model Matter {
-  id        String       @id @default(cuid())
-  tenantId  String
-  reference String // referencia interna del expediente
-  title     String
-  type      String // tipo de asunto (texto libre; catálogo en capa de app)
-  status    MatterStatus @default(OPEN)
-  clientId  String
-  lawyerId  String? // abogado responsable
+  id                 String       @id @default(cuid())
+  tenantId           String
+  reference          String // referencia interna del expediente
+  title              String
+  type               String // tipo de asunto (texto libre; catálogo en capa de app)
+  status             MatterStatus @default(OPEN)
+  clientId           String
+  lawyerId           String? // abogado responsable
   // Presupuesto de honorarios del expediente (moneda base del despacho). Nullable = sin presupuesto.
-  budgetAmount Decimal?  @db.Decimal(18, 2)
+  budgetAmount       Decimal?     @db.Decimal(18, 2)
   // Parte contraria (UNIVERSAL, no solo litigios): nombre + id fiscal opcional. Alimenta el chequeo
   // deontológico de conflicto en el alta (¿el adversario ya es cliente del despacho?).
   opposingParty      String?
   opposingPartyTaxId String?
   // Datos del PROCEDIMIENTO judicial (solo litigación; opcionales, sección plegable en la UI). Un
   // despacho que solo asesora los deja vacíos y no ve ruido.
-  opposingCounsel String? // letrado de la parte contraria
-  court           String? // juzgado / tribunal
-  caseNumber      String? // nº de autos / procedimiento
-  proceduralPhase String? // fase procesal (texto; catálogo en capa de app)
-  openedAt  DateTime     @default(now())
-  closedAt  DateTime?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  opposingCounsel    String? // letrado de la parte contraria
+  court              String? // juzgado / tribunal
+  caseNumber         String? // nº de autos / procedimiento
+  proceduralPhase    String? // fase procesal (texto; catálogo en capa de app)
+  openedAt           DateTime     @default(now())
+  closedAt           DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
-  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  client           Client            @relation(fields: [clientId], references: [id])
-  lawyer           User?             @relation("MatterLawyer", fields: [lawyerId], references: [id])
-  assignments      MatterAssignment[]
-  documents        Document[]
-  tasks            Task[]
-  timeEntries      TimeEntry[]
-  ledgerEntries    LedgerEntry[]
-  invoices         Invoice[]
-  messages         Message[]
-  retainerAccount  RetainerAccount?
-  billingSchedules BillingSchedule[]
-  emails           MatterEmail[]
-  appointments     Appointment[]
+  tenant                Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  client                Client                 @relation(fields: [clientId], references: [id])
+  lawyer                User?                  @relation("MatterLawyer", fields: [lawyerId], references: [id])
+  assignments           MatterAssignment[]
+  documents             Document[]
+  tasks                 Task[]
+  timeEntries           TimeEntry[]
+  ledgerEntries         LedgerEntry[]
+  invoices              Invoice[]
+  messages              Message[]
+  retainerAccount       RetainerAccount?
+  billingSchedules      BillingSchedule[]
+  emails                MatterEmail[]
+  appointments          Appointment[]
   judicialNotifications JudicialNotification[]
   closingChecklists     ClosingChecklist[]
   dataRooms             DataRoom[]
+  dealParties           DealParty[]
+  dealMilestones        DealMilestone[]
+  disclosureSchedules   DisclosureSchedule[]
+  registryFilings       RegistryFiling[]
   engagementLetter      EngagementLetter?
   folders               Folder[]
   checklists            MatterChecklist[]
@@ -769,14 +843,17 @@ model SignatureRequest {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model ClosingChecklist {
-  id          String    @id @default(cuid())
-  tenantId    String
-  matterId    String
-  title       String
-  // Fecha objetivo del cierre (signing/closing). Nullable mientras no se fija.
-  closingDate DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  tenantId     String
+  matterId     String
+  title        String
+  // Calendario de la operación: firma (signing), consumación (closing) y fecha límite (longstop/drop-dead).
+  // Días naturales — NO es un plazo procesal. Nullable mientras no se fijan.
+  signingDate  DateTime?
+  closingDate  DateTime?
+  longstopDate DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   tenant Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   matter Matter                 @relation(fields: [matterId], references: [id], onDelete: Cascade)
@@ -787,29 +864,153 @@ model ClosingChecklist {
 }
 
 model ClosingChecklistItem {
-  id          String              @id @default(cuid())
-  tenantId    String
-  checklistId String
-  category    ClosingItemCategory @default(DELIVERABLE)
-  title       String
-  detail      String?
-  status      ClosingItemStatus   @default(PENDING)
+  id               String              @id @default(cuid())
+  tenantId         String
+  checklistId      String
+  category         ClosingItemCategory @default(DELIVERABLE)
+  // Fase en la que opera la partida: condición a la firma vs al cierre vs obligación posterior.
+  phase            ClosingItemPhase    @default(AT_CLOSING)
+  title            String
+  detail           String?
+  status           ClosingItemStatus   @default(PENDING)
+  // Hojas de firma retenidas en depósito (escrow) hasta el cierre; releasedAt marca su liberación.
+  inEscrow         Boolean             @default(false)
+  releasedAt       DateTime?
   // Parte responsable (texto libre: "Comprador", "Vendedor", "Notaría", "Despacho"…).
   responsibleParty String?
   // Asignación interna (staff) y documento del expediente vinculado (entregable/hoja de firmas).
   // Escalares sin relación (como SignatureRequest): se resuelven en la capa de app, acotados por tenant.
-  assigneeId  String?
-  documentId  String?
-  dueDate     DateTime?
-  sortOrder   Int                 @default(0)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  assigneeId       String?
+  documentId       String?
+  dueDate          DateTime?
+  sortOrder        Int                 @default(0)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
 
   tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   checklist ClosingChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@index([checklistId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Working group list: partes de la operación (comprador, vendedor, sociedad, financiador) con sus
+// asesores de cada lado. Sustenta listas de distribución y los grupos de permisos del data room.
+// Por expediente. Tenant-scoped con RLS.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DealParty {
+  id             String        @id @default(cuid())
+  tenantId       String
+  matterId       String
+  side           DealPartySide @default(OTHER)
+  role           DealPartyRole @default(PRINCIPAL)
+  name           String
+  organization   String?
+  email          String?
+  phone          String?
+  // Si forma parte de la lista de distribución de la operación (recibe borradores/comunicaciones).
+  isDistribution Boolean       @default(true)
+  notes          String?
+  sortOrder      Int           @default(0)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Calendario de la operación: hitos en días NATURALES (firma, cierre, longstop/drop-dead, funds flow,
+// presentaciones). Deliberadamente distinto del motor de plazos procesales (días hábiles/festivos/
+// calendario judicial), que vive en Task.isProcedural. Por expediente. Tenant-scoped con RLS.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DealMilestone {
+  id          String              @id @default(cuid())
+  tenantId    String
+  matterId    String
+  kind        DealMilestoneKind   @default(CUSTOM)
+  title       String
+  // Fecha objetivo en días naturales (NO se computa con addBusinessDays).
+  targetDate  DateTime
+  status      DealMilestoneStatus @default(PENDING)
+  completedAt DateTime?
+  notes       String?
+  sortOrder   Int                 @default(0)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+  @@index([tenantId, targetDate])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Disclosure schedules (anexos de manifestaciones): matizan las representations & warranties del
+// contrato. Cada anexo lleva su numeración, la manifestación que matiza y un documento vinculado.
+// Por expediente. Tenant-scoped con RLS.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DisclosureSchedule {
+  id          String                   @id @default(cuid())
+  tenantId    String
+  matterId    String
+  // Numeración del anexo (p. ej. "3.1").
+  number      String
+  // Manifestación/garantía que matiza (p. ej. "Manifestación 3.1 — Litigios").
+  repWarranty String?
+  title       String
+  body        String?
+  // Documento del expediente vinculado (la evidencia del disclosure).
+  documentId  String?
+  status      DisclosureScheduleStatus @default(DRAFT)
+  sortOrder   Int                      @default(0)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Presentación registral a nivel de OPERACIÓN (cierre): engancha el expediente con el registro/oficina
+// que corresponda por jurisdicción y sigue su estado (presentado → inscrito). Distinto de
+// RegistryObligation, que son obligaciones recurrentes por sociedad. Tenant-scoped con RLS.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model RegistryFiling {
+  id            String               @id @default(cuid())
+  tenantId      String
+  matterId      String
+  registry      RegistryKind         @default(REGISTRO_MERCANTIL)
+  title         String
+  // Referencia registral (finca, nº de protocolo notarial, CSV, asiento de presentación…).
+  referenceCode String?
+  status        RegistryFilingStatus @default(PENDING)
+  submittedAt   DateTime?
+  registeredAt  DateTime?
+  documentId    String?
+  notes         String?
+  sortOrder     Int                  @default(0)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -834,11 +1035,32 @@ model DataRoom {
   folders    DataRoomFolder[]
   documents  DataRoomDocument[]
   grants     DataRoomGrant[]
+  groups     DataRoomGroup[]
   accessLogs DataRoomAccessLog[]
   questions  DataRoomQuestion[]
 
   @@index([tenantId])
   @@index([tenantId, matterId])
+}
+
+// Grupo de permisos del data room (p. ej. "Comprador y asesores"). Los grants asignados a un grupo
+// heredan sus carpetas permitidas y permiso de descarga, en vez de configurarlos uno a uno.
+model DataRoomGroup {
+  id          String   @id @default(cuid())
+  tenantId    String
+  dataRoomId  String
+  name        String
+  // Carpetas permitidas para el grupo (ids). Vacío = todo el data room.
+  folderIds   String[]
+  canDownload Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  dataRoom DataRoom        @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
+  grants   DataRoomGrant[]
+
+  @@index([tenantId])
+  @@index([dataRoomId])
 }
 
 model DataRoomFolder {
@@ -859,20 +1081,20 @@ model DataRoomFolder {
 }
 
 model DataRoomDocument {
-  id         String  @id @default(cuid())
-  tenantId   String
-  dataRoomId String
-  folderId   String?
-  name       String
+  id              String   @id @default(cuid())
+  tenantId        String
+  dataRoomId      String
+  folderId        String?
+  name            String
   // Espejo opcional de una versión de documento del expediente (misma clave de almacenamiento). Si es
   // null, el fichero se subió directamente al data room con su propia clave.
   sourceVersionId String?
-  storageKey  String
-  mimeType    String
-  sizeBytes   Int
-  contentHash String
-  uploadedById String
-  createdAt   DateTime @default(now())
+  storageKey      String
+  mimeType        String
+  sizeBytes       Int
+  contentHash     String
+  uploadedById    String
+  createdAt       DateTime @default(now())
 
   dataRoom DataRoom @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
 
@@ -881,39 +1103,42 @@ model DataRoomDocument {
 }
 
 model DataRoomGrant {
-  id         String  @id @default(cuid())
-  tenantId   String
-  dataRoomId String
-  email      String
-  name       String?
+  id           String    @id @default(cuid())
+  tenantId     String
+  dataRoomId   String
+  // Grupo de permisos al que pertenece (opcional). Si está, hereda carpetas y descarga del grupo.
+  groupId      String?
+  email        String
+  name         String?
   // Hash (sha256) del token del enlace mágico; el token en claro solo se muestra una vez al crearlo.
-  tokenHash  String  @unique
-  role       String  @default("VIEWER") // VIEWER | CONTRIBUTOR
-  canDownload Boolean @default(true)
-  // Carpetas permitidas (ids). Vacío = todo el data room. Granularidad de acceso por carpeta.
-  folderIds  String[]
-  expiresAt   DateTime?
-  revokedAt   DateTime?
+  tokenHash    String    @unique
+  role         String    @default("VIEWER") // VIEWER | CONTRIBUTOR
+  canDownload  Boolean   @default(true)
+  // Carpetas permitidas (ids). Vacío = hereda del grupo, o todo el data room si no hay grupo.
+  folderIds    String[]
+  expiresAt    DateTime?
+  revokedAt    DateTime?
   lastAccessAt DateTime?
-  createdById String
-  createdAt   DateTime @default(now())
+  createdById  String
+  createdAt    DateTime  @default(now())
 
-  dataRoom DataRoom @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
+  dataRoom DataRoom       @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
+  group    DataRoomGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   @@index([tenantId])
   @@index([dataRoomId])
 }
 
 model DataRoomAccessLog {
-  id          String   @id @default(cuid())
-  tenantId    String
-  dataRoomId  String
-  grantId     String?
-  actorEmail  String
-  action      String // VIEW_ROOM | VIEW_DOC | DOWNLOAD | QUESTION
-  targetId    String?
-  ip          String?
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  tenantId   String
+  dataRoomId String
+  grantId    String?
+  actorEmail String
+  action     String // VIEW_ROOM | VIEW_DOC | DOWNLOAD | QUESTION
+  targetId   String?
+  ip         String?
+  createdAt  DateTime @default(now())
 
   dataRoom DataRoom @relation(fields: [dataRoomId], references: [id], onDelete: Cascade)
 
@@ -1011,14 +1236,14 @@ model Shareholder {
 }
 
 model ShareTransfer {
-  id       String   @id @default(cuid())
-  tenantId String
-  clientId String
-  fromName String? // null = ampliación/emisión (alta de capital)
-  toName   String
-  units    Int
-  date     DateTime
-  note     String?
+  id        String   @id @default(cuid())
+  tenantId  String
+  clientId  String
+  fromName  String? // null = ampliación/emisión (alta de capital)
+  toName    String
+  units     Int
+  date      DateTime
+  note      String?
   createdAt DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -1029,16 +1254,20 @@ model ShareTransfer {
 }
 
 model RegistryObligation {
-  id         String    @id @default(cuid())
-  tenantId   String
-  clientId   String
-  title      String
-  dueDate    DateTime
-  recurrence String    @default("ANNUAL") // NONE | ANNUAL
-  status     String    @default("PENDING") // PENDING | FILED
-  filedAt    DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id            String       @id @default(cuid())
+  tenantId      String
+  clientId      String
+  // Registro/oficina con la que engancha por jurisdicción (RM, RP, Registro de Títulos RD, Cámara RD…).
+  registry      RegistryKind @default(REGISTRO_MERCANTIL)
+  title         String
+  // Referencia registral (nº de protocolo, finca, CSV, asiento…).
+  referenceCode String?
+  dueDate       DateTime
+  recurrence    String       @default("ANNUAL") // NONE | ANNUAL
+  status        String       @default("PENDING") // PENDING | FILED
+  filedAt       DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -1053,29 +1282,29 @@ model RegistryObligation {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Task {
-  id           String     @id @default(cuid())
-  tenantId     String
-  matterId     String?
-  title        String
-  description  String?
-  status       TaskStatus @default(TODO)
-  dueDate      DateTime?
+  id                     String     @id @default(cuid())
+  tenantId               String
+  matterId               String?
+  title                  String
+  description            String?
+  status                 TaskStatus @default(TODO)
+  dueDate                DateTime?
   // Si la tarea nace de un plazo procesal calculado, se guarda el tipo y metadatos.
-  deadlineType String?
+  deadlineType           String?
   // true si dueDate proviene de getProceduralDeadlines (vínculo a plazo procesal).
-  isProcedural Boolean    @default(false)
+  isProcedural           Boolean    @default(false)
   // LexNET-lite: registro de la notificación de la que nace el plazo — referencia (acuse/nº) y fecha
   // de notificación (inicio del cómputo). Nullable: solo en plazos creados desde una notificación.
-  notificationRef String?
-  notifiedAt      DateTime?
-  assigneeId   String?
+  notificationRef        String?
+  notifiedAt             DateTime?
+  assigneeId             String?
   // Deduplicación de recordatorios de plazo: la fecha límite para la que ya se avisó y la ventana
   // más urgente (días de antelación) ya notificada. Si dueDate cambia, el avisador detecta el desfase
   // y vuelve a avisar; sólo se notifica una ventana más urgente (menor) que la última registrada.
   lastRemindedForDueDate DateTime?
   lastReminderWindow     Int?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
 
   tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   matter   Matter? @relation(fields: [matterId], references: [id], onDelete: SetNull)
@@ -1149,19 +1378,19 @@ model LedgerEntry {
 }
 
 model Invoice {
-  id        String        @id @default(cuid())
-  tenantId  String
-  matterId  String
-  clientId  String
-  number    String
-  status    InvoiceStatus @default(DRAFT)
-  issueDate DateTime
+  id            String        @id @default(cuid())
+  tenantId      String
+  matterId      String
+  clientId      String
+  number        String
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime
   // Vencimiento del cobro (issueDate + plazo de pago). Base de "vencidas" y dunning.
-  dueDate   DateTime?
+  dueDate       DateTime?
   // Momento en que la factura quedó cobrada por completo (status = PAID).
-  paidAt    DateTime?
+  paidAt        DateTime?
   // Moneda de ESTA factura (elegible por el despacho: EUR/USD/DOP). Por defecto, la del tenant.
-  currency  Currency
+  currency      Currency
   // Formato fiscal/presentación de ESTA factura (es = España/Verifactu · do = RD/e-CF). Lo elige el
   // despacho por factura, DESACOPLADO de la jurisdicción del tenant. Por defecto, la del tenant.
   invoiceFormat Jurisdiction
@@ -1636,16 +1865,16 @@ model Notification {
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  tenantId  String
-  matterId  String
-  authorId  String
-  body      String
+  id                   String   @id @default(cuid())
+  tenantId             String
+  matterId             String
+  authorId             String
+  body                 String
   // Reacciones tipo red social: mapa { emoji: [userId, …] }. Null/{} = sin reacciones.
-  reactions Json?
+  reactions            Json?
   // Documento del expediente adjuntado al mensaje (escalar, sin FK — patrón SignatureRequest).
   attachmentDocumentId String?
-  createdAt DateTime @default(now())
+  createdAt            DateTime @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
@@ -1678,7 +1907,7 @@ model AuditLog {
 // Captación / mini-CRM: prospecto (lead) en el embudo del despacho. Se crea desde el formulario público
 // de intake o a mano; al CONVERTIR se crea su Cliente (y opcionalmente Expediente) y se enlaza aquí.
 model Lead {
-  id                String    @id @default(cuid())
+  id                String   @id @default(cuid())
   tenantId          String
   name              String
   email             String?
@@ -1688,16 +1917,16 @@ model Lead {
   subject           String?
   notes             String?
   // Origen: "intake" (formulario público) | "manual" | "referido" | "web"...
-  source            String    @default("manual")
+  source            String   @default("manual")
   // Embudo: NEW | CONTACTED | QUALIFIED | CONVERTED | LOST (ver LeadStatus en @legalflow/domain).
-  status            String    @default("NEW")
-  estimatedValue    Decimal?  @db.Decimal(18, 2)
+  status            String   @default("NEW")
+  estimatedValue    Decimal? @db.Decimal(18, 2)
   assignedToId      String?
   // Trazabilidad de conversión.
   convertedClientId String?
   convertedMatterId String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   assignedTo User?  @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
@@ -1779,16 +2008,16 @@ model AiEmbedding {
 /// Contador de uso de IA por tenant y día (cuota de coste). Incremento atómico vía upsert; el límite
 /// diario se aplica en AiQuotaService. Tenant-scoped con RLS fail-closed.
 model AiUsage {
-  id        String   @id @default(cuid())
-  tenantId  String
-  day       String // YYYY-MM-DD (UTC)
-  calls     Int      @default(0)
+  id           String   @id @default(cuid())
+  tenantId     String
+  day          String // YYYY-MM-DD (UTC)
+  calls        Int      @default(0)
   // Tokens reales consumidos en el día (devueltos por el motor). El tope de coste se aplica sobre tokens,
   // no sobre nº de llamadas: una llamada con adjunto de 8 MB cuesta órdenes de magnitud más que un `ask`.
-  inputTokens  Int   @default(0)
-  outputTokens Int   @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -1883,18 +2112,18 @@ enum ChecklistItemStatus {
 }
 
 model PresentationType {
-  id          String        @id @default(cuid())
-  tenantId    String
-  name        String
+  id           String        @id @default(cuid())
+  tenantId     String
+  name         String
   // Sector/área (texto libre; agrupación en la UI): inmobiliario, familia, mercantil, minería…
-  sector      String
+  sector       String
   // Jurisdicción a la que aplica; null = ambas (ES y RD).
   jurisdiction Jurisdiction?
-  description String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  description  String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
-  tenant        Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant        Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   requirements  PresentationRequirement[]
   taskTemplates PresentationTaskTemplate[]
   checklists    MatterChecklist[]

@@ -579,6 +579,7 @@
       "documents": "Documentos",
       "checklist": "Requisitos",
       "closing": "Cierre",
+      "deal": "Operación",
       "dataroom": "Data room",
       "tasks": "Tareas",
       "costs": "Costes",
@@ -856,6 +857,7 @@
     "obligations": "Obligaciones registrales",
     "noObligations": "Sin obligaciones registrales. Añade, p. ej., el depósito de cuentas anuales.",
     "obTitle": "Obligación (p. ej. Depósito de cuentas anuales)",
+    "obReferenceCode": "Referencia",
     "annual": "Anual",
     "filed": "Presentada",
     "markFiled": "Marcar presentada",
@@ -865,6 +867,130 @@
       "GENERAL_MEETING": "Junta general",
       "BOARD": "Consejo de administración",
       "OTHER": "Otra"
+    },
+    "registry": {
+      "REGISTRO_MERCANTIL": "Registro Mercantil",
+      "REGISTRO_PROPIEDAD": "Registro de la Propiedad",
+      "INDICE_UNICO_NOTARIAL": "Índice Único Notarial",
+      "NOTARIA": "Notaría",
+      "REGISTRO_TITULOS_RD": "Registro de Títulos (RD)",
+      "CAMARA_COMERCIO_RD": "Cámara de Comercio (RD)",
+      "OTHER": "Otro"
+    }
+  },
+  "deal": {
+    "add": "Añadir",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "none": "—",
+    "parties": {
+      "title": "Grupo de trabajo (partes)",
+      "hint": "Personas e intervinientes de la operación, agrupados por parte. Marca quién va en la lista de distribución.",
+      "empty": "Aún no hay partes registradas. Añade compradores, vendedores, asesores y notario.",
+      "addTitle": "Añadir parte",
+      "editTitle": "Editar parte",
+      "name": "Nombre",
+      "side": "Parte",
+      "role": "Rol",
+      "organization": "Organización",
+      "email": "Email",
+      "phone": "Teléfono",
+      "notes": "Notas",
+      "isDistribution": "Incluir en la lista de distribución",
+      "distribution": "Distribución",
+      "copyDistribution": "Copiar lista de distribución",
+      "copied": "Lista de distribución copiada al portapapeles."
+    },
+    "side": {
+      "BUYER": "Comprador",
+      "SELLER": "Vendedor",
+      "COMPANY": "Sociedad",
+      "LENDER": "Prestamista",
+      "BORROWER": "Prestatario",
+      "OTHER": "Otros"
+    },
+    "role": {
+      "PRINCIPAL": "Principal",
+      "LEGAL_COUNSEL": "Asesor jurídico",
+      "FINANCIAL_ADVISOR": "Asesor financiero",
+      "NOTARY": "Notario",
+      "OTHER": "Otro"
+    },
+    "milestones": {
+      "title": "Calendario de la operación (hitos)",
+      "hint": "Hitos de la operación (longstop/drop-dead) en días naturales. No son plazos procesales: para plazos procesales usa la pestaña Tareas.",
+      "empty": "Aún no hay hitos. Añade firma, cierre y la fecha longstop.",
+      "addTitle": "Añadir hito",
+      "editTitle": "Editar hito",
+      "titleLabel": "Título",
+      "kind": "Tipo",
+      "targetDate": "Fecha objetivo",
+      "status": "Estado",
+      "notes": "Notas"
+    },
+    "milestoneKind": {
+      "SIGNING": "Firma",
+      "CLOSING": "Cierre",
+      "LONGSTOP": "Longstop",
+      "CONDITIONS_DEADLINE": "Plazo de condiciones",
+      "FUNDS_FLOW": "Flujo de fondos",
+      "FILING": "Presentación",
+      "CUSTOM": "Personalizado"
+    },
+    "milestoneStatus": {
+      "PENDING": "Pendiente",
+      "DONE": "Cumplido",
+      "MISSED": "Incumplido"
+    },
+    "disclosures": {
+      "title": "Disclosure schedules",
+      "hint": "Excepciones a las manifestaciones y garantías, ordenadas por número.",
+      "empty": "Aún no hay disclosure schedules.",
+      "addTitle": "Añadir disclosure schedule",
+      "editTitle": "Editar disclosure schedule",
+      "number": "Número",
+      "titleLabel": "Título",
+      "repWarranty": "Manifestación/garantía",
+      "repWarrantyPlaceholder": "Manifestación que matiza (p. ej. 3.1 Litigios)",
+      "body": "Detalle",
+      "status": "Estado",
+      "document": "Documento vinculado"
+    },
+    "disclosureStatus": {
+      "DRAFT": "Borrador",
+      "AGREED": "Acordado"
+    },
+    "filings": {
+      "title": "Presentaciones registrales",
+      "hint": "Presentaciones ante registros y notaría, con su estado y referencia.",
+      "empty": "Aún no hay presentaciones registrales.",
+      "addTitle": "Añadir presentación",
+      "editTitle": "Editar presentación",
+      "titleLabel": "Título",
+      "registryLabel": "Registro",
+      "referenceCode": "Referencia",
+      "status": "Estado",
+      "submittedAt": "Presentada",
+      "registeredAt": "Inscrita",
+      "document": "Documento vinculado",
+      "notes": "Notas"
+    },
+    "filingStatus": {
+      "PENDING": "Pendiente",
+      "SUBMITTED": "Presentada",
+      "REGISTERED": "Inscrita",
+      "REJECTED": "Rechazada"
+    },
+    "registry": {
+      "REGISTRO_MERCANTIL": "Registro Mercantil",
+      "REGISTRO_PROPIEDAD": "Registro de la Propiedad",
+      "INDICE_UNICO_NOTARIAL": "Índice Único Notarial",
+      "NOTARIA": "Notaría",
+      "REGISTRO_TITULOS_RD": "Registro de Títulos (RD)",
+      "CAMARA_COMERCIO_RD": "Cámara de Comercio (RD)",
+      "OTHER": "Otro"
     }
   },
   "engagement": {
@@ -918,6 +1044,20 @@
     "chooseDocument": "Elige un documento…",
     "intoFolder": "Se añadirá a: {folder}",
     "link": "Vincular",
+    "groups": "Grupos de permisos",
+    "groupsHint": "Define grupos reutilizables (carpetas + descarga) y asígnalos al invitar; los accesos heredan los permisos del grupo.",
+    "newGroup": "Nuevo grupo",
+    "newGroupTitle": "Nuevo grupo de permisos",
+    "editGroup": "Editar",
+    "editGroupTitle": "Editar grupo de permisos",
+    "groupName": "Nombre del grupo",
+    "groupFolders": "Carpetas",
+    "groupFoldersHint": "Sin seleccionar = acceso a todas las carpetas.",
+    "allFolders": "Todas las carpetas",
+    "noGroups": "Aún no has creado grupos de permisos.",
+    "grantGroup": "Grupo",
+    "noGroup": "Sin grupo (permisos directos)",
+    "grantGroupInherits": "Las carpetas y la descarga se heredan del grupo elegido.",
     "access": "Accesos (enlaces mágicos)",
     "invite": "Invitar",
     "inviteTitle": "Invitar a un externo",
@@ -987,7 +1127,9 @@
     "edit": "Editar",
     "delete": "Eliminar",
     "deleteConfirm": "¿Eliminar este checklist y todas sus partidas?",
-    "closingDate": "Fecha de cierre",
+    "signingDate": "Firma",
+    "closingDate": "Cierre",
+    "longstopDate": "Longstop",
     "binder": "Descargar binder",
     "progress": "Progreso",
     "editItem": "Editar partida",
@@ -997,6 +1139,9 @@
     "assignee": "Asignado a",
     "linkedDocument": "Documento vinculado",
     "dueDate": "Vencimiento",
+    "phaseLabel": "Fase",
+    "inEscrow": "En depósito",
+    "inEscrowLabel": "En depósito (escrow)",
     "none": "—",
     "addItemPlaceholder": "Añadir partida y pulsar Enter…",
     "category": {
@@ -1010,6 +1155,11 @@
       "IN_PROGRESS": "En curso",
       "WAIVED": "Dispensada",
       "SATISFIED": "Cumplida"
+    },
+    "phase": {
+      "AT_SIGNING": "A la firma",
+      "AT_CLOSING": "Al cierre",
+      "POST_CLOSING": "Post-cierre"
     }
   },
   "documents": {

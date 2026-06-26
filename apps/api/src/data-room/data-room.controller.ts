@@ -24,8 +24,10 @@ import {
   CreateDataRoomDto,
   CreateFolderDto,
   CreateGrantDto,
+  CreateGroupDto,
   LinkDocumentDto,
   UpdateDataRoomDto,
+  UpdateGroupDto,
   UploadDataRoomDocumentDto,
 } from './dto/data-room.dto';
 
@@ -83,6 +85,20 @@ export class DataRoomController {
     return this.service.revokeGrant(user, grantId);
   }
 
+  @Patch('groups/:groupId')
+  updateGroup(
+    @CurrentUser() user: RequestUser,
+    @Param('groupId') groupId: string,
+    @Body() dto: UpdateGroupDto,
+  ) {
+    return this.service.updateGroup(user, groupId, dto);
+  }
+
+  @Delete('groups/:groupId')
+  removeGroup(@CurrentUser() user: RequestUser, @Param('groupId') groupId: string) {
+    return this.service.removeGroup(user, groupId);
+  }
+
   @Post('questions/:questionId/answer')
   answerQuestion(
     @CurrentUser() user: RequestUser,
@@ -138,6 +154,11 @@ export class DataRoomController {
     @UploadedFile() file: MulterFile,
   ) {
     return this.service.uploadDocument(user, id, body.folderId, body.name, file);
+  }
+
+  @Post(':id/groups')
+  addGroup(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() dto: CreateGroupDto) {
+    return this.service.addGroup(user, id, dto);
   }
 
   @Post(':id/grants')

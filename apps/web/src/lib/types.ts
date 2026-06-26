@@ -1107,6 +1107,10 @@ export interface RegistryObligation {
   recurrence: string;
   status: string;
   filedAt: string | null;
+  /** Registro/organismo ante el que se cumple la obligación. */
+  registry: RegistryKind;
+  /** Código de referencia/entrada del registro. */
+  referenceCode: string | null;
 }
 export interface CompanySecretaryOverview {
   minutes: CorporateMinute[];
@@ -1161,10 +1165,19 @@ export interface DataRoomGrant {
   role: string;
   canDownload: boolean;
   folderIds: string[];
+  /** Grupo de permisos del que hereda carpetas/descarga (null = permisos directos). */
+  groupId: string | null;
   expiresAt: string | null;
   revokedAt: string | null;
   lastAccessAt: string | null;
   createdAt: string;
+}
+/** Grupo de permisos reutilizable de un data room (carpetas + descarga). */
+export interface DataRoomGroup {
+  id: string;
+  name: string;
+  folderIds: string[];
+  canDownload: boolean;
 }
 export interface DataRoomDetail {
   id: string;
@@ -1175,6 +1188,7 @@ export interface DataRoomDetail {
   folders: DataRoomFolderNode[];
   documents: DataRoomDoc[];
   grants: DataRoomGrant[];
+  groups: DataRoomGroup[];
 }
 export interface DataRoomAccessEntry {
   id: string;
@@ -1236,6 +1250,8 @@ export type ClosingItemCategory =
   | 'SIGNATURE_PAGE'
   | 'OTHER';
 export type ClosingItemStatus = 'PENDING' | 'IN_PROGRESS' | 'WAIVED' | 'SATISFIED';
+/** Fase de la operación a la que pertenece la partida del checklist. */
+export type ClosingItemPhase = 'AT_SIGNING' | 'AT_CLOSING' | 'POST_CLOSING';
 
 /** Plantilla integrada de checklist de cierre (`GET /closing/templates`). */
 export interface ClosingTemplate {
@@ -1256,6 +1272,12 @@ export interface ClosingChecklistItem {
   documentId: string | null;
   dueDate: string | null;
   sortOrder: number;
+  /** Fase de la operación (firma / cierre / post-cierre). */
+  phase: ClosingItemPhase;
+  /** La partida está en depósito (escrow) pendiente de liberación. */
+  inEscrow: boolean;
+  /** Fecha de liberación del depósito, si ya se liberó. */
+  releasedAt: string | null;
 }
 
 /** Checklist con sus partidas (`GET /closing/:id`). */
@@ -1264,6 +1286,8 @@ export interface ClosingChecklistDetail {
   matterId: string;
   title: string;
   closingDate: string | null;
+  signingDate: string | null;
+  longstopDate: string | null;
   items: ClosingChecklistItem[];
 }
 
@@ -1272,9 +1296,101 @@ export interface ClosingChecklistSummary {
   id: string;
   title: string;
   closingDate: string | null;
+  signingDate: string | null;
+  longstopDate: string | null;
   createdAt: string;
   total: number;
   satisfied: number;
+}
+
+// ── Operación (deal cockpit): partes, hitos, disclosures, presentaciones ──────
+
+/** Registro/organismo (compartido por presentaciones registrales y obligaciones de secretaría). */
+export type RegistryKind =
+  | 'REGISTRO_MERCANTIL'
+  | 'REGISTRO_PROPIEDAD'
+  | 'INDICE_UNICO_NOTARIAL'
+  | 'NOTARIA'
+  | 'REGISTRO_TITULOS_RD'
+  | 'CAMARA_COMERCIO_RD'
+  | 'OTHER';
+
+export type DealPartySide = 'BUYER' | 'SELLER' | 'COMPANY' | 'LENDER' | 'BORROWER' | 'OTHER';
+export type DealPartyRole =
+  | 'PRINCIPAL'
+  | 'LEGAL_COUNSEL'
+  | 'FINANCIAL_ADVISOR'
+  | 'NOTARY'
+  | 'OTHER';
+
+export interface DealParty {
+  id: string;
+  side: DealPartySide;
+  role: DealPartyRole;
+  name: string;
+  organization: string | null;
+  email: string | null;
+  phone: string | null;
+  isDistribution: boolean;
+  notes: string | null;
+  sortOrder: number;
+}
+
+export type DealMilestoneKind =
+  | 'SIGNING'
+  | 'CLOSING'
+  | 'LONGSTOP'
+  | 'CONDITIONS_DEADLINE'
+  | 'FUNDS_FLOW'
+  | 'FILING'
+  | 'CUSTOM';
+export type DealMilestoneStatus = 'PENDING' | 'DONE' | 'MISSED';
+
+export interface DealMilestone {
+  id: string;
+  kind: DealMilestoneKind;
+  title: string;
+  targetDate: string;
+  status: DealMilestoneStatus;
+  completedAt: string | null;
+  notes: string | null;
+  sortOrder: number;
+}
+
+export type DisclosureScheduleStatus = 'DRAFT' | 'AGREED';
+
+export interface DisclosureSchedule {
+  id: string;
+  number: string;
+  repWarranty: string | null;
+  title: string;
+  body: string | null;
+  documentId: string | null;
+  status: DisclosureScheduleStatus;
+  sortOrder: number;
+}
+
+export type RegistryFilingStatus = 'PENDING' | 'SUBMITTED' | 'REGISTERED' | 'REJECTED';
+
+export interface RegistryFiling {
+  id: string;
+  registry: RegistryKind;
+  title: string;
+  referenceCode: string | null;
+  status: RegistryFilingStatus;
+  submittedAt: string | null;
+  registeredAt: string | null;
+  documentId: string | null;
+  notes: string | null;
+  sortOrder: number;
+}
+
+/** Vista completa de la operación (`GET /deal/:matterId`; cada mutación devuelve este objeto). */
+export interface DealOverview {
+  parties: DealParty[];
+  milestones: DealMilestone[];
+  disclosureSchedules: DisclosureSchedule[];
+  registryFilings: RegistryFiling[];
 }
 
 /** Coste propuesto pendiente de aprobación (de `GET /ledger/approvals`). */

@@ -52,6 +52,7 @@ import { SchedulingModule } from './scheduling/scheduling.module';
 import { JudicialNotificationsModule } from './judicial-notifications/judicial-notifications.module';
 import { DocumentPackagesModule } from './document-packages/document-packages.module';
 import { ClosingModule } from './closing/closing.module';
+import { DealModule } from './deal/deal.module';
 import { DataRoomModule } from './data-room/data-room.module';
 import { EngagementModule } from './engagement/engagement.module';
 import { CompanySecretaryModule } from './company-secretary/company-secretary.module';
@@ -126,6 +127,7 @@ import { HealthController } from './health.controller';
     JudicialNotificationsModule,
     DocumentPackagesModule,
     ClosingModule,
+    DealModule,
     DataRoomModule,
     EngagementModule,
     CompanySecretaryModule,

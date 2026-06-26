@@ -18,7 +18,9 @@ import {
   CreateDataRoomDto,
   CreateFolderDto,
   CreateGrantDto,
+  CreateGroupDto,
   LinkDocumentDto,
+  UpdateGroupDto,
 } from './dto/data-room.dto';
 import { watermarkPdf } from './watermark';
 
@@ -123,12 +125,17 @@ export class DataRoomService {
           },
           orderBy: { createdAt: 'asc' },
         },
+        groups: {
+          select: { id: true, name: true, folderIds: true, canDownload: true },
+          orderBy: { createdAt: 'asc' },
+        },
         grants: {
           select: {
             id: true,
             email: true,
             name: true,
             role: true,
+            groupId: true,
             canDownload: true,
             folderIds: true,
             expiresAt: true,
@@ -300,9 +307,66 @@ export class DataRoomService {
     return { name: doc.name, mimeType: doc.mimeType, buffer };
   }
 
+  private async assertGroupInRoom(
+    user: RequestUser,
+    roomId: string,
+    groupId: string,
+  ): Promise<void> {
+    const group = await this.prisma.dataRoomGroup.findFirst({
+      where: { id: groupId, dataRoomId: roomId, tenantId: user.tenantId },
+      select: { id: true },
+    });
+    if (!group) throw new BadRequestException(apiError('dataRoom.groupNotFound'));
+  }
+
+  // ── Grupos de permisos ───────────────────────────────────────────────────────
+
+  async addGroup(user: RequestUser, roomId: string, dto: CreateGroupDto) {
+    await this.getRoomOrThrow(user, roomId);
+    await this.prisma.dataRoomGroup.create({
+      data: {
+        tenantId: user.tenantId,
+        dataRoomId: roomId,
+        name: dto.name.trim(),
+        folderIds: dto.folderIds ?? [],
+        canDownload: dto.canDownload ?? true,
+      },
+    });
+    return this.getOne(user, roomId);
+  }
+
+  async updateGroup(user: RequestUser, groupId: string, dto: UpdateGroupDto) {
+    const group = await this.prisma.dataRoomGroup.findFirst({
+      where: { id: groupId, tenantId: user.tenantId },
+      select: { dataRoomId: true },
+    });
+    if (!group) throw new NotFoundException(apiError('dataRoom.groupNotFound'));
+    await this.prisma.dataRoomGroup.updateMany({
+      where: { id: groupId, tenantId: user.tenantId },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.folderIds !== undefined ? { folderIds: dto.folderIds } : {}),
+        ...(dto.canDownload !== undefined ? { canDownload: dto.canDownload } : {}),
+      },
+    });
+    return this.getOne(user, group.dataRoomId);
+  }
+
+  async removeGroup(user: RequestUser, groupId: string) {
+    const group = await this.prisma.dataRoomGroup.findFirst({
+      where: { id: groupId, tenantId: user.tenantId },
+      select: { dataRoomId: true },
+    });
+    if (!group) throw new NotFoundException(apiError('dataRoom.groupNotFound'));
+    // Los grants adscritos quedan con groupId null (FK ON DELETE SET NULL) → pasan a permisos propios.
+    await this.prisma.dataRoomGroup.deleteMany({ where: { id: groupId, tenantId: user.tenantId } });
+    return this.getOne(user, group.dataRoomId);
+  }
+
   /** Crea un enlace mágico para un externo. Devuelve el token EN CLARO una sola vez. */
   async createGrant(user: RequestUser, roomId: string, dto: CreateGrantDto) {
     await this.getRoomOrThrow(user, roomId);
+    if (dto.groupId) await this.assertGroupInRoom(user, roomId, dto.groupId);
     const token = randomBytes(32).toString('base64url');
     const expiresAt = dto.expiresInDays
       ? new Date(Date.now() + dto.expiresInDays * 24 * 60 * 60 * 1000)
@@ -311,6 +375,7 @@ export class DataRoomService {
       data: {
         tenantId: user.tenantId,
         dataRoomId: roomId,
+        groupId: dto.groupId || null,
         email: dto.email.trim().toLowerCase(),
         name: dto.name?.trim() || null,
         tokenHash: this.sha256(token),
@@ -398,7 +463,11 @@ export class DataRoomService {
 
   // ── Externas (enlace mágico, SIN sesión → cliente de sistema) ────────────────
 
-  /** Resuelve un token de enlace mágico → grant + room. Lanza si es inválido/revocado/expirado. */
+  /**
+   * Resuelve un token de enlace mágico → grant + room. Lanza si es inválido/revocado/expirado.
+   * Aplica la HERENCIA del grupo de permisos: si el grant no fija sus propias carpetas, hereda las del
+   * grupo; la descarga requiere que tanto el grant como el grupo (si lo hay) la permitan.
+   */
   private async resolveGrant(token: string) {
     const grant = await this.system.dataRoomGrant.findUnique({
       where: { tokenHash: this.sha256(token) },
@@ -410,6 +479,7 @@ export class DataRoomService {
         folderIds: true,
         revokedAt: true,
         expiresAt: true,
+        group: { select: { folderIds: true, canDownload: true } },
         dataRoom: {
           select: { id: true, tenantId: true, name: true, watermark: true, status: true },
         },
@@ -422,7 +492,10 @@ export class DataRoomService {
     if (grant.dataRoom.status === 'CLOSED') {
       throw new ForbiddenException(apiError('dataRoom.closed'));
     }
-    return grant;
+    // Permisos efectivos = grant ⊕ grupo. Carpetas propias mandan; si están vacías, hereda las del grupo.
+    const folderIds = grant.folderIds.length > 0 ? grant.folderIds : (grant.group?.folderIds ?? []);
+    const canDownload = grant.canDownload && (grant.group?.canDownload ?? true);
+    return { ...grant, folderIds, canDownload };
   }
 
   private folderAllowed(folderIds: string[], folderId: string | null): boolean {
