@@ -154,7 +154,7 @@ export class PasswordResetService {
     await this.hibp.assertNotBreached(newPassword);
 
     const passwordHash = await argon2.hash(newPassword);
-    await this.system.user.update({
+    const updated = await this.system.user.update({
       where: { id: row.userId },
       // Fijar la contraseña propia limpia la obligación de cambio (SEC4) y verifica el email: haber
       // abierto el enlace del correo prueba la posesión de la dirección (cubre el alta por invitación).
@@ -164,14 +164,29 @@ export class PasswordResetService {
         mustChangePassword: false,
         emailVerified: true,
       },
+      select: { tenantId: true },
     });
     await this.system.passwordReset.update({
       where: { id: row.id },
       data: { usedAt: new Date() },
     });
     await this.tokens.revokeAllForUser(row.userId);
-    // El flujo público no tiene contexto de tenant (AuditLog está bajo RLS), así que la auditoría
-    // explícita se omite aquí; `passwordChangedAt` queda como señal durable del cambio.
+    // L-7 (CWE-778): el flujo público no tiene contexto de tenant (AuditLog está bajo RLS), pero el
+    // tenant se conoce por el usuario, así que registramos el evento vía cliente de sistema (BYPASSRLS),
+    // igual que la auditoría de login. Una toma de cuenta por token de reset deja así rastro auditable.
+    try {
+      await this.system.auditLog.create({
+        data: {
+          tenantId: updated.tenantId,
+          actorId: row.userId,
+          action: 'auth.password_reset_applied',
+          entityType: 'User',
+          entityId: row.userId,
+        },
+      });
+    } catch (err) {
+      this.logger.error('No se pudo registrar auditoría del reset de contraseña', err as Error);
+    }
     return { success: true };
   }
 }

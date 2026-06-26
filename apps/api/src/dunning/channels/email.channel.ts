@@ -1,6 +1,11 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DunningChannel, DunningSeverity } from '@legalflow/domain';
-import { MAIL_PROVIDER, type MailProvider } from '../../auth/mail/mail.provider';
+import {
+  MAIL_PROVIDER,
+  escapeHtml,
+  renderEmail,
+  type MailProvider,
+} from '../../auth/mail/mail.provider';
 import { DunningChannelDispatcher, DunningDeliveryInput } from './dunning-channel';
 
 /** Asunto del correo según la severidad del escalado (es). */
@@ -44,12 +49,22 @@ export class EmailChannel implements DunningChannelDispatcher {
       `Le recordamos que la factura ${input.invoice.number} por ${amount} se encuentra vencida.\n` +
       `Le agradeceríamos regularizar el pago a la mayor brevedad.\n\n` +
       `Si ya ha realizado el pago, por favor ignore este mensaje.`;
-    const html =
-      `<p>Estimado/a ${input.client.name}:</p>` +
-      `<p>Le recordamos que la factura <strong>${input.invoice.number}</strong> por ` +
-      `<strong>${amount}</strong> se encuentra vencida.</p>` +
-      `<p>Le agradeceríamos regularizar el pago a la mayor brevedad.</p>` +
-      `<p>Si ya ha realizado el pago, por favor ignore este mensaje.</p>`;
+    // M-5 (CWE-79): el nombre del cliente puede venir del intake PÚBLICO (sin allowlist de caracteres),
+    // así que se escapa antes de insertarlo en el HTML. El nº de factura y el importe son server-side.
+    // Se usa la plantilla de marca `renderEmail` como el resto de correos (antes era HTML a mano).
+    const name = escapeHtml(input.client.name);
+    const invoiceNumber = escapeHtml(input.invoice.number);
+    const safeAmount = escapeHtml(amount);
+    const html = renderEmail({
+      heading: SEVERITY_SUBJECT[input.severity],
+      paragraphs: [
+        `Estimado/a ${name}:`,
+        `Le recordamos que la factura <strong>${invoiceNumber}</strong> por ` +
+          `<strong>${safeAmount}</strong> se encuentra vencida.`,
+        'Le agradeceríamos regularizar el pago a la mayor brevedad.',
+      ],
+      note: 'Si ya ha realizado el pago, por favor ignore este mensaje.',
+    });
 
     await this.mail.sendMail({ to, subject, html, text });
   }

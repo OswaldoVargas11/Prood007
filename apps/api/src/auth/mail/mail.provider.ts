@@ -26,7 +26,7 @@ export interface MailProvider {
 const BRAND = '#534AB7';
 
 /** Escapa texto del despacho/usuario para insertarlo de forma segura en el HTML del correo. */
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -41,7 +41,7 @@ function escapeHtml(value: string): string {
  * botón "a prueba de balas" y pie. Los `paragraphs` se insertan como HTML (el caller escapa el contenido
  * de usuario); las URLs son enlaces generados por nosotros.
  */
-function renderEmail(opts: {
+export function renderEmail(opts: {
   heading: string;
   paragraphs: string[];
   button?: { label: string; url: string };
