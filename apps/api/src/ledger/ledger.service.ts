@@ -44,6 +44,23 @@ import type { RequestUser } from '../auth/auth.types';
 const GENESIS_HASH = '0'.repeat(64);
 
 /**
+ * Serialización CANÓNICA (claves ordenadas recursivamente) para la huella de la cadena fiscal (L-5).
+ *
+ * El payload se guarda en una columna `jsonb`, que NO preserva el orden de claves ni el espaciado. Si la
+ * huella se computa con `JSON.stringify(payload)` al escribir pero se recomputa sobre el `payload` releído
+ * de jsonb al verificar, podían no coincidir byte a byte → falso "cadena rota". Ordenando las claves en
+ * ambos lados la huella es reproducible independientemente del round-trip de jsonb.
+ */
+export function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  const entries = Object.keys(value as Record<string, unknown>)
+    .sort()
+    .map((k) => `${JSON.stringify(k)}:${canonicalJson((value as Record<string, unknown>)[k])}`);
+  return `{${entries.join(',')}}`;
+}
+
+/**
  * Ledger jurídico transparente + facturación.
  *
  * Convención de signo para el saldo (lo que el cliente ve en tiempo real):
@@ -569,7 +586,7 @@ export class LedgerService {
       select: { recordHash: true },
     });
     const previousEventHash = prev?.recordHash ?? GENESIS_HASH;
-    const canonical = [type, invoiceId ?? '', JSON.stringify(payload), previousEventHash].join('|');
+    const canonical = [type, invoiceId ?? '', canonicalJson(payload), previousEventHash].join('|');
     const recordHash = createHash('sha256').update(canonical).digest('hex');
     await tx.fiscalEvent.create({
       data: {
@@ -605,14 +622,17 @@ export class LedgerService {
     });
     let expectedPrev = GENESIS_HASH;
     for (const e of events) {
-      const canonical = [
-        e.type,
-        e.invoiceId ?? '',
-        JSON.stringify(e.payload),
-        e.previousEventHash ?? '',
-      ].join('|');
-      const recomputed = createHash('sha256').update(canonical).digest('hex');
-      if (e.previousEventHash !== expectedPrev || recomputed !== e.recordHash) {
+      const prevHash = e.previousEventHash ?? '';
+      const recordOf = (payloadStr: string) =>
+        createHash('sha256')
+          .update([e.type, e.invoiceId ?? '', payloadStr, prevHash].join('|'))
+          .digest('hex');
+      // Canónico (formato nuevo, L-5) con fallback al `JSON.stringify` legado para no marcar como rotos
+      // los eventos escritos antes de canonicalizar (la cadena no estaba cableada a ninguna verificación).
+      const recomputed = recordOf(canonicalJson(e.payload));
+      const matchesHash =
+        recomputed === e.recordHash || recordOf(JSON.stringify(e.payload)) === e.recordHash;
+      if (e.previousEventHash !== expectedPrev || !matchesHash) {
         return { ok: false, checked: events.length, brokenAt: e.id };
       }
       expectedPrev = e.recordHash;
