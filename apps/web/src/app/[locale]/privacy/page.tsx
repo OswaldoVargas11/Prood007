@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import { LegalPage } from '@/components/legal/legal-page';
 
 export const metadata: Metadata = {
-  title: 'Política de privacidad · Lawzora',
+  title: 'Política de privacidad',
   description:
     'Cómo Lawzora trata los datos personales y los datos de las cuentas de Google y Microsoft.',
+  alternates: { canonical: '/es/privacy' },
 };
 
 export default function PrivacyPage() {

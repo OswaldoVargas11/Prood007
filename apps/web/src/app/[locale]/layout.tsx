@@ -7,6 +7,7 @@ import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import { Newsreader } from 'next/font/google';
 import { routing } from '@/i18n/routing';
+import { SITE_URL } from '@/lib/site';
 import { Providers } from '@/app/providers';
 import { ServiceWorkerRegister } from '@/components/lexora/service-worker-register';
 import '../globals.css';
@@ -22,11 +23,50 @@ const newsreader = Newsreader({
 });
 
 export const metadata: Metadata = {
-  title: 'Lawzora',
-  description: 'Software de gestión para despachos · España y República Dominicana',
+  // Base para resolver URLs relativas (canonical, og:image…) a absolutas.
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: 'Lawzora · Software de gestión para despachos de abogados',
+    // Cada página pone su nombre y se le añade la marca: "Tarifas" → "Tarifas · Lawzora".
+    template: '%s · Lawzora',
+  },
+  description:
+    'Software de gestión para despachos de abogados en España y República Dominicana: expedientes, facturación electrónica (e-CF/Verifactu), agenda procesal, clientes, documentos y firma.',
+  applicationName: 'Lawzora',
+  keywords: [
+    'software para abogados',
+    'gestión de despachos',
+    'software jurídico',
+    'facturación electrónica abogados',
+    'expedientes legales',
+    'legaltech España',
+    'software legal República Dominicana',
+  ],
+  authors: [{ name: 'Lawzora' }],
   icons: { icon: '/lawzora-mark.svg' },
   manifest: '/manifest.webmanifest',
   appleWebApp: { capable: true, title: 'Lawzora' },
+  // Por defecto indexable; las áreas privadas ya rebotan a /login y no son rastreables.
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1 },
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'Lawzora',
+    locale: 'es_ES',
+    url: '/es',
+    title: 'Lawzora · Software de gestión para despachos de abogados',
+    description:
+      'La plataforma para gestionar tu despacho en España y República Dominicana: expedientes, facturación electrónica, agenda y clientes.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Lawzora · Software de gestión para despachos de abogados',
+    description:
+      'La plataforma para gestionar tu despacho en España y República Dominicana: expedientes, facturación electrónica, agenda y clientes.',
+  },
 };
 
 export const viewport: Viewport = {

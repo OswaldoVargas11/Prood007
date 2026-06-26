@@ -3,8 +3,9 @@ import { Link } from '@/i18n/navigation';
 import { LegalPage } from '@/components/legal/legal-page';
 
 export const metadata: Metadata = {
-  title: 'Condiciones del servicio · Lawzora',
+  title: 'Condiciones del servicio',
   description: 'Condiciones de uso de la plataforma Lawzora para despachos de abogados.',
+  alternates: { canonical: '/es/terms' },
 };
 
 export default function TermsPage() {
