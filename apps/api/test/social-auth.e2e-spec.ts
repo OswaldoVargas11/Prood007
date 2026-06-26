@@ -31,21 +31,26 @@ const PUBLIC_JWK = {
   alg: 'RS256',
 };
 
-// Estado controlado por cada test: claims del id_token, si el token-endpoint responde OK, y el nonce
-// OIDC vigente (debe coincidir con el de la cookie/state del flujo).
+// Estado controlado por cada test: claims del id_token, si el token-endpoint responde OK, el nonce OIDC
+// vigente, y palancas para forzar ramas del verificador (kid, alg, JWKS caído, id_token crudo).
 let mockClaims: Record<string, unknown> = {};
 let mockTokenOk = true;
 let currentNonce = 'n0';
+let mockKid = KID;
+let mockAlg = 'RS256';
+let mockJwksOk = true;
+let mockRawIdToken: string | null | 'sign' = 'sign';
 const realFetch = global.fetch;
 
 function b64url(input: Buffer | string): string {
   return Buffer.from(input).toString('base64url');
 }
 
-/** Firma un id_token RS256 con la clave del "IdP" (lo que devolvería el token-endpoint del proveedor). */
-function signIdToken(claims: Record<string, unknown>): string {
-  const header = { alg: 'RS256', typ: 'JWT', kid: KID };
+/** Firma un id_token con la clave del "IdP" (lo que devolvería el token-endpoint del proveedor). */
+function signIdToken(claims: Record<string, unknown>, kid = KID, alg = 'RS256'): string {
+  const header = { alg, typ: 'JWT', kid };
   const signingInput = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(claims))}`;
+  if (alg === 'none') return `${signingInput}.`;
   const signer = createSign('RSA-SHA256');
   signer.update(signingInput);
   return `${signingInput}.${b64url(signer.sign(privateKey))}`;
@@ -66,6 +71,7 @@ describe('Login social (e2e)', () => {
     global.fetch = ((url: unknown, init?: unknown) => {
       const u = String(url);
       if (u.includes('/oauth2/v3/certs') || u.includes('/discovery/v2.0/keys')) {
+        if (!mockJwksOk) return Promise.resolve(new Response('nope', { status: 500 }));
         return Promise.resolve(
           new Response(JSON.stringify({ keys: [PUBLIC_JWK] }), { status: 200 }),
         );
@@ -80,9 +86,10 @@ describe('Login social (e2e)', () => {
           nonce: currentNonce,
           ...mockClaims,
         };
-        return Promise.resolve(
-          new Response(JSON.stringify({ id_token: signIdToken(claims) }), { status: 200 }),
-        );
+        const idToken =
+          mockRawIdToken === 'sign' ? signIdToken(claims, mockKid, mockAlg) : mockRawIdToken;
+        const respBody = idToken === null ? {} : { id_token: idToken };
+        return Promise.resolve(new Response(JSON.stringify(respBody), { status: 200 }));
       }
       return (realFetch as typeof fetch)(url as never, init as never);
     }) as typeof fetch;
@@ -114,6 +121,15 @@ describe('Login social (e2e)', () => {
     delete process.env.GOOGLE_CLIENT_ID;
     delete process.env.GOOGLE_CLIENT_SECRET;
     delete process.env.GOOGLE_REDIRECT_URI;
+  });
+
+  afterEach(() => {
+    mockClaims = {};
+    mockTokenOk = true;
+    mockKid = KID;
+    mockAlg = 'RS256';
+    mockJwksOk = true;
+    mockRawIdToken = 'sign';
   });
 
   const server = () => app.getHttpServer();
@@ -205,7 +221,66 @@ describe('Login social (e2e)', () => {
       .set('Cookie', f.cookie)
       .expect(302);
     expect(res.headers.location).toContain('social_error=id_token');
-    mockClaims = {};
+  });
+
+  // Casos que ejercitan las ramas del verificador OIDC (firma JWKS) por el flujo HTTP real (H-1).
+  it.each([
+    [
+      'id_token caducado',
+      { email, email_verified: true, exp: Math.floor(Date.now() / 1000) - 100 },
+    ],
+    ['aud incorrecto', { email, email_verified: true, aud: 'otro-cliente' }],
+    ['iss no confiable', { email, email_verified: true, iss: 'https://evil.example' }],
+  ])('callback con %s → error id_token', async (_label, claims) => {
+    mockClaims = claims as Record<string, unknown>;
+    const f = flow();
+    const res = await request(server())
+      .get(`/api/auth/social/google/callback?code=x&state=${f.state}`)
+      .set('Cookie', f.cookie)
+      .expect(302);
+    expect(res.headers.location).toContain('social_error=id_token');
+  });
+
+  it('callback con id_token malformado (no 3 partes) → error id_token', async () => {
+    mockRawIdToken = 'a.b';
+    const f = flow();
+    const res = await request(server())
+      .get(`/api/auth/social/google/callback?code=x&state=${f.state}`)
+      .set('Cookie', f.cookie)
+      .expect(302);
+    expect(res.headers.location).toContain('social_error=id_token');
+  });
+
+  it('callback con alg:none → error id_token (anti algoritmo nulo)', async () => {
+    mockAlg = 'none';
+    mockClaims = { email, email_verified: true };
+    const f = flow();
+    const res = await request(server())
+      .get(`/api/auth/social/google/callback?code=x&state=${f.state}`)
+      .set('Cookie', f.cookie)
+      .expect(302);
+    expect(res.headers.location).toContain('social_error=id_token');
+  });
+
+  it('callback con kid desconocido (no casa con el JWKS) → error id_token', async () => {
+    mockKid = 'kid-inexistente';
+    mockClaims = { email, email_verified: true };
+    const f = flow();
+    const res = await request(server())
+      .get(`/api/auth/social/google/callback?code=x&state=${f.state}`)
+      .set('Cookie', f.cookie)
+      .expect(302);
+    expect(res.headers.location).toContain('social_error=id_token');
+  });
+
+  it('callback sin id_token en la respuesta del proveedor → error no_id_token', async () => {
+    mockRawIdToken = null;
+    const f = flow();
+    const res = await request(server())
+      .get(`/api/auth/social/google/callback?code=x&state=${f.state}`)
+      .set('Cookie', f.cookie)
+      .expect(302);
+    expect(res.headers.location).toContain('social_error=no_id_token');
   });
 
   it('callback con fallo al intercambiar el code → error exchange', async () => {
