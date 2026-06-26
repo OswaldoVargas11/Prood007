@@ -1,11 +1,13 @@
 import type { AiToolDefinition } from '@legalflow/domain';
 
 /**
- * Catálogo de herramientas del asistente AGÉNTICO (Ola 1: SOLO LECTURA). Cada herramienta se ejecuta en
- * `AiAgentService` SIEMPRE acotada por `tenantId` (además de RLS en BD). El MVP no muta nada: deja que el
- * modelo CONSULTE datos reales del despacho antes de responder, en vez de inventar. Las herramientas de
- * ESCRITURA (crear tarea, redactar y guardar escrito) llegarán en una ola posterior con matriz de
- * permisos por rol — ver docs/architecture/ADR-001-agentic-ai.md.
+ * Catálogo de herramientas del asistente AGÉNTICO. Cada herramienta se ejecuta en `AiAgentService`
+ * SIEMPRE acotada por `tenantId` (además de RLS en BD).
+ *  · CONSULTA (Ola 1): search_matters, get_matter, list_open_tasks, find_client, list_documents.
+ *  · ESCRITURA (Ola 2): create_task — única acción mutante, REVERSIBLE y NO fiscal; reutiliza
+ *    `TasksService` (con sus validaciones de negocio + auditoría). Deliberadamente NO se exponen
+ *    acciones irreversibles ni fiscales (facturas, pagos, firmas, envíos, borrados) — ver
+ *    docs/architecture/ADR-001-agentic-ai.md.
  */
 export const AGENT_TOOLS: AiToolDefinition[] = [
   {
@@ -88,12 +90,35 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
       required: ['matterReference'],
     },
   },
+  {
+    name: 'create_task',
+    description:
+      'CREA una tarea o plazo en el despacho (acción de ESCRITURA, reversible). Úsala SOLO cuando el ' +
+      'usuario pida explícitamente crear, añadir o agendar una tarea/recordatorio. Asóciala a un ' +
+      'expediente por su referencia cuando proceda. Tras crearla, confirma al usuario lo que has creado.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Título de la tarea (2-200 caracteres).' },
+        matterReference: {
+          type: 'string',
+          description: 'Referencia del expediente al que asociarla (opcional).',
+        },
+        description: { type: 'string', description: 'Detalle de la tarea (opcional).' },
+        dueDate: {
+          type: 'string',
+          description: 'Fecha de vencimiento en formato YYYY-MM-DD (opcional).',
+        },
+      },
+      required: ['title'],
+    },
+  },
 ];
 
 /** Instrucciones de sistema del asistente agéntico. */
 export const AGENT_SYSTEM_PROMPT = [
   'Eres el asistente del despacho de abogados dentro de Lawzora. Tu trabajo es ayudar al letrado con',
-  'consultas sobre sus expedientes, clientes, tareas y documentos.',
+  'sus expedientes, clientes, tareas y documentos.',
   '',
   'Reglas:',
   '- USA las herramientas para consultar datos REALES del despacho antes de afirmar nada. No inventes',
@@ -101,6 +126,8 @@ export const AGENT_SYSTEM_PROMPT = [
   '- Si una herramienta no devuelve resultados, dilo con claridad y sugiere cómo afinar la búsqueda.',
   '- Cita las referencias de expediente (p. ej. EXP-2026-0042) cuando te bases en ellas.',
   '- Responde en español, de forma concisa y profesional.',
-  '- Eres de SOLO LECTURA: no puedes crear ni modificar nada todavía. Si te lo piden, explica que de',
-  '  momento solo puedes consultar e informar, y describe los pasos que el letrado debería seguir.',
+  '- Puedes CREAR tareas/plazos con create_task, pero SOLO cuando el usuario lo pida explícitamente.',
+  '  Tras crear una tarea, confirma lo que has creado (título, expediente, fecha de vencimiento).',
+  '- No puedes modificar ni borrar nada más, ni emitir facturas, cobrar, firmar documentos ni enviar',
+  '  correos. Si te lo piden, explica que esas acciones debe realizarlas el letrado.',
 ].join('\n');

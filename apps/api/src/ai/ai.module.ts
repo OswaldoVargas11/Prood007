@@ -19,6 +19,7 @@ import { AiAgentService } from './ai-agent.service';
 import { AiQuotaService } from './ai-quota.service';
 import { AiIndexCron } from './ai-index.cron';
 import { AiController } from './ai.controller';
+import { TasksModule } from '../tasks/tasks.module';
 
 /**
  * Núcleo de IA, agnóstico del modelo. El factory elige el motor por configuración:
@@ -28,6 +29,7 @@ import { AiController } from './ai.controller';
  */
 @Global()
 @Module({
+  imports: [TasksModule],
   controllers: [AiController],
   providers: [
     {

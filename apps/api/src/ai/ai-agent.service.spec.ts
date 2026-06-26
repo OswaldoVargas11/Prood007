@@ -73,10 +73,20 @@ function makeDeps(invocations: AiToolInvocation[]) {
     recordUsage: jest.fn().mockResolvedValue(undefined),
   };
   const audit = { log: jest.fn().mockResolvedValue(undefined) };
+  const tasks = {
+    create: jest.fn().mockResolvedValue({ id: 'task-1', title: 'X', dueDate: null }),
+  };
   const engine = new FakeEngine(invocations);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const service = new AiAgentService(prisma as any, quota as any, audit as any, engine);
-  return { service, prisma, quota, audit, engine };
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const service = new AiAgentService(
+    prisma as any,
+    quota as any,
+    audit as any,
+    tasks as any,
+    engine,
+  );
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+  return { service, prisma, quota, audit, tasks, engine };
 }
 
 describe('AiAgentService', () => {
@@ -161,5 +171,50 @@ describe('AiAgentService', () => {
     expect(where.tenantId).toBe('t1');
     expect(where.matter).toEqual({ reference: 'EXP-1' });
     expect(JSON.parse(out.content)).toMatchObject({ count: 1, tasks: [{ dueDate: '2026-07-01' }] });
+  });
+
+  it('create_task crea la tarea vía TasksService resolviendo la referencia del expediente', async () => {
+    const { service, engine, prisma, tasks } = makeDeps([]);
+    prisma.matter.findFirst.mockResolvedValue({ id: 'm-1' });
+    tasks.create.mockResolvedValue({
+      id: 'task-9',
+      title: 'Contestar demanda',
+      dueDate: new Date('2026-07-10T00:00:00Z'),
+    });
+    await service.run(user, 'hola');
+    const out = await engine.lastExec!({
+      name: 'create_task',
+      input: { title: 'Contestar demanda', matterReference: 'EXP-1', dueDate: '2026-07-10' },
+    });
+    expect(prisma.matter.findFirst).toHaveBeenCalled();
+    expect(tasks.create).toHaveBeenCalledWith(
+      user,
+      expect.objectContaining({ title: 'Contestar demanda', matterId: 'm-1' }),
+    );
+    expect(JSON.parse(out.content)).toMatchObject({
+      created: true,
+      taskId: 'task-9',
+      dueDate: '2026-07-10',
+    });
+  });
+
+  it('create_task sin título no escribe', async () => {
+    const { service, engine, tasks } = makeDeps([]);
+    await service.run(user, 'hola');
+    const out = await engine.lastExec!({ name: 'create_task', input: {} });
+    expect(JSON.parse(out.content)).toMatchObject({ error: expect.any(String) });
+    expect(tasks.create).not.toHaveBeenCalled();
+  });
+
+  it('create_task con expediente inexistente no escribe', async () => {
+    const { service, engine, prisma, tasks } = makeDeps([]);
+    prisma.matter.findFirst.mockResolvedValue(null);
+    await service.run(user, 'hola');
+    const out = await engine.lastExec!({
+      name: 'create_task',
+      input: { title: 'Algo', matterReference: 'NOPE' },
+    });
+    expect(JSON.parse(out.content)).toMatchObject({ created: false });
+    expect(tasks.create).not.toHaveBeenCalled();
   });
 });
