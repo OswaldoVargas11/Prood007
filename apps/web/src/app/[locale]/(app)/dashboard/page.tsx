@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { useAuth } from '@/lib/auth';
-import { useDashboardCharts, useDashboardSummary } from '@/lib/hooks';
+import { useAiStatus, useDashboardCharts, useDashboardSummary } from '@/lib/hooks';
+import { useEntitlement } from '@/lib/entitlements';
 import { activityColor, activityLabel, relativeTime } from '@/lib/activity';
 import { formatDate, formatMoney } from '@/lib/format';
 import type { ChartSlice, DashboardSummary, MoneyByCurrency } from '@/lib/types';
@@ -454,6 +455,11 @@ function RevenueCard({ data }: { data: DashboardSummary }) {
 function DigestCard({ data }: { data: DashboardSummary }) {
   const t = useTranslations('dashboard');
   const locale = useLocale();
+  // Cuando la IA está activa, el «Resumen del día» con IA (DailyBriefCard) ya amplía estas cifras,
+  // así que aquí no repetimos la nota de "se ampliará cuando se active".
+  const hasAi = useEntitlement('ai');
+  const aiStatus = useAiStatus();
+  const aiActive = hasAi && Boolean(aiStatus.data?.enabled);
   const k = data.kpis;
   const bullets: { mark: string; color: string; text: string }[] = [];
   if (k.urgentDeadlines > 0)
@@ -496,7 +502,7 @@ function DigestCard({ data }: { data: DashboardSummary }) {
           <span className="flex size-6 items-center justify-center rounded-md bg-gradient-to-br from-[var(--ai-from)] to-[var(--ai-to)]">
             <Sparkles className="size-3.5 text-white" />
           </span>
-          <span className="text-sm font-semibold">{t('digest')}</span>
+          <span className="text-sm font-semibold">{t('digestQuick')}</span>
         </div>
         <div className="flex flex-col gap-2.5">
           {bullets.map((b, i) => (
@@ -506,7 +512,9 @@ function DigestCard({ data }: { data: DashboardSummary }) {
             </div>
           ))}
         </div>
-        <p className="mt-3 text-[11px] text-muted-foreground/70">{t('digestNote')}</p>
+        {!aiActive && (
+          <p className="mt-3 text-[11px] text-muted-foreground/70">{t('digestNote')}</p>
+        )}
       </CardContent>
     </Card>
   );

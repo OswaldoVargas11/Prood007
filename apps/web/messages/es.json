@@ -439,6 +439,7 @@
     "revenueSub": "Últimos 6 meses",
     "revenueOnly": "Últimos 6 meses · solo {currency}",
     "digest": "Resumen del día",
+    "digestQuick": "De un vistazo",
     "digestUrgent": "{n, plural, one {# plazo vence esta semana.} other {# plazos vencen esta semana.}}",
     "digestBillable": "{billed} facturado este mes · {outstanding} por cobrar.",
     "digestOther": "Otras monedas facturadas: {amounts}.",

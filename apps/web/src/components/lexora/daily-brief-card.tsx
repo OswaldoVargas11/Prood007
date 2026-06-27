@@ -72,7 +72,9 @@ export function DailyBriefCard() {
           </p>
         ) : brief ? (
           <ChatMarkdown content={brief} />
-        ) : null}
+        ) : (
+          <p className="text-[12px] text-muted-foreground">Sin novedades destacadas para hoy.</p>
+        )}
       </CardContent>
     </Card>
   );
