@@ -24,10 +24,29 @@ function sanitizeFilename(name: string | null | undefined): string {
   return (name || 'archivo').replace(/["\r\n\\]/g, '').slice(0, 180) || 'archivo';
 }
 
-/** Devuelve la cabecera Content-Disposition: `inline` solo para tipos seguros; `attachment` el resto. */
+/**
+ * Fallback ASCII para `filename="..."`: Node rechaza valores de cabecera con caracteres fuera de
+ * `\t\x20-\x7e\x80-\xff` (p. ej. emojis o puntuación Unicode > U+00FF → `Invalid character in header
+ * content`). Reemplaza por `_` cualquier carácter no imprimible-ASCII y los de control.
+ */
+function asciiFallbackFilename(name: string): string {
+  // eslint-disable-next-line no-control-regex
+  return name.replace(/[^\x20-\x7e]/g, '_') || 'archivo';
+}
+
+/**
+ * Devuelve la cabecera Content-Disposition: `inline` solo para tipos seguros; `attachment` el resto.
+ *
+ * El nombre se emite por partida doble (RFC 6266/5987): `filename="<ascii>"` como respaldo y
+ * `filename*=UTF-8''<percent-encoded>` para conservar acentos/Unicode. Así un documento con nombre
+ * no-ASCII no rompe la cabecera (Node solo admite Latin-1 en valores de cabecera).
+ */
 export function safeContentDisposition(mime: string | null | undefined, filename?: string): string {
   const inline = INLINE_SAFE_MIME.has((mime || '').toLowerCase());
-  return `${inline ? 'inline' : 'attachment'}; filename="${sanitizeFilename(filename)}"`;
+  const safe = sanitizeFilename(filename);
+  const ascii = asciiFallbackFilename(safe);
+  const encoded = encodeURIComponent(safe);
+  return `${inline ? 'inline' : 'attachment'}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
 }
 
 /** ¿Es un tipo seguro para previsualizar/aceptar (imagen rasterizada o PDF)? Útil para justificantes. */
