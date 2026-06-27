@@ -42,6 +42,7 @@ export interface AiAgentResponse {
 /** Evento del turno en STREAMING: progreso por herramienta ('tool') o respuesta final ('done'). */
 export type AgentStreamEvent =
   | { type: 'tool'; tool: string }
+  | { type: 'text'; delta: string }
   | ({ type: 'done' } & AiAgentResponse);
 
 const OPEN_TASK_STATUSES = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
@@ -107,6 +108,7 @@ export class AiAgentService {
       allowWrites,
       (tool) => opts.onEvent({ type: 'tool', tool }),
       opts.isAborted,
+      (delta) => opts.onEvent({ type: 'text', delta }),
     );
     opts.onEvent({ type: 'done', ...res });
   }
@@ -119,6 +121,7 @@ export class AiAgentService {
     allowWrites: boolean,
     onTool?: (name: string) => void,
     isAborted?: () => boolean,
+    onText?: (delta: string) => void,
   ): Promise<AiAgentResponse> {
     await this.quota.consume(user);
 
@@ -144,6 +147,7 @@ export class AiAgentService {
           maxSteps: 6,
         },
         exec,
+        onText ? { onText } : undefined,
       );
     } catch (e) {
       // El agente NUNCA debe devolver 500: ante un fallo del proveedor (rate-limit persistente, caída),

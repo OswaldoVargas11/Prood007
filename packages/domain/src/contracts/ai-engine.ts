@@ -81,6 +81,15 @@ export interface AiToolOutcome {
 /** Callback que la app provee al motor para ejecutar una herramienta pedida por el modelo. */
 export type AiToolExecutor = (invocation: AiToolInvocation) => Promise<AiToolOutcome>;
 
+/**
+ * Hooks opcionales de streaming. Si se proveen, el motor emite el texto del modelo de forma incremental
+ * (`onText` por cada delta) para el efecto "escribiendo en vivo". Si no, el turno funciona igual y el texto
+ * llega solo en el resultado final (retrocompatible).
+ */
+export interface AiAgentHooks {
+  onText?: (delta: string) => void;
+}
+
 /** Traza de un paso agéntico (para transparencia/auditoría). */
 export interface AiAgentStep {
   tool: string;
@@ -127,7 +136,7 @@ export interface AiEngine {
    * Ejecuta un turno AGÉNTICO con tool-use. Los motores sin soporte (o deshabilitados) deben lanzar de
    * forma segura (p. ej. 503 ai.notConfigured) en vez de degradar silenciosamente.
    */
-  runAgent(req: AiAgentRequest, exec: AiToolExecutor): Promise<AiAgentResult>;
+  runAgent(req: AiAgentRequest, exec: AiToolExecutor, hooks?: AiAgentHooks): Promise<AiAgentResult>;
 }
 
 export const AI_ENGINE = Symbol('AI_ENGINE');
