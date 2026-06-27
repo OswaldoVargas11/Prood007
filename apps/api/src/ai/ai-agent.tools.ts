@@ -98,6 +98,24 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
     inputSchema: { type: 'object', properties: {}, required: [] },
   },
   {
+    name: 'search_firm_knowledge',
+    description:
+      'Busca por SIGNIFICADO en el TEXTO de los documentos y expedientes indexados del despacho (RAG ' +
+      'semántico) y devuelve fragmentos CITABLES (referencia + extracto). Úsala para "¿dónde dice…?", ' +
+      '"busca cláusulas sobre…" o "qué documento menciona…". Cita el fragmento que devuelva.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Qué buscar por significado (concepto, cláusula, tema).',
+        },
+        limit: { type: 'integer', description: 'Máximo de fragmentos (1-12, por defecto 6).' },
+      },
+      required: ['query'],
+    },
+  },
+  {
     name: 'legal_research',
     description:
       'Devuelve enlaces a FUENTES JURÍDICAS OFICIALES (jurisprudencia y legislación) con los términos ' +
@@ -179,6 +197,8 @@ export const AGENT_SYSTEM_PROMPT = [
   '- USA las herramientas para consultar datos REALES del despacho antes de afirmar nada. No inventes',
   '  referencias, nombres, fechas ni importes.',
   '- Si una herramienta no devuelve resultados, dilo con claridad y sugiere cómo afinar la búsqueda.',
+  '- Para encontrar DÓNDE se dice algo en los documentos, usa search_firm_knowledge y cita el fragmento',
+  '  (referencia + extracto) en el que te basas.',
   '- Cita las referencias de expediente (p. ej. EXP-2026-0042) cuando te bases en ellas.',
   '- Responde en español, de forma concisa y profesional.',
   '- Para preguntas de jurisprudencia/legislación usa legal_research y ofrece los enlaces a fuentes',

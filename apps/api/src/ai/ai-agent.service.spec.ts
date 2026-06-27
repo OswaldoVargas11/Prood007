@@ -80,6 +80,7 @@ function makeDeps(invocations: AiToolInvocation[]) {
   const documents = {
     saveAiDraft: jest.fn().mockResolvedValue({ document: { id: 'doc-1', name: 'Escrito' } }),
   };
+  const search = { search: jest.fn().mockResolvedValue([]) };
   const engine = new FakeEngine(invocations);
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const service = new AiAgentService(
@@ -88,10 +89,11 @@ function makeDeps(invocations: AiToolInvocation[]) {
     audit as any,
     tasks as any,
     documents as any,
+    search as any,
     engine,
   );
   /* eslint-enable @typescript-eslint/no-explicit-any */
-  return { service, prisma, quota, audit, tasks, documents, engine };
+  return { service, prisma, quota, audit, tasks, documents, search, engine };
 }
 
 describe('AiAgentService', () => {
@@ -210,6 +212,40 @@ describe('AiAgentService', () => {
       overdueTasks: 2,
     });
     expect(prisma.matter.count.mock.calls[0]![0].where.tenantId).toBe('t1');
+  });
+
+  it('search_firm_knowledge devuelve fragmentos citables del RAG', async () => {
+    const { service, engine, search } = makeDeps([]);
+    search.search.mockResolvedValue([
+      {
+        kind: 'matter',
+        refId: 'm1',
+        refLabel: 'EXP-1',
+        excerpt: 'cláusula de no competencia…',
+        score: 0.83,
+      },
+    ]);
+    await service.run(user, 'hola');
+    const out = await engine.lastExec!({
+      name: 'search_firm_knowledge',
+      input: { query: 'no competencia' },
+    });
+    expect(search.search).toHaveBeenCalledWith(user, 'no competencia', 6);
+    expect(JSON.parse(out.content)).toMatchObject({
+      count: 1,
+      hits: [{ ref: 'EXP-1', score: 0.83 }],
+    });
+  });
+
+  it('search_firm_knowledge avisa sin romper si los embeddings no están disponibles', async () => {
+    const { service, engine, search } = makeDeps([]);
+    search.search.mockRejectedValue(new Error('ai.searchDisabled'));
+    await service.run(user, 'hola');
+    const out = await engine.lastExec!({
+      name: 'search_firm_knowledge',
+      input: { query: 'algo' },
+    });
+    expect(JSON.parse(out.content)).toMatchObject({ available: false });
   });
 
   it('legal_research devuelve fuentes oficiales (ES por defecto) sin tocar la BD', async () => {
