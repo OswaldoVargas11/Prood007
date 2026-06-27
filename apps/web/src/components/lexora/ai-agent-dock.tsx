@@ -128,6 +128,18 @@ export function AiAgentDock() {
             <Sparkles className="mb-2 size-8 text-[var(--brand)] opacity-70" />
             <p className="text-sm font-medium">{t('emptyTitle')}</p>
             <p className="mt-1 text-[12px] text-muted-foreground">{t('emptyHint')}</p>
+            <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+              {[t('suggest1'), t('suggest2'), t('suggest3')].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => void send(s)}
+                  className="rounded-full border px-2.5 py-1 text-[11.5px] text-muted-foreground transition-colors hover:border-[var(--brand)] hover:text-foreground"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         )}
         {messages.map((m, i) => (
