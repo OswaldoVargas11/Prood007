@@ -5,5 +5,6 @@ import { EmailSnippetsService } from './email-snippets.service';
 @Module({
   controllers: [EmailSnippetsController],
   providers: [EmailSnippetsService],
+  exports: [EmailSnippetsService],
 })
 export class EmailSnippetsModule {}

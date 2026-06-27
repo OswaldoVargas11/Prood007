@@ -28,6 +28,16 @@ import { MattersModule } from '../matters/matters.module';
 import { PresentationsModule } from '../presentations/presentations.module';
 import { ClausesModule } from '../clauses/clauses.module';
 import { ClosingModule } from '../closing/closing.module';
+import { LeadsModule } from '../leads/leads.module';
+import { KycModule } from '../kyc/kyc.module';
+import { SchedulingModule } from '../scheduling/scheduling.module';
+import { SavedViewsModule } from '../saved-views/saved-views.module';
+import { EmailSnippetsModule } from '../email-snippets/email-snippets.module';
+import { DataRoomModule } from '../data-room/data-room.module';
+import { DealModule } from '../deal/deal.module';
+import { EngagementModule } from '../engagement/engagement.module';
+import { CompanySecretaryModule } from '../company-secretary/company-secretary.module';
+import { SettingsModule } from '../settings/settings.module';
 import { DashboardModule } from '../dashboard/dashboard.module';
 
 /**
@@ -48,6 +58,16 @@ import { DashboardModule } from '../dashboard/dashboard.module';
     ClausesModule,
     ClosingModule,
     PresentationsModule,
+    LeadsModule,
+    KycModule,
+    SchedulingModule,
+    SavedViewsModule,
+    EmailSnippetsModule,
+    DataRoomModule,
+    DealModule,
+    EngagementModule,
+    CompanySecretaryModule,
+    SettingsModule,
   ],
   controllers: [AiController],
   providers: [

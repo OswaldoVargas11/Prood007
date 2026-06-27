@@ -6,5 +6,6 @@ import { DataRoomService } from './data-room.service';
 @Module({
   controllers: [DataRoomController, DataRoomExternalController],
   providers: [DataRoomService],
+  exports: [DataRoomService],
 })
 export class DataRoomModule {}

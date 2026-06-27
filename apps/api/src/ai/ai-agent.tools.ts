@@ -977,6 +977,814 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
       required: ['checklistId'],
     },
   },
+  {
+    name: 'convert_lead_to_client',
+    description:
+      'CONVIERTE un lead en cliente del despacho y crea un expediente opcional (acción de ESCRITURA, ' +
+      'reversible). Úsala SOLO cuando el usuario pida explícitamente convertir, cerrar o dar de alta un ' +
+      'prospecto. El lead debe tener un identificador fiscal válido (NIF/CIF/NIE en ES, RNC/Cédula en RD) ' +
+      'que se valida automáticamente contra la jurisdicción del despacho; si no es válido, el sistema lo ' +
+      'rechaza indicando el motivo. Si el usuario trabaja en ambas jurisdicciones (ES + RD), se intenta ' +
+      'con la otra si falla la primera. Tras convertirlo, confirma al usuario el nombre del cliente, el ' +
+      'identificador fiscal y si se creó el expediente asociado. El lead queda marcado CONVERTED y ya no ' +
+      'se puede convertir de nuevo.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        leadId: {
+          type: 'string',
+          description: 'ID del lead/prospecto a convertir (requerido).',
+        },
+        taxId: {
+          type: 'string',
+          description:
+            'Identificador fiscal válido en la jurisdicción del despacho: NIF/CIF/NIE (España) o ' +
+            'RNC/Cédula (República Dominicana). Se normaliza automáticamente.',
+        },
+        docType: {
+          type: 'string',
+          enum: ['PASSPORT', 'OTHER'],
+          description:
+            'Tipo de documento si el cliente es extranjero. PASSPORT o OTHER activa validación ligera ' +
+            '(si se omite, validación fiscal estricta de la jurisdicción).',
+        },
+        createMatter: {
+          type: 'boolean',
+          description:
+            'Si true, crea automáticamente un expediente vinculado al nuevo cliente (opcional; por defecto false).',
+        },
+        matterTitle: {
+          type: 'string',
+          description:
+            'Título del expediente si createMatter=true (opcional; si se omite usa el asunto del lead o un valor por defecto).',
+        },
+        matterType: {
+          type: 'string',
+          description:
+            'Tipo de asunto del expediente si createMatter=true (opcional; si se omite usa "Consulta").',
+        },
+      },
+      required: ['leadId', 'taxId'],
+    },
+  },
+  {
+    name: 'update_lead',
+    description:
+      'ACTUALIZA un lead del embudo de captación (acción de ESCRITURA, reversible). Cambia estado (NEW → CONTACTED → QUALIFIED → CONVERTED/LOST), contacto (email/teléfono), asignación a un letrado, valor estimado o notas. Útil para nutrición del pipeline: mover leads entre etapas, actualizar datos de contacto o reasignar prospecto. Tras actualizar, confirma al usuario los cambios realizados.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        leadId: {
+          type: 'string',
+          description: 'ID único del lead a actualizar (requerido).',
+        },
+        status: {
+          type: 'string',
+          enum: ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'LOST'],
+          description:
+            'Nuevo estado en el embudo (opcional; NEW, CONTACTED, QUALIFIED, CONVERTED o LOST).',
+        },
+        name: {
+          type: 'string',
+          description: 'Nombre del prospecto (opcional; 2-200 caracteres).',
+        },
+        email: {
+          type: 'string',
+          description: 'Email de contacto (opcional; formato válido).',
+        },
+        phone: {
+          type: 'string',
+          description: 'Teléfono de contacto (opcional; máximo 40 caracteres).',
+        },
+        company: {
+          type: 'string',
+          description: 'Empresa/razón social del prospecto (opcional; máximo 200 caracteres).',
+        },
+        subject: {
+          type: 'string',
+          description: 'Asunto de interés / tipo de consulta (opcional; máximo 500 caracteres).',
+        },
+        estimatedValue: {
+          type: 'number',
+          description: 'Valor estimado en EUR de la oportunidad (opcional; positivo).',
+        },
+        notes: {
+          type: 'string',
+          description: 'Notas internas sobre el prospecto (opcional; máximo 5000 caracteres).',
+        },
+        assignedToId: {
+          type: 'string',
+          description:
+            'ID del letrado al que asignar el lead (opcional; debe existir en el despacho).',
+        },
+        source: {
+          type: 'string',
+          description:
+            "Origen del lead: 'manual', 'intake', 'linkedin', 'referral', etc. (opcional).",
+        },
+      },
+      required: ['leadId'],
+    },
+  },
+  {
+    name: 'get_client_kyc',
+    description:
+      'Obtiene el perfil KYC/AML de un cliente: estado de diligencia, nivel de riesgo, verificación de identidad, marca PEP, sanciones y notas de revisión. Devuelve null si la diligencia aún no se ha iniciado. Útil para "¿cuál es el perfil AML del cliente X?", "¿es PEP?", "¿riesgo alto?" o revisar el estado de cumplimiento.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        clientId: { type: 'string', description: 'ID único del cliente en el sistema.' },
+      },
+      required: ['clientId'],
+    },
+  },
+  {
+    name: 'upsert_client_kyc',
+    description:
+      'CREA o ACTUALIZA el perfil KYC/AML de un cliente (área=kyc, acceso=write). Registra estado de ' +
+      'diligencia, nivel de riesgo, condición PEP, verificaciones (identidad, sanciones) y notas. ' +
+      'Sella automáticamente el revisor (user) y la fecha. Úsala SOLO cuando el usuario pida crear o ' +
+      'actualizar el perfil KYC de un cliente (p. ej. "marca este cliente como PEP", "aprueba KYC", ' +
+      '"actualiza el riesgo a ALTO"). Tras hacerlo, confirma al usuario el estado final del perfil.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        clientId: {
+          type: 'string',
+          description: 'ID único del cliente en el sistema (su clave primaria).',
+        },
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'IN_REVIEW', 'APPROVED', 'REJECTED'],
+          description:
+            'Estado de la diligencia KYC (opcional): PENDING, IN_REVIEW, APPROVED o REJECTED.',
+        },
+        risk: {
+          type: 'string',
+          enum: ['LOW', 'MEDIUM', 'HIGH'],
+          description: 'Nivel de riesgo AML (opcional): LOW, MEDIUM o HIGH.',
+        },
+        isPep: {
+          type: 'boolean',
+          description: 'Marca PEP (Personaje Expuesto Públicamente) (opcional).',
+        },
+        identityVerified: {
+          type: 'boolean',
+          description: 'Si la identidad del cliente ha sido verificada (opcional).',
+        },
+        sanctionsChecked: {
+          type: 'boolean',
+          description: 'Si se ha verificado contra listas de sanciones (opcional).',
+        },
+        notes: {
+          type: 'string',
+          description: 'Notas y observaciones del revisor (opcional; máximo 4000 caracteres).',
+        },
+      },
+      required: ['clientId'],
+    },
+  },
+  {
+    name: 'list_appointments_for_lawyer',
+    description:
+      'Lista las citas/reuniones FUTURAS del letrado autenticado: con clientes, expedientes asociados y estado. ' +
+      'Excluye citas canceladas. Ordenadas por hora de inicio. Útil para "¿cuál es mi agenda?", "próximas reuniones" ' +
+      'o "citas con cliente X".',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'confirm_appointment',
+    description:
+      'CONFIRMA una cita pendiente del calendario (acción de ESCRITURA, reversible). Cambia el estado ' +
+      'REQUESTED → CONFIRMED. Úsala SOLO cuando el abogado pida confirmar/aprobar una cita que el cliente ' +
+      'ha solicitado. Tras confirmarla, remite al cliente notificación automática de la confirmación.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        appointmentId: {
+          type: 'string',
+          description: 'ID único de la cita a confirmar (requerido).',
+        },
+      },
+      required: ['appointmentId'],
+    },
+  },
+  {
+    name: 'cancel_appointment',
+    description:
+      'CANCELA una cita futura del cliente con el abogado (acción de ESCRITURA, reversible). ' +
+      'Útil cuando el cliente o abogado necesita cancelar una cita ya reservada. La acción es reversible: ' +
+      'puede reactivarse en el futuro. El cliente es notificado automáticamente de la cancelación. ' +
+      'Úsala SOLO cuando el usuario pida explícitamente cancelar una cita; tras cancelarla, confirma ' +
+      'la cita cancelada y la fecha original.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        appointmentId: {
+          type: 'string',
+          description: 'ID único de la cita a cancelar (requerido).',
+        },
+      },
+      required: ['appointmentId'],
+    },
+  },
+  {
+    name: 'list_saved_views',
+    description:
+      'Lista los filtros guardados (vistas/presets) del usuario en un ámbito específico (invoices, tasks o matters). Devuelve nombre y configuración de filtros.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scope: {
+          type: 'string',
+          enum: ['invoices', 'tasks', 'matters'],
+          description: 'Ámbito de las vistas guardadas a listar.',
+        },
+      },
+      required: ['scope'],
+    },
+  },
+  {
+    name: 'get_email_snippets',
+    description:
+      'Lista las plantillas de correo reutilizables guardadas en el despacho (respuestas, notificaciones, ' +
+      'comunicados estándar). Devuelve nombre, asunto opcional y cuerpo de cada plantilla. Úsala para ' +
+      '"¿qué plantillas de correo tengo?", "busca plantillas de X" o cuando el usuario quiera reutilizar ' +
+      'una comunicación que ya existe para sugerir borradores con tono consistente. Lectura pura, sin ' +
+      'modificaciones.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'list_data_rooms',
+    description:
+      'Lista los data rooms (espacios de due diligence) de un expediente, mostrando cuántos ' +
+      'documentos, grupos de acceso (grants) y preguntas tiene cada sala. Útil para "¿qué data rooms ' +
+      'tengo en este expediente?", "¿cuántos documentos en cada sala?" o "estado de due diligence".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+      },
+      required: ['matterReference'],
+    },
+  },
+  {
+    name: 'create_data_room_grant',
+    description:
+      'CREA un enlace mágico de acceso externo (grant) en una sala de datos: genera un token seguro ' +
+      'que permite acceso sin cuenta a un usuario externo (contraparte, asesor, auditor). El token se ' +
+      'devuelve EN CLARO una sola vez: guárdalo y comparte con el usuario. Puedes limitar por ' +
+      'carpetas, permitir/prohibir descarga e indicar expiración. La acción es REVERSIBLE (revoke). ' +
+      'Úsala cuando el usuario diga "genera un enlace", "invita a la sala", "crea acceso externo".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        roomId: {
+          type: 'string',
+          description: 'ID único de la sala de datos en la que crear el enlace.',
+        },
+        email: {
+          type: 'string',
+          description:
+            'Correo del usuario externo que recibirá el enlace (p. ej. buyer@example.com).',
+        },
+        name: {
+          type: 'string',
+          description:
+            'Nombre del usuario externo para referencia (opcional; p. ej. "Juan Comprador").',
+        },
+        groupId: {
+          type: 'string',
+          description:
+            'ID del grupo de permisos a que se adscribe (opcional). Hereda carpetas y descarga del grupo.',
+        },
+        canDownload: {
+          type: 'boolean',
+          description:
+            'Permitir descarga de documentos (true por defecto). Si false, solo lectura en línea.',
+        },
+        folderIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Array de IDs de carpetas permitidas (opcional). Vacío = acceso a toda la sala o hereda del grupo.',
+        },
+        expiresInDays: {
+          type: 'integer',
+          description:
+            'Días hasta expiración del enlace (1-365; opcional). Sin indicar = permanente.',
+        },
+      },
+      required: ['roomId', 'email'],
+    },
+  },
+  {
+    name: 'answer_data_room_question',
+    description:
+      'RESPONDE una pregunta de due diligence en la sala de datos (acción de ESCRITURA, reversible). ' +
+      'El despacho contesta la DDQ (pregunta) que hizo la contraparte/externo a través del enlace mágico. ' +
+      'Úsala SOLO cuando el usuario pida responder, contestar o aclarar una pregunta pendiente de la sala. ' +
+      'Tras responder, confirma el ID de la pregunta, la respuesta y que está marcada como ANSWERED.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        questionId: {
+          type: 'string',
+          description: 'ID único de la pregunta a responder.',
+        },
+        answer: {
+          type: 'string',
+          description: 'Texto de la respuesta a la pregunta (1-8000 caracteres).',
+        },
+      },
+      required: ['questionId', 'answer'],
+    },
+  },
+  {
+    name: 'download_data_room_document_internal',
+    description:
+      'Descarga un documento del data room (staff, sin marca de agua). Solo lectura. Acceso interno a documentos de due diligence; no incluye marca de agua confidencial.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        docId: {
+          type: 'string',
+          description: 'ID único del documento en el data room a descargar.',
+        },
+      },
+      required: ['docId'],
+    },
+  },
+  {
+    name: 'add_transaction_party',
+    description:
+      'AGREGA UNA PARTE a una operación (transacción, M&A, etc.) del expediente. Especifica el lado ' +
+      '(comprador, vendedor, etc.), rol (principal, asesor legal, etc.), nombre y contacto. Acción de ' +
+      'ESCRITURA reversible (existe remove_transaction_party). Registra automáticamente los actores ' +
+      'identificados en el sistema. Úsala SOLO cuando el usuario pida añadir, crear o registrar una parte ' +
+      'nueva a una operación (p. ej. "añade al vendedor", "registra a los asesores", "agrega las partes de ' +
+      'este M&A").',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+        name: {
+          type: 'string',
+          description: 'Nombre de la parte (1-200 caracteres; p. ej. "Acme Corp", "Juan Pérez").',
+        },
+        side: {
+          type: 'string',
+          enum: ['BUYER', 'SELLER', 'COMPANY', 'LENDER', 'BORROWER', 'OTHER'],
+          description:
+            'Lado de la parte en la transacción (comprador, vendedor, empresa, prestamista, prestatario u otro).',
+        },
+        role: {
+          type: 'string',
+          enum: ['PRINCIPAL', 'LEGAL_COUNSEL', 'FINANCIAL_ADVISOR', 'NOTARY', 'OTHER'],
+          description:
+            'Rol de la parte: principal, asesor legal, asesor financiero, notaría u otro.',
+        },
+        organization: {
+          type: 'string',
+          description: 'Organización/empresa a la que pertenece (opcional; máximo 200 caracteres).',
+        },
+        email: {
+          type: 'string',
+          description: 'Correo electrónico de contacto (opcional; validado como email).',
+        },
+        phone: {
+          type: 'string',
+          description: 'Teléfono de contacto (opcional; máximo 50 caracteres).',
+        },
+        notes: {
+          type: 'string',
+          description: 'Notas internas sobre la parte (opcional; máximo 2000 caracteres).',
+        },
+        isDistribution: {
+          type: 'boolean',
+          description: 'Indica si la parte está en lista de distribución de documentos (opcional).',
+        },
+      },
+      required: ['matterReference', 'name', 'side', 'role'],
+    },
+  },
+  {
+    name: 'update_transaction_party',
+    description:
+      'ACTUALIZA datos de una parte en una operación de M&A (acción de ESCRITURA, reversible). ' +
+      'Modifica nombre, organización, correo, teléfono, rol, lado de la negociación y notas de una ' +
+      'parte existente. Úsala SOLO cuando el usuario pida cambiar los detalles de una parte ya creada ' +
+      '(p. ej. "actualiza el email del vendedor", "cambia el nombre de la parte contraria", "añade ' +
+      'notas sobre el asesor legal"). Tras actualizar, confirma los datos modificados de la parte.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        partyId: {
+          type: 'string',
+          description: 'ID único de la parte a actualizar (identificador en el sistema).',
+        },
+        name: {
+          type: 'string',
+          description: 'Nuevo nombre de la parte (1-200 caracteres; opcional).',
+        },
+        organization: {
+          type: 'string',
+          description:
+            'Nueva organización/empresa de la parte (hasta 200 caracteres; opcional). Vacío = desvincular.',
+        },
+        email: {
+          type: 'string',
+          description: 'Nuevo correo electrónico (formato válido, hasta 200 caracteres; opcional).',
+        },
+        phone: {
+          type: 'string',
+          description: 'Nuevo teléfono (hasta 50 caracteres; opcional).',
+        },
+        side: {
+          type: 'string',
+          enum: ['BUYER', 'SELLER', 'COMPANY', 'LENDER', 'BORROWER', 'OTHER'],
+          description:
+            'Lado de la parte en la operación (BUYER, SELLER, COMPANY, LENDER, BORROWER, OTHER; opcional).',
+        },
+        role: {
+          type: 'string',
+          enum: ['PRINCIPAL', 'LEGAL_COUNSEL', 'FINANCIAL_ADVISOR', 'NOTARY', 'OTHER'],
+          description:
+            'Rol de la parte (PRINCIPAL, LEGAL_COUNSEL, FINANCIAL_ADVISOR, NOTARY, OTHER; opcional).',
+        },
+        notes: {
+          type: 'string',
+          description:
+            'Notas adicionales sobre la parte (hasta 2000 caracteres; opcional). Vacío = limpiar.',
+        },
+      },
+      required: ['partyId'],
+    },
+  },
+  {
+    name: 'get_transaction_milestones',
+    description:
+      'Obtiene los hitos clave de una operación transaccional (firma, cierre, longstop) con fechas, ' +
+      'estados y notas. Hitos: SIGNING (firma de contratos), CLOSING (consumación), LONGSTOP (drop-dead ' +
+      'date), CONDITIONS_DEADLINE (plazo para satisfacer condiciones), FUNDS_FLOW (transferencia de fondos), ' +
+      'FILING (presentación registral) y CUSTOM. Estados: PENDING, DONE, MISSED. Útil para "¿cuál es el ' +
+      'calendario de la operación?", "¿qué hito falta?", "¿se cumplió la fecha de cierre?" o "timeline del ' +
+      'deal".',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+      },
+      required: ['matterReference'],
+    },
+  },
+  {
+    name: 'add_transaction_milestone',
+    description:
+      'CREA un hito (fecha crítica) en una operación/transacción (acción de ESCRITURA, reversible). ' +
+      'Úsala SOLO cuando el usuario pida crear, agendar o añadir un hito de firma (SIGNING), cierre ' +
+      '(CLOSING), fecha tope (LONGSTOP) u otro hito personalizado (CUSTOM) en un expediente de operación. ' +
+      'Especifica el tipo de hito, fecha objetivo y opcionalmente notas. Tras crearlo, confirma al usuario ' +
+      'el hito, su tipo y la fecha acordada.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente de operación (p. ej. EXP-2026-0042).',
+        },
+        kind: {
+          type: 'string',
+          enum: [
+            'SIGNING',
+            'CLOSING',
+            'LONGSTOP',
+            'CONDITIONS_DEADLINE',
+            'FUNDS_FLOW',
+            'FILING',
+            'CUSTOM',
+          ],
+          description:
+            'Tipo de hito: SIGNING (firma), CLOSING (cierre), LONGSTOP (fecha tope), CONDITIONS_DEADLINE ' +
+            '(vencimiento de condiciones), FUNDS_FLOW (flujo de fondos), FILING (presentación/registro) o ' +
+            'CUSTOM (personalizado).',
+        },
+        title: {
+          type: 'string',
+          description: 'Título/descripción del hito (2-200 caracteres; p. ej. "Firma de la SPA").',
+        },
+        targetDate: {
+          type: 'string',
+          description: 'Fecha objetiva del hito en formato YYYY-MM-DD (fecha crítica acordada).',
+        },
+        notes: {
+          type: 'string',
+          description: 'Notas adicionales o contexto del hito (opcional; máximo 2000 caracteres).',
+        },
+      },
+      required: ['matterReference', 'kind', 'title', 'targetDate'],
+    },
+  },
+  {
+    name: 'update_transaction_milestone',
+    description:
+      'ACTUALIZA un hito de operación transaccional (M&A, inmobiliario, etc.): cambia su fecha ' +
+      'de vencimiento (targetDate) y/o su estado (PENDING → DONE → MISSED). Acción de ESCRITURA, ' +
+      'reversible. Útil para registrar que se cumplió una fecha clave (firma, cierre, longstop) ' +
+      'o para corregir una fecha que cambió. Úsala SOLO cuando el usuario pida actualizar un hito ' +
+      'específico (p. ej. "marca como completado el hito de firma", "cambia la fecha de cierre ' +
+      'a ...", "corrige la longstop"). Tras actualizar, confirma al usuario el hito, su nuevo ' +
+      'estado y fecha.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        milestoneId: {
+          type: 'string',
+          description: 'ID del hito de operación a actualizar.',
+        },
+        targetDate: {
+          type: 'string',
+          description: 'Nueva fecha de vencimiento en formato YYYY-MM-DD (opcional).',
+        },
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'DONE', 'MISSED'],
+          description:
+            'Nuevo estado del hito: PENDING (abierto), DONE (completado), MISSED (no cumplido).',
+        },
+        title: {
+          type: 'string',
+          description: 'Nuevo título del hito (opcional; 2-200 caracteres).',
+        },
+        notes: {
+          type: 'string',
+          description: 'Notas adicionales (opcional, hasta 2000 caracteres).',
+        },
+      },
+      required: ['milestoneId'],
+    },
+  },
+  {
+    name: 'update_disclosure_schedule',
+    description:
+      'ACTUALIZA un disclosure schedule existente en una operación (acción de ESCRITURA, reversible). Edita número, reserva de garantía, título, descripción, documento vinculado y estado (DRAFT→AGREED). Útil para "actualizar el schedule de disclosure X", "cambiar el estado a acordado" o "añadir un documento al schedule". Tras actualizar, confirma al usuario qué campos se modificaron.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        disclosureId: {
+          type: 'string',
+          description: 'ID único del disclosure schedule a actualizar (requerido).',
+        },
+        number: {
+          type: 'string',
+          description:
+            "Número/código del schedule (p. ej. 'A.1', 'B.2.3'; máximo 40 caracteres, opcional).",
+        },
+        repWarranty: {
+          type: 'string',
+          description:
+            'Referencia a la garantía de representación relacionada (máximo 200 caracteres, opcional).',
+        },
+        title: {
+          type: 'string',
+          description:
+            "Título del schedule (p. ej. 'Permits and Licenses'; máximo 300 caracteres, opcional).",
+        },
+        body: {
+          type: 'string',
+          description:
+            'Descripción completa del contenido del schedule (máximo 20000 caracteres, opcional).',
+        },
+        documentId: {
+          type: 'string',
+          description:
+            "ID del documento vinculado, o vacío '' para desvincularlo (máximo 60 caracteres, opcional).",
+        },
+        status: {
+          type: 'string',
+          enum: ['DRAFT', 'AGREED'],
+          description:
+            'Estado del schedule: DRAFT (borrador) o AGREED (acordado en negociación, opcional).',
+        },
+      },
+      required: ['disclosureId'],
+    },
+  },
+  {
+    name: 'get_registry_filings',
+    description:
+      'Obtiene las presentaciones registrales (filings) de una operación: tipo de registro, estado PENDING/SUBMITTED/REGISTERED/REJECTED, fechas de presentación y registro, código de referencia. Útil para "¿qué trámites registrales faltan?", "seguimiento de presentaciones" o "¿está registrado en el Registro Mercantil?". Lectura pura, acotada por expediente.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+      },
+      required: ['matterReference'],
+    },
+  },
+  {
+    name: 'update_registry_filing',
+    description:
+      'ACTUALIZA una presentación registral en la operación (acción de ESCRITURA, reversible). Cambia el estado (PENDING → SUBMITTED → REGISTERED/REJECTED) y los datos asociados: referencias, fechas de envío/registro, notas y documentos. El sistema sella automáticamente submittedAt/registeredAt al cambiar de estado. Úsala SOLO cuando el usuario pida actualizar el estado de un registro, añadir referencias o cambiar datos de una presentación registral ya creada.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        filingId: {
+          type: 'string',
+          description: 'ID único de la presentación registral a actualizar.',
+        },
+        matterReference: {
+          type: 'string',
+          description:
+            'Referencia del expediente donde está la presentación (se usa para validar contexto).',
+        },
+        registry: {
+          type: 'string',
+          enum: [
+            'REGISTRO_MERCANTIL',
+            'REGISTRO_PROPIEDAD',
+            'INDICE_UNICO_NOTARIAL',
+            'NOTARIA',
+            'REGISTRO_TITULOS_RD',
+            'CAMARA_COMERCIO_RD',
+            'OTHER',
+          ],
+          description: "Tipo de registro (opcional; p. ej. 'REGISTRO_MERCANTIL', 'NOTARIA').",
+        },
+        title: {
+          type: 'string',
+          description: 'Título/nombre de la presentación (2-200 caracteres, opcional).',
+        },
+        referenceCode: {
+          type: 'string',
+          description:
+            "Código o número de referencia en el registro (p. ej. 'T-123-F-456', opcional).",
+        },
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'SUBMITTED', 'REGISTERED', 'REJECTED'],
+          description:
+            'Nuevo estado de la presentación (PENDING, SUBMITTED, REGISTERED o REJECTED, opcional). Al cambiar a SUBMITTED/REGISTERED, el sistema sella automáticamente las fechas.',
+        },
+        notes: {
+          type: 'string',
+          description:
+            'Observaciones/anotaciones sobre la presentación (opcional; máximo 2000 caracteres).',
+        },
+        documentId: {
+          type: 'string',
+          description:
+            'ID del documento asociado (opcional; se valida que pertenezca al mismo tenant).',
+        },
+        sortOrder: {
+          type: 'integer',
+          description: 'Orden de visualización en la lista (opcional).',
+        },
+      },
+      required: ['filingId', 'matterReference'],
+    },
+  },
+  {
+    name: 'get_engagement_letter',
+    description:
+      'Obtiene la hoja de encargo (intake) del expediente: alcance del trabajo, honorarios y términos. ' +
+      'Úsala para revisar los términos del encargo, verificar qué se incluyó en el alcance inicial o ' +
+      'consultar la tarifa acordada. Devuelve scope, fees, terms y metadatos de la hoja generada (si existe).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+      },
+      required: ['matterReference'],
+    },
+  },
+  {
+    name: 'save_engagement_letter',
+    description:
+      'CREA o ACTUALIZA la hoja de encargo (alcance, honorarios, términos) del expediente y genera un ' +
+      'PDF con la marca del despacho listo para firma (acción de ESCRITURA, reversible). Úsala SOLO ' +
+      'cuando el usuario pida formalizar el encargo de un expediente. El PDF se guarda automáticamente ' +
+      'como documento del expediente con estado GENERATED. Tras generarla, confirma al usuario el ' +
+      'expediente, alcance resumido y que queda pendiente de firma.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description:
+            'Referencia exacta del expediente donde guardar la hoja de encargo (p. ej. EXP-2026-0042).',
+        },
+        scope: {
+          type: 'string',
+          description:
+            'Alcance del encargo: descripción del trabajo que se va a realizar (mínimo 1, máximo 8000 caracteres).',
+        },
+        fees: {
+          type: 'string',
+          description:
+            'Estructura de honorarios: tarifa, sistema de cobro, retenciones, gastos (mínimo 1, máximo 8000 caracteres).',
+        },
+        terms: {
+          type: 'string',
+          description:
+            'Términos y condiciones: plazo de ejecución, forma de pago, terminación del encargo, confidencialidad (mínimo 1, máximo 8000 caracteres).',
+        },
+      },
+      required: ['matterReference', 'scope', 'fees', 'terms'],
+    },
+  },
+  {
+    name: 'get_company_secretary_overview',
+    description:
+      'Obtiene la vista completa de la secretaría de una sociedad por cliente: actas corporativas, accionistas/socios y transmisiones de participaciones, y obligaciones registrales (plazos de presentación en Registro Mercantil, Registro de la Propiedad, etc.). Úsala para "¿cómo va la secretaría de X?", "¿quiénes son los socios?", "¿qué obligaciones al Registro hay pendientes?" o gestionar gobernanza corporativa.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        clientId: {
+          type: 'string',
+          description:
+            'ID único del cliente/sociedad. Se resuelve a partir de find_client o get_client_detail.',
+        },
+      },
+      required: ['clientId'],
+    },
+  },
+  {
+    name: 'add_shareholder',
+    description:
+      'AGREGA un accionista (socio) a una sociedad en la secretaría corporativa (acción de ESCRITURA, reversible). Proporciona el nombre del accionista, opcionalmente su identificador fiscal (NIF/RNC) y la participación en unidades. El registro queda en el libro de socios con historial completo para auditoría. Úsala SOLO cuando el usuario pida crear, registrar o dar de alta un nuevo socio en una sociedad/empresa.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        clientId: {
+          type: 'string',
+          description:
+            'ID de la sociedad/empresa donde agregar el accionista (debe existir en el despacho y pertenecer al tenant).',
+        },
+        name: {
+          type: 'string',
+          description: 'Nombre legal del accionista/socio (persona o empresa; 1-200 caracteres).',
+        },
+        taxId: {
+          type: 'string',
+          description:
+            'Identificador fiscal opcional del accionista (NIF/CIF/NIE en ES, RNC/Cédula en RD; máximo 40 caracteres).',
+        },
+        units: {
+          type: 'integer',
+          description: 'Participación en unidades/acciones del accionista (número entero >= 0).',
+        },
+      },
+      required: ['clientId', 'name', 'units'],
+    },
+  },
+  {
+    name: 'get_firm_settings',
+    description:
+      'Obtiene la configuración completa del despacho: datos del tenant (nombre, jurisdicción, plan, ' +
+      'serie de facturación), puestos ocupados, total de clientes y expedientes, festivos locales y ' +
+      'certificado digital. Lectura pura, sin cambios. Úsala para "¿cuál es la configuración del despacho?" ' +
+      'o cuando necesites datos de la licencia, plan o series fiscales para contexto.',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'add_firm_holiday',
+    description:
+      'AÑADE un día festivo local al calendario del despacho (acción de ESCRITURA, reversible). Los festivos afectan al cálculo de plazos procesales (p. ej. fechas límite, cálculo de naturaleza de los plazos). Úsala SOLO cuando el usuario pida explícitamente añadir o registrar un nuevo festivo local. Proporciona la fecha exacta en formato YYYY-MM-DD y un nombre descriptivo (p. ej. "Día de Reyes", "Festivo local municipal"). Tras añadirlo, confirma al usuario la fecha y el nombre del festivo registrado.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: {
+          type: 'string',
+          description: 'Fecha del festivo en formato YYYY-MM-DD (obligatorio).',
+        },
+        name: {
+          type: 'string',
+          description: 'Nombre descriptivo del festivo (p. ej. "Día de Reyes"; 2-100 caracteres).',
+        },
+      },
+      required: ['date', 'name'],
+    },
+  },
 ];
 
 /** Instrucciones de sistema del asistente agéntico. */
@@ -1051,6 +1859,33 @@ const CORE_TOOLS = new Set<string>([
 
 /** Área de cada herramienta (para exposición por intención). Tools sin entrada se exponen por defecto. */
 const TOOL_AREAS: Record<string, string> = {
+  convert_lead_to_client: 'leads',
+  update_lead: 'leads',
+  get_client_kyc: 'kyc',
+  upsert_client_kyc: 'kyc',
+  list_appointments_for_lawyer: 'scheduling',
+  confirm_appointment: 'scheduling',
+  cancel_appointment: 'scheduling',
+  list_saved_views: 'saved-views',
+  get_email_snippets: 'email-snippets',
+  list_data_rooms: 'data-room',
+  create_data_room_grant: 'data-room',
+  answer_data_room_question: 'data-room',
+  download_data_room_document_internal: 'data-room',
+  add_transaction_party: 'deal',
+  update_transaction_party: 'deal',
+  get_transaction_milestones: 'deal',
+  add_transaction_milestone: 'deal',
+  update_transaction_milestone: 'deal',
+  update_disclosure_schedule: 'deal',
+  get_registry_filings: 'deal',
+  update_registry_filing: 'deal',
+  get_engagement_letter: 'engagement',
+  save_engagement_letter: 'engagement',
+  get_company_secretary_overview: 'company-secretary',
+  add_shareholder: 'company-secretary',
+  get_firm_settings: 'settings',
+  add_firm_holiday: 'settings',
   list_assignable_lawyers: 'matters',
   create_client_portal_user: 'clients',
   add_matter_team_member: 'matters',

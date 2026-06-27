@@ -25,6 +25,16 @@ import { MattersService } from '../matters/matters.service';
 import { PresentationsService } from '../presentations/presentations.service';
 import { ClausesService } from '../clauses/clauses.service';
 import { ClosingService } from '../closing/closing.service';
+import { LeadsService } from '../leads/leads.service';
+import { KycService } from '../kyc/kyc.service';
+import { SchedulingService } from '../scheduling/scheduling.service';
+import { SavedViewsService } from '../saved-views/saved-views.service';
+import { EmailSnippetsService } from '../email-snippets/email-snippets.service';
+import { DataRoomService } from '../data-room/data-room.service';
+import { DealService } from '../deal/deal.service';
+import { EngagementService } from '../engagement/engagement.service';
+import { CompanySecretaryService } from '../company-secretary/company-secretary.service';
+import { SettingsService } from '../settings/settings.service';
 import { AiSearchService } from './ai-search.service';
 import { AGENT_SYSTEM_PROMPT, selectAgentTools } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
@@ -71,6 +81,22 @@ const WRITE_TOOLS = new Set([
   'create_procedural_task',
   'generate_document_package',
   'add_closing_item',
+  'convert_lead_to_client',
+  'update_lead',
+  'upsert_client_kyc',
+  'confirm_appointment',
+  'cancel_appointment',
+  'create_data_room_grant',
+  'answer_data_room_question',
+  'add_transaction_party',
+  'update_transaction_party',
+  'add_transaction_milestone',
+  'update_transaction_milestone',
+  'update_disclosure_schedule',
+  'update_registry_filing',
+  'save_engagement_letter',
+  'add_shareholder',
+  'add_firm_holiday',
 ]);
 const ACTIVE_MATTER_STATUSES = [MatterStatus.OPEN, MatterStatus.IN_PROGRESS];
 /** Tope de mensajes de historial que se reenvían al modelo (control de coste/contexto). */
@@ -98,6 +124,16 @@ export class AiAgentService {
     private readonly presentations: PresentationsService,
     private readonly clauses: ClausesService,
     private readonly closing: ClosingService,
+    private readonly leads: LeadsService,
+    private readonly kyc: KycService,
+    private readonly scheduling: SchedulingService,
+    private readonly savedViews: SavedViewsService,
+    private readonly emailSnippets: EmailSnippetsService,
+    private readonly dataRoom: DataRoomService,
+    private readonly deal: DealService,
+    private readonly engagement: EngagementService,
+    private readonly companySecretary: CompanySecretaryService,
+    private readonly settings: SettingsService,
     private readonly search: AiSearchService,
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
   ) {}
@@ -329,6 +365,60 @@ export class AiAgentService {
           return { content: await this.addClosingItem(user, inv.input) };
         case 'generate_closing_binder':
           return { content: await this.generateClosingBinder(user, inv.input) };
+        case 'convert_lead_to_client':
+          return { content: await this.convertLeadToClient(user, inv.input) };
+        case 'update_lead':
+          return { content: await this.updateLead(user, inv.input) };
+        case 'get_client_kyc':
+          return { content: await this.getClientKyc(user, inv.input) };
+        case 'upsert_client_kyc':
+          return { content: await this.upsertClientKyc(user, inv.input) };
+        case 'list_appointments_for_lawyer':
+          return { content: await this.listAppointmentsForLawyer(user) };
+        case 'confirm_appointment':
+          return { content: await this.confirmAppointment(user, inv.input) };
+        case 'cancel_appointment':
+          return { content: await this.cancelAppointment(user, inv.input) };
+        case 'list_saved_views':
+          return { content: await this.listSavedViews(user, inv.input) };
+        case 'get_email_snippets':
+          return { content: await this.getEmailSnippets(user) };
+        case 'list_data_rooms':
+          return { content: await this.listDataRooms(user, inv.input) };
+        case 'create_data_room_grant':
+          return { content: await this.createDataRoomGrant(user, inv.input) };
+        case 'answer_data_room_question':
+          return { content: await this.answerDataRoomQuestion(user, inv.input) };
+        case 'download_data_room_document_internal':
+          return { content: await this.downloadDataRoomDocumentInternal(user, inv.input) };
+        case 'add_transaction_party':
+          return { content: await this.addTransactionParty(user, inv.input) };
+        case 'update_transaction_party':
+          return { content: await this.updateTransactionParty(user, inv.input) };
+        case 'get_transaction_milestones':
+          return { content: await this.getTransactionMilestones(user, inv.input) };
+        case 'add_transaction_milestone':
+          return { content: await this.addTransactionMilestone(user, inv.input) };
+        case 'update_transaction_milestone':
+          return { content: await this.updateTransactionMilestone(user, inv.input) };
+        case 'update_disclosure_schedule':
+          return { content: await this.updateDisclosureSchedule(user, inv.input) };
+        case 'get_registry_filings':
+          return { content: await this.getRegistryFilings(user, inv.input) };
+        case 'update_registry_filing':
+          return { content: await this.updateRegistryFiling(user, inv.input) };
+        case 'get_engagement_letter':
+          return { content: await this.getEngagementLetter(user, inv.input) };
+        case 'save_engagement_letter':
+          return { content: await this.saveEngagementLetter(user, inv.input) };
+        case 'get_company_secretary_overview':
+          return { content: await this.getCompanySecretaryOverview(user, inv.input) };
+        case 'add_shareholder':
+          return { content: await this.addShareholder(user, inv.input) };
+        case 'get_firm_settings':
+          return { content: await this.getFirmSettings(user) };
+        case 'add_firm_holiday':
+          return { content: await this.addFirmHoliday(user, inv.input) };
         default:
           return { content: `Herramienta desconocida: ${inv.name}`, isError: true };
       }
@@ -2132,6 +2222,1446 @@ export class AiAgentService {
       throw e;
     }
   }
+
+  private async convertLeadToClient(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const leadId = str(input, 'leadId');
+    if (!leadId) {
+      return json({ error: 'El ID del lead es obligatorio.' });
+    }
+
+    const taxId = str(input, 'taxId');
+    if (!taxId) {
+      return json({
+        error: 'Identificador fiscal (NIF/CIF/RNC) obligatorio para convertir el lead.',
+      });
+    }
+
+    const docTypeRaw = str(input, 'docType');
+    const docType = docTypeRaw === 'PASSPORT' || docTypeRaw === 'OTHER' ? docTypeRaw : undefined;
+
+    const createMatter = input.createMatter === true;
+    const matterTitle = str(input, 'matterTitle');
+    const matterType = str(input, 'matterType');
+
+    try {
+      const result = await this.leads.convert(user, leadId, {
+        taxId,
+        docType: docType as any,
+        createMatter,
+        matterTitle: matterTitle ? matterTitle.slice(0, 200) : undefined,
+        matterType: matterType ? matterType.slice(0, 80) : undefined,
+      });
+
+      // Enriquecemos la respuesta con los datos del cliente convertido
+      const client = await this.clients.findOne(user, result.clientId);
+
+      return json({
+        converted: true,
+        clientId: result.clientId,
+        clientName: client.name,
+        taxId: client.taxId,
+        taxIdKind: client.taxIdKind ?? null,
+        matterCreated: createMatter && !!result.matterId,
+        matterId: result.matterId ?? null,
+        message: `Lead convertido: cliente "${client.name}" creado exitosamente${
+          result.matterId ? ' con expediente asociado' : ''
+        }. Ya puedes gestionar el cliente y sus expedientes.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('alreadyConverted')) {
+        return json({
+          converted: false,
+          error: 'Este lead ya ha sido convertido previamente; no se puede convertir de nuevo.',
+        });
+      }
+      if (msg.includes('invalid') || msg.includes('Invalid')) {
+        return json({
+          converted: false,
+          error:
+            'Identificador fiscal no válido en esta jurisdicción o tipo de documento incorrecto.',
+        });
+      }
+      return json({
+        converted: false,
+        error: msg.includes('notFound') ? 'El lead no existe o no es accesible.' : msg,
+      });
+    }
+  }
+
+  private async updateLead(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const leadId = str(input, 'leadId');
+    if (!leadId) {
+      return json({ error: 'El ID del lead es obligatorio.' });
+    }
+
+    // Valida el estado si se proporciona
+    const status = str(input, 'status');
+    if (status && !['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'LOST'].includes(status)) {
+      return json({
+        error: 'Estado no válido. Usa: NEW, CONTACTED, QUALIFIED, CONVERTED o LOST.',
+      });
+    }
+
+    // Valida y normaliza campos opcionales
+    const name = str(input, 'name');
+    if (name && name.length < 2) {
+      return json({ error: 'El nombre debe tener al menos 2 caracteres.' });
+    }
+
+    const email = str(input, 'email');
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return json({ error: 'El email no tiene un formato válido.' });
+    }
+
+    const phone = str(input, 'phone');
+    if (phone && phone.length > 40) {
+      return json({ error: 'El teléfono no puede exceder 40 caracteres.' });
+    }
+
+    const company = str(input, 'company');
+    if (company && company.length > 200) {
+      return json({ error: 'La empresa no puede exceder 200 caracteres.' });
+    }
+
+    const subject = str(input, 'subject');
+    if (subject && subject.length > 500) {
+      return json({ error: 'El asunto no puede exceder 500 caracteres.' });
+    }
+
+    const notes = str(input, 'notes');
+    if (notes && notes.length > 5000) {
+      return json({ error: 'Las notas no pueden exceder 5000 caracteres.' });
+    }
+
+    const estimatedValueRaw = input.estimatedValue;
+    let estimatedValue: number | undefined;
+    if (estimatedValueRaw !== undefined && estimatedValueRaw !== null) {
+      const val = Number(estimatedValueRaw);
+      if (!Number.isFinite(val) || val < 0) {
+        return json({ error: 'El valor estimado debe ser un número positivo.' });
+      }
+      estimatedValue = val;
+    }
+
+    const source = str(input, 'source');
+
+    const assignedToId = str(input, 'assignedToId');
+
+    try {
+      const lead = await this.leads.update(user, leadId, {
+        name,
+        email,
+        phone,
+        company,
+        subject,
+        notes,
+        source,
+        estimatedValue: estimatedValue !== undefined ? String(estimatedValue) : undefined,
+        assignedToId,
+        status: status as any, // LeadStatus enum: NEW | CONTACTED | QUALIFIED | CONVERTED | LOST
+      });
+
+      return json({
+        updated: true,
+        leadId: lead.id,
+        name: lead.name,
+        status: lead.status,
+        email: lead.email ?? null,
+        phone: lead.phone ?? null,
+        company: lead.company ?? null,
+        estimatedValue: lead.estimatedValue ?? null,
+        assignedTo: lead.assignedTo?.fullName ?? null,
+      });
+    } catch (e) {
+      // LeadsService.update lanza NotFoundException si el lead no existe o no es del tenant.
+      // También BadRequestException si assignedToId es inválido o no es del despacho (L-6).
+      const message = (e as Error).message;
+      if (message.includes('notFound')) {
+        return json({
+          error: `El lead con ID ${leadId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      if (message.includes('assigneeNotInFirm')) {
+        return json({
+          error: 'El letrado indicado no existe en tu despacho o no es accesible.',
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async getClientKyc(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const clientId = str(input, 'clientId');
+    if (!clientId) return json({ error: 'Falta el ID del cliente.' });
+    const profile = await this.kyc.getForClient(user, clientId);
+    if (!profile) {
+      return json({
+        found: false,
+        clientId,
+        status: null,
+        note: 'Diligencia KYC aún no iniciada para este cliente.',
+      });
+    }
+    return json({
+      found: true,
+      clientId: profile.clientId,
+      status: profile.status ?? null,
+      risk: profile.risk ?? null,
+      isPep: profile.isPep ?? false,
+      identityVerified: profile.identityVerified ?? false,
+      sanctionsChecked: profile.sanctionsChecked ?? false,
+      notes: profile.notes ?? null,
+      reviewedById: profile.reviewedById ?? null,
+      reviewedAt: profile.reviewedAt ? profile.reviewedAt.toISOString().slice(0, 10) : null,
+    });
+  }
+
+  private async upsertClientKyc(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const clientId = str(input, 'clientId');
+    if (!clientId) return json({ error: 'El ID del cliente es obligatorio.' });
+
+    const status = str(input, 'status');
+    if (status && !['PENDING', 'IN_REVIEW', 'APPROVED', 'REJECTED'].includes(status)) {
+      return json({
+        error: 'Estado no válido. Elige uno de: PENDING, IN_REVIEW, APPROVED, REJECTED.',
+      });
+    }
+
+    const risk = str(input, 'risk');
+    if (risk && !['LOW', 'MEDIUM', 'HIGH'].includes(risk)) {
+      return json({ error: 'Riesgo no válido. Elige uno de: LOW, MEDIUM, HIGH.' });
+    }
+
+    const notes = str(input, 'notes');
+    if (notes && notes.length > 4000) {
+      return json({ error: 'Las notas no pueden exceder 4000 caracteres.' });
+    }
+
+    const isPep = typeof input.isPep === 'boolean' ? input.isPep : undefined;
+    const identityVerified =
+      typeof input.identityVerified === 'boolean' ? input.identityVerified : undefined;
+    const sanctionsChecked =
+      typeof input.sanctionsChecked === 'boolean' ? input.sanctionsChecked : undefined;
+
+    try {
+      const profile = await this.kyc.upsert(user, clientId, {
+        status: status as any,
+        risk: risk as any,
+        isPep,
+        identityVerified,
+        sanctionsChecked,
+        notes,
+      });
+
+      return json({
+        updated: true,
+        profileId: profile.id,
+        clientId: profile.clientId,
+        status: profile.status,
+        risk: profile.risk ?? null,
+        isPep: profile.isPep,
+        identityVerified: profile.identityVerified,
+        sanctionsChecked: profile.sanctionsChecked,
+        reviewedBy: user.userId,
+        reviewedAt: profile.reviewedAt?.toISOString().slice(0, 10) ?? null,
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('clients.notFound') || message.includes('notFound')) {
+        return json({
+          error: `El cliente con ID ${clientId} no existe o no pertenece a tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async listAppointmentsForLawyer(user: RequestUser): Promise<string> {
+    const appointments = await this.scheduling.listFirmAppointments(user);
+    if (appointments.length === 0) {
+      return json({ count: 0, appointments: [], note: 'No hay citas futuras programadas.' });
+    }
+    return json({
+      count: appointments.length,
+      appointments: appointments.map((a) => ({
+        id: a.id,
+        startsAt: a.startsAt,
+        endsAt: a.endsAt,
+        status: a.status,
+        dayLabel: a.dayLabel,
+        timeLabel: a.timeLabel,
+        note: a.note,
+        lawyer: a.lawyer ? { id: a.lawyer.id, name: a.lawyer.name } : undefined,
+        client: a.client ? { id: a.client.id, name: a.client.name } : undefined,
+        matter: a.matter ? { id: a.matter.id, label: a.matter.label } : undefined,
+      })),
+    });
+  }
+
+  private async confirmAppointment(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const appointmentId = str(input, 'appointmentId');
+    if (!appointmentId) {
+      return json({ error: 'El ID de la cita es obligatorio.' });
+    }
+
+    try {
+      await this.scheduling.setStatus(user, appointmentId, 'CONFIRMED');
+      return json({
+        confirmed: true,
+        appointmentId,
+        message:
+          'Cita confirmada exitosamente. El cliente recibirá notificación de la confirmación.',
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('notFound') || message.includes('scheduling.notFound')) {
+        return json({
+          error: `La cita con ID ${appointmentId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async cancelAppointment(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const appointmentId = str(input, 'appointmentId');
+    if (!appointmentId) {
+      return json({ error: 'El ID de la cita es obligatorio.' });
+    }
+
+    try {
+      await this.scheduling.setStatus(user, appointmentId, 'CANCELLED');
+
+      // Recupera detalles de la cita cancelada para confirmar al usuario
+      const appt = await this.prisma.appointment.findFirst({
+        where: { tenantId: user.tenantId, id: appointmentId },
+        select: {
+          id: true,
+          startsAt: true,
+          endsAt: true,
+          status: true,
+          lawyer: { select: { fullName: true } },
+          client: { select: { name: true } },
+        },
+      });
+
+      return json({
+        cancelled: true,
+        appointmentId: appointmentId,
+        status: 'CANCELLED',
+        originalStart: appt?.startsAt ? appt.startsAt.toISOString().slice(0, 10) : null,
+        originalTime: appt?.startsAt ? appt.startsAt.toISOString().slice(11, 16) : null,
+        lawyer: appt?.lawyer?.fullName ?? null,
+        client: appt?.client?.name ?? null,
+        note: 'La cita ha sido cancelada. El cliente ha sido notificado automáticamente.',
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('notFound')) {
+        return json({
+          error: `La cita con ID ${appointmentId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async listSavedViews(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const scope = str(input, 'scope');
+    if (!scope || !['invoices', 'tasks', 'matters'].includes(scope)) {
+      return json({ error: 'Ámbito no válido. Elige uno de: invoices, tasks, matters.' });
+    }
+    const views = await this.savedViews.list(user, scope as 'tasks' | 'invoices' | 'matters');
+    if (views.length === 0) {
+      return json({ count: 0, scope, views: [], note: `No hay vistas guardadas en "${scope}".` });
+    }
+    return json({
+      count: views.length,
+      scope,
+      views: views.map((v) => ({
+        id: v.id,
+        name: v.name,
+        scope: v.scope,
+        filters: v.filters,
+        createdAt: v.createdAt.toISOString().slice(0, 10),
+      })),
+    });
+  }
+
+  private async getEmailSnippets(_user: RequestUser): Promise<string> {
+    const snippets = await this.emailSnippets.list();
+    if (snippets.length === 0)
+      return json({
+        count: 0,
+        snippets: [],
+        note: 'No hay plantillas de correo en la biblioteca.',
+      });
+    return json({
+      count: snippets.length,
+      snippets: snippets.map((s) => ({
+        id: s.id,
+        name: s.name,
+        subject: s.subject ?? null,
+        body: s.body.slice(0, 600),
+      })),
+    });
+  }
+
+  private async listDataRooms(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        found: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    const rooms = await this.dataRoom.listByMatter(user, matter.id);
+    if (rooms.length === 0) {
+      return json({
+        found: true,
+        matter: matterReference,
+        count: 0,
+        rooms: [],
+        note: 'No hay data rooms en este expediente.',
+      });
+    }
+
+    return json({
+      found: true,
+      matter: matterReference,
+      count: rooms.length,
+      rooms: rooms.map((r) => ({
+        id: r.id,
+        name: r.name,
+        status: r.status,
+        watermark: r.watermark,
+        createdAt: r.createdAt ? r.createdAt.toISOString().slice(0, 10) : null,
+        documentCount: r._count.documents,
+        grantCount: r._count.grants,
+        questionCount: r._count.questions,
+      })),
+    });
+  }
+
+  private async createDataRoomGrant(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const roomId = str(input, 'roomId');
+    if (!roomId) return json({ error: 'Falta el ID de la sala de datos.' });
+
+    const email = str(input, 'email');
+    if (!email) return json({ error: 'Falta el correo del usuario externo.' });
+
+    const name = str(input, 'name');
+    const groupId = str(input, 'groupId');
+    const canDownload = typeof input.canDownload === 'boolean' ? input.canDownload : true;
+    const folderIds = Array.isArray(input.folderIds)
+      ? (input.folderIds as string[]).filter((id) => typeof id === 'string' && id.trim().length > 0)
+      : [];
+    const expiresInDays = int(input, 'expiresInDays', 0, 365);
+
+    try {
+      const result = await this.dataRoom.createGrant(user, roomId, {
+        email,
+        name,
+        groupId: groupId || undefined,
+        canDownload,
+        folderIds: folderIds.length > 0 ? folderIds : undefined,
+        expiresInDays: expiresInDays > 0 ? expiresInDays : undefined,
+      });
+
+      return json({
+        created: true,
+        grantId: result.id,
+        email: result.email,
+        token: result.token,
+        note: `Enlace mágico generado. Comparte el token con ${result.email}. Se devuelve solo esta vez; guárdalo.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound')) {
+        return json({
+          created: false,
+          error: 'La sala de datos no existe o no es accesible en tu despacho.',
+        });
+      }
+      return json({ created: false, error: msg });
+    }
+  }
+
+  private async answerDataRoomQuestion(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const questionId = str(input, 'questionId');
+    if (!questionId) {
+      return json({ error: 'El ID de la pregunta es obligatorio.' });
+    }
+    const answer = typeof input.answer === 'string' ? input.answer.trim() : '';
+    if (answer.length < 1 || answer.length > 8000) {
+      return json({
+        error: 'La respuesta debe tener entre 1 y 8000 caracteres.',
+      });
+    }
+
+    try {
+      const questions = await this.dataRoom.answerQuestion(user, questionId, { answer });
+      return json({
+        answered: true,
+        questionId,
+        answerLength: answer.length,
+        totalQuestions: questions.length,
+        note: `Respuesta registrada. Total de preguntas en la sala: ${questions.length}.`,
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('notFound') || message.includes('questionNotFound')) {
+        return json({
+          error: `La pregunta con ID ${questionId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async downloadDataRoomDocumentInternal(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const docId = str(input, 'docId');
+    if (!docId) return json({ error: 'Falta el ID del documento.' });
+    try {
+      const result = await this.dataRoom.downloadInternal(user, docId);
+      return json({
+        success: true,
+        name: result.name,
+        mimeType: result.mimeType,
+        note: 'Documento descargado (staff, sin marca de agua).',
+      });
+    } catch (e) {
+      if ((e as any).code === 'P2025' || (e as Error).message?.includes('notFound')) {
+        return json({ success: false, error: `Documento no encontrado con ID ${docId}.` });
+      }
+      throw e;
+    }
+  }
+
+  private async addTransactionParty(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const name = str(input, 'name');
+    if (!name || name.length < 1) {
+      return json({ error: 'El nombre de la parte es obligatorio (1-200 caracteres).' });
+    }
+
+    const side = str(input, 'side');
+    if (!side || !['BUYER', 'SELLER', 'COMPANY', 'LENDER', 'BORROWER', 'OTHER'].includes(side)) {
+      return json({
+        error: 'Lado no válido. Elige uno de: BUYER, SELLER, COMPANY, LENDER, BORROWER, OTHER.',
+      });
+    }
+
+    const role = str(input, 'role');
+    if (
+      !role ||
+      !['PRINCIPAL', 'LEGAL_COUNSEL', 'FINANCIAL_ADVISOR', 'NOTARY', 'OTHER'].includes(role)
+    ) {
+      return json({
+        error:
+          'Rol no válido. Elige uno de: PRINCIPAL, LEGAL_COUNSEL, FINANCIAL_ADVISOR, NOTARY, OTHER.',
+      });
+    }
+
+    const organization = str(input, 'organization');
+    const email = str(input, 'email');
+    const phone = str(input, 'phone');
+    const notes = str(input, 'notes');
+    const isDistribution =
+      typeof input.isDistribution === 'boolean' ? input.isDistribution : undefined;
+
+    // Resuelve el expediente por referencia (acotado por tenant)
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        added: false,
+        note: `No existe expediente con referencia ${matterReference}; no se ha añadido la parte.`,
+      });
+    }
+
+    // Delega al servicio (que maneja acotamiento por tenant, sortOrder y auditoría)
+    const overview = await this.deal.addParty(user, matter.id, {
+      name: name.slice(0, 200),
+      side,
+      role,
+      organization: organization ? organization.slice(0, 200) : undefined,
+      email: email ? email.slice(0, 200) : undefined,
+      phone: phone ? phone.slice(0, 50) : undefined,
+      notes: notes ? notes.slice(0, 2000) : undefined,
+      isDistribution,
+    });
+
+    return json({
+      added: true,
+      matter: matterReference,
+      partyName: name,
+      side,
+      role,
+      totalParties: overview.parties.length,
+      note: `Parte "${name}" agregada a la operación (${side}, ${role}).`,
+    });
+  }
+
+  private async updateTransactionParty(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const partyId = str(input, 'partyId');
+    if (!partyId) {
+      return json({ error: 'El ID de la parte es obligatorio.' });
+    }
+
+    // Validar campos opcionales
+    const name = str(input, 'name');
+    if (name && name.length < 1) {
+      return json({ error: 'El nombre debe tener al menos 1 carácter.' });
+    }
+
+    const email = str(input, 'email');
+    if (email && !this.isValidEmail(email)) {
+      return json({ error: 'Correo electrónico no válido.' });
+    }
+
+    const organization = str(input, 'organization');
+    const phone = str(input, 'phone');
+    if (phone && phone.length > 50) {
+      return json({ error: 'El teléfono no puede exceder 50 caracteres.' });
+    }
+
+    const notes = str(input, 'notes');
+    if (notes && notes.length > 2000) {
+      return json({ error: 'Las notas no pueden exceder 2000 caracteres.' });
+    }
+
+    const side = str(input, 'side');
+    const validSides = ['BUYER', 'SELLER', 'COMPANY', 'LENDER', 'BORROWER', 'OTHER'];
+    if (side && !validSides.includes(side)) {
+      return json({
+        error: 'Lado no válido. Elige uno de: BUYER, SELLER, COMPANY, LENDER, BORROWER, OTHER.',
+      });
+    }
+
+    const role = str(input, 'role');
+    const validRoles = ['PRINCIPAL', 'LEGAL_COUNSEL', 'FINANCIAL_ADVISOR', 'NOTARY', 'OTHER'];
+    if (role && !validRoles.includes(role)) {
+      return json({
+        error:
+          'Rol no válido. Elige uno de: PRINCIPAL, LEGAL_COUNSEL, FINANCIAL_ADVISOR, NOTARY, OTHER.',
+      });
+    }
+
+    try {
+      const updateDto: Record<string, unknown> = {};
+      if (name !== undefined) (updateDto as any).name = name;
+      if (organization !== undefined) (updateDto as any).organization = organization;
+      if (email !== undefined) (updateDto as any).email = email;
+      if (phone !== undefined) (updateDto as any).phone = phone;
+      if (side !== undefined) (updateDto as any).side = side;
+      if (role !== undefined) (updateDto as any).role = role;
+      if (notes !== undefined) (updateDto as any).notes = notes;
+
+      const result = await this.deal.updateParty(user, partyId, updateDto);
+
+      // Buscar la parte actualizada en el resultado para reportar cambios
+      const party = result.parties.find((p: any) => p.id === partyId);
+
+      return json({
+        updated: true,
+        partyId,
+        party: party
+          ? {
+              name: party.name,
+              organization: party.organization ?? null,
+              email: party.email ?? null,
+              phone: party.phone ?? null,
+              side: party.side,
+              role: party.role,
+              notes: party.notes ?? null,
+            }
+          : null,
+        message: 'Datos de la parte actualizados exitosamente.',
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('notFound')) {
+        return json({
+          error: `La parte con ID ${partyId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      return json({
+        error: `No se pudo actualizar: ${message}`,
+      });
+    }
+  }
+
+  /** Helper: valida formato email básico. */
+  private isValidEmail(email: string): boolean {
+    return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);
+  }
+
+  private async getTransactionMilestones(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        found: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    const overview = await this.deal.overview(user, matter.id);
+
+    if (overview.milestones.length === 0) {
+      return json({
+        found: true,
+        matter: matterReference,
+        count: 0,
+        milestones: [],
+        note: 'No hay hitos definidos en esta operación.',
+      });
+    }
+
+    return json({
+      found: true,
+      matter: matterReference,
+      count: overview.milestones.length,
+      milestones: overview.milestones.map((m) => ({
+        id: m.id,
+        kind: m.kind,
+        title: m.title,
+        targetDate: m.targetDate ? m.targetDate.toISOString().slice(0, 10) : null,
+        status: m.status,
+        completedAt: m.completedAt ? m.completedAt.toISOString().slice(0, 10) : null,
+        notes: m.notes ?? null,
+      })),
+    });
+  }
+
+  private async addTransactionMilestone(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    const kind = str(input, 'kind');
+    const title = str(input, 'title');
+    const targetDateRaw = str(input, 'targetDate');
+    const notes = str(input, 'notes');
+
+    if (!matterReference) {
+      return json({ error: 'Falta la referencia del expediente de operación.' });
+    }
+    if (
+      !kind ||
+      ![
+        'SIGNING',
+        'CLOSING',
+        'LONGSTOP',
+        'CONDITIONS_DEADLINE',
+        'FUNDS_FLOW',
+        'FILING',
+        'CUSTOM',
+      ].includes(kind)
+    ) {
+      return json({
+        error:
+          'Tipo de hito no válido. Elige uno de: SIGNING, CLOSING, LONGSTOP, CONDITIONS_DEADLINE, FUNDS_FLOW, FILING o CUSTOM.',
+      });
+    }
+    if (!title || title.length < 2) {
+      return json({ error: 'El título del hito es obligatorio (mínimo 2 caracteres).' });
+    }
+    if (!targetDateRaw) {
+      return json({ error: 'Indica la fecha objetivo del hito en formato YYYY-MM-DD.' });
+    }
+
+    // Valida que la fecha sea válida
+    const targetDate = new Date(targetDateRaw);
+    if (Number.isNaN(targetDate.getTime())) {
+      return json({
+        error: `Fecha objetivo no válida: ${targetDateRaw}. Usa el formato YYYY-MM-DD.`,
+      });
+    }
+
+    // Resuelve el expediente por referencia (acotado por tenant)
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true, reference: true },
+    });
+    if (!matter) {
+      return json({
+        created: false,
+        note: `No existe expediente con referencia ${matterReference}; no se ha creado el hito.`,
+      });
+    }
+
+    try {
+      // Delega al servicio (que maneja validaciones y auditoría)
+      const overview = await this.deal.addMilestone(user, matter.id, {
+        kind,
+        title: title.slice(0, 200),
+        targetDate: targetDateRaw,
+        notes,
+      });
+
+      return json({
+        created: true,
+        matterReference: matter.reference,
+        kind,
+        title,
+        targetDate: targetDateRaw,
+        note: `Hito de ${kind} creado: "${title}" para el ${targetDateRaw}. Se han registrado los hitos de la operación.`,
+        overview: {
+          milestonesCount: overview.milestones.length,
+          milestones: overview.milestones.map((m) => ({
+            kind: m.kind,
+            title: m.title,
+            targetDate: m.targetDate ? m.targetDate.toISOString().slice(0, 10) : null,
+            status: m.status,
+          })),
+        },
+      });
+    } catch (e) {
+      const msg = (e as Error).message || 'Error desconocido';
+      return json({
+        created: false,
+        note: `No se pudo crear el hito: ${msg}`,
+      });
+    }
+  }
+
+  private async updateTransactionMilestone(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const milestoneId = str(input, 'milestoneId');
+    if (!milestoneId) {
+      return json({ error: 'El ID del hito es obligatorio.' });
+    }
+
+    const status = str(input, 'status');
+    if (status && !['PENDING', 'DONE', 'MISSED'].includes(status)) {
+      return json({
+        error: 'Estado no válido. Usa: PENDING, DONE o MISSED.',
+      });
+    }
+
+    const title = str(input, 'title');
+    if (title && title.length < 2) {
+      return json({ error: 'El título debe tener al menos 2 caracteres.' });
+    }
+
+    const notes = str(input, 'notes');
+    if (notes && notes.length > 2000) {
+      return json({ error: 'Las notas no pueden exceder 2000 caracteres.' });
+    }
+
+    const targetDateRaw = str(input, 'targetDate');
+    let targetDate: string | undefined;
+    if (targetDateRaw) {
+      const d = new Date(targetDateRaw);
+      if (Number.isNaN(d.getTime())) {
+        return json({
+          error: `Fecha de vencimiento no válida: ${targetDateRaw}. Usa el formato YYYY-MM-DD.`,
+        });
+      }
+      targetDate = d.toISOString();
+    }
+
+    try {
+      const overview = await this.deal.updateMilestone(user, milestoneId, {
+        title,
+        targetDate,
+        status: status as any,
+        notes,
+      });
+
+      // Localiza el hito actualizado en la respuesta para confirmación
+      const milestone = overview.milestones?.find((m: any) => m.id === milestoneId);
+      return json({
+        updated: true,
+        milestoneId,
+        title: milestone?.title ?? 'Hito actualizado',
+        status: milestone?.status ?? status ?? null,
+        targetDate: milestone?.targetDate
+          ? new Date(milestone.targetDate).toISOString().slice(0, 10)
+          : null,
+        completedAt: milestone?.completedAt
+          ? new Date(milestone.completedAt).toISOString().slice(0, 10)
+          : null,
+        message: 'Hito de operación actualizado exitosamente.',
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('notFound')) {
+        return json({
+          error: `El hito con ID ${milestoneId} no existe o no es accesible en tu operación.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async updateDisclosureSchedule(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const disclosureId = str(input, 'disclosureId');
+    if (!disclosureId) {
+      return json({ error: 'El ID del disclosure schedule es obligatorio.' });
+    }
+
+    // Valida que solo se proporcionen campos conocidos
+    const allowedFields = new Set([
+      'number',
+      'repWarranty',
+      'title',
+      'body',
+      'documentId',
+      'status',
+    ]);
+    const providedFields = Object.keys(input).filter((k) => !['disclosureId'].includes(k));
+    const unknownFields = providedFields.filter((f) => !allowedFields.has(f));
+    if (unknownFields.length > 0) {
+      return json({
+        error: `Campos no reconocidos: ${unknownFields.join(', ')}. Usa: number, repWarranty, title, body, documentId, status.`,
+      });
+    }
+
+    // Construye el DTO para la actualización (solo campos provistos)
+    const dto: Record<string, unknown> = {};
+    if (input.number !== undefined) {
+      const num = str(input, 'number');
+      if (num && num.length < 1) {
+        return json({ error: 'El número debe tener al menos 1 carácter.' });
+      }
+      dto.number = num as any;
+    }
+    if (input.repWarranty !== undefined) {
+      dto.repWarranty = str(input, 'repWarranty') as any;
+    }
+    if (input.title !== undefined) {
+      const tit = str(input, 'title');
+      if (tit && tit.length < 1) {
+        return json({ error: 'El título debe tener al menos 1 carácter.' });
+      }
+      dto.title = tit as any;
+    }
+    if (input.body !== undefined) {
+      dto.body = typeof input.body === 'string' ? input.body : undefined;
+    }
+    if (input.documentId !== undefined) {
+      const docId = input.documentId === '' ? null : str(input, 'documentId');
+      dto.documentId = docId as any;
+    }
+    if (input.status !== undefined) {
+      const st = str(input, 'status');
+      if (st && !['DRAFT', 'AGREED'].includes(st)) {
+        return json({
+          error: 'Estado no válido. Usa DRAFT (borrador) o AGREED (acordado).',
+        });
+      }
+      dto.status = st as any;
+    }
+
+    // Si no se proporciona ningún campo para actualizar, devuelve error
+    if (Object.keys(dto).length === 0) {
+      return json({
+        error:
+          'Indica al menos un campo a actualizar (number, repWarranty, title, body, documentId o status).',
+      });
+    }
+
+    try {
+      // Delega al servicio deal (acotado por tenant, con validación de documento)
+      const overview = await this.deal.updateDisclosure(user, disclosureId, dto);
+
+      // Busca el schedule actualizado en la respuesta para confirmar
+      const updated = overview.disclosureSchedules.find((d: any) => d.id === disclosureId);
+      if (!updated) {
+        return json({
+          updated: true,
+          note: 'Disclosure schedule actualizado (sin datos de confirmación).',
+        });
+      }
+
+      return json({
+        updated: true,
+        disclosureId: updated.id,
+        number: updated.number,
+        title: updated.title,
+        status: updated.status,
+        documentId: updated.documentId ?? null,
+        message: `Disclosure schedule "${updated.title}" actualizado exitosamente.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound') || msg.includes('not found')) {
+        return json({
+          updated: false,
+          error: `El disclosure schedule con ID ${disclosureId} no existe o no es accesible.`,
+        });
+      }
+      if (msg.includes('document') || msg.includes('Document')) {
+        return json({
+          updated: false,
+          error: 'El documento especificado no existe o no pertenece al despacho.',
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async getRegistryFilings(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        found: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    // Delega a DealService.overview() que ya está tenant-scoped y devuelve registryFilings
+    const dealOverview = await this.deal.overview(user, matter.id);
+
+    if (!dealOverview.registryFilings || dealOverview.registryFilings.length === 0) {
+      return json({
+        found: true,
+        matter: matterReference,
+        count: 0,
+        filings: [],
+        note: 'No hay presentaciones registrales en esta operación.',
+      });
+    }
+
+    return json({
+      found: true,
+      matter: matterReference,
+      count: dealOverview.registryFilings.length,
+      filings: dealOverview.registryFilings.map((f) => ({
+        id: f.id,
+        registry: f.registry, // tipo: REGISTRO_MERCANTIL, NOTARIA, etc.
+        title: f.title,
+        status: f.status, // PENDING, SUBMITTED, REGISTERED, REJECTED
+        referenceCode: f.referenceCode ?? null,
+        submittedAt: f.submittedAt ? f.submittedAt.toISOString().slice(0, 10) : null,
+        registeredAt: f.registeredAt ? f.registeredAt.toISOString().slice(0, 10) : null,
+        hasDocument: f.documentId !== null && f.documentId !== undefined,
+        notes: f.notes ?? null,
+      })),
+    });
+  }
+
+  private async updateRegistryFiling(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const filingId = str(input, 'filingId');
+    if (!filingId) {
+      return json({ error: 'El ID de la presentación registral es obligatorio.' });
+    }
+
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) {
+      return json({ error: 'La referencia del expediente es obligatoria para validar contexto.' });
+    }
+
+    // Validar que el expediente existe y pertenece al tenant
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        updated: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    // Extraer campos opcionales
+    const registry = str(input, 'registry');
+    const title = str(input, 'title');
+    const referenceCode = str(input, 'referenceCode');
+    const status = str(input, 'status');
+    const notes = str(input, 'notes');
+    const documentId = str(input, 'documentId');
+    const sortOrder = int(input, 'sortOrder', 0, 10000);
+
+    // Validar estado si se proporciona
+    if (status && !['PENDING', 'SUBMITTED', 'REGISTERED', 'REJECTED'].includes(status)) {
+      return json({
+        error: 'Estado no válido. Usa: PENDING, SUBMITTED, REGISTERED o REJECTED.',
+      });
+    }
+
+    try {
+      const filing = await this.deal.updateFiling(user, filingId, {
+        registry,
+        title,
+        referenceCode,
+        status,
+        notes,
+        documentId,
+        ...(sortOrder > 0 ? { sortOrder } : {}),
+      });
+
+      return json({
+        updated: true,
+        filingId: filing.registryFilings?.[0]?.id ?? filingId,
+        title: filing.registryFilings?.[0]?.title ?? title,
+        status: filing.registryFilings?.[0]?.status ?? status,
+        matterReference,
+        message: `Presentación registral actualizada exitosamente.${status === 'SUBMITTED' ? ' Fecha de envío sellada.' : ''}${status === 'REGISTERED' ? ' Fecha de registro sellada.' : ''}`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound')) {
+        return json({
+          updated: false,
+          error: `La presentación registral con ID ${filingId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async getEngagementLetter(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        found: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    const letter = await this.engagement.getByMatter(user, matter.id);
+    if (!letter) {
+      return json({
+        found: true,
+        matter: matterReference,
+        letterExists: false,
+        note: 'Aún no se ha generado una hoja de encargo en este expediente.',
+      });
+    }
+
+    return json({
+      found: true,
+      matter: matterReference,
+      letterExists: true,
+      scope: letter.scope,
+      fees: letter.fees,
+      terms: letter.terms,
+      status: letter.status,
+      generatedAt: letter.createdAt ? letter.createdAt.toISOString().slice(0, 10) : null,
+      documentId: letter.documentId ?? null,
+    });
+  }
+
+  private async saveEngagementLetter(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const scope = str(input, 'scope');
+    if (!scope || scope.length < 1) {
+      return json({ error: 'El alcance del encargo es obligatorio (mínimo 1 carácter).' });
+    }
+    if (scope.length > 8000) {
+      return json({ error: 'El alcance no puede exceder 8000 caracteres.' });
+    }
+
+    const fees = str(input, 'fees');
+    if (!fees || fees.length < 1) {
+      return json({ error: 'La estructura de honorarios es obligatoria (mínimo 1 carácter).' });
+    }
+    if (fees.length > 8000) {
+      return json({ error: 'Los honorarios no pueden exceder 8000 caracteres.' });
+    }
+
+    const terms = str(input, 'terms');
+    if (!terms || terms.length < 1) {
+      return json({ error: 'Los términos y condiciones son obligatorios (mínimo 1 carácter).' });
+    }
+    if (terms.length > 8000) {
+      return json({ error: 'Los términos no pueden exceder 8000 caracteres.' });
+    }
+
+    // Resuelve la referencia del expediente a su ID (acotado por tenant)
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        created: false,
+        note: `No existe expediente con referencia ${matterReference}; no se ha generado la hoja de encargo.`,
+      });
+    }
+
+    try {
+      const letter = await this.engagement.save(user, {
+        matterId: matter.id,
+        scope,
+        fees,
+        terms,
+      });
+      return json({
+        created: true,
+        letterDocumentId: letter.documentId,
+        matter: matterReference,
+        status: letter.status,
+        scope: scope.slice(0, 100) + (scope.length > 100 ? '…' : ''),
+        note: 'Hoja de encargo generada como PDF. Queda pendiente de firma digital del cliente.',
+      });
+    } catch (e) {
+      const msg = (e as Error).message || 'Error desconocido';
+      return json({
+        created: false,
+        error: msg.includes('notFound') ? `Expediente no encontrado: ${matterReference}` : msg,
+      });
+    }
+  }
+
+  private async getCompanySecretaryOverview(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const clientId = str(input, 'clientId');
+    if (!clientId) return json({ error: 'Falta el ID del cliente/sociedad.' });
+
+    try {
+      const overview = await this.companySecretary.overview(user, clientId);
+      return json({
+        found: true,
+        clientId,
+        summary: {
+          minutesCount: overview.minutes.length,
+          shareholdersCount: overview.shareholders.length,
+          totalUnits: overview.totalUnits,
+          transfersCount: overview.transfers.length,
+          obligationsCount: overview.obligations.length,
+          pendingObligations: overview.obligations.filter((o) => o.status === 'PENDING').length,
+        },
+        minutes: overview.minutes.map((m) => ({
+          id: m.id,
+          kind: m.kind,
+          title: m.title,
+          meetingDate: m.meetingDate ? m.meetingDate.toISOString().slice(0, 10) : null,
+          preview: m.body ? m.body.slice(0, 150) : null,
+        })),
+        shareholders: overview.shareholders.map((s) => ({
+          id: s.id,
+          name: s.name,
+          taxId: s.taxId ?? null,
+          units: s.units,
+          percentage:
+            overview.totalUnits > 0 ? Math.round((s.units / overview.totalUnits) * 10000) / 100 : 0,
+        })),
+        transfers: overview.transfers.map((t) => ({
+          id: t.id,
+          fromName: t.fromName ?? null,
+          toName: t.toName,
+          units: t.units,
+          date: t.date ? t.date.toISOString().slice(0, 10) : null,
+          note: t.note ?? null,
+        })),
+        obligations: overview.obligations.map((o) => ({
+          id: o.id,
+          registry: o.registry,
+          title: o.title,
+          referenceCode: o.referenceCode ?? null,
+          dueDate: o.dueDate ? o.dueDate.toISOString().slice(0, 10) : null,
+          recurrence: o.recurrence,
+          status: o.status,
+          filedAt: o.filedAt ? o.filedAt.toISOString().slice(0, 10) : null,
+        })),
+      });
+    } catch (e) {
+      if ((e as any).message?.includes('notFound')) {
+        return json({ found: false, error: `Cliente/sociedad no encontrado: ${clientId}.` });
+      }
+      throw e;
+    }
+  }
+
+  private async addShareholder(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const clientId = str(input, 'clientId');
+    if (!clientId) return json({ error: 'El ID de la sociedad es obligatorio.' });
+
+    const name = str(input, 'name');
+    if (!name || name.length < 1) {
+      return json({ error: 'El nombre del accionista es obligatorio (mínimo 1 carácter).' });
+    }
+
+    const taxId = str(input, 'taxId');
+    const unitsRaw = input.units;
+    const units =
+      typeof unitsRaw === 'number' && Number.isFinite(unitsRaw) ? Math.floor(unitsRaw) : undefined;
+    if (units === undefined || units < 0) {
+      return json({
+        error: 'Las unidades deben ser un número entero >= 0.',
+      });
+    }
+
+    try {
+      const overview = await this.companySecretary.addShareholder(user, clientId, {
+        name: name.slice(0, 200),
+        taxId: taxId ? taxId.slice(0, 40) : undefined,
+        units,
+      });
+      return json({
+        created: true,
+        clientId,
+        shareholder: {
+          name: name.slice(0, 200),
+          taxId: taxId ? taxId.slice(0, 40) : null,
+          units,
+        },
+        totalUnits: overview.totalUnits,
+        shareholderCount: overview.shareholders.length,
+        message: `Accionista "${name}" agregado exitosamente. Total de unidades en la sociedad: ${overview.totalUnits}.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound')) {
+        return json({
+          created: false,
+          error: 'La sociedad no existe o no es accesible en tu despacho.',
+        });
+      }
+      return json({
+        created: false,
+        error: msg,
+      });
+    }
+  }
+
+  private async getFirmSettings(user: RequestUser): Promise<string> {
+    const settings = await this.settings.get(user);
+    return json({
+      firm: {
+        id: settings.tenant.id,
+        name: settings.tenant.name,
+        taxId: settings.tenant.taxId,
+        jurisdiction: settings.tenant.jurisdiction,
+        currency: settings.tenant.currency,
+        locale: settings.tenant.locale,
+        plan: settings.tenant.plan,
+        maxAdmins: settings.tenant.maxAdmins,
+        maxLawyers: settings.tenant.maxLawyers,
+        invoiceSeries: settings.tenant.invoiceSeries,
+        dataRegion: settings.tenant.dataRegion ?? null,
+        retentionMonths: settings.tenant.retentionMonths,
+        deadlineEmailRemindersEnabled: settings.tenant.deadlineEmailRemindersEnabled,
+      },
+      seats: settings.seats,
+      counts: settings.counts,
+      holidays: settings.holidays,
+      certificate: settings.certificate,
+    });
+  }
+
+  private async addFirmHoliday(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const date = str(input, 'date');
+    const name = str(input, 'name');
+
+    if (!date) {
+      return json({ error: 'La fecha del festivo es obligatoria (formato YYYY-MM-DD).' });
+    }
+
+    const d = new Date(date + 'T00:00:00Z');
+    if (Number.isNaN(d.getTime()) || !date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return json({ error: `Fecha no válida: ${date}. Usa el formato YYYY-MM-DD.` });
+    }
+
+    if (!name || name.length < 2 || name.length > 100) {
+      return json({ error: 'Nombre del festivo obligatorio (mínimo 2 caracteres, máximo 100).' });
+    }
+
+    try {
+      const result = await this.settings.addHoliday(user, { date, name: name.trim() });
+      return json({
+        added: true,
+        date,
+        name: name.trim(),
+        message: `Festivo "${name.trim()}" añadido al calendario del despacho para ${date}.`,
+        holidayCount: (result.holidays ?? []).length,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || 'Error desconocido';
+      if (msg.includes('holidayExists')) {
+        return json({
+          added: false,
+          error: `Ya existe un festivo registrado para la fecha ${date}.`,
+        });
+      }
+      return json({ added: false, error: msg });
+    }
+  }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────────────
@@ -2192,5 +3722,25 @@ function describeWrite(inv: AiToolInvocation): string {
   if (inv.name === 'generate_document_package')
     return `Generar un paquete de documentos${ref ? ` en ${ref}` : ''}`;
   if (inv.name === 'add_closing_item') return 'Añadir una partida al checklist de cierre';
+  const W3: Record<string, string> = {
+    convert_lead_to_client: 'Convertir el lead en cliente (y opcionalmente abrir expediente)',
+    update_lead: 'Actualizar el lead',
+    upsert_client_kyc: 'Crear o actualizar el perfil KYC del cliente',
+    confirm_appointment: 'Confirmar la cita',
+    cancel_appointment: 'Cancelar la cita (se notificará al cliente)',
+    create_data_room_grant: 'Generar un enlace de acceso externo al data room',
+    answer_data_room_question: 'Responder una pregunta de due diligence',
+    add_transaction_party: 'Añadir una parte a la operación',
+    update_transaction_party: 'Actualizar una parte de la operación',
+    add_transaction_milestone: 'Añadir un hito a la operación',
+    update_transaction_milestone: 'Actualizar un hito de la operación',
+    update_disclosure_schedule: 'Actualizar un disclosure schedule',
+    update_registry_filing: 'Actualizar una presentación registral',
+    save_engagement_letter: 'Guardar la hoja de encargo',
+    add_shareholder: 'Añadir un accionista',
+    add_firm_holiday: 'Añadir un día festivo al calendario del despacho',
+  };
+  const w3 = W3[inv.name];
+  if (w3) return w3;
   return inv.name;
 }
