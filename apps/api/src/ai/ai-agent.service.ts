@@ -952,6 +952,22 @@ export class AiAgentService {
     if (!taxId) {
       return json({ error: 'Identificador fiscal (NIF/CIF/RNC) obligatorio.' });
     }
+    // Idempotencia: si ya existe un cliente con ese identificador fiscal en el despacho, NO se duplica;
+    // se devuelve el existente para que el agente lo reutilice (defensa ante reintentos/confirmaciones).
+    const existing = await this.prisma.client.findFirst({
+      where: { tenantId: user.tenantId, taxId },
+      select: { id: true, name: true, taxId: true, taxIdKind: true },
+    });
+    if (existing) {
+      return json({
+        created: false,
+        alreadyExists: true,
+        clientId: existing.id,
+        name: existing.name,
+        taxId: existing.taxId,
+        message: `Ya existe un cliente con ese identificador fiscal: "${existing.name}". Lo reutilizo (no se ha duplicado).`,
+      });
+    }
     const email = str(input, 'email');
     const phone = str(input, 'phone');
     const address = str(input, 'address');
