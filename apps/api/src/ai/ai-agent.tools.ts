@@ -11,6 +11,22 @@ import type { AiToolDefinition } from '@legalflow/domain';
  */
 export const AGENT_TOOLS: AiToolDefinition[] = [
   {
+    name: 'how_to',
+    description:
+      'Explica al usuario CÓMO hacer algo en Lawzora o DÓNDE está una opción del menú (p. ej. "¿a qué ' +
+      'opción del menú voy para abrir un expediente?"). Devuelve el grupo/ítem de menú, la ruta y los ' +
+      'pasos. ÚSALA SIEMPRE que el usuario pregunte cómo/dónde/qué opción, y guíale por los pasos —NUNCA ' +
+      'digas que no tienes acceso a la navegación. (Distinto de hacerlo tú: si pide que lo hagas, usa la ' +
+      'herramienta de acción correspondiente.)',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Qué quiere hacer o encontrar el usuario.' },
+      },
+      required: ['query'],
+    },
+  },
+  {
     name: 'search_matters',
     description:
       'Busca expedientes del despacho por texto (coincide en referencia, título o parte contraria). ' +
@@ -610,6 +626,11 @@ export const AGENT_SYSTEM_PROMPT = [
   'de enumerar lo que no puedes. Solo di que no puedes si de verdad no existe herramienta para ello.',
   'Evita disculpas y listas de limitaciones; ve al grano y propón la acción concreta.',
   '',
+  'GUÍA al usuario: si pregunta CÓMO hacer algo o DÓNDE está una opción ("¿a qué menú voy para abrir un',
+  'expediente?"), usa how_to y explícale el grupo/ítem de menú y los pasos. NUNCA digas que no tienes',
+  'acceso a la navegación: para eso está how_to. Si además quiere que lo hagas tú, ofrécelo y usa la',
+  'herramienta de acción correspondiente.',
+  '',
   'Herramientas de ESCRITURA (siempre reversibles y no fiscales):',
   '- create_task: crear una tarea o plazo (opcionalmente en un expediente).',
   '- draft_and_save_document: redactar y GUARDAR un escrito como borrador en un EXPEDIENTE concreto.',
@@ -653,6 +674,7 @@ export const AGENT_SYSTEM_PROMPT = [
 
 /** Herramientas SIEMPRE expuestas (las más comunes en cualquier conversación). */
 const CORE_TOOLS = new Set<string>([
+  'how_to',
   'search_matters',
   'get_matter',
   'find_client',

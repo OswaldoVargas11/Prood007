@@ -10,6 +10,7 @@ import {
   ClipboardList,
   FileText,
   Gavel,
+  HelpCircle,
   LayoutTemplate,
   LayoutDashboard,
   MessageSquare,
@@ -61,6 +62,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { key: 'tasks', href: '/tasks', icon: CheckSquare, enabled: true },
       { key: 'calendar', href: '/calendar', icon: CalendarDays, enabled: true },
       { key: 'time', href: '/time', icon: Clock, enabled: true },
+      { key: 'help', href: '/ayuda', icon: HelpCircle, enabled: true },
     ],
   },
   {
