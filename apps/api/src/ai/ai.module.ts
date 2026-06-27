@@ -23,6 +23,7 @@ import { AiController } from './ai.controller';
 import { TasksModule } from '../tasks/tasks.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { TemplatesModule } from '../templates/templates.module';
+import { DashboardModule } from '../dashboard/dashboard.module';
 
 /**
  * Núcleo de IA, agnóstico del modelo. El factory elige el motor por configuración:
@@ -32,7 +33,7 @@ import { TemplatesModule } from '../templates/templates.module';
  */
 @Global()
 @Module({
-  imports: [TasksModule, DocumentsModule, TemplatesModule],
+  imports: [TasksModule, DocumentsModule, TemplatesModule, DashboardModule],
   controllers: [AiController],
   providers: [
     {
