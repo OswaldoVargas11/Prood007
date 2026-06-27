@@ -9,6 +9,7 @@ import {
   type EmbeddingsProvider,
 } from '@legalflow/domain';
 import { AnthropicEngine } from './providers/anthropic.engine';
+import { OpenAiCompatEngine } from './providers/openai-compat.engine';
 import { DisabledEngine } from './providers/disabled.engine';
 import { AssistantProvider } from './providers/assistant.provider';
 import { VoyageEmbeddingsProvider } from './providers/voyage-embeddings.provider';
@@ -37,14 +38,32 @@ import { DocumentsModule } from '../documents/documents.module';
       provide: AI_ENGINE,
       inject: [ConfigService],
       useFactory: (config: ConfigService): AiEngine => {
-        const key = config.get<string>('ANTHROPIC_API_KEY');
-        if (key) {
-          const engine = new AnthropicEngine(key, config);
-          new Logger('AiModule').log(`IA habilitada (modelo ${engine.model()}).`);
+        // Selección de proveedor: AI_PROVIDER ('anthropic'|'openai') decide; si no se fija, se prefiere
+        // Anthropic cuando hay su clave, y si no, OpenAI-compat. Esto deja la IA multi-proveedor (sin
+        // lock-in) y permite probar con proveedores compatibles con OpenAI (Groq, Gemini, OpenRouter...).
+        const log = new Logger('AiModule');
+        const anthropicKey = config.get<string>('ANTHROPIC_API_KEY');
+        const openaiKey = config.get<string>('OPENAI_API_KEY');
+        const provider = (config.get<string>('AI_PROVIDER') || '').toLowerCase();
+        const preferOpenAi = provider === 'openai' || (provider !== 'anthropic' && !anthropicKey);
+
+        if (openaiKey && preferOpenAi) {
+          const engine = new OpenAiCompatEngine(openaiKey, config);
+          log.log(`IA habilitada (OpenAI-compat, modelo ${engine.model()}).`);
           return engine;
         }
-        new Logger('AiModule').warn(
-          'ANTHROPIC_API_KEY no definido: IA deshabilitada. Añade la clave para activarla.',
+        if (anthropicKey) {
+          const engine = new AnthropicEngine(anthropicKey, config);
+          log.log(`IA habilitada (Anthropic, modelo ${engine.model()}).`);
+          return engine;
+        }
+        if (openaiKey) {
+          const engine = new OpenAiCompatEngine(openaiKey, config);
+          log.log(`IA habilitada (OpenAI-compat, modelo ${engine.model()}).`);
+          return engine;
+        }
+        log.warn(
+          'Sin ANTHROPIC_API_KEY ni OPENAI_API_KEY: IA deshabilitada. Añade una clave para activarla.',
         );
         return new DisabledEngine();
       },
