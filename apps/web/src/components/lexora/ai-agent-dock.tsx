@@ -223,9 +223,7 @@ export function AiAgentDock() {
           <Sparkles className="size-4 shrink-0 text-[var(--brand)]" />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{t('title')}</p>
-            <p className="truncate text-[11px] text-muted-foreground">
-              {status.model ?? t('subtitle')}
-            </p>
+            <p className="truncate text-[11px] text-muted-foreground">{t('subtitle')}</p>
           </div>
         </div>
         <div className="flex items-center gap-1">

@@ -56,7 +56,8 @@ export class AiService {
   status(): { enabled: boolean; model: string | null; searchEnabled: boolean } {
     return {
       enabled: this.engine.isEnabled(),
-      model: this.engine.model(),
+      // El modelo subyacente no se expone al cliente (se oculta en la UI); basta el flag de disponibilidad.
+      model: null,
       searchEnabled: this.embeddings.isEnabled(),
     };
   }

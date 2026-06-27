@@ -40,9 +40,9 @@ export function AiAssistantPanel({ matterId }: { matterId: string }) {
           <Sparkles className="size-4 text-[var(--brand)]" />
           {t('title')}
         </h3>
-        {status?.model ? (
-          <Badge variant="secondary" className="font-mono text-[11px]">
-            {status.model}
+        {enabled ? (
+          <Badge variant="secondary" className="text-[11px]">
+            {t('activeShort')}
           </Badge>
         ) : (
           <Badge variant="outline" className="text-[11px]">
