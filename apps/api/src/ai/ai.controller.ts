@@ -93,6 +93,13 @@ export class AiController {
     return this.agent.run(user, dto.message, dto.history, dto.allowWrites);
   }
 
+  /** Resumen del día para el dashboard (IA): brief accionable a partir del agregado del panel. */
+  @RequiresFeature('ai')
+  @Get('daily-brief')
+  dailyBrief(@CurrentUser() user: RequestUser) {
+    return this.ai.dailyBrief(user);
+  }
+
   /**
    * Variante en STREAMING (NDJSON): emite eventos de progreso por herramienta ('tool' = thinking-traces)
    * y un 'done' final. El cliente puede abortar (botón Stop): al cerrarse la conexión, el turno se corta.
