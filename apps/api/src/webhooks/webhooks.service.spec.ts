@@ -1,3 +1,7 @@
+// La entrega resuelve el host por DNS (anti-SSRF). Lo mockeamos a una IP pública para que el envío proceda.
+jest.mock('node:dns/promises', () => ({
+  lookup: jest.fn().mockResolvedValue([{ address: '93.184.216.34', family: 4 }]),
+}));
 import { createHmac } from 'node:crypto';
 import { WebhooksService } from './webhooks.service';
 import type { RequestUser } from '../auth/auth.types';

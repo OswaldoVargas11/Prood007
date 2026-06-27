@@ -39,11 +39,14 @@ envío, defensa en profundidad):
 - **HTTPS obligatorio.**
 - **Rechazo de hosts internos/privados**: `localhost`, `*.local`, `*.internal`, IPv4 privadas/reservadas
   (`127/8`, `10/8`, `192.168/16`, `172.16-31`, `169.254/16` incl. metadata, `0/8`), IPv6 loopback/ULA/link-local.
+- **Resolución DNS antes de cada envío** (Ola 3b): se resuelve el host y se rechaza si **cualquier IP
+  resuelta** es interna/privada (incl. IPv4 mapeada en IPv6 `::ffff:`). Cierra el hueco de DNS rebinding /
+  registros A privados; si el host no resuelve, no se entrega.
 
-**Limitación conocida (documentada):** la validación es por **esquema + nombre/IP de host, sin resolución
-DNS**. Un host público que resuelva a una IP interna (DNS rebinding / registros A privados) **no** se
-detecta. Endurecerlo (resolver DNS y validar la IP final, o salir por un egress proxy con allowlist) es
-trabajo futuro si el modelo de amenaza lo exige.
+**Residual:** la resolución se hace en el momento del envío (autoritativo), pero un atacante con control de
+DNS y TTL muy bajo podría teóricamente cambiar la IP entre la resolución del guard y la del `fetch`
+(ventana TOCTOU mínima). Mitigación completa: salir por un egress proxy con allowlist; pendiente si el
+modelo de amenaza lo exige.
 
 ## Eventos
 

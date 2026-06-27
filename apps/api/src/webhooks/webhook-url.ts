@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { lookup } from 'node:dns/promises';
 import { apiError } from '../common/api-messages';
 
 /** Rangos IPv4 privados/reservados que un webhook saliente NUNCA debe alcanzar (anti-SSRF). */
@@ -44,4 +45,33 @@ export function assertSafeWebhookUrl(raw: string): string {
     throw new BadRequestException(apiError('webhooks.privateHostBlocked'));
   }
   return u.toString();
+}
+
+/**
+ * Cierra el hueco de la validación por nombre: RESUELVE el host por DNS y rechaza si CUALQUIER IP
+ * resuelta es interna/privada (defiende de hosts públicos que apuntan a IPs internas / DNS rebinding).
+ * Debe llamarse ANTES de cada envío (la resolución es el momento autoritativo; al alta podría cambiar).
+ * Si el host no resuelve, se rechaza (no se entrega a un destino indeterminado).
+ */
+export async function assertResolvedHostSafe(hostname: string): Promise<void> {
+  let addresses: { address: string }[];
+  try {
+    addresses = await lookup(hostname, { all: true });
+  } catch {
+    throw new BadRequestException(apiError('webhooks.privateHostBlocked'));
+  }
+  for (const { address } of addresses) {
+    // Normaliza IPv4 mapeada en IPv6 (p. ej. ::ffff:10.0.0.1) para reusar las reglas IPv4.
+    const ip = address.replace(/^::ffff:/i, '');
+    if (isPrivateWebhookHost(ip)) {
+      throw new BadRequestException(apiError('webhooks.privateHostBlocked'));
+    }
+  }
+}
+
+/** Validación completa para el momento del ENVÍO: esquema + host por nombre + IPs resueltas por DNS. */
+export async function assertSafeWebhookUrlResolved(raw: string): Promise<string> {
+  const url = assertSafeWebhookUrl(raw);
+  await assertResolvedHostSafe(new URL(url).hostname);
+  return url;
 }
