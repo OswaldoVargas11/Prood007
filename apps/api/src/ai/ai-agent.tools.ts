@@ -1785,6 +1785,525 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
       required: ['date', 'name'],
     },
   },
+  {
+    name: 'change_matter_status',
+    description:
+      'CAMBIA el estado de un expediente (acción de ESCRITURA, reversible). Valida la máquina de ' +
+      'estados permitidas (OPEN→IN_PROGRESS, OPEN→ON_HOLD, OPEN→CLOSED, IN_PROGRESS→ON_HOLD, ' +
+      'IN_PROGRESS→CLOSED, ON_HOLD→IN_PROGRESS, ON_HOLD→CLOSED, CLOSED→ARCHIVED, CLOSED→IN_PROGRESS). ' +
+      'Registra automáticamente la transición en la cronología del expediente (timeline) y auditoría. ' +
+      'Úsala SOLO cuando el usuario pida explícitamente cambiar, cerrar, abrir o poner en pausa un expediente ' +
+      '(p. ej. "cierra este expediente", "abre de nuevo el EXP-2026-0042", "pausa este caso"). Tras ' +
+      'cambiar el estado, confirma al usuario el expediente, el estado anterior y el nuevo.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+        status: {
+          type: 'string',
+          enum: ['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'CLOSED', 'ARCHIVED'],
+          description:
+            'Nuevo estado del expediente (OPEN, IN_PROGRESS, ON_HOLD, CLOSED o ARCHIVED). ' +
+            'El sistema valida la transición según la máquina de estados.',
+        },
+      },
+      required: ['matterReference', 'status'],
+    },
+  },
+  {
+    name: 'update_client_info',
+    description:
+      "ACTUALIZA los datos de un cliente del despacho (nombre, email, teléfono, dirección, identificador fiscal). Acción de ESCRITURA, reversible. Úsala SOLO cuando el usuario pida explícitamente actualizar, cambiar o editar datos de un cliente existente (p. ej. 'actualiza el nombre del cliente', 'cambia el email', 'corrige el número fiscal'). NO la uses para crear un cliente nuevo (usa create_client) ni para gestionar su acceso de portal. Tras actualizar, confirma al usuario los datos modificados.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        clientId: {
+          type: 'string',
+          description: 'ID único del cliente a actualizar (requerido).',
+        },
+        name: {
+          type: 'string',
+          description:
+            'Nuevo nombre del cliente (opcional; mínimo 2 caracteres si se proporciona).',
+        },
+        email: {
+          type: 'string',
+          description: 'Nuevo correo electrónico del cliente (opcional; formato válido).',
+        },
+        phone: {
+          type: 'string',
+          description: 'Nuevo teléfono de contacto (opcional; máximo 40 caracteres).',
+        },
+        address: {
+          type: 'string',
+          description: 'Nueva dirección postal del cliente (opcional; máximo 300 caracteres).',
+        },
+        taxId: {
+          type: 'string',
+          description:
+            'Nuevo identificador fiscal válido en la jurisdicción del despacho: NIF/CIF/NIE (España) o RNC/Cédula (República Dominicana) (opcional). Se normaliza automáticamente.',
+        },
+        docType: {
+          type: 'string',
+          enum: ['PASSPORT', 'OTHER'],
+          description:
+            'Tipo de documento si el cliente es extranjero. PASSPORT o OTHER activa validación ligera (opcional; si se omite con taxId, validación fiscal estricta de la jurisdicción).',
+        },
+      },
+      required: ['clientId'],
+    },
+  },
+  {
+    name: 'export_client_gdpr',
+    description:
+      'RGPD/Ley 172-13 — DERECHO DE ACCESO Y PORTABILIDAD: exporta todos los datos del cliente en un objeto estructurado (datos personales, expedientes, documentos, tareas, movimientos contables, facturas y mensajes). Solo FIRM_ADMIN. El contenido binario de los documentos se descarga aparte (autenticado). Queda traza en AuditLog. Acotado al tenant del usuario.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        clientId: {
+          type: 'string',
+          description: 'ID único del cliente cuyo RGPD exportar (requerido).',
+        },
+      },
+      required: ['clientId'],
+    },
+  },
+  {
+    name: 'list_leads',
+    description:
+      'Lista leads/prospectos del embudo filtrados por estado (NEW/CONTACTED/QUALIFIED/CONVERTED/LOST). Cada lead muestra nombre, contacto, empresa, asunto, valor estimado, letrado asignado y fecha de creación. Útil para "¿qué leads tengo?", "prospectos nuevos", "conversiones del mes" o gestión del pipeline de captación.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          enum: ['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'LOST'],
+          description:
+            'Estado del lead en el embudo: NEW (nuevos), CONTACTED (contactados), QUALIFIED (cualificados), CONVERTED (convertidos a cliente) o LOST (perdidos). Opcional; sin indicar se devuelven todos.',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'create_lead',
+    description:
+      'CREA un prospecto (lead) nuevo en el embudo de captación (acción de ESCRITURA, reversible). Úsala SOLO cuando el usuario pida explícitamente crear, añadir o registrar un nuevo prospecto/oportunidad. El lead entra en estado NEW y puede moverse por el embudo (NEW → CONTACTED → QUALIFIED → CONVERTED/LOST) según avance. Opcionalmente asigna el prospecto a un letrado responsable de seguimiento. Tras crearlo, confirma al usuario el nombre, datos de contacto y letrado asignado.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description:
+            'Nombre del prospecto (empresa, persona o razón social; 2-200 caracteres, obligatorio).',
+        },
+        email: {
+          type: 'string',
+          description: 'Email de contacto del prospecto (opcional; formato válido).',
+        },
+        phone: {
+          type: 'string',
+          description: 'Teléfono de contacto (opcional; máximo 40 caracteres).',
+        },
+        company: {
+          type: 'string',
+          description: 'Empresa/razón social del prospecto (opcional; máximo 200 caracteres).',
+        },
+        subject: {
+          type: 'string',
+          description: 'Asunto de interés / tipo de consulta (opcional; máximo 500 caracteres).',
+        },
+        notes: {
+          type: 'string',
+          description: 'Notas internas sobre el prospecto (opcional; máximo 2000 caracteres).',
+        },
+        source: {
+          type: 'string',
+          description:
+            "Origen del lead: 'manual', 'intake', 'linkedin', 'referral', 'web', etc. (opcional; por defecto 'manual').",
+        },
+        estimatedValue: {
+          type: 'number',
+          description: 'Valor estimado en EUR de la oportunidad (opcional; positivo).',
+        },
+        assignedToId: {
+          type: 'string',
+          description:
+            'ID del letrado al que asignar el lead para seguimiento (opcional; debe existir en el despacho).',
+        },
+      },
+      required: ['name'],
+    },
+  },
+  {
+    name: 'get_matter_team',
+    description:
+      'Obtiene el equipo asignado a un expediente: letrado responsable/líder + miembros adicionales. ' +
+      'Útil para verificar quiénes participan en un caso. Lectura pura.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+      },
+      required: ['matterReference'],
+    },
+  },
+  {
+    name: 'reassign_task',
+    description:
+      'REASIGNA una tarea existente a otro letrado del despacho para balancear la carga de trabajo (acción de ESCRITURA, reversible). Úsala SOLO cuando el usuario pida reasignar, transferir o pasar una tarea a otro letrado. Tras reasignarla, confirma al usuario la tarea, el antiguo responsable y el nuevo asignado.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskId: {
+          type: 'string',
+          description: 'ID único de la tarea a reasignar (requerido).',
+        },
+        lawyerId: {
+          type: 'string',
+          description:
+            'ID del letrado al que reasignar la tarea (requerido; debe ser usuario LAWYER o FIRM_ADMIN del despacho).',
+        },
+        reason: {
+          type: 'string',
+          description: 'Motivo de la reasignación (opcional; para auditoría).',
+        },
+      },
+      required: ['taskId', 'lawyerId'],
+    },
+  },
+  {
+    name: 'create_saved_view',
+    description:
+      'GUARDA un preset de filtros (vista personalizada) para acceso rápido. Útil para expedientes abiertos, tareas urgentes, facturas vencidas u otros filtros frecuentes. La vista queda privada para el usuario (no compartida). Acción reversible: se puede eliminar. Úsala SOLO cuando el usuario pida guardar, crear o nombrar un filtro que use actualmente.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        scope: {
+          type: 'string',
+          enum: ['invoices', 'tasks', 'matters'],
+          description:
+            'Ámbito de la vista: invoices (facturas), tasks (tareas) o matters (expedientes).',
+        },
+        name: {
+          type: 'string',
+          description:
+            'Nombre descriptivo del preset (1-80 caracteres; p. ej. "Tareas urgentes", "Expedientes abiertos").',
+        },
+        filters: {
+          type: 'object',
+          description:
+            'Objeto opaco con los filtros (estado, etiquetas, cliente, etc.) que define la vista. Formato JSON.',
+        },
+      },
+      required: ['scope', 'name', 'filters'],
+    },
+  },
+  {
+    name: 'list_document_packages',
+    description:
+      "Lista los paquetes de plantillas configurados en el despacho (sets pre-armados de documentos reutilizables). Devuelve nombre e IDs de las plantillas incluidas en cada paquete. Útil para 'Qué paquetes de documentos tenemos?', 'Aplica el paquete de X' o cuando el usuario quiera sugerir un paquete aplicable a un tipo de expediente. Solo lectura: no crea ni edita paquetes.",
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'list_document_folders',
+    description:
+      'Lista el árbol de carpetas de documentos de un expediente. Devuelve la estructura jerárquica (parentId) para que el frontend reconstruya el árbol. Útil para entender dónde organizar documentos nuevos, navegar la estructura de carpetas o sugerir en qué carpeta guardar un archivo.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description:
+            'Referencia exacta del expediente (p. ej. EXP-2026-0042) del que listar carpetas.',
+        },
+      },
+      required: ['matterReference'],
+    },
+  },
+  {
+    name: 'create_document_folder',
+    description:
+      'CREA una carpeta dentro de un expediente para organizar documentos generados por IA (acción de ESCRITURA, reversible). Especifica el nombre y opcionalmente la carpeta padre (para anidar). La carpeta queda vinculada al expediente y clasificada como DOCUMENT. Úsala SOLO cuando el usuario pida crear, añadir o registrar una carpeta nueva en un expediente. Tras crearla, confirma al usuario el nombre, el expediente y su referencia de almacenamiento.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description:
+            'Referencia exacta del expediente donde crear la carpeta (p. ej. EXP-2026-0042).',
+        },
+        name: {
+          type: 'string',
+          description:
+            "Nombre de la carpeta (1-200 caracteres; p. ej. 'Escritos IA', 'Documentación generada').",
+        },
+        parentFolderId: {
+          type: 'string',
+          description:
+            'ID de la carpeta padre para anidar (opcional). Si se omite, la carpeta es raíz en el expediente.',
+        },
+      },
+      required: ['matterReference', 'name'],
+    },
+  },
+  {
+    name: 'update_checklist_item',
+    description:
+      "MARCA un ítem de la checklist de presentación (UPLOADED/NA/PENDING) y opcionalmente vincula un documento (acción de ESCRITURA, reversible). Úsala SOLO cuando el usuario pida actualizar el estado de un requisito en una checklist (p. ej. 'marca este documento como aportado', 'vincula el archivo a este ítem', 'cambia el estado a NA'). Al vincular un documento sin indicar estado explícito, se marca automáticamente como UPLOADED. La acción es reversible: puedes cambiar el estado de vuelta o desvincular el documento (null).",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        itemId: {
+          type: 'string',
+          description: 'ID único del ítem de la checklist a actualizar (requerido).',
+        },
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'UPLOADED', 'NA'],
+          description:
+            'Nuevo estado del ítem (opcional): PENDING (pendiente), UPLOADED (documento aportado) o NA (no aplica/renunciado). Si se omite y se proporciona documentId, se marca automáticamente como UPLOADED.',
+        },
+        documentId: {
+          type: 'string',
+          description:
+            'ID del documento a vincular al ítem (opcional). Si es null, se desvincula el documento existente. El documento se valida que pertenezca al mismo expediente.',
+        },
+      },
+      required: ['itemId'],
+    },
+  },
+  {
+    name: 'link_document_to_data_room',
+    description:
+      "VINCULA una versión existente de un documento del expediente al data room como espejo (sin duplicar bytes en almacenamiento). La acción es REVERSIBLE: puede removerse el enlace posteriormente. Útil para reutilizar documentos ya cargados evitando duplicación. Úsala cuando el usuario pida 'añade este documento al data room', 'vincula el documento', o 'incluye en la sala de datos'.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        roomId: {
+          type: 'string',
+          description: 'ID único de la sala de datos en la que vincular el documento.',
+        },
+        versionId: {
+          type: 'string',
+          description:
+            'ID de la versión del documento a vincular (debe existir en el expediente del despacho).',
+        },
+        folderId: {
+          type: 'string',
+          description:
+            'ID de la carpeta dentro del data room donde ubicar el documento (opcional). Si se omite, se coloca en la raíz.',
+        },
+        name: {
+          type: 'string',
+          description:
+            'Nombre alternativo del documento en el data room (opcional; máximo 200 caracteres). Si se omite, usa el nombre original del documento.',
+        },
+      },
+      required: ['roomId', 'versionId'],
+    },
+  },
+  {
+    name: 'add_data_room_group',
+    description:
+      "CREA un grupo de permisos en una sala de datos (acción de ESCRITURA, reversible). Un grupo define qué carpetas puede ver un conjunto de usuarios externos (p. ej. 'Comprador y asesores', 'Vendedor') y si pueden descargar documentos. Los enlaces mágicos (grants) se adscriben al grupo y heredan sus permisos. Úsala SOLO cuando el usuario pida crear, añadir o registrar un nuevo grupo de permisos en una sala de datos. Tras crear el grupo, confirma el nombre, las carpetas permitidas y los permisos de descarga.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        roomId: {
+          type: 'string',
+          description: 'ID único de la sala de datos donde crear el grupo (requerido).',
+        },
+        name: {
+          type: 'string',
+          description:
+            "Nombre del grupo (2-160 caracteres; p. ej. 'Comprador y asesores', 'Vendedor', 'Due diligence team').",
+        },
+        folderIds: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Array de IDs de carpetas permitidas para este grupo (opcional). Vacío = acceso a toda la sala de datos. Máximo 200 carpetas.',
+        },
+        canDownload: {
+          type: 'boolean',
+          description:
+            'Permitir descarga de documentos a los miembros de este grupo (true por defecto). Si false, solo lectura en línea.',
+        },
+      },
+      required: ['roomId', 'name'],
+    },
+  },
+  {
+    name: 'revoke_data_room_grant',
+    description:
+      'REVOCA un enlace mágico de acceso a una sala de datos (lo marca como revocado, acción de ESCRITURA, reversible conceptualmente). Úsala SOLO cuando el usuario pida revocar, cancelar o desactivar el acceso de un usuario externo a través del enlace mágico. El usuario externo perderá acceso inmediatamente. Tras revocar, confirma al usuario el enlace revocado y la sala de datos.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        grantId: { type: 'string', description: 'ID del enlace/grant a revocar.' },
+        roomId: { type: 'string', description: 'ID de la sala de datos (data room).' },
+      },
+      required: ['grantId'],
+    },
+  },
+  {
+    name: 'get_data_room_questions',
+    description:
+      "Lista todas las preguntas de due diligence (DDQ) de una sala de datos: preguntas hechas por externos, con estado (PENDING/ANSWERED), respuestas y fechas. Solo lectura. Útil para '¿qué preguntas tengo en la sala?', '¿cuáles están pendientes?' o auditar el progreso de due diligence.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        roomId: {
+          type: 'string',
+          description: 'ID único de la sala de datos de la que obtener las preguntas.',
+        },
+      },
+      required: ['roomId'],
+    },
+  },
+  {
+    name: 'get_data_room_access_log',
+    description:
+      'Obtiene el log de accesos a una sala de datos (data room): quién accedió, cuándo, qué acción realizó. ' +
+      'Devuelve los últimos 200 accesos ordenados por fecha (más recientes primero). Útil para auditar el ' +
+      'uso de la sala, rastrear descargas o seguimiento de due diligence. Solo lectura; acotado al tenant.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        roomId: {
+          type: 'string',
+          description: 'ID único de la sala de datos (data room) cuyo log se quiere consultar.',
+        },
+      },
+      required: ['roomId'],
+    },
+  },
+  {
+    name: 'get_transaction_parties',
+    description:
+      "Obtiene las partes de una operación transaccional (M&A, inmobiliaria, etc.) con sus roles y contactos: compradores, vendedores, asesores legales, notarios, etc. Devuelve nombre, organización, correo, teléfono, rol, lado de la negociación y notas de cada parte. Útil para '¿quiénes son los actores del deal?', '¿quién es el comprador/vendedor?', '¿contactos de las partes?' o revisar la estructura completa de la operación. Lectura pura, acotada por expediente.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+      },
+      required: ['matterReference'],
+    },
+  },
+  {
+    name: 'add_disclosure_schedule',
+    description:
+      'CREA un disclosure schedule en una operación transaccional (M&A, inmobiliario, etc.) — acción ' +
+      'de ESCRITURA, reversible (existe remove_disclosure_schedule). Especifica número/código del schedule ' +
+      '(p. ej. "A.1", "B.2.3"), título, descripción completa (body), referencia a la garantía de representación ' +
+      'que cubre (repWarranty, opcional), documento vinculado (opcional) y estado inicial (DRAFT o AGREED). ' +
+      'Úsala SOLO cuando el usuario pida crear, añadir o registrar un nuevo disclosure schedule en una operación ' +
+      '(p. ej. "crea el schedule A.1 de Permits", "añade un disclosure schedule", "registra los schedules de ' +
+      'representaciones y garantías"). Tras crearlo, confirma el número, título y estado del schedule creado.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente de operación (p. ej. EXP-2026-0042).',
+        },
+        number: {
+          type: 'string',
+          description:
+            'Número/código único del schedule (p. ej. "A.1", "B.2.3", "Schedule 1"; máximo 40 caracteres).',
+        },
+        title: {
+          type: 'string',
+          description:
+            'Título/nombre descriptivo del schedule (p. ej. "Permits and Licenses"; máximo 300 caracteres).',
+        },
+        body: {
+          type: 'string',
+          description:
+            'Descripción completa del contenido del disclosure schedule (máximo 20000 caracteres; puede incluir listados de excepciones, condiciones, etc.).',
+        },
+        repWarranty: {
+          type: 'string',
+          description:
+            'Referencia a la representación o garantía que cubre este schedule (opcional; máximo 200 caracteres; p. ej. "Rep. 3.1 Compliance with Laws").',
+        },
+        documentId: {
+          type: 'string',
+          description:
+            'ID del documento vinculado al schedule (opcional; máximo 60 caracteres; p. ej. un PDF de la lista de excepciones).',
+        },
+        status: {
+          type: 'string',
+          enum: ['DRAFT', 'AGREED'],
+          description:
+            'Estado inicial del schedule: DRAFT (borrador, por completar en negociación) o AGREED (acordado y cerrado).',
+        },
+      },
+      required: ['matterReference', 'number', 'title', 'body'],
+    },
+  },
+  {
+    name: 'add_corporate_minute',
+    description:
+      'REGISTRA un acta de junta corporativa (GENERAL_MEETING, BOARD u OTHER) en el libro de actas de una ' +
+      'sociedad (acción de ESCRITURA, reversible). Proporciona la fecha de la junta, el tipo, título y ' +
+      'cuerpo del acta. El acta queda documentada en la secretaría de la sociedad con historial completo ' +
+      'para auditoría y cumplimiento normativo. Úsala SOLO cuando el usuario pida registrar, crear o guardar ' +
+      'un acta de junta general, junta directiva u otro órgano colegiado. Tras crearla, confirma al usuario ' +
+      'la sociedad, fecha del acta y tipo de junta.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        clientId: {
+          type: 'string',
+          description:
+            'ID de la sociedad/empresa donde registrar el acta (debe existir en el despacho y ' +
+            'pertenecer al tenant). Se resuelve desde find_client o get_client_detail.',
+        },
+        kind: {
+          type: 'string',
+          enum: ['GENERAL_MEETING', 'BOARD', 'OTHER'],
+          description:
+            'Tipo de junta: GENERAL_MEETING (junta general de accionistas), BOARD (junta ' +
+            'directiva/consejo de administración) u OTHER (otra asamblea corporativa). Opcional, ' +
+            'por defecto GENERAL_MEETING.',
+        },
+        title: {
+          type: 'string',
+          description:
+            'Título/asunto del acta (2-200 caracteres; p. ej. "Junta General Ordinaria 2026", ' +
+            '"Sesión de Consejo de Administración 15/06/2026").',
+        },
+        meetingDate: {
+          type: 'string',
+          description:
+            'Fecha de celebración de la junta en formato YYYY-MM-DD (fecha de la reunión, no de ' +
+            'registro).',
+        },
+        body: {
+          type: 'string',
+          description:
+            'Cuerpo/contenido completo del acta: orden del día, acuerdos, votos, decisiones ' +
+            'corporativas (mínimo 1, máximo 20000 caracteres). Registra las resoluciones adoptadas.',
+        },
+      },
+      required: ['clientId', 'title', 'meetingDate', 'body'],
+    },
+  },
 ];
 
 /** Instrucciones de sistema del asistente agéntico. */
@@ -1859,6 +2378,26 @@ const CORE_TOOLS = new Set<string>([
 
 /** Área de cada herramienta (para exposición por intención). Tools sin entrada se exponen por defecto. */
 const TOOL_AREAS: Record<string, string> = {
+  change_matter_status: 'matters',
+  update_client_info: 'clients',
+  export_client_gdpr: 'clients',
+  list_leads: 'leads',
+  create_lead: 'leads',
+  get_matter_team: 'matters',
+  reassign_task: 'tasks',
+  create_saved_view: 'saved-views',
+  list_document_packages: 'document-packages',
+  list_document_folders: 'folders',
+  create_document_folder: 'folders',
+  update_checklist_item: 'presentations',
+  link_document_to_data_room: 'data-room',
+  add_data_room_group: 'data-room',
+  revoke_data_room_grant: 'data-room',
+  get_data_room_questions: 'data-room',
+  get_data_room_access_log: 'data-room',
+  get_transaction_parties: 'deal',
+  add_disclosure_schedule: 'deal',
+  add_corporate_minute: 'company-secretary',
   convert_lead_to_client: 'leads',
   update_lead: 'leads',
   get_client_kyc: 'kyc',

@@ -108,6 +108,8 @@ function makeDeps(invocations: AiToolInvocation[]) {
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
+    {} as any,
     search as any,
     engine,
   );
@@ -170,6 +172,8 @@ describe('AiAgentService', () => {
       prisma as any,
       quota as any,
       audit as any,
+      {} as any,
+      {} as any,
       {} as any,
       {} as any,
       {} as any,

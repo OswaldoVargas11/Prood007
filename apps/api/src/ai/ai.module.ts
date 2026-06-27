@@ -38,6 +38,8 @@ import { DealModule } from '../deal/deal.module';
 import { EngagementModule } from '../engagement/engagement.module';
 import { CompanySecretaryModule } from '../company-secretary/company-secretary.module';
 import { SettingsModule } from '../settings/settings.module';
+import { DocumentPackagesModule } from '../document-packages/document-packages.module';
+import { FoldersModule } from '../folders/folders.module';
 import { DashboardModule } from '../dashboard/dashboard.module';
 
 /**
@@ -68,6 +70,8 @@ import { DashboardModule } from '../dashboard/dashboard.module';
     EngagementModule,
     CompanySecretaryModule,
     SettingsModule,
+    DocumentPackagesModule,
+    FoldersModule,
   ],
   controllers: [AiController],
   providers: [

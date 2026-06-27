@@ -5,5 +5,6 @@ import { DocumentPackagesService } from './document-packages.service';
 @Module({
   controllers: [DocumentPackagesController],
   providers: [DocumentPackagesService],
+  exports: [DocumentPackagesService],
 })
 export class DocumentPackagesModule {}
