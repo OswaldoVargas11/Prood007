@@ -777,6 +777,26 @@ export interface AiEmailDraft extends AiResponse {
   body: string;
 }
 
+/** Un turno de la conversación con el asistente agéntico (texto plano). */
+export interface AgentMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+/** Una herramienta ejecutada por el agente durante el turno (traza de transparencia). */
+export interface AgentStep {
+  tool: string;
+  isError: boolean;
+}
+
+/** Respuesta del asistente agéntico (POST /ai/agent). */
+export interface AgentResponse {
+  output: string;
+  steps: AgentStep[];
+  model: string | null;
+  stopReason: string;
+}
+
 export interface SemanticHit {
   kind: string;
   refId: string;
