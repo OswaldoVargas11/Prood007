@@ -52,6 +52,42 @@ describe('cliente API', () => {
     expect(getAccessToken()).toBeNull();
   });
 
+  it('stream parsea NDJSON línea a línea y emite cada evento', async () => {
+    setAccessToken('tok');
+    const ndjson = '{"type":"tool","tool":"a"}\n{"type":"done","output":"ok"}\n';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(ndjson, { status: 200, headers: { 'content-type': 'application/x-ndjson' } }),
+    );
+    const events: unknown[] = [];
+    await api.stream('/ai/agent/stream', { message: 'x' }, { onEvent: (e) => events.push(e) });
+    expect(events).toEqual([
+      { type: 'tool', tool: 'a' },
+      { type: 'done', output: 'ok' },
+    ]);
+  });
+
+  it('stream lanza ApiError si la respuesta no es ok', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ message: 'no' }, 500));
+    await expect(
+      api.stream('/ai/agent/stream', {}, { onEvent: () => undefined }),
+    ).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('stream refresca ante 401 y reintenta', async () => {
+    setAccessToken('expired');
+    let dataCalls = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.endsWith('/api/auth/refresh')) return json({ accessToken: 'new' });
+      dataCalls += 1;
+      return dataCalls === 1 ? json({ message: 'no' }, 401) : new Response('{"type":"done"}\n');
+    });
+    const events: unknown[] = [];
+    await api.stream('/ai/agent/stream', {}, { onEvent: (e) => events.push(e) });
+    expect(events).toEqual([{ type: 'done' }]);
+    expect(getAccessToken()).toBe('new');
+  });
+
   it('une los mensajes de error en array (validación) y conserva el status', async () => {
     setAccessToken('tok');
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ message: ['campo A', 'campo B'] }, 400));

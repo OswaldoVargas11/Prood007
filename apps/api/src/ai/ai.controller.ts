@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
+import type { Response } from 'express';
 import { Role } from '@legalflow/domain';
 import { AiService } from './ai.service';
 import { AiSearchService } from './ai-search.service';
-import { AiAgentService } from './ai-agent.service';
+import { AiAgentService, type AgentStreamEvent } from './ai-agent.service';
 import {
   AgentDto,
   AskDto,
@@ -90,6 +91,46 @@ export class AiController {
   @Post('agent')
   agentRun(@CurrentUser() user: RequestUser, @Body() dto: AgentDto) {
     return this.agent.run(user, dto.message, dto.history, dto.allowWrites);
+  }
+
+  /**
+   * Variante en STREAMING (NDJSON): emite eventos de progreso por herramienta ('tool' = thinking-traces)
+   * y un 'done' final. El cliente puede abortar (botón Stop): al cerrarse la conexión, el turno se corta.
+   */
+  @RequiresFeature('ai')
+  @Post('agent/stream')
+  async agentStream(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: AgentDto,
+    @Res() res: Response,
+  ): Promise<void> {
+    res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('X-Accel-Buffering', 'no');
+    let aborted = false;
+    res.on('close', () => {
+      aborted = true;
+    });
+    const write = (e: AgentStreamEvent) => {
+      if (!res.writableEnded) res.write(`${JSON.stringify(e)}\n`);
+    };
+    try {
+      await this.agent.runStream(user, dto.message, dto.history, dto.allowWrites, {
+        onEvent: write,
+        isAborted: () => aborted,
+      });
+    } catch {
+      write({
+        type: 'done',
+        output: 'No se pudo completar la consulta.',
+        steps: [],
+        model: null,
+        stopReason: 'error',
+        pendingWrites: [],
+      });
+    } finally {
+      if (!res.writableEnded) res.end();
+    }
   }
 
   /** Búsqueda semántica en lo indexado del despacho. (Avanzado: indexación/RAG.) */
