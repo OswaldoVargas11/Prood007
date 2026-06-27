@@ -26,6 +26,8 @@ import { TemplatesModule } from '../templates/templates.module';
 import { ClientsModule } from '../clients/clients.module';
 import { MattersModule } from '../matters/matters.module';
 import { PresentationsModule } from '../presentations/presentations.module';
+import { ClausesModule } from '../clauses/clauses.module';
+import { ClosingModule } from '../closing/closing.module';
 import { DashboardModule } from '../dashboard/dashboard.module';
 
 /**
@@ -43,6 +45,8 @@ import { DashboardModule } from '../dashboard/dashboard.module';
     DashboardModule,
     ClientsModule,
     MattersModule,
+    ClausesModule,
+    ClosingModule,
     PresentationsModule,
   ],
   controllers: [AiController],
