@@ -10,6 +10,7 @@ import { api, ApiError } from '@/lib/api';
 import type { AgentResponse, AgentStep, PendingWrite } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ChatMarkdown } from './chat-markdown';
 
 type ChatMsg = { role: 'user' | 'assistant'; content: string; steps?: AgentStep[] };
 type StreamEvent = { type: string; tool?: string } & Partial<AgentResponse>;
@@ -240,7 +241,11 @@ export function AiAgentDock() {
                   : 'max-w-[85%] rounded-2xl rounded-bl-sm border bg-[var(--surface-1)] px-3 py-2 text-sm'
               }
             >
-              <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+              {m.role === 'user' ? (
+                <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+              ) : (
+                <ChatMarkdown content={m.content} />
+              )}
               {m.steps && m.steps.length > 0 && (
                 <p className="mt-1.5 border-t pt-1.5 text-[10.5px] text-muted-foreground">
                   {t('usedTools', {
