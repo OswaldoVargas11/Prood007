@@ -2304,6 +2304,444 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
       required: ['clientId', 'title', 'meetingDate', 'body'],
     },
   },
+  {
+    name: 'assign_matter_lawyer',
+    description:
+      'Asigna o reasigna el letrado responsable de un expediente (solo administrador del despacho). Solo FIRM_ADMIN puede ejecutar. Reversible: puedes reasignarlo sin consecuencias. Usa esta herramienta cuando el usuario pida cambiar quién es responsable de un expediente.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+        lawyerId: {
+          type: 'string',
+          description:
+            'ID del letrado a asignar como responsable. Usa null o deja vacío para desasignar (quitar responsable).',
+        },
+      },
+      required: ['matterReference', 'lawyerId'],
+    },
+  },
+  {
+    name: 'get_kyc_summary',
+    description:
+      'Resumen agregado KYC/AML: total de clientes en el despacho, conteos por estado (PENDING, IN_REVIEW, APPROVED, REJECTED), clientes de alto riesgo y PEPs. Úsala para el dashboard de cumplimiento normativo y "¿cómo está el AML?"',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'get_template_detail',
+    description:
+      'Obtiene el contenido completo de una plantilla por su ID: nombre, descripción, cuerpo de texto con campos combinables ({{merge_fields}}) y lista de tokens {{campo}} detectados. Útil para previsualizar la plantilla antes de usarla en un documento o expediente, para validar que tiene los campos necesarios, o para reutilizar su contenido en otros documentos. Úsala tras localizarla con list_templates o cuando necesites consultar el cuerpo exacto de una plantilla.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        templateId: {
+          type: 'string',
+          description: 'ID único de la plantilla en el sistema (su clave primaria).',
+        },
+      },
+      required: ['templateId'],
+    },
+  },
+  {
+    name: 'get_closing_checklist_detail',
+    description:
+      'Obtiene el detalle completo de un checklist de cierre: todas las partidas organizadas ' +
+      'por categoría (CONDITION_PRECEDENT, DELIVERABLE, SIGNATURE_PAGE, OTHER) en el orden ' +
+      'correcto, con estado, fase, responsable, vencimiento y documentos vinculados. Útil ' +
+      'para "¿cuál es el estado exacto del checklist X?", "¿qué partidas faltan?" o revisar ' +
+      'el progreso detallado del cierre. Lectura pura.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        checklistId: {
+          type: 'string',
+          description: 'ID único del checklist de cierre a consultar (requerido).',
+        },
+      },
+      required: ['checklistId'],
+    },
+  },
+  {
+    name: 'create_closing_checklist',
+    description:
+      "CREA un checklist de cierre en un expediente (acción de ESCRITURA, reversible). Aplica una plantilla integrada de cierre (compraventa de participaciones M&A, compraventa inmobiliaria, etc.) o lo crea vacío. Úsala SOLO cuando el usuario pida crear/instanciar un checklist de cierre, por ejemplo 'crear checklist de cierre M&A', 'instancia el checklist para la operación', 'crea un checklist vacío'. Tras crearlo, confirma el expediente, la plantilla (si aplica) y cuántas partidas se han precargado.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description:
+            'Referencia exacta del expediente donde crear el checklist (p. ej. EXP-2026-0042).',
+        },
+        title: {
+          type: 'string',
+          description:
+            "Título del checklist de cierre (2-160 caracteres; p. ej. 'Cierre de compraventa tecnológica').",
+        },
+        templateKey: {
+          type: 'string',
+          description:
+            "Clave de la plantilla integrada a instanciar (opcional; si se omite, checklist vacío). Opciones: 'ma_share_purchase' (Compraventa de participaciones M&A), 'real_estate_purchase' (Compraventa inmobiliaria), u otras disponibles en el despacho.",
+        },
+      },
+      required: ['matterReference', 'title'],
+    },
+  },
+  {
+    name: 'update_closing_item',
+    description:
+      "EDITA una partida (requisito) del checklist de cierre de un expediente (acción de ESCRITURA, reversible). Cambia el estado (PENDING/SATISFIED/WAIVED), marcas de depósito (escrow), asignación, título, detalles, fecha de vencimiento, responsable, documento vinculado u orden de presentación. Úsala SOLO cuando el usuario pida actualizar, editar o cambiar un item en un checklist de cierre existente (p. ej. 'marca esta partida como satisfecha', 'libera las firmas', 'cambia la responsabilidad', 'vincula el documento'). Tras actualizar, confirma el checklist, el ítem y los cambios realizados.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        itemId: {
+          type: 'string',
+          description: 'ID único de la partida (item) a actualizar (requerido).',
+        },
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'SATISFIED', 'WAIVED'],
+          description:
+            'Nuevo estado del ítem (opcional): PENDING (pendiente), SATISFIED (cumplida), WAIVED (renunciada/dispensada).',
+        },
+        category: {
+          type: 'string',
+          enum: ['CONDITION_PRECEDENT', 'DELIVERABLE', 'SIGNATURE_PAGE', 'OTHER'],
+          description:
+            'Categoría del ítem (opcional): CONDITION_PRECEDENT (condición precedente), DELIVERABLE (entregable), SIGNATURE_PAGE (hoja de firma) u OTHER (otro).',
+        },
+        phase: {
+          type: 'string',
+          description:
+            "Fase procedural asociada (opcional; p. ej. 'Pre-cierre', 'Post-cierre', 'Fondos en depósito').",
+        },
+        title: {
+          type: 'string',
+          description: 'Título/nombre del ítem (opcional, 2-200 caracteres).',
+        },
+        detail: {
+          type: 'string',
+          description:
+            'Descripción/detalle adicional del ítem (opcional; máximo 2000 caracteres). Vacío para desvincular.',
+        },
+        responsibleParty: {
+          type: 'string',
+          description:
+            "Parte responsable de aportar/cumplir el ítem (opcional; p. ej. 'Vendedor', 'Comprador', 'Notario'). Vacío para limpiar.",
+        },
+        assigneeId: {
+          type: 'string',
+          description:
+            'ID del miembro del despacho asignado a dar seguimiento (opcional). Vacío para desvincular.',
+        },
+        documentId: {
+          type: 'string',
+          description: 'ID del documento vinculado a este ítem (opcional). Vacío para desvincular.',
+        },
+        dueDate: {
+          type: 'string',
+          description: 'Fecha de vencimiento en formato YYYY-MM-DD (opcional). Vacío para limpiar.',
+        },
+        inEscrow: {
+          type: 'boolean',
+          description:
+            'Si es true, marca el ítem como en depósito (retención hasta cierre). Si es false y estaba retenido, sella la fecha de liberación. Opcional.',
+        },
+        sortOrder: {
+          type: 'integer',
+          description: 'Posición de presentación en el checklist (opcional, número entero).',
+        },
+      },
+      required: ['itemId'],
+    },
+  },
+  {
+    name: 'get_data_room',
+    description:
+      'Obtiene la estructura completa de una sala de datos: carpetas (estructura jerárquica), documentos, grupos de acceso (permisos), enlaces de acceso externos (grants con expiraciones y revocaciones), log de accesos recientes y preguntas de due diligence. Útil para auditar el estado, permisos y actividad de una sala de datos de due diligence completa. Solo lectura; acotado por tenant.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dataRoomId: {
+          type: 'string',
+          description: 'ID único de la sala de datos a obtener.',
+        },
+      },
+      required: ['dataRoomId'],
+    },
+  },
+  {
+    name: 'create_data_room',
+    description:
+      "CREA un data room (sala de due diligence) en un expediente, lo que permite abrir espacios seguros para intercambio de documentos e interacción con terceros (contraparte, asesor, auditor). Especifica el nombre y opcionalmente marca de agua para confidencialidad. Puedes añadir documentos, crear grupos de acceso y generar enlaces mágicos después. La acción es REVERSIBLE. Úsala cuando el usuario diga 'abre un data room', 'crea una sala de diligencia', 'prepara un espacio de due diligence'.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+        name: {
+          type: 'string',
+          description:
+            "Nombre descriptivo de la sala (2-160 caracteres; p. ej. 'Due Diligence - Fase 1', 'Sala Comprador').",
+        },
+        watermark: {
+          type: 'boolean',
+          description:
+            'Mostrar marca de agua de confidencialidad en los PDFs descargados (true por defecto).',
+        },
+      },
+      required: ['matterReference', 'name'],
+    },
+  },
+  {
+    name: 'add_data_room_folder',
+    description:
+      'CREA una carpeta dentro de un data room para organizar documentos por tipos (acción de ESCRITURA, reversible). Especifica el nombre y opcionalmente la carpeta padre (para anidar jerárquicamente). Útil para "crea una carpeta para Due Diligence", "añade una carpeta Financiero" o similar. Tras crearla, confirma al usuario el nombre, el data room y su referencia de almacenamiento.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        roomId: {
+          type: 'string',
+          description: 'ID único del data room donde crear la carpeta (requerido).',
+        },
+        name: {
+          type: 'string',
+          description:
+            'Nombre de la carpeta (1-160 caracteres; p. ej. "Due Diligence", "Financiero", "Legales").',
+        },
+        parentId: {
+          type: 'string',
+          description:
+            'ID de la carpeta padre para anidar (opcional). Si se omite, la carpeta es raíz en el data room.',
+        },
+      },
+      required: ['roomId', 'name'],
+    },
+  },
+  {
+    name: 'get_disclosure_schedules',
+    description:
+      'Obtiene los disclosure schedules (reps & warranties documentadas) de una operación transaccional con sus estados (DRAFT/AGREED). Incluye número, título, garantía de representación, contenido, documento vinculado y estado de acuerdo. Útil para "¿qué disclosure schedules hay?", "¿cuál es el estado de los schedules?", "¿qué está acordado?" o "revisión de documentación de garantías". Lectura pura, acotada por expediente.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+      },
+      required: ['matterReference'],
+    },
+  },
+  {
+    name: 'add_registry_filing',
+    description:
+      'REGISTRA una presentación registral en la operación (PROPERTY/COMMERCIAL/LABOR, etc.) — acción ' +
+      'de ESCRITURA, reversible (existe remove_registry_filing). Especifica el tipo de registro ' +
+      '(REGISTRO_MERCANTIL, REGISTRO_PROPIEDAD, NOTARIA, etc.), título descriptivo de la presentación, ' +
+      'referencia en el registro (opcional) y documento asociado (opcional). La presentación queda en estado ' +
+      'PENDING y se puede actualizar con update_registry_filing. Úsala SOLO cuando el usuario pida registrar, ' +
+      'crear o dar de alta una nueva presentación registral en una operación (p. ej. "registra la presentación ' +
+      'al Registro Mercantil", "añade un filing en la notaría", "crea una presentación de propiedad"). Tras ' +
+      'crearla, confirma el tipo de registro, título y que queda pendiente de gestión.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente de operación (p. ej. EXP-2026-0042).',
+        },
+        registry: {
+          type: 'string',
+          enum: [
+            'REGISTRO_MERCANTIL',
+            'REGISTRO_PROPIEDAD',
+            'INDICE_UNICO_NOTARIAL',
+            'NOTARIA',
+            'REGISTRO_TITULOS_RD',
+            'CAMARA_COMERCIO_RD',
+            'OTHER',
+          ],
+          description:
+            'Tipo de registro donde se hará la presentación (REGISTRO_MERCANTIL, REGISTRO_PROPIEDAD, NOTARIA, etc.; opcional, por defecto OTHER).',
+        },
+        title: {
+          type: 'string',
+          description:
+            'Título/nombre descriptivo de la presentación (1-200 caracteres; p. ej. "Presentación de constitución", "Filing de transmisión de participaciones").',
+        },
+        referenceCode: {
+          type: 'string',
+          description:
+            'Código o número de referencia en el registro (opcional; máximo 120 caracteres; p. ej. "T-123-F-456", "2026-5433-GCCO").',
+        },
+        documentId: {
+          type: 'string',
+          description:
+            'ID del documento asociado (opcional; máximo 60 caracteres; se valida que pertenezca al mismo tenant; p. ej. PDF de la escritura presentada).',
+        },
+        notes: {
+          type: 'string',
+          description:
+            'Observaciones/anotaciones sobre la presentación (opcional; máximo 2000 caracteres; p. ej. "Presentada ante Notaría Pérez el 25/06/2026").',
+        },
+      },
+      required: ['matterReference', 'title'],
+    },
+  },
+  {
+    name: 'add_share_transfer',
+    description:
+      'REGISTRA una transmisión de participaciones/acciones en la sociedad (acción de ESCRITURA, reversible). Documenta los cambios de socios mediante transferencias: quién transmite, quién recibe, número de unidades, fecha y nota explicativa. Úsala SOLO cuando el usuario pida registrar, documentar o anotar una transmisión de participaciones en el libro de socios. Tras registrarla, confirma al usuario el traspaso documentado, los socios implicados y el nuevo reparto de unidades.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        clientId: {
+          type: 'string',
+          description:
+            'ID único de la sociedad (client) donde registrar la transmisión (obligatorio).',
+        },
+        fromName: {
+          type: 'string',
+          description:
+            'Nombre del socio/accionista que transmite (opcional; puede ser null para aportaciones).',
+        },
+        toName: {
+          type: 'string',
+          description:
+            'Nombre del socio/accionista que recibe la transmisión (obligatorio; máximo 200 caracteres).',
+        },
+        units: {
+          type: 'integer',
+          description: 'Número de unidades/acciones transmitidas (obligatorio; mínimo 1).',
+        },
+        date: {
+          type: 'string',
+          description: 'Fecha de la transmisión en formato YYYY-MM-DD (obligatorio).',
+        },
+        note: {
+          type: 'string',
+          description:
+            'Nota/comentario explicativo de la transmisión (opcional; máximo 2000 caracteres; p. ej. "Compraventa notarial", "Donación entre parientes").',
+        },
+      },
+      required: ['clientId', 'toName', 'units', 'date'],
+    },
+  },
+  {
+    name: 'add_registry_obligation',
+    description:
+      'CREA una obligación registral recurrente en el libro de obligaciones de una sociedad (acción de ESCRITURA, reversible). Proporciona el tipo de registro (PROPERTY/COMMERCIAL/LABOR o similar), título descriptivo, opcionalmente un código de referencia, la fecha de vencimiento, y el tipo de recurrencia (ANNUAL para obligaciones que se repiten cada año, ONCE para única). Auto-genera automáticamente la del próximo año si es ANNUAL y se marca como FILED. Úsala SOLO cuando el usuario pida registrar, crear o añadir una nueva obligación registral recurrente. Tras crearla, confirma al usuario la sociedad, tipo de obligación, vencimiento y recurrencia.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        clientId: {
+          type: 'string',
+          description:
+            'ID de la sociedad/empresa donde registrar la obligación (debe existir en el despacho y pertenecer al tenant). Se resuelve desde find_client o get_client_detail.',
+        },
+        registry: {
+          type: 'string',
+          enum: [
+            'REGISTRO_MERCANTIL',
+            'REGISTRO_PROPIEDAD',
+            'INDICE_UNICO_NOTARIAL',
+            'NOTARIA',
+            'REGISTRO_TITULOS_RD',
+            'CAMARA_COMERCIO_RD',
+            'OTHER',
+          ],
+          description:
+            'Tipo de registro: REGISTRO_MERCANTIL (RM), REGISTRO_PROPIEDAD (RP), INDICE_UNICO_NOTARIAL, NOTARIA, REGISTRO_TITULOS_RD, CAMARA_COMERCIO_RD u OTHER. Opcional.',
+        },
+        title: {
+          type: 'string',
+          description:
+            "Título/descripción de la obligación registral (2-200 caracteres; p. ej. 'Cuentas anuales al Registro Mercantil', 'Declaración de dominical').",
+        },
+        referenceCode: {
+          type: 'string',
+          description:
+            'Código de referencia opcional de la obligación (máximo 120 caracteres; p. ej. número de expediente, código fiscal).',
+        },
+        dueDate: {
+          type: 'string',
+          description:
+            'Fecha de vencimiento de la obligación en formato YYYY-MM-DD (fecha de vencimiento de presentación/depósito).',
+        },
+        recurrence: {
+          type: 'string',
+          enum: ['ANNUAL', 'ONCE'],
+          description:
+            'Tipo de recurrencia: ANNUAL (se repite cada año; auto-genera la del próximo año al marcar FILED) u ONCE (única, sin repetición). Por defecto ANNUAL.',
+        },
+      },
+      required: ['clientId', 'title', 'dueDate'],
+    },
+  },
+  {
+    name: 'update_registry_obligation',
+    description:
+      'ACTUALIZA una obligación registral de una sociedad (acción de ESCRITURA, reversible). Edita tipo de registro, título, vencimiento, recurrencia y estado de una obligación. Cuando marcas como FILED una obligación ANUAL, crea automáticamente la del próximo año en estado PENDING. Úsala SOLO cuando el usuario pida editar, cambiar estado o marcar como cumplida una obligación registral existente. Tras actualizarla, confirma al usuario los cambios realizados.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        obligationId: {
+          type: 'string',
+          description: 'ID único de la obligación a actualizar (requerido).',
+        },
+        registry: {
+          type: 'string',
+          enum: [
+            'REGISTRO_MERCANTIL',
+            'REGISTRO_PROPIEDAD',
+            'INDICE_UNICO_NOTARIAL',
+            'NOTARIA',
+            'REGISTRO_TITULOS_RD',
+            'CAMARA_COMERCIO_RD',
+            'OTHER',
+          ],
+          description:
+            'Tipo de registro/oficina: REGISTRO_MERCANTIL, REGISTRO_PROPIEDAD, INDICE_UNICO_NOTARIAL, NOTARIA, REGISTRO_TITULOS_RD, CAMARA_COMERCIO_RD u OTHER (opcional).',
+        },
+        title: {
+          type: 'string',
+          description: 'Título/descripción de la obligación (2-200 caracteres; opcional).',
+        },
+        referenceCode: {
+          type: 'string',
+          description:
+            'Código de referencia interno de la obligación (opcional; máximo 120 caracteres).',
+        },
+        dueDate: {
+          type: 'string',
+          description: 'Fecha de vencimiento en formato YYYY-MM-DD (opcional).',
+        },
+        recurrence: {
+          type: 'string',
+          enum: ['NONE', 'ANNUAL'],
+          description:
+            'Recurrencia de la obligación: NONE (única) o ANNUAL (anual). Al marcar FILED con ANNUAL, crea automáticamente la del siguiente año (opcional).',
+        },
+        status: {
+          type: 'string',
+          enum: ['PENDING', 'FILED'],
+          description:
+            'Estado de la obligación: PENDING (pendiente) o FILED (cumplida/presentada). Al marcar FILED en una obligación ANUAL, el sistema crea automáticamente la del próximo año (opcional).',
+        },
+      },
+      required: ['obligationId'],
+    },
+  },
 ];
 
 /** Instrucciones de sistema del asistente agéntico. */
@@ -2378,6 +2816,20 @@ const CORE_TOOLS = new Set<string>([
 
 /** Área de cada herramienta (para exposición por intención). Tools sin entrada se exponen por defecto. */
 const TOOL_AREAS: Record<string, string> = {
+  assign_matter_lawyer: 'matters',
+  get_kyc_summary: 'kyc',
+  get_template_detail: 'templates',
+  get_closing_checklist_detail: 'closing',
+  create_closing_checklist: 'closing',
+  update_closing_item: 'closing',
+  get_data_room: 'data-room',
+  create_data_room: 'data-room',
+  add_data_room_folder: 'data-room',
+  get_disclosure_schedules: 'deal',
+  add_registry_filing: 'deal',
+  add_share_transfer: 'company-secretary',
+  add_registry_obligation: 'company-secretary',
+  update_registry_obligation: 'company-secretary',
   change_matter_status: 'matters',
   update_client_info: 'clients',
   export_client_gdpr: 'clients',
