@@ -2,6 +2,16 @@
 
 > Generado 2026-06-27 — programa de calidad del agente de IA.
 
+> **Actualización 2026-06-27 (post-auditoría, Olas 7-9):** se cerraron brechas que esta auditoría registró
+> como pendientes. **Punto 7 (confirmación pre-escritura): Falta → Cumple** — gate HITL "propón → confirma
+> → ejecuta" (PR #205). **Punto 4 (HITL checkpoints): Parcial → Cumple** (confirmación previa además de la
+> reversibilidad). **Punto 3 (citas/grounding): Parcial → Cumple** — `search_firm_knowledge` añade RAG
+> sobre el texto con fragmentos citables (PR #206). **Punto 10**: mejora parcial con chips de sugerencia
+> (PR #207), sigue **Parcial** (falta integración del agente en Word/Outlook). **Conteo actualizado: 8
+> Cumple · 2 Parcial · 2 Falta.** Pendientes reales: **6** (thinking-traces/plan en vivo) + **11**
+> (streaming + botón Stop), agrupados como "streaming"; y **9** (workflows builder). El cuerpo siguiente
+> conserva la foto original de la auditoría para trazabilidad.
+
 Auditoría de paridad del agente de IA de Lawzora (`POST /ai/agent`) contra un checklist de 12 puntos derivado de la investigación de los agentes legales líderes: **Clio Duo**, **Harvey**, **Thomson Reuters CoCounsel**, **LexisNexis Lexis+ AI / Protégé** y **vLex Vincent**.
 
 Todo lo afirmado sobre Lawzora procede del estado verificado del código a 2026-06-27 (`apps/api/src/ai/ai-agent.tools.ts`, `ai-agent.service.ts`, `packages/domain` `AiEngine`, `docs/architecture/ADR-001-agentic-ai.md`, `docs/ai/AGENT-TRUST-PATTERNS.md`). Todo lo afirmado sobre competidores procede de las fuentes citadas en cada punto (URLs al final). Material para due-diligence de producto/IP; sin afirmaciones no defendibles.
