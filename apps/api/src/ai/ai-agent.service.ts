@@ -15,6 +15,7 @@ import { AiQuotaService } from './ai-quota.service';
 import { AuditService } from '../audit/audit.service';
 import { TasksService } from '../tasks/tasks.service';
 import { DocumentsService } from '../documents/documents.service';
+import { AiSearchService } from './ai-search.service';
 import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
 import type { RequestUser } from '../auth/auth.types';
@@ -60,6 +61,7 @@ export class AiAgentService {
     private readonly audit: AuditService,
     private readonly tasks: TasksService,
     private readonly documents: DocumentsService,
+    private readonly search: AiSearchService,
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
   ) {}
 
@@ -150,6 +152,8 @@ export class AiAgentService {
           return { content: await this.listDocuments(user, inv.input) };
         case 'firm_overview':
           return { content: await this.firmOverview(user) };
+        case 'search_firm_knowledge':
+          return { content: await this.searchFirmKnowledge(user, inv.input) };
         case 'legal_research':
           return { content: this.legalResearch(user, inv.input) };
         case 'create_task':
@@ -278,6 +282,39 @@ export class AiAgentService {
         matter: t.matter?.reference ?? null,
       })),
     });
+  }
+
+  /**
+   * Búsqueda SEMÁNTICA sobre el TEXTO de los documentos/expedientes indexados (RAG). Devuelve fragmentos
+   * citables (referencia + extracto), no solo metadatos. Si los embeddings no están configurados, lo
+   * indica sin romper. Tenant-scoped (RLS) dentro de AiSearchService.
+   */
+  private async searchFirmKnowledge(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const query = str(input, 'query');
+    if (!query) return json({ error: 'Indica qué buscar en el conocimiento del despacho.' });
+    const limit = int(input, 'limit', 6, 12);
+    try {
+      const hits = await this.search.search(user, query, limit);
+      if (hits.length === 0) {
+        return json({ count: 0, hits: [], note: 'Sin coincidencias en los documentos indexados.' });
+      }
+      return json({
+        count: hits.length,
+        hits: hits.map((h) => ({
+          ref: h.refLabel,
+          excerpt: h.excerpt.slice(0, 400),
+          score: Math.round(h.score * 100) / 100,
+        })),
+      });
+    } catch {
+      return json({
+        available: false,
+        note: 'La búsqueda semántica no está disponible (faltan embeddings; configura VOYAGE_API_KEY).',
+      });
+    }
   }
 
   /** Visión rápida del despacho: expedientes activos, tareas abiertas y plazos vencidos. */
