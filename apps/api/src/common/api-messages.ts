@@ -720,6 +720,10 @@ export const API_MESSAGES = {
     'es-ES': 'Escribe una instrucción para la IA.',
     'es-DO': 'Escribe una instrucción para la IA.',
   },
+  'ai.conversationNotFound': {
+    'es-ES': 'No se encontró la conversación.',
+    'es-DO': 'No se encontró la conversación.',
+  },
 
   // ── Webhooks salientes ────────────────────────────────────────────────────
   'webhooks.notFound': {

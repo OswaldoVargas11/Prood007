@@ -1,13 +1,29 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Check, Loader2, RotateCcw, Send, Sparkles, Square, X } from 'lucide-react';
+import {
+  Check,
+  History,
+  Loader2,
+  RotateCcw,
+  Send,
+  Sparkles,
+  Square,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useAiStatus } from '@/lib/hooks';
 import { useEntitlement } from '@/lib/entitlements';
 import { api, ApiError } from '@/lib/api';
-import type { AgentResponse, AgentStep, PendingWrite } from '@/lib/types';
+import type {
+  AgentResponse,
+  AgentStep,
+  AiConversationDetail,
+  AiConversationSummary,
+  PendingWrite,
+} from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChatMarkdown } from './chat-markdown';
@@ -92,8 +108,9 @@ function isStaff(roles: string[] | undefined): boolean {
 /**
  * Dock de chat del ASISTENTE AGÉNTICO (abajo-derecha). Conversación multi-turno EN STREAMING contra
  * `POST /ai/agent/stream`: muestra el progreso en vivo (qué herramienta está usando = thinking-traces) y
- * permite DETENER el turno (botón Stop). Solo staff con la IA habilitada; si no, no se monta. El historial
- * vive en el cliente y se reenvía en cada turno; las escrituras requieren confirmación (HITL).
+ * permite DETENER el turno (botón Stop). Solo staff con la IA habilitada; si no, no se monta. Cada turno
+ * se PERSISTE en el servidor (privado por usuario): el historial sobrevive a recargas y se puede reabrir
+ * desde el panel de conversaciones. Las escrituras requieren confirmación (HITL).
  */
 export function AiAgentDock() {
   const t = useTranslations('ai.agent');
@@ -110,14 +127,100 @@ export function AiAgentDock() {
   const [currentTool, setCurrentTool] = useState<string | null>(null);
   const [streamingText, setStreamingText] = useState('');
   const [streamingCards, setStreamingCards] = useState<ToolCardData[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [conversations, setConversations] = useState<AiConversationSummary[] | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Id de la conversación persistida activa. Se lee de forma síncrona al guardar (evita el cierre obsoleto
+  // del estado entre el primer turno —que la crea— y los siguientes —que la amplían—).
+  const conversationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, streaming, currentTool]);
 
+  /** Carga el historial de conversaciones del usuario (para el panel). */
+  const loadHistory = useCallback(async () => {
+    try {
+      const list = await api.get<AiConversationSummary[]>('/ai/conversations');
+      setConversations(list);
+    } catch {
+      setConversations([]);
+    }
+  }, []);
+
   if (!isStaff(user?.roles) || !hasAi || !status?.enabled) return null;
+
+  /** Persiste el turno recién completado (best-effort: un fallo de guardado no rompe el chat). */
+  async function persistTurn(userContent: string, assistant: ChatMsg) {
+    const meta =
+      assistant.toolCards || assistant.steps
+        ? { toolCards: assistant.toolCards, steps: assistant.steps }
+        : undefined;
+    const turns = [
+      { role: 'user' as const, content: userContent },
+      { role: 'assistant' as const, content: assistant.content, meta },
+    ];
+    try {
+      if (!conversationIdRef.current) {
+        const created = await api.post<{ id: string; title: string }>('/ai/conversations', {
+          messages: turns,
+        });
+        conversationIdRef.current = created.id;
+        setConversationId(created.id);
+      } else {
+        await api.post(`/ai/conversations/${conversationIdRef.current}/messages`, {
+          messages: turns,
+        });
+      }
+      if (historyOpen) void loadHistory();
+    } catch {
+      /* best-effort: no interrumpir la conversación si falla la persistencia */
+    }
+  }
+
+  /** Empieza una conversación nueva (vacía la vista y desvincula la persistida). */
+  function startNewChat() {
+    setMessages([]);
+    setError(null);
+    setPending(null);
+    setConversationId(null);
+    conversationIdRef.current = null;
+  }
+
+  /** Reabre una conversación guardada y restaura sus mensajes (incl. tarjetas de herramientas). */
+  async function openConversation(id: string) {
+    try {
+      const detail = await api.get<AiConversationDetail>(`/ai/conversations/${id}`);
+      const restored: ChatMsg[] = detail.messages.map((m) => {
+        const meta = (m.meta ?? null) as {
+          toolCards?: ToolCardData[];
+          steps?: AgentStep[];
+        } | null;
+        return { role: m.role, content: m.content, toolCards: meta?.toolCards, steps: meta?.steps };
+      });
+      setMessages(restored);
+      setConversationId(id);
+      conversationIdRef.current = id;
+      setHistoryOpen(false);
+      setError(null);
+      setPending(null);
+    } catch {
+      setError(t('error'));
+    }
+  }
+
+  /** Borra una conversación del historial; si era la activa, deja la vista en blanco. */
+  async function deleteConversation(id: string) {
+    try {
+      await api.del(`/ai/conversations/${id}`);
+      setConversations((prev) => prev?.filter((c) => c.id !== id) ?? null);
+      if (conversationIdRef.current === id) startNewChat();
+    } catch {
+      /* best-effort */
+    }
+  }
 
   async function send(text: string, allowWrites = false) {
     const trimmed = text.trim();
@@ -176,16 +279,15 @@ export function AiAgentDock() {
       );
       if (!final) throw new Error('sin respuesta');
       const done: AgentResponse = final;
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: done.output,
-          steps: done.steps,
-          toolCards: cards.length ? cards : undefined,
-        },
-      ]);
+      const assistantMsg: ChatMsg = {
+        role: 'assistant',
+        content: done.output,
+        steps: done.steps,
+        toolCards: cards.length ? cards : undefined,
+      };
+      setMessages((prev) => [...prev, assistantMsg]);
       if (done.pendingWrites.length > 0) setPending(done.pendingWrites);
+      void persistTurn(trimmed, assistantMsg);
     } catch (err) {
       // Quita el turno optimista (mantiene el historial válido) y restaura el texto. Un abort (Stop) no
       // es un error: no se muestra mensaje.
@@ -227,17 +329,22 @@ export function AiAgentDock() {
           </div>
         </div>
         <div className="flex items-center gap-1">
-          {messages.length > 0 && !streaming && (
+          {!streaming && (
             <Button
               size="icon"
               variant="ghost"
-              aria-label={t('newChat')}
+              aria-label={t('history')}
               onClick={() => {
-                setMessages([]);
-                setError(null);
-                setPending(null);
+                const next = !historyOpen;
+                setHistoryOpen(next);
+                if (next) void loadHistory();
               }}
             >
+              <History className="size-4" />
+            </Button>
+          )}
+          {messages.length > 0 && !streaming && (
+            <Button size="icon" variant="ghost" aria-label={t('newChat')} onClick={startNewChat}>
               <RotateCcw className="size-4" />
             </Button>
           )}
@@ -252,125 +359,168 @@ export function AiAgentDock() {
         </div>
       </div>
 
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-3">
-        {messages.length === 0 && !streaming && (
-          <div className="flex h-full flex-col items-center justify-center px-2 text-center">
-            <Sparkles className="mb-2 size-8 text-[var(--brand)] opacity-70" />
-            <p className="text-sm font-medium">{t('emptyTitle')}</p>
-            <p className="mt-1 text-[12px] text-muted-foreground">{t('emptyHint')}</p>
-            <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-              {SKILLS.map((s) => (
-                <button
-                  key={s.label}
-                  type="button"
-                  onClick={() => void send(s.prompt)}
-                  className="rounded-full border px-2.5 py-1 text-[11.5px] text-muted-foreground transition-colors hover:border-[var(--brand)] hover:text-foreground"
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {messages.map((m, i) =>
-          m.role === 'user' ? (
-            <div key={i} className="flex justify-end">
-              <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-[var(--brand)] px-3 py-2 text-sm text-white">
-                <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
-              </div>
-            </div>
-          ) : (
-            <div key={i} className="flex flex-col items-start gap-1.5">
-              {m.toolCards?.map((c, j) => (
-                <div key={j} className="w-[88%]">
-                  <ToolResultCard data={c} />
-                </div>
-              ))}
-              {m.content && (
-                <div className="max-w-[88%] rounded-2xl rounded-bl-sm border bg-[var(--surface-1)] px-3 py-2 text-sm">
-                  <ChatMarkdown content={m.content} />
-                </div>
-              )}
-            </div>
-          ),
-        )}
-        {streaming && streamingCards.length > 0 && (
-          <div className="flex flex-col items-start gap-1.5">
-            {streamingCards.map((c, j) => (
-              <div key={j} className="w-[88%]">
-                <ToolResultCard data={c} />
-              </div>
-            ))}
-          </div>
-        )}
-        {streaming && streamingText && (
-          <div className="flex justify-start">
-            <div className="max-w-[85%] rounded-2xl rounded-bl-sm border bg-[var(--surface-1)] px-3 py-2 text-sm">
-              <ChatMarkdown content={streamingText} />
-            </div>
-          </div>
-        )}
-        {streaming && (
-          <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
-            {!streamingText && <Loader2 className="size-3.5 animate-spin" />}
-            {!streamingText &&
-              (currentTool ? (TOOL_LABELS[currentTool] ?? t('thinking')) : t('thinking'))}
-            <button
-              type="button"
-              onClick={() => abortRef.current?.abort()}
-              className="ml-auto flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] hover:border-[var(--danger)] hover:text-[var(--danger)]"
-            >
-              <Square className="size-3" />
-              {t('stop')}
-            </button>
-          </div>
-        )}
-        {error && <p className="text-[12px] text-[var(--danger)]">{error}</p>}
-      </div>
-
-      {pending && !streaming && (
-        <div className="border-t bg-amber-50 px-3 py-2 dark:bg-amber-950/30">
-          <p className="text-[12px] font-medium text-amber-800 dark:text-amber-300">
-            {t('confirmTitle')}
+      {historyOpen ? (
+        <div className="flex-1 overflow-y-auto p-2">
+          <p className="px-1 py-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {t('historyTitle')}
           </p>
-          <ul className="mt-1 space-y-0.5">
-            {pending.map((p, i) => (
-              <li key={i} className="text-[12px] text-amber-900 dark:text-amber-200">
-                • {p.summary}
-              </li>
-            ))}
-          </ul>
-          <div className="mt-2 flex gap-2">
-            <Button size="sm" onClick={() => void send(t('confirmReply'), true)}>
-              <Check className="size-3.5" />
-              {t('confirm')}
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => setPending(null)}>
-              {t('cancel')}
-            </Button>
-          </div>
+          {conversations === null ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : conversations.length === 0 ? (
+            <p className="px-1 py-6 text-center text-[12px] text-muted-foreground">
+              {t('historyEmpty')}
+            </p>
+          ) : (
+            <ul className="space-y-0.5">
+              {conversations.map((c) => (
+                <li key={c.id} className="group flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => void openConversation(c.id)}
+                    className={`flex-1 truncate rounded-md px-2 py-1.5 text-left text-[13px] hover:bg-[var(--surface-1)] ${
+                      c.id === conversationId ? 'bg-[var(--surface-1)] font-medium' : ''
+                    }`}
+                  >
+                    {c.title}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('delete')}
+                    onClick={() => void deleteConversation(c.id)}
+                    className="shrink-0 rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:text-[var(--danger)] group-hover:opacity-100"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-      )}
+      ) : (
+        <>
+          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-3">
+            {messages.length === 0 && !streaming && (
+              <div className="flex h-full flex-col items-center justify-center px-2 text-center">
+                <Sparkles className="mb-2 size-8 text-[var(--brand)] opacity-70" />
+                <p className="text-sm font-medium">{t('emptyTitle')}</p>
+                <p className="mt-1 text-[12px] text-muted-foreground">{t('emptyHint')}</p>
+                <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+                  {SKILLS.map((s) => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => void send(s.prompt)}
+                      className="rounded-full border px-2.5 py-1 text-[11.5px] text-muted-foreground transition-colors hover:border-[var(--brand)] hover:text-foreground"
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {messages.map((m, i) =>
+              m.role === 'user' ? (
+                <div key={i} className="flex justify-end">
+                  <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-[var(--brand)] px-3 py-2 text-sm text-white">
+                    <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
+                  </div>
+                </div>
+              ) : (
+                <div key={i} className="flex flex-col items-start gap-1.5">
+                  {m.toolCards?.map((c, j) => (
+                    <div key={j} className="w-[88%]">
+                      <ToolResultCard data={c} />
+                    </div>
+                  ))}
+                  {m.content && (
+                    <div className="max-w-[88%] rounded-2xl rounded-bl-sm border bg-[var(--surface-1)] px-3 py-2 text-sm">
+                      <ChatMarkdown content={m.content} />
+                    </div>
+                  )}
+                </div>
+              ),
+            )}
+            {streaming && streamingCards.length > 0 && (
+              <div className="flex flex-col items-start gap-1.5">
+                {streamingCards.map((c, j) => (
+                  <div key={j} className="w-[88%]">
+                    <ToolResultCard data={c} />
+                  </div>
+                ))}
+              </div>
+            )}
+            {streaming && streamingText && (
+              <div className="flex justify-start">
+                <div className="max-w-[85%] rounded-2xl rounded-bl-sm border bg-[var(--surface-1)] px-3 py-2 text-sm">
+                  <ChatMarkdown content={streamingText} />
+                </div>
+              </div>
+            )}
+            {streaming && (
+              <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+                {!streamingText && <Loader2 className="size-3.5 animate-spin" />}
+                {!streamingText &&
+                  (currentTool ? (TOOL_LABELS[currentTool] ?? t('thinking')) : t('thinking'))}
+                <button
+                  type="button"
+                  onClick={() => abortRef.current?.abort()}
+                  className="ml-auto flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] hover:border-[var(--danger)] hover:text-[var(--danger)]"
+                >
+                  <Square className="size-3" />
+                  {t('stop')}
+                </button>
+              </div>
+            )}
+            {error && <p className="text-[12px] text-[var(--danger)]">{error}</p>}
+          </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void send(input);
-        }}
-        className="flex items-center gap-2 border-t p-2.5"
-      >
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={t('placeholder')}
-          aria-label={t('placeholder')}
-          disabled={streaming}
-        />
-        <Button type="submit" size="icon" disabled={streaming || !input.trim()}>
-          {streaming ? <Loader2 className="animate-spin" /> : <Send className="size-4" />}
-        </Button>
-      </form>
-      <p className="px-3 pb-2 text-[10px] text-muted-foreground">{t('disclaimer')}</p>
+          {pending && !streaming && (
+            <div className="border-t bg-amber-50 px-3 py-2 dark:bg-amber-950/30">
+              <p className="text-[12px] font-medium text-amber-800 dark:text-amber-300">
+                {t('confirmTitle')}
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {pending.map((p, i) => (
+                  <li key={i} className="text-[12px] text-amber-900 dark:text-amber-200">
+                    • {p.summary}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" onClick={() => void send(t('confirmReply'), true)}>
+                  <Check className="size-3.5" />
+                  {t('confirm')}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setPending(null)}>
+                  {t('cancel')}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void send(input);
+            }}
+            className="flex items-center gap-2 border-t p-2.5"
+          >
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={t('placeholder')}
+              aria-label={t('placeholder')}
+              disabled={streaming}
+            />
+            <Button type="submit" size="icon" disabled={streaming || !input.trim()}>
+              {streaming ? <Loader2 className="animate-spin" /> : <Send className="size-4" />}
+            </Button>
+          </form>
+          <p className="px-3 pb-2 text-[10px] text-muted-foreground">{t('disclaimer')}</p>
+        </>
+      )}
     </div>
   );
 }

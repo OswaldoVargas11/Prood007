@@ -804,6 +804,20 @@ export interface AgentResponse {
   pendingWrites: PendingWrite[];
 }
 
+/** Resumen de una conversación guardada con Zora (historial del dock). */
+export interface AiConversationSummary {
+  id: string;
+  title: string;
+  updatedAt: string;
+}
+
+/** Conversación con Zora restaurada desde el servidor (con sus mensajes). `meta` lleva la UI rica. */
+export interface AiConversationDetail {
+  id: string;
+  title: string;
+  messages: { role: 'user' | 'assistant'; content: string; meta: unknown }[];
+}
+
 export interface SemanticHit {
   kind: string;
   refId: string;
