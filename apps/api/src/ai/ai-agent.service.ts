@@ -3,7 +3,9 @@ import {
   AI_ENGINE,
   ClosingItemCategory,
   ClosingItemPhase,
+  FolderKind,
   Jurisdiction,
+  LeadStatus,
   MatterStatus,
   Role,
   TaskStatus,
@@ -35,6 +37,8 @@ import { DealService } from '../deal/deal.service';
 import { EngagementService } from '../engagement/engagement.service';
 import { CompanySecretaryService } from '../company-secretary/company-secretary.service';
 import { SettingsService } from '../settings/settings.service';
+import { DocumentPackagesService } from '../document-packages/document-packages.service';
+import { FoldersService } from '../folders/folders.service';
 import { AiSearchService } from './ai-search.service';
 import { AGENT_SYSTEM_PROMPT, selectAgentTools } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
@@ -97,6 +101,18 @@ const WRITE_TOOLS = new Set([
   'save_engagement_letter',
   'add_shareholder',
   'add_firm_holiday',
+  'change_matter_status',
+  'update_client_info',
+  'create_lead',
+  'reassign_task',
+  'create_saved_view',
+  'create_document_folder',
+  'update_checklist_item',
+  'link_document_to_data_room',
+  'add_data_room_group',
+  'revoke_data_room_grant',
+  'add_disclosure_schedule',
+  'add_corporate_minute',
 ]);
 const ACTIVE_MATTER_STATUSES = [MatterStatus.OPEN, MatterStatus.IN_PROGRESS];
 /** Tope de mensajes de historial que se reenvían al modelo (control de coste/contexto). */
@@ -134,6 +150,8 @@ export class AiAgentService {
     private readonly engagement: EngagementService,
     private readonly companySecretary: CompanySecretaryService,
     private readonly settings: SettingsService,
+    private readonly documentPackages: DocumentPackagesService,
+    private readonly folders: FoldersService,
     private readonly search: AiSearchService,
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
   ) {}
@@ -419,6 +437,46 @@ export class AiAgentService {
           return { content: await this.getFirmSettings(user) };
         case 'add_firm_holiday':
           return { content: await this.addFirmHoliday(user, inv.input) };
+        case 'change_matter_status':
+          return { content: await this.changeMattersStatus(user, inv.input) };
+        case 'update_client_info':
+          return { content: await this.updateClientInfo(user, inv.input) };
+        case 'export_client_gdpr':
+          return { content: await this.exportClientGdpr(user, inv.input) };
+        case 'list_leads':
+          return { content: await this.listLeads(user, inv.input) };
+        case 'create_lead':
+          return { content: await this.createLead(user, inv.input) };
+        case 'get_matter_team':
+          return { content: await this.getMatterTeam(user, inv.input) };
+        case 'reassign_task':
+          return { content: await this.reassignTask(user, inv.input) };
+        case 'create_saved_view':
+          return { content: await this.createSavedView(user, inv.input) };
+        case 'list_document_packages':
+          return { content: await this.listDocumentPackages(user) };
+        case 'list_document_folders':
+          return { content: await this.listDocumentFolders(user, inv.input) };
+        case 'create_document_folder':
+          return { content: await this.createDocumentFolder(user, inv.input) };
+        case 'update_checklist_item':
+          return { content: await this.updateChecklistItem(user, inv.input) };
+        case 'link_document_to_data_room':
+          return { content: await this.linkDocumentToDataRoom(user, inv.input) };
+        case 'add_data_room_group':
+          return { content: await this.addDataRoomGroup(user, inv.input) };
+        case 'revoke_data_room_grant':
+          return { content: await this.revokeDataRoomGrant(user, inv.input) };
+        case 'get_data_room_questions':
+          return { content: await this.getDataRoomQuestions(user, inv.input) };
+        case 'get_data_room_access_log':
+          return { content: await this.getDataRoomAccessLog(user, inv.input) };
+        case 'get_transaction_parties':
+          return { content: await this.getTransactionParties(user, inv.input) };
+        case 'add_disclosure_schedule':
+          return { content: await this.addDisclosureSchedule(user, inv.input) };
+        case 'add_corporate_minute':
+          return { content: await this.addCorporateMinute(user, inv.input) };
         default:
           return { content: `Herramienta desconocida: ${inv.name}`, isError: true };
       }
@@ -3678,6 +3736,1071 @@ export class AiAgentService {
       return json({ added: false, error: msg });
     }
   }
+
+  private async changeMattersStatus(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    const statusStr = str(input, 'status');
+
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+    if (
+      !statusStr ||
+      !['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'CLOSED', 'ARCHIVED'].includes(statusStr)
+    ) {
+      return json({
+        error: 'Estado no válido. Usa: OPEN, IN_PROGRESS, ON_HOLD, CLOSED o ARCHIVED.',
+      });
+    }
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true, reference: true, status: true },
+    });
+    if (!matter) {
+      return json({
+        changed: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    const nextStatus = statusStr as MatterStatus;
+    if (matter.status === nextStatus) {
+      return json({
+        changed: false,
+        status: nextStatus,
+        note: `El expediente ya está en estado ${nextStatus}; no es necesario cambiar.`,
+      });
+    }
+
+    try {
+      const updated = await this.matters.changeStatus(user, matter.id, nextStatus);
+      return json({
+        changed: true,
+        matterReference: updated.reference,
+        previousStatus: matter.status,
+        newStatus: updated.status,
+        closedAt: updated.closedAt ? updated.closedAt.toISOString().slice(0, 10) : null,
+        message: `Estado del expediente "${updated.reference}" cambió de ${matter.status} a ${updated.status}. El cambio ha sido registrado en la cronología.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('invalidTransition') || msg.includes('no permitida')) {
+        return json({
+          changed: false,
+          error: `Transición no permitida: ${matter.status} → ${nextStatus}. Verifica la máquina de estados del expediente.`,
+        });
+      }
+      return json({ changed: false, error: `No se pudo cambiar el estado: ${msg}` });
+    }
+  }
+
+  private async updateClientInfo(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const clientId = str(input, 'clientId');
+    if (!clientId) {
+      return json({ error: 'El ID del cliente es obligatorio.' });
+    }
+
+    const name = str(input, 'name');
+    if (name && name.length < 2) {
+      return json({ error: 'El nombre del cliente debe tener al menos 2 caracteres.' });
+    }
+
+    const email = str(input, 'email');
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return json({ error: 'El email no tiene un formato válido.' });
+    }
+
+    const phone = str(input, 'phone');
+    if (phone && phone.length > 40) {
+      return json({ error: 'El teléfono no puede exceder 40 caracteres.' });
+    }
+
+    const address = str(input, 'address');
+    if (address && address.length > 300) {
+      return json({ error: 'La dirección no puede exceder 300 caracteres.' });
+    }
+
+    const taxId = str(input, 'taxId');
+    const docTypeRaw = str(input, 'docType');
+    const docType = docTypeRaw === 'PASSPORT' || docTypeRaw === 'OTHER' ? docTypeRaw : undefined;
+
+    try {
+      const updated = await this.clients.update(user, clientId, {
+        name: name ? name.slice(0, 200) : undefined,
+        email,
+        phone: phone ? phone.slice(0, 40) : undefined,
+        address: address ? address.slice(0, 300) : undefined,
+        taxId,
+        docType: docType as any,
+      });
+
+      return json({
+        updated: true,
+        clientId: updated.id,
+        name: updated.name,
+        taxId: updated.taxId,
+        email: updated.email ?? null,
+        phone: updated.phone ?? null,
+        address: updated.address ?? null,
+        taxIdKind: updated.taxIdKind ?? null,
+        message: 'Datos del cliente actualizados exitosamente.',
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound') || msg.includes('Not found')) {
+        return json({
+          updated: false,
+          error: `El cliente con ID ${clientId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      if (msg.includes('invalid') || msg.includes('Invalid')) {
+        return json({
+          updated: false,
+          error:
+            'Identificador fiscal no válido en esta jurisdicción. Verifica el formato o tipo de documento.',
+        });
+      }
+      return json({
+        updated: false,
+        error: msg,
+      });
+    }
+  }
+
+  private async exportClientGdpr(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    // Validar FIRM_ADMIN
+    if (!user.roles.includes(Role.FIRM_ADMIN)) {
+      return json({
+        error: 'Solo administradores del despacho pueden exportar datos RGPD de clientes.',
+      });
+    }
+
+    const clientId = str(input, 'clientId');
+    if (!clientId) {
+      return json({ error: 'El ID del cliente es obligatorio.' });
+    }
+
+    try {
+      const exportData = await this.clients.gdprExport(user, clientId);
+      return json({
+        success: true,
+        export: exportData,
+        note: 'Exportación RGPD completada. El contenido binario de los documentos se descarga autenticado por separado.',
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('notFound')) {
+        return json({
+          error: `El cliente con ID ${clientId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async listLeads(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const status = str(input, 'status') as LeadStatus | undefined;
+    if (status && !['NEW', 'CONTACTED', 'QUALIFIED', 'CONVERTED', 'LOST'].includes(status)) {
+      return json({
+        error: 'Estado no válido. Elige uno de: NEW, CONTACTED, QUALIFIED, CONVERTED, LOST.',
+      });
+    }
+    const leads = await this.leads.list(user, status);
+    if (leads.length === 0)
+      return json({
+        count: 0,
+        status: status ?? 'all',
+        leads: [],
+        note: status ? `No hay leads en estado ${status}.` : 'No hay leads en el embudo.',
+      });
+    return json({
+      count: leads.length,
+      status: status ?? 'all',
+      leads: leads.map((l) => ({
+        id: l.id,
+        name: l.name,
+        email: l.email ?? null,
+        phone: l.phone ?? null,
+        company: l.company ?? null,
+        subject: l.subject ?? null,
+        status: l.status,
+        estimatedValue: l.estimatedValue ?? null,
+        assignedTo: l.assignedTo?.fullName ?? null,
+        source: l.source,
+        createdAt: l.createdAt.toISOString().slice(0, 10),
+      })),
+    });
+  }
+
+  private async createLead(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const name = str(input, 'name');
+    if (!name || name.length < 2) {
+      return json({ error: 'El nombre del prospecto debe tener al menos 2 caracteres.' });
+    }
+
+    const email = str(input, 'email');
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return json({ error: 'El email no tiene un formato válido.' });
+    }
+
+    const phone = str(input, 'phone');
+    if (phone && phone.length > 40) {
+      return json({ error: 'El teléfono no puede exceder 40 caracteres.' });
+    }
+
+    const company = str(input, 'company');
+    if (company && company.length > 200) {
+      return json({ error: 'La empresa no puede exceder 200 caracteres.' });
+    }
+
+    const subject = str(input, 'subject');
+    if (subject && subject.length > 500) {
+      return json({ error: 'El asunto no puede exceder 500 caracteres.' });
+    }
+
+    const notes = str(input, 'notes');
+    if (notes && notes.length > 2000) {
+      return json({ error: 'Las notas no pueden exceder 2000 caracteres.' });
+    }
+
+    const estimatedValueRaw = input.estimatedValue;
+    let estimatedValue: string | undefined;
+    if (estimatedValueRaw !== undefined && estimatedValueRaw !== null) {
+      const val = Number(estimatedValueRaw);
+      if (!Number.isFinite(val) || val < 0) {
+        return json({ error: 'El valor estimado debe ser un número positivo.' });
+      }
+      estimatedValue = String(val);
+    }
+
+    const source = str(input, 'source');
+    const assignedToId = str(input, 'assignedToId');
+
+    try {
+      const lead = await this.leads.create(user, {
+        name,
+        email,
+        phone,
+        company,
+        subject,
+        notes,
+        source,
+        estimatedValue,
+        assignedToId,
+      });
+
+      return json({
+        created: true,
+        leadId: lead.id,
+        name: lead.name,
+        status: lead.status,
+        email: lead.email ?? null,
+        phone: lead.phone ?? null,
+        company: lead.company ?? null,
+        subject: lead.subject ?? null,
+        estimatedValue: lead.estimatedValue ?? null,
+        assignedTo: lead.assignedTo?.fullName ?? null,
+        message: `Prospecto "${lead.name}" creado exitosamente${lead.assignedTo ? ` y asignado a ${lead.assignedTo.fullName}` : ''}. Puedes moverlo por el embudo según avance.`,
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('assigneeNotInFirm')) {
+        return json({
+          error: 'El letrado indicado no existe en tu despacho o no es accesible.',
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async getMatterTeam(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true, reference: true },
+    });
+    if (!matter) {
+      return json({
+        found: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    const team = await this.matters.getTeam(user, matter.id);
+    return json({
+      found: true,
+      reference: matterReference,
+      lead: team.lead ? { id: team.lead.id, name: team.lead.fullName } : null,
+      members: team.members.map((m) => ({ id: m.id, name: m.fullName })),
+      count: team.members.length,
+    });
+  }
+
+  private async reassignTask(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const taskId = str(input, 'taskId');
+    if (!taskId) {
+      return json({ error: 'El ID de la tarea es obligatorio.' });
+    }
+
+    const lawyerId = str(input, 'lawyerId');
+    if (!lawyerId) {
+      return json({ error: 'El ID del letrado receptor es obligatorio.' });
+    }
+
+    const reason = str(input, 'reason');
+
+    // Obtener la tarea actual (valida tenantId y existencia)
+    let task;
+    try {
+      task = await this.tasks.findOne(user, taskId);
+    } catch (e) {
+      return json({
+        error: (e as Error).message?.includes('notFound')
+          ? `La tarea con ID ${taskId} no existe o no es accesible en tu despacho.`
+          : (e as Error).message,
+      });
+    }
+
+    // Validar que el nuevo asignado existe en el tenant y tiene rol de letrado
+    const lawyer = await this.prisma.user.findFirst({
+      where: {
+        id: lawyerId,
+        tenantId: user.tenantId,
+        isActive: true,
+        roles: { some: { role: { code: { in: [Role.LAWYER, Role.FIRM_ADMIN] } } } },
+      },
+      select: { id: true, fullName: true },
+    });
+
+    if (!lawyer) {
+      return json({
+        error: `El letrado con ID ${lawyerId} no existe, está inactivo, o no tiene permisos de LAWYER/ADMIN en tu despacho.`,
+      });
+    }
+
+    // Si la tarea ya está asignada al mismo letrado, no hacer nada
+    if (task.assigneeId === lawyerId) {
+      return json({
+        reassigned: false,
+        note: `La tarea ya está asignada a ${lawyer.fullName}; no se realizó cambio.`,
+      });
+    }
+
+    try {
+      // Obtener el nombre del antiguo asignado (si existe)
+      let oldAssigneeName: string | null = null;
+      if (task.assigneeId) {
+        const oldAssignee = await this.prisma.user.findUnique({
+          where: { id: task.assigneeId },
+          select: { fullName: true },
+        });
+        oldAssigneeName = oldAssignee?.fullName ?? null;
+      }
+
+      // Reasignar mediante TasksService.update (que valida tenant e historial)
+      const updated = await this.tasks.update(user, taskId, {
+        assigneeId: lawyerId,
+      });
+
+      // Log de auditoría con la razón si se proporciona
+      if (reason) {
+        await this.audit
+          .log(user, 'task.reassigned', 'Task', taskId, {
+            reason,
+            fromAssignee: oldAssigneeName ?? null,
+            toAssignee: lawyer.fullName,
+          })
+          .catch(() => undefined);
+      } else {
+        await this.audit
+          .log(user, 'task.reassigned', 'Task', taskId, {
+            fromAssignee: oldAssigneeName ?? null,
+            toAssignee: lawyer.fullName,
+          })
+          .catch(() => undefined);
+      }
+
+      return json({
+        reassigned: true,
+        taskId: updated.id,
+        title: updated.title,
+        fromAssignee: oldAssigneeName ?? '(sin asignar)',
+        toAssignee: lawyer.fullName,
+        reason: reason ?? null,
+        message: `Tarea "${updated.title}" reasignada de ${oldAssigneeName ?? '(sin asignar)'} a ${lawyer.fullName}${reason ? `. Motivo: ${reason}` : ''}.`,
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('notFound')) {
+        return json({
+          error: `La tarea no existe o no es accesible en tu despacho.`,
+        });
+      }
+      if (message.includes('assigneeNotInFirm')) {
+        return json({
+          error: `El letrado ${lawyerId} no pertenece a tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async createSavedView(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const scope = str(input, 'scope');
+    if (!scope || !['invoices', 'tasks', 'matters'].includes(scope)) {
+      return json({ error: 'Ámbito no válido. Elige uno de: invoices, tasks, matters.' });
+    }
+
+    const name = str(input, 'name');
+    if (!name || name.length < 1) {
+      return json({ error: 'El nombre de la vista es obligatorio (mínimo 1 carácter).' });
+    }
+    if (name.length > 80) {
+      return json({ error: 'El nombre no puede exceder 80 caracteres.' });
+    }
+
+    const filters = input.filters;
+    if (!filters || typeof filters !== 'object') {
+      return json({ error: 'Los filtros son obligatorios y deben ser un objeto JSON válido.' });
+    }
+
+    try {
+      const savedView = await this.savedViews.create(user, {
+        scope: scope as 'invoices' | 'tasks' | 'matters',
+        name,
+        filters: filters as Record<string, unknown>,
+      });
+
+      return json({
+        created: true,
+        viewId: savedView.id,
+        name: savedView.name,
+        scope: savedView.scope,
+        createdAt: savedView.createdAt.toISOString().slice(0, 10),
+        message: `Vista "${savedView.name}" guardada exitosamente. Puedes acceder a ella desde el listado de vistas guardadas en "${scope}".`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      return json({ created: false, error: msg });
+    }
+  }
+
+  private async listDocumentPackages(user: RequestUser): Promise<string> {
+    const packages = await this.documentPackages.list();
+    if (packages.length === 0)
+      return json({
+        count: 0,
+        packages: [],
+        note: 'No hay paquetes de plantillas configurados en el despacho.',
+      });
+    return json({
+      count: packages.length,
+      packages: packages.map((p) => ({
+        id: p.id,
+        name: p.name,
+        templateIds: p.templateIds ?? [],
+        templateCount: (p.templateIds ?? []).length,
+      })),
+    });
+  }
+
+  private async listDocumentFolders(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true, reference: true },
+    });
+    if (!matter) {
+      return json({
+        found: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    const folders = await this.folders.list(user, FolderKind.DOCUMENT, matter.id);
+    if (folders.length === 0) {
+      return json({
+        found: true,
+        matter: matterReference,
+        count: 0,
+        folders: [],
+        note: 'No hay carpetas personalizadas en este expediente. Los documentos se guardarán en la raíz.',
+      });
+    }
+
+    return json({
+      found: true,
+      matter: matterReference,
+      count: folders.length,
+      folders: folders.map((f) => ({
+        id: f.id,
+        name: f.name,
+        parentId: f.parentId ?? null,
+        kind: f.kind,
+      })),
+      note: 'Árbol de carpetas del expediente. Usa parentId para reconstruir la jerarquía.',
+    });
+  }
+
+  private async createDocumentFolder(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    const name = str(input, 'name');
+
+    if (!matterReference) {
+      return json({ error: 'Falta la referencia del expediente.' });
+    }
+    if (!name || name.length < 1) {
+      return json({ error: 'El nombre de la carpeta es obligatorio (mínimo 1 carácter).' });
+    }
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        created: false,
+        note: `No existe expediente con referencia ${matterReference}; no se ha creado la carpeta.`,
+      });
+    }
+
+    const parentFolderId = str(input, 'parentFolderId');
+
+    try {
+      const folder = await this.folders.create(user, {
+        kind: FolderKind.DOCUMENT,
+        matterId: matter.id,
+        parentId: parentFolderId ?? undefined,
+        name: name.slice(0, 200),
+      });
+
+      return json({
+        created: true,
+        folderId: folder.id,
+        name: folder.name,
+        matter: matterReference,
+        kind: 'DOCUMENT',
+        parentFolderId: folder.parentId ?? null,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound') || msg.includes('notInFirm')) {
+        return json({
+          created: false,
+          error: 'Expediente no encontrado o no accesible.',
+        });
+      }
+      if (msg.includes('parentMismatch')) {
+        return json({
+          created: false,
+          error: 'La carpeta padre no es compatible (diferente expediente o tipo).',
+        });
+      }
+      return json({
+        created: false,
+        error: msg,
+      });
+    }
+  }
+
+  private async updateChecklistItem(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const itemId = str(input, 'itemId');
+    if (!itemId) {
+      return json({ error: 'El ID del ítem es obligatorio.' });
+    }
+
+    const status = str(input, 'status');
+    if (status && !['PENDING', 'UPLOADED', 'NA'].includes(status)) {
+      return json({
+        error: 'Estado no válido. Usa: PENDING, UPLOADED o NA.',
+      });
+    }
+
+    const documentId = input.documentId === null ? null : str(input, 'documentId');
+    if (
+      input.documentId !== undefined &&
+      typeof input.documentId !== 'string' &&
+      input.documentId !== null
+    ) {
+      return json({ error: 'documentId debe ser un string o null.' });
+    }
+
+    try {
+      const updated = await this.presentations.updateItem(user, itemId, {
+        status: status as any,
+        documentId,
+      });
+      if (!updated) return json({ updated: false, error: 'No se encontró el ítem del checklist.' });
+
+      return json({
+        updated: true,
+        itemId: updated.id,
+        name: updated.name,
+        status: updated.status,
+        documentId: updated.documentId ?? null,
+        required: updated.required,
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('itemNotFound')) {
+        return json({
+          error: `El ítem con ID ${itemId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      if (message.includes('documentMismatch')) {
+        return json({
+          error: 'El documento no pertenece al mismo expediente del ítem.',
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async linkDocumentToDataRoom(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const roomId = str(input, 'roomId');
+    if (!roomId) {
+      return json({ error: 'Falta el ID de la sala de datos.' });
+    }
+
+    const versionId = str(input, 'versionId');
+    if (!versionId) {
+      return json({ error: 'Falta el ID de la versión del documento a vincular.' });
+    }
+
+    const folderId = str(input, 'folderId');
+    const name = str(input, 'name');
+
+    try {
+      const result = await this.dataRoom.linkDocument(user, roomId, {
+        versionId,
+        folderId: folderId || undefined,
+        name: name ? name.slice(0, 200) : undefined,
+      });
+
+      return json({
+        linked: true,
+        roomId: result.id,
+        roomName: result.name,
+        documentCount: result.documents.length,
+        note: `Documento vinculado exitosamente al data room. Total de documentos en la sala: ${result.documents.length}.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('versionNotFound') || msg.includes('Version not found')) {
+        return json({
+          linked: false,
+          error: `La versión del documento con ID ${versionId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      if (msg.includes('folderNotFound') || msg.includes('Folder not found')) {
+        return json({
+          linked: false,
+          error: `La carpeta con ID ${folderId} no existe o no pertenece a esta sala de datos.`,
+        });
+      }
+      if (msg.includes('notFound') || msg.includes('DataRoom not found')) {
+        return json({
+          linked: false,
+          error: 'La sala de datos no existe o no es accesible en tu despacho.',
+        });
+      }
+      return json({ linked: false, error: msg });
+    }
+  }
+
+  private async addDataRoomGroup(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const roomId = str(input, 'roomId');
+    if (!roomId) return json({ error: 'Falta el ID de la sala de datos.' });
+
+    const name = str(input, 'name');
+    if (!name || name.length < 2) {
+      return json({ error: 'El nombre del grupo es obligatorio (mínimo 2 caracteres).' });
+    }
+    if (name.length > 160) {
+      return json({ error: 'El nombre del grupo no puede exceder 160 caracteres.' });
+    }
+
+    const folderIds = Array.isArray(input.folderIds)
+      ? (input.folderIds as string[]).filter((id) => typeof id === 'string' && id.trim().length > 0)
+      : [];
+
+    const canDownload = typeof input.canDownload === 'boolean' ? input.canDownload : true;
+
+    try {
+      const result = await this.dataRoom.addGroup(user, roomId, {
+        name: name.trim(),
+        folderIds: folderIds.length > 0 ? folderIds : undefined,
+        canDownload,
+      });
+
+      return json({
+        created: true,
+        groupName: name,
+        folderCount: folderIds.length,
+        canDownload,
+        note: `Grupo de permisos "${name}" creado exitosamente. Los grants (enlaces externos) pueden adscribirse a este grupo para heredar sus permisos de carpetas y descarga.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound')) {
+        return json({
+          created: false,
+          error: 'La sala de datos no existe o no es accesible en tu despacho.',
+        });
+      }
+      return json({ created: false, error: msg });
+    }
+  }
+
+  private async revokeDataRoomGrant(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const grantId = str(input, 'grantId');
+    if (!grantId) {
+      return json({ error: 'El ID del enlace de acceso es obligatorio.' });
+    }
+
+    try {
+      const room = await this.dataRoom.revokeGrant(user, grantId);
+      return json({
+        revoked: true,
+        grantId,
+        roomId: room.id,
+        roomName: room.name,
+        note: `Enlace de acceso revocado exitosamente. El usuario externo ha perdido acceso a ${room.name}.`,
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('notFound') || message.includes('grantNotFound')) {
+        return json({
+          revoked: false,
+          error: `El enlace de acceso con ID ${grantId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async getDataRoomQuestions(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const roomId = str(input, 'roomId');
+    if (!roomId) return json({ error: 'Falta el ID de la sala de datos.' });
+
+    try {
+      const questions = await this.dataRoom.listQuestions(user, roomId);
+      if (questions.length === 0) {
+        return json({
+          found: true,
+          roomId,
+          count: 0,
+          questions: [],
+          note: 'No hay preguntas de due diligence en esta sala.',
+        });
+      }
+
+      const pending = questions.filter((q) => q.status === 'PENDING').length;
+      const answered = questions.filter((q) => q.status === 'ANSWERED').length;
+
+      return json({
+        found: true,
+        roomId,
+        count: questions.length,
+        pending,
+        answered,
+        questions: questions.map((q) => ({
+          id: q.id,
+          askedByEmail: q.askedByEmail,
+          body: q.body,
+          answer: q.answer ?? null,
+          status: q.status,
+          documentId: q.documentId ?? null,
+          folderId: q.folderId ?? null,
+          createdAt: q.createdAt ? q.createdAt.toISOString().slice(0, 10) : null,
+          answeredAt: q.answeredAt ? q.answeredAt.toISOString().slice(0, 10) : null,
+        })),
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('notFound')) {
+        return json({
+          found: false,
+          error: `La sala de datos con ID ${roomId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async getDataRoomAccessLog(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const roomId = str(input, 'roomId');
+    if (!roomId) return json({ error: 'Falta el ID de la sala de datos.' });
+
+    try {
+      const logs = await this.dataRoom.listAccessLog(user, roomId);
+      if (logs.length === 0) {
+        return json({
+          found: true,
+          roomId,
+          count: 0,
+          logs: [],
+          note: 'No hay accesos registrados en esta sala de datos.',
+        });
+      }
+
+      return json({
+        found: true,
+        roomId,
+        count: logs.length,
+        logs: logs.map((l) => ({
+          id: l.id,
+          actorEmail: l.actorEmail,
+          action: l.action,
+          targetId: l.targetId ?? null,
+          ip: l.ip ?? null,
+          timestamp: l.createdAt ? l.createdAt.toISOString().slice(0, 19).replace('T', ' ') : null,
+        })),
+        note: `Últimos ${logs.length} accesos registrados en la sala. Acciones: VIEW_ROOM, DOWNLOAD, QUESTION, etc.`,
+      });
+    } catch (e) {
+      if ((e as Error).message?.includes('notFound')) {
+        return json({
+          found: false,
+          error: `La sala de datos con ID ${roomId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async getTransactionParties(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        found: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    const overview = await this.deal.overview(user, matter.id);
+
+    if (overview.parties.length === 0) {
+      return json({
+        found: true,
+        matter: matterReference,
+        count: 0,
+        parties: [],
+        note: 'No hay partes registradas en esta operación.',
+      });
+    }
+
+    return json({
+      found: true,
+      matter: matterReference,
+      count: overview.parties.length,
+      parties: overview.parties.map((p) => ({
+        id: p.id,
+        name: p.name,
+        side: p.side,
+        role: p.role,
+        organization: p.organization ?? null,
+        email: p.email ?? null,
+        phone: p.phone ?? null,
+        isDistribution: p.isDistribution,
+        notes: p.notes ?? null,
+      })),
+    });
+  }
+
+  private async addDisclosureSchedule(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    const number = str(input, 'number');
+    const title = str(input, 'title');
+    const body = str(input, 'body');
+    const repWarranty = str(input, 'repWarranty');
+    const documentId = str(input, 'documentId');
+    const status = str(input, 'status');
+
+    if (!matterReference) {
+      return json({ error: 'Falta la referencia del expediente de operación.' });
+    }
+    if (!number || number.length < 1) {
+      return json({
+        error: 'El número/código del schedule es obligatorio (máximo 40 caracteres).',
+      });
+    }
+    if (!title || title.length < 1) {
+      return json({ error: 'El título del schedule es obligatorio (máximo 300 caracteres).' });
+    }
+    if (!body || body.length < 1) {
+      return json({
+        error: 'La descripción del schedule es obligatoria (máximo 20000 caracteres).',
+      });
+    }
+    if (status && !['DRAFT', 'AGREED'].includes(status)) {
+      return json({
+        error: 'Estado no válido. Elige uno de: DRAFT o AGREED.',
+      });
+    }
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true, reference: true },
+    });
+    if (!matter) {
+      return json({
+        created: false,
+        note: `No existe expediente con referencia ${matterReference}; no se ha creado el disclosure schedule.`,
+      });
+    }
+
+    try {
+      const overview = await this.deal.addDisclosure(user, matter.id, {
+        number: number.slice(0, 40),
+        title: title.slice(0, 300),
+        body: body.slice(0, 20000),
+        repWarranty: repWarranty ? repWarranty.slice(0, 200) : undefined,
+        documentId: documentId ? documentId.slice(0, 60) : undefined,
+        status: status ?? 'DRAFT',
+      });
+
+      return json({
+        created: true,
+        matterReference: matter.reference,
+        number,
+        title,
+        status: status ?? 'DRAFT',
+        totalSchedules: overview.disclosureSchedules.length,
+        note: `Disclosure schedule "${number}: ${title}" creado en estado ${status ?? 'DRAFT'}. Se han registrado ${overview.disclosureSchedules.length} schedules en la operación.`,
+        overview: {
+          disclosureSchedules: overview.disclosureSchedules.map((d) => ({
+            number: d.number,
+            title: d.title,
+            status: d.status,
+            repWarranty: d.repWarranty,
+          })),
+        },
+      });
+    } catch (error) {
+      return json({
+        created: false,
+        error: `Error al crear el disclosure schedule: ${error instanceof Error ? error.message : 'Desconocido'}`,
+      });
+    }
+  }
+
+  private async addCorporateMinute(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const clientId = str(input, 'clientId');
+    if (!clientId) return json({ error: 'El ID de la sociedad es obligatorio.' });
+
+    const title = str(input, 'title');
+    if (!title || title.length < 2) {
+      return json({ error: 'El título del acta es obligatorio (mínimo 2 caracteres).' });
+    }
+
+    const meetingDateRaw = str(input, 'meetingDate');
+    if (!meetingDateRaw) {
+      return json({ error: 'La fecha de la junta es obligatoria (formato YYYY-MM-DD).' });
+    }
+    const meetingDate = new Date(meetingDateRaw);
+    if (Number.isNaN(meetingDate.getTime())) {
+      return json({ error: `Fecha no válida: ${meetingDateRaw}. Usa el formato YYYY-MM-DD.` });
+    }
+
+    const body = typeof input.body === 'string' ? input.body : '';
+    if (!body.trim() || body.trim().length === 0) {
+      return json({ error: 'El cuerpo del acta es obligatorio (mínimo 1 carácter).' });
+    }
+    if (body.length > 20000) {
+      return json({ error: 'El cuerpo del acta no puede exceder 20000 caracteres.' });
+    }
+
+    const kindRaw = str(input, 'kind');
+    const kind = kindRaw === 'BOARD' || kindRaw === 'OTHER' ? kindRaw : 'GENERAL_MEETING';
+
+    try {
+      const overview = await this.companySecretary.addMinute(user, clientId, {
+        kind,
+        title: title.slice(0, 200),
+        meetingDate: meetingDateRaw,
+        body,
+      });
+      return json({
+        created: true,
+        clientId,
+        minute: {
+          kind,
+          title: title.slice(0, 200),
+          meetingDate: meetingDateRaw,
+          bodyLength: body.length,
+        },
+        totalMinutes: overview.minutes.length,
+        message: `Acta de ${kind === 'GENERAL_MEETING' ? 'junta general' : kind === 'BOARD' ? 'junta directiva' : 'asamblea'} "${title}" registrada exitosamente. Total de actas en la sociedad: ${overview.minutes.length}.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound')) {
+        return json({
+          created: false,
+          error: 'La sociedad no existe o no es accesible en tu despacho.',
+        });
+      }
+      return json({
+        created: false,
+        error: msg,
+      });
+    }
+  }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────────────
@@ -3758,5 +4881,21 @@ function describeWrite(inv: AiToolInvocation): string {
   };
   const w3 = W3[inv.name];
   if (w3) return w3;
+  const W4: Record<string, string> = {
+    change_matter_status: `Cambiar el estado del expediente ${ref ?? ''} a "${str(inv.input, 'status') ?? ''}"`,
+    update_client_info: 'Actualizar los datos del cliente',
+    create_lead: 'Dar de alta un lead en el embudo',
+    reassign_task: 'Reasignar la tarea a otro letrado',
+    create_saved_view: 'Guardar una vista de filtros',
+    create_document_folder: `Crear una carpeta de documentos${ref ? ` en ${ref}` : ''}`,
+    update_checklist_item: 'Actualizar un ítem del checklist',
+    link_document_to_data_room: 'Vincular un documento al data room',
+    add_data_room_group: 'Crear un grupo de permisos en el data room',
+    revoke_data_room_grant: 'Revocar un acceso externo al data room',
+    add_disclosure_schedule: 'Añadir un disclosure schedule a la operación',
+    add_corporate_minute: 'Registrar un acta de junta',
+  };
+  const w4 = W4[inv.name];
+  if (w4) return w4;
   return inv.name;
 }
