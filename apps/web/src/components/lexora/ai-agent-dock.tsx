@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { ChatMarkdown } from './chat-markdown';
 
 type ChatMsg = { role: 'user' | 'assistant'; content: string; steps?: AgentStep[] };
-type StreamEvent = { type: string; tool?: string } & Partial<AgentResponse>;
+type StreamEvent = { type: string; tool?: string; delta?: string } & Partial<AgentResponse>;
 
 /** Etiquetas legibles del progreso por herramienta (thinking-traces) y de la traza posterior. */
 const TOOL_LABELS: Record<string, string> = {
@@ -96,6 +96,7 @@ export function AiAgentDock() {
   const [pending, setPending] = useState<PendingWrite[] | null>(null);
   const [streaming, setStreaming] = useState(false);
   const [currentTool, setCurrentTool] = useState<string | null>(null);
+  const [streamingText, setStreamingText] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -115,6 +116,7 @@ export function AiAgentDock() {
     setMessages((prev) => [...prev, { role: 'user', content: trimmed }]);
     setStreaming(true);
     setCurrentTool(null);
+    setStreamingText('');
     const controller = new AbortController();
     abortRef.current = controller;
     let final: AgentResponse | null = null;
@@ -127,7 +129,10 @@ export function AiAgentDock() {
           onEvent: (e) => {
             const ev = e as StreamEvent;
             if (ev.type === 'tool') setCurrentTool(ev.tool ?? null);
-            else if (ev.type === 'done') {
+            else if (ev.type === 'text') {
+              setCurrentTool(null);
+              setStreamingText((prev) => prev + (ev.delta ?? ''));
+            } else if (ev.type === 'done') {
               final = {
                 output: ev.output ?? '',
                 steps: ev.steps ?? [],
@@ -157,6 +162,7 @@ export function AiAgentDock() {
     } finally {
       setStreaming(false);
       setCurrentTool(null);
+      setStreamingText('');
       abortRef.current = null;
     }
   }
@@ -258,10 +264,18 @@ export function AiAgentDock() {
             </div>
           </div>
         ))}
+        {streaming && streamingText && (
+          <div className="flex justify-start">
+            <div className="max-w-[85%] rounded-2xl rounded-bl-sm border bg-[var(--surface-1)] px-3 py-2 text-sm">
+              <ChatMarkdown content={streamingText} />
+            </div>
+          </div>
+        )}
         {streaming && (
           <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" />
-            {currentTool ? (TOOL_LABELS[currentTool] ?? t('thinking')) : t('thinking')}
+            {!streamingText && <Loader2 className="size-3.5 animate-spin" />}
+            {!streamingText &&
+              (currentTool ? (TOOL_LABELS[currentTool] ?? t('thinking')) : t('thinking'))}
             <button
               type="button"
               onClick={() => abortRef.current?.abort()}

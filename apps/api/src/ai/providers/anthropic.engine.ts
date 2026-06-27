@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 import type {
+  AiAgentHooks,
   AiAgentRequest,
   AiAgentResult,
   AiAgentStep,
@@ -113,7 +114,11 @@ export class AnthropicEngine implements AiEngine {
    * `tool_result` y reitera, hasta una respuesta final o `maxSteps`. Acumula el coste real (tokens) de
    * TODAS las llamadas del turno para que la cuota lo contabilice (un turno = varias llamadas).
    */
-  async runAgent(req: AiAgentRequest, exec: AiToolExecutor): Promise<AiAgentResult> {
+  async runAgent(
+    req: AiAgentRequest,
+    exec: AiToolExecutor,
+    hooks?: AiAgentHooks,
+  ): Promise<AiAgentResult> {
     const maxTokens = Math.min(
       req.maxTokens ?? this.defaultMaxTokens,
       AnthropicEngine.HARD_MAX_TOKENS,
@@ -138,13 +143,18 @@ export class AnthropicEngine implements AiEngine {
     let model = this.modelId;
 
     for (let step = 0; step < maxSteps; step++) {
-      const res = await this.client.messages.create({
+      // Streaming bajo el capó: emite deltas de texto vía `hooks.onText` (efecto "escribiendo en vivo")
+      // y evita timeouts HTTP en respuestas largas. `finalMessage()` devuelve el mensaje completo igual
+      // que `create`, así que el resto del protocolo tool-use no cambia.
+      const stream = this.client.messages.stream({
         model: this.modelId,
         max_tokens: maxTokens,
         ...(system ? { system } : {}),
         tools,
         messages,
       });
+      if (hooks?.onText) stream.on('text', (delta) => hooks.onText!(delta));
+      const res = await stream.finalMessage();
       inputTokens += res.usage.input_tokens;
       outputTokens += res.usage.output_tokens;
       model = res.model;
@@ -191,12 +201,14 @@ export class AnthropicEngine implements AiEngine {
     }
 
     // Tope de pasos alcanzado: pide la respuesta final SIN herramientas para cerrar el turno limpiamente.
-    const final = await this.client.messages.create({
+    const finalStream = this.client.messages.stream({
       model: this.modelId,
       max_tokens: maxTokens,
       ...(system ? { system } : {}),
       messages,
     });
+    if (hooks?.onText) finalStream.on('text', (delta) => hooks.onText!(delta));
+    const final = await finalStream.finalMessage();
     inputTokens += final.usage.input_tokens;
     outputTokens += final.usage.output_tokens;
     model = final.model;
