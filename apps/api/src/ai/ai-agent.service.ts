@@ -23,7 +23,7 @@ import { PresentationsService } from '../presentations/presentations.service';
 import { ClausesService } from '../clauses/clauses.service';
 import { ClosingService } from '../closing/closing.service';
 import { AiSearchService } from './ai-search.service';
-import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS } from './ai-agent.tools';
+import { AGENT_SYSTEM_PROMPT, selectAgentTools } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -169,7 +169,11 @@ export class AiAgentService {
           system: AGENT_SYSTEM_PROMPT,
           userMessage: message,
           history: history.slice(-MAX_HISTORY_MESSAGES),
-          tools: AGENT_TOOLS,
+          // Exposición diferida: solo las tools relevantes al turno (el executor maneja todas igualmente).
+          tools: selectAgentTools(
+            message,
+            history.slice(-MAX_HISTORY_MESSAGES).map((m) => m.content),
+          ),
           maxSteps: 6,
         },
         exec,

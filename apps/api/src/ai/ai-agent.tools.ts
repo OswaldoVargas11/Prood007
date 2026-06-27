@@ -643,3 +643,81 @@ export const AGENT_SYSTEM_PROMPT = [
   '- NO puedes emitir facturas, cobrar, firmar ni enviar correos: si lo piden, dilo y deja que el letrado',
   '  lo haga.',
 ].join('\n');
+
+// ── Exposición diferida de herramientas ─────────────────────────────────────────────────────────────
+// El catálogo puede crecer mucho; enviar TODAS las definiciones en cada llamada encarece y degrada la
+// selección del modelo (recomendación Anthropic: >20-30 tools → cargar dinámicamente). Solución app-side:
+// el executor maneja TODAS las tools, pero cada turno solo se EXPONEN al modelo el núcleo (siempre) + las
+// áreas cotidianas + las áreas que el mensaje del usuario menciona. Las tools sin área mapeada se exponen
+// por defecto (seguro). Las áreas de nicho (cierre, deal, data room, secretaría…) solo cuando se piden.
+
+/** Herramientas SIEMPRE expuestas (las más comunes en cualquier conversación). */
+const CORE_TOOLS = new Set<string>([
+  'search_matters',
+  'get_matter',
+  'find_client',
+  'list_open_tasks',
+  'firm_overview',
+  'search_firm_knowledge',
+  'legal_research',
+  'create_task',
+  'draft_and_save_document',
+]);
+
+/** Área de cada herramienta (para exposición por intención). Tools sin entrada se exponen por defecto. */
+const TOOL_AREAS: Record<string, string> = {
+  search_matters: 'matters',
+  get_matter: 'matters',
+  get_matter_timeline: 'matters',
+  list_matters_by_status: 'matters',
+  list_stale_matters_report: 'matters',
+  create_matter: 'matters',
+  find_client: 'clients',
+  get_client_detail: 'clients',
+  check_conflict_of_interest: 'clients',
+  create_client: 'clients',
+  list_open_tasks: 'tasks',
+  get_task_detail: 'tasks',
+  create_task: 'tasks',
+  update_task_status: 'tasks',
+  extend_task_deadline: 'tasks',
+  list_documents: 'documents',
+  draft_and_save_document: 'documents',
+  list_templates: 'templates',
+  create_template: 'templates',
+  apply_presentation_to_matter: 'templates',
+  list_clauses: 'clauses',
+  get_closing_checklists: 'closing',
+};
+
+/** Áreas cotidianas: siempre disponibles aunque el mensaje no las nombre. */
+const DEFAULT_AREAS = new Set<string>(['matters', 'clients', 'tasks', 'documents', 'templates']);
+
+/** Palabras que activan un área de nicho cuando aparecen en el mensaje (o historial reciente). */
+const AREA_KEYWORDS: Record<string, string[]> = {
+  clauses: ['cláusula', 'clausula', 'clausulado'],
+  closing: ['cierre', 'closing', 'binder', 'condición precedente', 'condicion precedente'],
+  deal: ['operación', 'operacion', 'm&a', 'transacción', 'transaccion', 'hito', 'longstop'],
+  dataroom: ['data room', 'dataroom', 'sala de datos', 'due diligence', 'ddq'],
+  secretary: ['secretaría', 'secretaria', 'societaria', 'junta', 'acta', 'socio', 'accionista'],
+  leads: ['lead', 'prospecto', 'embudo', 'pipeline', 'captación', 'captacion'],
+  kyc: ['kyc', 'aml', 'blanqueo', 'pep', 'diligencia debida'],
+  registry: ['registro', 'registral'],
+};
+
+/**
+ * Subconjunto de herramientas a EXPONER al modelo en este turno: núcleo + áreas cotidianas + áreas de
+ * nicho mencionadas en el mensaje/historial. Reduce coste y mejora la precisión de selección cuando el
+ * catálogo es grande, sin perder capacidades (el executor las maneja todas igualmente).
+ */
+export function selectAgentTools(message: string, recent: string[] = []): AiToolDefinition[] {
+  const text = (message + ' ' + recent.join(' ')).toLowerCase();
+  const areas = new Set<string>(DEFAULT_AREAS);
+  for (const [area, kws] of Object.entries(AREA_KEYWORDS)) {
+    if (kws.some((k) => text.includes(k))) areas.add(area);
+  }
+  return AGENT_TOOLS.filter((t) => {
+    const area = TOOL_AREAS[t.name];
+    return CORE_TOOLS.has(t.name) || !area || areas.has(area);
+  });
+}
