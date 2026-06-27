@@ -3,6 +3,7 @@ import {
   AI_ENGINE,
   ClosingItemCategory,
   ClosingItemPhase,
+  ClosingItemStatus,
   FolderKind,
   Jurisdiction,
   LeadStatus,
@@ -113,6 +114,15 @@ const WRITE_TOOLS = new Set([
   'revoke_data_room_grant',
   'add_disclosure_schedule',
   'add_corporate_minute',
+  'assign_matter_lawyer',
+  'create_closing_checklist',
+  'update_closing_item',
+  'create_data_room',
+  'add_data_room_folder',
+  'add_registry_filing',
+  'add_share_transfer',
+  'add_registry_obligation',
+  'update_registry_obligation',
 ]);
 const ACTIVE_MATTER_STATUSES = [MatterStatus.OPEN, MatterStatus.IN_PROGRESS];
 /** Tope de mensajes de historial que se reenvían al modelo (control de coste/contexto). */
@@ -477,6 +487,34 @@ export class AiAgentService {
           return { content: await this.addDisclosureSchedule(user, inv.input) };
         case 'add_corporate_minute':
           return { content: await this.addCorporateMinute(user, inv.input) };
+        case 'assign_matter_lawyer':
+          return { content: await this.assignMatterLawyer(user, inv.input) };
+        case 'get_kyc_summary':
+          return { content: await this.getKycSummary(user) };
+        case 'get_template_detail':
+          return { content: await this.getTemplateDetail(user, inv.input) };
+        case 'get_closing_checklist_detail':
+          return { content: await this.getClosingChecklistDetail(user, inv.input) };
+        case 'create_closing_checklist':
+          return { content: await this.createClosingChecklist(user, inv.input) };
+        case 'update_closing_item':
+          return { content: await this.updateClosingItem(user, inv.input) };
+        case 'get_data_room':
+          return { content: await this.getDataRoom(user, inv.input) };
+        case 'create_data_room':
+          return { content: await this.createDataRoom(user, inv.input) };
+        case 'add_data_room_folder':
+          return { content: await this.addDataRoomFolder(user, inv.input) };
+        case 'get_disclosure_schedules':
+          return { content: await this.getDisclosureSchedules(user, inv.input) };
+        case 'add_registry_filing':
+          return { content: await this.addRegistryFiling(user, inv.input) };
+        case 'add_share_transfer':
+          return { content: await this.addShareTransfer(user, inv.input) };
+        case 'add_registry_obligation':
+          return { content: await this.addRegistryObligation(user, inv.input) };
+        case 'update_registry_obligation':
+          return { content: await this.updateRegistryObligation(user, inv.input) };
         default:
           return { content: `Herramienta desconocida: ${inv.name}`, isError: true };
       }
@@ -4801,6 +4839,827 @@ export class AiAgentService {
       });
     }
   }
+
+  private async assignMatterLawyer(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    const lawyerId = str(input, 'lawyerId');
+
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true, reference: true },
+    });
+    if (!matter) {
+      return json({
+        assigned: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    const lawyerIdToAssign = lawyerId || null;
+
+    try {
+      const result = await this.matters.assignLawyer(user, matter.id, lawyerIdToAssign);
+      const lawyerName = result.lawyer?.fullName ?? '(sin asignar)';
+      return json({
+        assigned: true,
+        matterReference: result.reference,
+        lawyer: lawyerName,
+        message: `Letrado responsable del expediente ${result.reference} actualizado a: ${lawyerName}.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('ForbiddenException') || msg.includes('Admin')) {
+        return json({
+          assigned: false,
+          error: 'Solo el administrador del despacho puede asignar letrados.',
+        });
+      }
+      if (msg.includes('invalid') || msg.includes('Invalid')) {
+        return json({
+          assigned: false,
+          error: `Letrado no válido o sin permisos de LAWYER/FIRM_ADMIN en tu despacho.`,
+        });
+      }
+      return json({
+        assigned: false,
+        error: msg,
+      });
+    }
+  }
+
+  private async getKycSummary(user: RequestUser): Promise<string> {
+    const summary = await this.kyc.summary(user);
+    return json({
+      total: summary.total,
+      byStatus: summary.byStatus,
+      highRisk: summary.highRisk,
+      pep: summary.pep,
+    });
+  }
+
+  private async getTemplateDetail(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const templateId = str(input, 'templateId');
+    if (!templateId) return json({ error: 'Falta el ID de la plantilla.' });
+
+    const template = await this.templates.get(user, templateId);
+
+    return json({
+      found: true,
+      id: template.id,
+      name: template.name,
+      description: template.description ?? null,
+      body: template.body,
+      tokens: template.tokens ?? [],
+    });
+  }
+
+  private async getClosingChecklistDetail(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const checklistId = str(input, 'checklistId');
+    if (!checklistId) {
+      return json({ error: 'El ID del checklist es obligatorio.' });
+    }
+
+    try {
+      const checklist = await this.closing.getOne(user, checklistId);
+
+      return json({
+        found: true,
+        checklist: {
+          id: checklist.id,
+          matterId: checklist.matterId,
+          title: checklist.title,
+          signingDate: checklist.signingDate
+            ? checklist.signingDate.toISOString().slice(0, 10)
+            : null,
+          closingDate: checklist.closingDate
+            ? checklist.closingDate.toISOString().slice(0, 10)
+            : null,
+          longstopDate: checklist.longstopDate
+            ? checklist.longstopDate.toISOString().slice(0, 10)
+            : null,
+          items: checklist.items.map((item) => ({
+            id: item.id,
+            category: item.category,
+            title: item.title,
+            detail: item.detail,
+            status: item.status,
+            phase: item.phase,
+            inEscrow: item.inEscrow,
+            releasedAt: item.releasedAt ? item.releasedAt.toISOString().slice(0, 10) : null,
+            responsibleParty: item.responsibleParty,
+            assigneeId: item.assigneeId,
+            documentId: item.documentId,
+            dueDate: item.dueDate ? item.dueDate.toISOString().slice(0, 10) : null,
+            sortOrder: item.sortOrder,
+          })),
+        },
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound') || msg.includes('checklistNotFound')) {
+        return json({
+          found: false,
+          error: `No existe checklist con ID ${checklistId} en tu despacho.`,
+        });
+      }
+      return json({
+        found: false,
+        error: `No se pudo obtener el detalle del checklist: ${msg}`,
+      });
+    }
+  }
+
+  private async createClosingChecklist(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) {
+      return json({ error: 'La referencia del expediente es obligatoria.' });
+    }
+
+    const title = str(input, 'title');
+    if (!title || title.length < 2) {
+      return json({ error: 'El título del checklist es obligatorio (mínimo 2 caracteres).' });
+    }
+
+    const templateKey = str(input, 'templateKey');
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true, reference: true },
+    });
+    if (!matter) {
+      return json({
+        created: false,
+        note: `No existe expediente con referencia ${matterReference}; no se ha creado el checklist.`,
+      });
+    }
+
+    try {
+      const checklist = await this.closing.create(user, {
+        matterId: matter.id,
+        title: title.slice(0, 160),
+        templateKey,
+      });
+
+      return json({
+        created: true,
+        checklistId: checklist.id,
+        matter: matterReference,
+        title: checklist.title,
+        itemCount: checklist.items.length,
+        template: templateKey ?? null,
+        note: `Checklist de cierre creado exitosamente en ${matterReference}${templateKey ? ` con plantilla ${templateKey}` : ' (vacío)'}. Total de partidas precargadas: ${checklist.items.length}.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound') || msg.includes('notInFirm')) {
+        return json({
+          created: false,
+          error: `El expediente ${matterReference} no pertenece a tu despacho.`,
+        });
+      }
+      return json({
+        created: false,
+        error: `No se pudo crear el checklist: ${msg}`,
+      });
+    }
+  }
+
+  private async updateClosingItem(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const itemId = str(input, 'itemId');
+    if (!itemId) {
+      return json({ error: 'El ID de la partida es obligatorio.' });
+    }
+
+    const status = str(input, 'status');
+    if (status && !['PENDING', 'SATISFIED', 'WAIVED'].includes(status)) {
+      return json({
+        error: 'Estado no válido. Usa: PENDING, SATISFIED o WAIVED.',
+      });
+    }
+
+    const category = str(input, 'category');
+    if (
+      category &&
+      !['CONDITION_PRECEDENT', 'DELIVERABLE', 'SIGNATURE_PAGE', 'OTHER'].includes(category)
+    ) {
+      return json({
+        error:
+          'Categoría no válida. Elige una de: CONDITION_PRECEDENT, DELIVERABLE, SIGNATURE_PAGE, OTHER.',
+      });
+    }
+
+    const title = str(input, 'title');
+    if (title && title.length < 2) {
+      return json({ error: 'El título debe tener al menos 2 caracteres.' });
+    }
+
+    const detail = str(input, 'detail');
+    if (detail && detail.length > 2000) {
+      return json({ error: 'El detalle no puede exceder 2000 caracteres.' });
+    }
+
+    const responsibleParty = str(input, 'responsibleParty');
+    if (responsibleParty && responsibleParty.length > 120) {
+      return json({ error: 'La parte responsable no puede exceder 120 caracteres.' });
+    }
+
+    const assigneeId = str(input, 'assigneeId');
+    const documentId = str(input, 'documentId');
+
+    const phaseRaw = str(input, 'phase');
+    const phase = (Object.values(ClosingItemPhase) as string[]).includes(phaseRaw ?? '')
+      ? (phaseRaw as ClosingItemPhase)
+      : undefined;
+
+    const dueRaw = str(input, 'dueDate');
+    let dueDate: string | undefined;
+    if (dueRaw) {
+      const d = new Date(dueRaw);
+      if (Number.isNaN(d.getTime())) {
+        return json({
+          error: `Fecha de vencimiento no válida: ${dueRaw}. Usa el formato YYYY-MM-DD.`,
+        });
+      }
+      dueDate = d.toISOString();
+    }
+
+    const inEscrow = typeof input.inEscrow === 'boolean' ? input.inEscrow : undefined;
+    const sortOrder = typeof input.sortOrder === 'number' ? input.sortOrder : undefined;
+
+    try {
+      const updateDto: Record<string, unknown> = {};
+      if (status) updateDto.status = status as ClosingItemStatus;
+      if (category) updateDto.category = category as ClosingItemCategory;
+      if (phase) updateDto.phase = phase;
+      if (title !== undefined) updateDto.title = title.slice(0, 200);
+      if (detail !== undefined) updateDto.detail = detail.slice(0, 2000);
+      if (responsibleParty !== undefined) updateDto.responsibleParty = responsibleParty;
+      if (assigneeId !== undefined) updateDto.assigneeId = assigneeId;
+      if (documentId !== undefined) updateDto.documentId = documentId;
+      if (dueDate !== undefined) updateDto.dueDate = dueDate;
+      if (inEscrow !== undefined) updateDto.inEscrow = inEscrow;
+      if (sortOrder !== undefined) updateDto.sortOrder = sortOrder;
+
+      const checklist = await this.closing.updateItem(user, itemId, updateDto as never);
+
+      const item = checklist.items.find((i) => i.id === itemId);
+      if (!item) {
+        return json({
+          error: `No se encontró la partida ${itemId} en el checklist después de la actualización.`,
+        });
+      }
+
+      return json({
+        updated: true,
+        checklistId: checklist.id,
+        itemId: item.id,
+        title: item.title,
+        status: item.status,
+        category: item.category,
+        phase: item.phase ?? null,
+        inEscrow: item.inEscrow,
+        releasedAt: item.releasedAt ? item.releasedAt.toISOString().slice(0, 10) : null,
+        dueDate: item.dueDate ? item.dueDate.toISOString().slice(0, 10) : null,
+        note: `Partida actualizada en el checklist. Total de partidas: ${checklist.items.length}.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound') || msg.includes('itemNotFound')) {
+        return json({
+          updated: false,
+          error: `No existe partida con ID ${itemId} en tu despacho.`,
+        });
+      }
+      if (msg.includes('notInFirm') || msg.includes('assigneeNotInFirm')) {
+        return json({
+          updated: false,
+          error: 'El asignado o documento no pertenece a tu despacho.',
+        });
+      }
+      return json({
+        updated: false,
+        error: `No se pudo actualizar la partida: ${msg}`,
+      });
+    }
+  }
+
+  private async getDataRoom(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const dataRoomId = str(input, 'dataRoomId');
+    if (!dataRoomId) return json({ error: 'Falta el ID de la sala de datos.' });
+
+    try {
+      const room = await this.dataRoom.getOne(user, dataRoomId);
+
+      return json({
+        found: true,
+        id: room.id,
+        matterId: room.matterId,
+        name: room.name,
+        watermark: room.watermark,
+        status: room.status,
+        folderCount: room.folders.length,
+        folders: room.folders.map((f) => ({
+          id: f.id,
+          name: f.name,
+          parentId: f.parentId ?? null,
+          sortOrder: f.sortOrder,
+        })),
+        documentCount: room.documents.length,
+        documents: room.documents.map((d) => ({
+          id: d.id,
+          name: d.name,
+          folderId: d.folderId ?? null,
+          mimeType: d.mimeType,
+          sizeBytes: d.sizeBytes,
+          createdAt: d.createdAt ? d.createdAt.toISOString().slice(0, 10) : null,
+        })),
+        groupCount: room.groups.length,
+        groups: room.groups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          folderIds: g.folderIds ?? [],
+          canDownload: g.canDownload,
+        })),
+        grantCount: room.grants.length,
+        grants: room.grants.map((gr) => ({
+          id: gr.id,
+          email: gr.email,
+          name: gr.name ?? null,
+          role: gr.role ?? null,
+          groupId: gr.groupId ?? null,
+          canDownload: gr.canDownload,
+          folderIds: gr.folderIds ?? [],
+          expiresAt: gr.expiresAt ? gr.expiresAt.toISOString().slice(0, 10) : null,
+          revokedAt: gr.revokedAt ? gr.revokedAt.toISOString().slice(0, 10) : null,
+          lastAccessAt: gr.lastAccessAt ? gr.lastAccessAt.toISOString().slice(0, 19) : null,
+          createdAt: gr.createdAt ? gr.createdAt.toISOString().slice(0, 10) : null,
+        })),
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('notFound')) {
+        return json({
+          found: false,
+          error: `La sala de datos con ID ${dataRoomId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async createDataRoom(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) {
+      return json({ error: 'La referencia del expediente es obligatoria.' });
+    }
+
+    const name = str(input, 'name');
+    if (!name || name.length < 2) {
+      return json({ error: 'El nombre de la sala es obligatorio (mínimo 2 caracteres).' });
+    }
+    if (name.length > 160) {
+      return json({ error: 'El nombre de la sala no puede exceder 160 caracteres.' });
+    }
+
+    const watermark = typeof input.watermark === 'boolean' ? input.watermark : true;
+
+    try {
+      const matter = await this.prisma.matter.findFirst({
+        where: { tenantId: user.tenantId, reference: matterReference },
+        select: { id: true },
+      });
+      if (!matter) {
+        return json({
+          created: false,
+          error: `No existe expediente con referencia ${matterReference}; no se ha creado el data room.`,
+        });
+      }
+
+      const room = await this.dataRoom.create(user, {
+        matterId: matter.id,
+        name: name.trim(),
+        watermark,
+      });
+
+      return json({
+        created: true,
+        roomId: room.id,
+        name: room.name,
+        watermark: room.watermark,
+        matterReference,
+        note: `Data room "${room.name}" creado exitosamente en el expediente ${matterReference}. Ahora puedes añadir documentos, crear grupos de permisos y generar enlaces para terceros.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      return json({ created: false, error: msg });
+    }
+  }
+
+  private async addDataRoomFolder(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const roomId = str(input, 'roomId');
+    if (!roomId) return json({ error: 'Falta el ID del data room.' });
+
+    const name = str(input, 'name');
+    if (!name || name.length < 1) {
+      return json({ error: 'El nombre de la carpeta es obligatorio (mínimo 1 carácter).' });
+    }
+    if (name.length > 160) {
+      return json({ error: 'El nombre de la carpeta no puede exceder 160 caracteres.' });
+    }
+
+    const parentId = str(input, 'parentId');
+
+    try {
+      const result = await this.dataRoom.addFolder(user, roomId, {
+        name: name.trim(),
+        parentId: parentId || undefined,
+      });
+
+      return json({
+        created: true,
+        folderName: name,
+        roomId,
+        parentId: parentId || null,
+        note: `Carpeta "${name}" creada exitosamente en el data room. Puedes anidar más carpetas bajo esta o vincular documentos.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound')) {
+        return json({
+          created: false,
+          error: 'El data room no existe o no es accesible en tu despacho.',
+        });
+      }
+      return json({ created: false, error: msg });
+    }
+  }
+
+  private async getDisclosureSchedules(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        found: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    const overview = await this.deal.overview(user, matter.id);
+
+    if (overview.disclosureSchedules.length === 0) {
+      return json({
+        found: true,
+        matter: matterReference,
+        count: 0,
+        schedules: [],
+        note: 'No hay disclosure schedules registrados en esta operación.',
+      });
+    }
+
+    return json({
+      found: true,
+      matter: matterReference,
+      count: overview.disclosureSchedules.length,
+      schedules: overview.disclosureSchedules.map((d) => ({
+        id: d.id,
+        number: d.number,
+        repWarranty: d.repWarranty ?? null,
+        title: d.title,
+        body: d.body ?? null,
+        status: d.status,
+        hasDocument: d.documentId !== null && d.documentId !== undefined,
+        documentId: d.documentId ?? null,
+      })),
+    });
+  }
+
+  private async addRegistryFiling(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) {
+      return json({ error: 'Falta la referencia del expediente de operación.' });
+    }
+
+    const title = str(input, 'title');
+    if (!title || title.length < 1) {
+      return json({
+        error: 'El título de la presentación registral es obligatorio (1-200 caracteres).',
+      });
+    }
+
+    const registry = str(input, 'registry');
+    if (
+      registry &&
+      ![
+        'REGISTRO_MERCANTIL',
+        'REGISTRO_PROPIEDAD',
+        'INDICE_UNICO_NOTARIAL',
+        'NOTARIA',
+        'REGISTRO_TITULOS_RD',
+        'CAMARA_COMERCIO_RD',
+        'OTHER',
+      ].includes(registry)
+    ) {
+      return json({
+        error:
+          'Tipo de registro no válido. Elige uno de: REGISTRO_MERCANTIL, REGISTRO_PROPIEDAD, INDICE_UNICO_NOTARIAL, NOTARIA, REGISTRO_TITULOS_RD, CAMARA_COMERCIO_RD, OTHER.',
+      });
+    }
+
+    const referenceCode = str(input, 'referenceCode');
+    const documentId = str(input, 'documentId');
+    const notes = str(input, 'notes');
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true, reference: true },
+    });
+    if (!matter) {
+      return json({
+        created: false,
+        note: `No existe expediente con referencia ${matterReference}; no se ha creado la presentación registral.`,
+      });
+    }
+
+    try {
+      const overview = await this.deal.addFiling(user, matter.id, {
+        registry: registry ?? 'OTHER',
+        title: title.slice(0, 200),
+        referenceCode: referenceCode ? referenceCode.slice(0, 120) : undefined,
+        documentId: documentId ? documentId.slice(0, 60) : undefined,
+        notes: notes ? notes.slice(0, 2000) : undefined,
+      });
+
+      return json({
+        created: true,
+        matterReference: matter.reference,
+        registry: registry ?? 'OTHER',
+        title,
+        status: 'PENDING',
+        referenceCode: referenceCode ?? null,
+        totalFilings: overview.registryFilings.length,
+        note: `Presentación registral "${title}" creada en la operación (tipo: ${registry ?? 'OTHER'}, estado: PENDING). Se han registrado ${overview.registryFilings.length} presentaciones en el expediente.`,
+        overview: {
+          registryFilings: overview.registryFilings.map((f) => ({
+            registry: f.registry,
+            title: f.title,
+            referenceCode: f.referenceCode,
+            status: f.status,
+          })),
+        },
+      });
+    } catch (error) {
+      return json({
+        created: false,
+        error: `Error al crear la presentación registral: ${error instanceof Error ? error.message : 'Desconocido'}`,
+      });
+    }
+  }
+
+  private async addShareTransfer(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const clientId = str(input, 'clientId');
+    if (!clientId) return json({ error: 'El ID de la sociedad es obligatorio.' });
+
+    const fromName = str(input, 'fromName');
+    const toName = str(input, 'toName');
+    if (!toName || toName.length < 1) {
+      return json({ error: 'El nombre del receptor es obligatorio (mínimo 1 carácter).' });
+    }
+
+    const unitsRaw = input.units;
+    const units =
+      typeof unitsRaw === 'number' && Number.isFinite(unitsRaw) ? Math.floor(unitsRaw) : undefined;
+    if (units === undefined || units < 1) {
+      return json({
+        error: 'Las unidades deben ser un número entero >= 1.',
+      });
+    }
+
+    const date = str(input, 'date');
+    if (!date) {
+      return json({ error: 'La fecha de transmisión es obligatoria (formato YYYY-MM-DD).' });
+    }
+
+    const note = str(input, 'note');
+
+    try {
+      const overview = await this.companySecretary.addTransfer(user, clientId, {
+        fromName: fromName ? fromName.slice(0, 200) : undefined,
+        toName: toName.slice(0, 200),
+        units,
+        date,
+        note: note ? note.slice(0, 2000) : undefined,
+      });
+      return json({
+        created: true,
+        clientId,
+        transfer: {
+          fromName: fromName ? fromName.slice(0, 200) : null,
+          toName: toName.slice(0, 200),
+          units,
+          date,
+          note: note ? note.slice(0, 2000) : null,
+        },
+        totalUnits: overview.totalUnits,
+        transferCount: overview.transfers.length,
+        message: `Transmisión de ${units} unidad(es) de ${fromName ? fromName : '(aportación)'} a "${toName}" registrada exitosamente el ${date}. Total de unidades en la sociedad: ${overview.totalUnits}.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound')) {
+        return json({
+          created: false,
+          error: 'La sociedad no existe o no es accesible en tu despacho.',
+        });
+      }
+      return json({
+        created: false,
+        error: msg,
+      });
+    }
+  }
+
+  private async addRegistryObligation(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const clientId = str(input, 'clientId');
+    if (!clientId) return json({ error: 'El ID de la sociedad es obligatorio.' });
+
+    const title = str(input, 'title');
+    if (!title || title.length < 2) {
+      return json({ error: 'El título de la obligación es obligatorio (mínimo 2 caracteres).' });
+    }
+
+    const dueDateRaw = str(input, 'dueDate');
+    if (!dueDateRaw) {
+      return json({ error: 'La fecha de vencimiento es obligatoria (formato YYYY-MM-DD).' });
+    }
+    const dueDate = new Date(dueDateRaw);
+    if (Number.isNaN(dueDate.getTime())) {
+      return json({ error: `Fecha no válida: ${dueDateRaw}. Usa el formato YYYY-MM-DD.` });
+    }
+
+    const registry = str(input, 'registry');
+    const referenceCode = str(input, 'referenceCode');
+    const recurrenceRaw = str(input, 'recurrence');
+    const recurrence = recurrenceRaw === 'ONCE' ? 'ONCE' : 'ANNUAL';
+
+    try {
+      const overview = await this.companySecretary.addObligation(user, clientId, {
+        registry: registry as any,
+        title: title.slice(0, 200),
+        referenceCode: referenceCode ? referenceCode.slice(0, 120) : undefined,
+        dueDate: dueDateRaw,
+        recurrence,
+      });
+      return json({
+        created: true,
+        clientId,
+        obligation: {
+          registry: registry ?? null,
+          title: title.slice(0, 200),
+          referenceCode: referenceCode ? referenceCode.slice(0, 120) : null,
+          dueDate: dueDateRaw,
+          recurrence,
+        },
+        totalObligations: overview.obligations.length,
+        message: `Obligación registral "${title}" registrada exitosamente con vencimiento ${dueDateRaw} y recurrencia ${recurrence === 'ANNUAL' ? 'anual' : 'única'}. Total de obligaciones en la sociedad: ${overview.obligations.length}.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound')) {
+        return json({
+          created: false,
+          error: 'La sociedad no existe o no es accesible en tu despacho.',
+        });
+      }
+      return json({
+        created: false,
+        error: msg,
+      });
+    }
+  }
+
+  private async updateRegistryObligation(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const obligationId = str(input, 'obligationId');
+    if (!obligationId) return json({ error: 'El ID de la obligación es obligatorio.' });
+
+    const registry = str(input, 'registry');
+    const registryValid = [
+      'REGISTRO_MERCANTIL',
+      'REGISTRO_PROPIEDAD',
+      'INDICE_UNICO_NOTARIAL',
+      'NOTARIA',
+      'REGISTRO_TITULOS_RD',
+      'CAMARA_COMERCIO_RD',
+      'OTHER',
+    ];
+    if (registry && !registryValid.includes(registry)) {
+      return json({ error: `Tipo de registro no válido: ${registry}` });
+    }
+
+    const title = str(input, 'title');
+    if (title && title.length < 2) {
+      return json({ error: 'El título debe tener al menos 2 caracteres.' });
+    }
+
+    const referenceCode = str(input, 'referenceCode');
+    if (referenceCode && referenceCode.length > 120) {
+      return json({ error: 'El código de referencia no puede exceder 120 caracteres.' });
+    }
+
+    const dueDateRaw = str(input, 'dueDate');
+    let dueDate: Date | undefined;
+    if (dueDateRaw) {
+      dueDate = new Date(dueDateRaw);
+      if (Number.isNaN(dueDate.getTime())) {
+        return json({ error: `Fecha no válida: ${dueDateRaw}. Usa el formato YYYY-MM-DD.` });
+      }
+    }
+
+    const recurrence = str(input, 'recurrence');
+    if (recurrence && !['NONE', 'ANNUAL'].includes(recurrence)) {
+      return json({ error: `Recurrencia no válida: ${recurrence}. Debe ser NONE o ANNUAL.` });
+    }
+
+    const status = str(input, 'status');
+    if (status && !['PENDING', 'FILED'].includes(status)) {
+      return json({ error: `Estado no válido: ${status}. Debe ser PENDING o FILED.` });
+    }
+
+    try {
+      const overview = await this.companySecretary.updateObligation(user, obligationId, {
+        ...(registry ? { registry } : {}),
+        ...(title ? { title } : {}),
+        ...(referenceCode !== undefined ? { referenceCode } : {}),
+        ...(dueDateRaw ? { dueDate: dueDateRaw } : {}),
+        ...(recurrence ? { recurrence } : {}),
+        ...(status ? { status } : {}),
+      });
+      return json({
+        updated: true,
+        obligationId,
+        obligation: {
+          title: title || '(sin cambios)',
+          registry: registry || '(sin cambios)',
+          status: status || '(sin cambios)',
+          dueDate: dueDateRaw || '(sin cambios)',
+          recurrence: recurrence || '(sin cambios)',
+        },
+        totalObligations: overview.obligations.length,
+        message: `Obligación registral actualizada exitosamente. Total de obligaciones en la sociedad: ${overview.obligations.length}.${status === 'FILED' && recurrence === 'ANNUAL' ? ' Se ha creado automáticamente la obligación del próximo año.' : ''}`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound')) {
+        return json({
+          updated: false,
+          error: 'La obligación no existe o no es accesible en tu despacho.',
+        });
+      }
+      return json({
+        updated: false,
+        error: msg,
+      });
+    }
+  }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────────────
@@ -4897,5 +5756,41 @@ function describeWrite(inv: AiToolInvocation): string {
   };
   const w4 = W4[inv.name];
   if (w4) return w4;
+  if (inv.name === 'assign_matter_lawyer') {
+    const ref = str(inv.input, 'matterReference');
+    const lawyerId = str(inv.input, 'lawyerId');
+    return `Asignar el letrado responsable del expediente ${ref ?? ''} a ${lawyerId ? `el letrado ${lawyerId}` : '(sin asignar)'}`;
+  }
+  if (inv.name === 'create_closing_checklist') {
+    const ref = str(inv.input, 'matterReference');
+    const title = str(inv.input, 'title');
+    const tpl = str(inv.input, 'templateKey');
+    return `Crear el checklist de cierre "${title}"${ref ? ` en ${ref}` : ''}${tpl ? ` (plantilla: ${tpl})` : ' (vacío)'}`;
+  }
+  if (inv.name === 'update_closing_item') {
+    const itemId = str(inv.input, 'itemId');
+    const status = str(inv.input, 'status');
+    return `Actualizar la partida ${itemId}${status ? ` a estado "${status}"` : ''}`;
+  }
+  if (inv.name === 'create_data_room') {
+    return `Crear el data room "${str(inv.input, 'name') ?? ''}" en ${str(inv.input, 'matterReference') ?? 'el expediente'}`;
+  }
+  if (inv.name === 'add_data_room_folder')
+    return `Crear una carpeta "${str(inv.input, 'name') ?? ''}" en el data room`;
+  if (inv.name === 'add_registry_filing') {
+    return `Registrar una presentación registral "${str(inv.input, 'title') ?? ''}" en ${str(inv.input, 'matterReference') ?? 'la operación'}`;
+  }
+  if (inv.name === 'add_share_transfer') {
+    const fromName = str(inv.input, 'fromName');
+    const toName = str(inv.input, 'toName');
+    const units = inv.input.units;
+    const date = str(inv.input, 'date');
+    return `Registrar una transmisión de ${units} unidad(es) de ${fromName || '(aportación)'} a "${toName}"${date ? ` el ${date}` : ''}`;
+  }
+  if (inv.name === 'add_registry_obligation') {
+    return `Registrar la obligación registral "${str(inv.input, 'title') ?? ''}" con vencimiento ${str(inv.input, 'dueDate') ?? '(fecha)'}`;
+  }
+  if (inv.name === 'update_registry_obligation')
+    return `Actualizar la obligación registral${str(inv.input, 'title') ? ` "${str(inv.input, 'title')}"` : ''} a estado "${str(inv.input, 'status') ?? ''}"`;
   return inv.name;
 }
