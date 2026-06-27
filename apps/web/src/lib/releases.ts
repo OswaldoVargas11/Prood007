@@ -9,7 +9,7 @@
  * usuario nota y le importa). `fixes` = correcciones de errores contadas EN SUPERFICIE (qué se arregló,
  * sin tecnicismos). Los cambios puramente técnicos (refactors, tests) se resumen en `improvements`.
  */
-export const CURRENT_VERSION = '0.3.0';
+export const CURRENT_VERSION = '1.0.0';
 
 export interface Release {
   version: string;
@@ -24,6 +24,32 @@ export interface Release {
 }
 
 export const RELEASES: Release[] = [
+  {
+    version: '1.0.0',
+    date: '2026-06-27',
+    highlights: [
+      'Zora, tu asistente con IA: conversa, entiende el estado de tu despacho y te ayuda de verdad — redacta documentos y crea clientes, expedientes y tareas, siempre pidiéndote confirmación antes de escribir. Responde en vivo (efecto "escribiendo"), puedes pararla en cualquier momento y recuerda vuestras conversaciones.',
+      'Resumen del día con IA en la pantalla de inicio: lo importante de hoy de un vistazo.',
+      'Módulo transaccional / M&A: sala de due diligence (data room) con marca de agua, permisos y preguntas-respuestas; cierre con generación del "closing binder", escrow, grupo de trabajo, calendario de la operación, disclosure schedules y registros por jurisdicción.',
+      'Secretaría de sociedades: actas, socios, transferencias de participaciones y obligaciones ante el Registro.',
+      'Captación de clientes: embudo de prospectos con conversión a cliente y hoja de encargo (alcance, honorarios y términos).',
+      'Chat interno del despacho: mensajería directa y canal general con presencia, reacciones, menciones y adjuntar documentos.',
+      'Expediente más potente: equipo multi-letrado, carpetas anidadas, tablero kanban para cambiar de estado arrastrando, pestañas agrupadas por afinidad, línea de tiempo y checklists por tipo de gestión (exportables a PDF).',
+      'Productividad: vistas guardadas (tus filtros), quick-add en la barra superior, avisos de expedientes sin actividad y de tiempo sin facturar, y rentabilidad por expediente y por letrado con gráficos.',
+      'Documentos: comparación y redline de versiones, ensamblado de varios documentos por paquetes de plantillas, biblioteca de cláusulas, plantillas de correo y búsqueda semántica por el contenido de los documentos.',
+      'Correo y Office: archiva correos al expediente con copia oculta (cuerpo y adjuntos), add-ins de Word y Outlook, auto-agenda de citas estilo Calendly y bandeja LexNET con cómputo de plazos.',
+      'Firma electrónica en lote e importación de archivos desde Google Drive, OneDrive y SharePoint.',
+      'Fiscal: e-CF (RD) con numeración por rangos autorizados y estado en cada factura, y Verifactu (ES) con certificado de firma por despacho — gestionados desde Ajustes.',
+      'Panel de inicio personalizable, app instalable (PWA) y dictado por voz.',
+    ],
+    fixes: [
+      'Alta de clientes sin duplicados: no se repite un cliente por el mismo NIF/RNC.',
+      'Suscripción más fiable: el cobro se registra una sola vez y tus funciones se activan según el plan contratado.',
+      'Quitados elementos duplicados en la pantalla de inicio (resumen del día y un botón de IA) y arreglado el archivado de correos.',
+    ],
+    improvements:
+      'Gran refuerzo de seguridad (auditorías y pentest de caja negra y white-box de junio 2026), observabilidad, tiempo real multi-instancia, mejor posicionamiento en buscadores y mejoras de rendimiento y accesibilidad.',
+  },
   {
     version: '0.3.0',
     date: '2026-06-20',
