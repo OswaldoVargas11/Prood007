@@ -1,5 +1,17 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, MaxLength, Min, Max, MinLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+  Max,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
 
 /** Pregunta libre sobre un expediente. */
 export class AskDto {
@@ -34,12 +46,29 @@ export class DraftEmailDto {
   matterId?: string;
 }
 
-/** Petición al asistente agéntico (tool-use): un mensaje en lenguaje natural sobre el despacho. */
+/** Un turno previo de la conversación (texto plano) para el modo multi-turno del asistente. */
+export class AgentMessageDto {
+  @IsIn(['user', 'assistant'])
+  role!: 'user' | 'assistant';
+
+  @IsString()
+  @MaxLength(8000)
+  content!: string;
+}
+
+/** Petición al asistente agéntico (tool-use): un mensaje + el historial previo (conversación multi-turno). */
 export class AgentDto {
   @IsString()
   @MinLength(2)
   @MaxLength(2000)
   message!: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(40)
+  @ValidateNested({ each: true })
+  @Type(() => AgentMessageDto)
+  history?: AgentMessageDto[];
 }
 
 /** Búsqueda semántica. */

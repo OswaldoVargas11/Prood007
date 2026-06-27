@@ -2,8 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import {
   AI_ENGINE,
   Jurisdiction,
+  MatterStatus,
   TaskStatus,
   type AiEngine,
+  type AiMessage,
   type AiToolExecutor,
   type AiToolInvocation,
   type AiToolOutcome,
@@ -28,6 +30,9 @@ export interface AiAgentResponse {
 }
 
 const OPEN_TASK_STATUSES = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
+const ACTIVE_MATTER_STATUSES = [MatterStatus.OPEN, MatterStatus.IN_PROGRESS];
+/** Tope de mensajes de historial que se reenvían al modelo (control de coste/contexto). */
+const MAX_HISTORY_MESSAGES = 20;
 
 /**
  * Asistente AGÉNTICO del despacho: a diferencia de los métodos one-shot de `AiService`, aquí el modelo
@@ -48,13 +53,26 @@ export class AiAgentService {
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
   ) {}
 
-  /** Ejecuta un turno agéntico para el usuario y devuelve la respuesta final + traza. */
-  async run(user: RequestUser, message: string): Promise<AiAgentResponse> {
+  /**
+   * Ejecuta un turno agéntico para el usuario y devuelve la respuesta final + traza. Acepta el historial
+   * de conversación previo (multi-turno); se acota a los últimos mensajes para controlar coste/contexto.
+   */
+  async run(
+    user: RequestUser,
+    message: string,
+    history: AiMessage[] = [],
+  ): Promise<AiAgentResponse> {
     await this.quota.consume(user);
 
     const exec: AiToolExecutor = (invocation) => this.execute(user, invocation);
     const result = await this.engine.runAgent(
-      { system: AGENT_SYSTEM_PROMPT, userMessage: message, tools: AGENT_TOOLS, maxSteps: 6 },
+      {
+        system: AGENT_SYSTEM_PROMPT,
+        userMessage: message,
+        history: history.slice(-MAX_HISTORY_MESSAGES),
+        tools: AGENT_TOOLS,
+        maxSteps: 6,
+      },
       exec,
     );
 
@@ -95,6 +113,8 @@ export class AiAgentService {
           return { content: await this.findClient(user, inv.input) };
         case 'list_documents':
           return { content: await this.listDocuments(user, inv.input) };
+        case 'firm_overview':
+          return { content: await this.firmOverview(user) };
         case 'legal_research':
           return { content: this.legalResearch(user, inv.input) };
         case 'create_task':
@@ -223,6 +243,27 @@ export class AiAgentService {
         matter: t.matter?.reference ?? null,
       })),
     });
+  }
+
+  /** Visión rápida del despacho: expedientes activos, tareas abiertas y plazos vencidos. */
+  private async firmOverview(user: RequestUser): Promise<string> {
+    const now = new Date();
+    const [activeMatters, openTasks, overdueTasks] = await Promise.all([
+      this.prisma.matter.count({
+        where: { tenantId: user.tenantId, status: { in: ACTIVE_MATTER_STATUSES } },
+      }),
+      this.prisma.task.count({
+        where: { tenantId: user.tenantId, status: { in: OPEN_TASK_STATUSES } },
+      }),
+      this.prisma.task.count({
+        where: {
+          tenantId: user.tenantId,
+          status: { in: OPEN_TASK_STATUSES },
+          dueDate: { lt: now },
+        },
+      }),
+    ]);
+    return json({ activeMatters, openTasks, overdueTasks });
   }
 
   private async findClient(user: RequestUser, input: Record<string, unknown>): Promise<string> {

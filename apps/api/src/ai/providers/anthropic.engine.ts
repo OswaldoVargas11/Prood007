@@ -128,7 +128,10 @@ export class AnthropicEngine implements AiEngine {
       ? [{ type: 'text' as const, text: req.system, cache_control: { type: 'ephemeral' as const } }]
       : undefined;
 
-    const messages: Anthropic.MessageParam[] = [{ role: 'user', content: req.userMessage }];
+    const messages: Anthropic.MessageParam[] = [
+      ...(req.history ?? []).map((m) => ({ role: m.role, content: m.content })),
+      { role: 'user' as const, content: req.userMessage },
+    ];
     const steps: AiAgentStep[] = [];
     let inputTokens = 0;
     let outputTokens = 0;

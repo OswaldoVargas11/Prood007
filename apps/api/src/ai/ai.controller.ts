@@ -89,7 +89,7 @@ export class AiController {
   @RequiresFeature('ai')
   @Post('agent')
   agentRun(@CurrentUser() user: RequestUser, @Body() dto: AgentDto) {
-    return this.agent.run(user, dto.message);
+    return this.agent.run(user, dto.message, dto.history);
   }
 
   /** Búsqueda semántica en lo indexado del despacho. (Avanzado: indexación/RAG.) */
