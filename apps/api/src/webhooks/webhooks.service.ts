@@ -3,7 +3,7 @@ import { createHmac, randomBytes } from 'node:crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { apiError } from '../common/api-messages';
-import { assertSafeWebhookUrl } from './webhook-url';
+import { assertSafeWebhookUrl, assertSafeWebhookUrlResolved } from './webhook-url';
 import { CreateWebhookDto } from './dto/create-webhook.dto';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -115,9 +115,9 @@ export class WebhooksService {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), DELIVERY_TIMEOUT_MS);
     try {
-      // Revalida la URL antes de enviar (defensa SSRF en profundidad: el endpoint pudo crearse antes de
-      // endurecer la validación, o la URL pudo manipularse).
-      assertSafeWebhookUrl(ep.url);
+      // Revalida la URL antes de enviar (defensa SSRF en profundidad), incluida la RESOLUCIÓN DNS: rechaza
+      // hosts públicos que resuelvan a IPs internas (DNS rebinding) y endpoints creados antes de endurecer.
+      await assertSafeWebhookUrlResolved(ep.url);
       const res = await fetch(ep.url, {
         method: 'POST',
         headers: {
