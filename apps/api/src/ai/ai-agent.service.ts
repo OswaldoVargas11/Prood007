@@ -5,6 +5,7 @@ import {
   MatterStatus,
   Role,
   TaskStatus,
+  searchFeatureGuide,
   type AiEngine,
   type AiMessage,
   type AiToolExecutor,
@@ -241,6 +242,8 @@ export class AiAgentService {
     }
     try {
       switch (inv.name) {
+        case 'how_to':
+          return { content: this.howTo(inv.input) };
         case 'search_matters':
           return { content: await this.searchMatters(user, inv.input) };
         case 'get_matter':
@@ -300,6 +303,22 @@ export class AiAgentService {
         isError: true,
       };
     }
+  }
+
+  /** Guía de uso: dónde está una opción en el menú y los pasos. No toca BD (lee la guía de funciones). */
+  private howTo(input: Record<string, unknown>): string {
+    const hits = searchFeatureGuide(str(input, 'query') ?? '', 5);
+    return json({
+      results: hits.map((e) => ({
+        funcion: e.title,
+        donde: `${e.group} › ${e.menu}`,
+        ruta: e.route,
+        para_que: e.what,
+        pasos: e.steps,
+        soloAdmin: e.adminOnly ?? false,
+      })),
+      nota: 'Guía al usuario por estos pasos en la interfaz. Si además quiere que lo hagas tú, usa la herramienta de acción.',
+    });
   }
 
   private async searchMatters(user: RequestUser, input: Record<string, unknown>): Promise<string> {
