@@ -1,4 +1,5 @@
 import { AiAgentService } from './ai-agent.service';
+import { AGENT_TOOLS } from './ai-agent.tools';
 import type {
   AiAgentRequest,
   AiAgentResult,
@@ -124,6 +125,15 @@ describe('AiAgentService', () => {
       expect.any(String),
       expect.objectContaining({ tools: ['search_matters'], steps: 1, stopReason: 'end_turn' }),
     );
+  });
+
+  it('cada herramienta del catálogo está MANEJADA por el executor (ninguna queda "desconocida")', async () => {
+    const { service, engine } = makeDeps([]);
+    await service.run(user, 'hola');
+    for (const tool of AGENT_TOOLS) {
+      const out = await engine.lastExec!({ name: tool.name, input: {} });
+      expect(out.content).not.toContain('desconocida');
+    }
   });
 
   it('acota TODA consulta por tenantId (defensa sobre la RLS)', async () => {
