@@ -446,6 +446,158 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
       required: ['matterReference', 'presentationTypeName'],
     },
   },
+  {
+    name: 'get_task_detail',
+    description:
+      'Devuelve el detalle completo de una tarea (plazo) por su ID: título, descripción, estado, ' +
+      'fecha de vencimiento, expediente asociado, responsable, y metadatos procedurales si aplica ' +
+      '(plazo calculado, tipo de plazo, notificación que lo generó). Úsala para inspeccionar una tarea ' +
+      'específica cuando necesites contexto completo antes de reportar, modificar o seguir por un detalle. ' +
+      'NO crea ni modifica tareas: úsala SOLO para leer detalles de una tarea que ya existe.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskId: {
+          type: 'string',
+          description: 'ID único de la tarea (requerido).',
+        },
+      },
+      required: ['taskId'],
+    },
+  },
+  {
+    name: 'list_templates',
+    description:
+      'Lista las plantillas reutilizables guardadas en la biblioteca del despacho (contratos, escritos, ' +
+      'cláusulas estándar, etc.). Devuelve nombre, descripción e identificadores de campos combinables ' +
+      '({{merge_fields}}). Úsala para "¿qué plantillas tengo?", "busca plantillas de X" o cuando el ' +
+      'usuario quiera reutilizar un documento que ya existe. NO crea ni edita plantillas: para eso usa ' +
+      'create_template. Úsala ANTES de proponer redactar desde cero para evitar duplicar trabajo.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'list_clauses',
+    description:
+      'Lista todas las cláusulas reutilizables de la biblioteca del despacho, ordenadas por nombre. ' +
+      'Devuelve id, nombre y contenido de cada cláusula. Úsala cuando el usuario pregunte por cláusulas ' +
+      'disponibles, busque una cláusula existente para reutilizarla en un documento, o quiera ver el ' +
+      'repertorio completo del despacho. NO la uses si el usuario pide crear una cláusula nueva ' +
+      '(no hay herramienta aún) o buscar por palabra clave dentro de las cláusulas (usa search_firm_knowledge).',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'list_stale_matters_report',
+    description:
+      'Genera un INFORME de expedientes sin actividad reciente (OPEN/IN_PROGRESS). "Sin actividad" = ningún ' +
+      'movimiento en 30+ días (configurable con PRODUCTIVITY_STALE_DAYS). Agrupa por letrado responsable. ' +
+      'Úsala para "¿qué expedientes están dormidos?", "¿dónde hay expedientes sin mover?" o "dame un informe ' +
+      'de expedientes estancados". LECTURA PURA: no modifica datos.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        staleDays: {
+          type: 'integer',
+          description:
+            'Días sin actividad para considerar un expediente dormido (1-365, por defecto 30). ' +
+            'Se ignora si PRODUCTIVITY_STALE_DAYS está configurada.',
+        },
+        limit: {
+          type: 'integer',
+          description: 'Máximo de expedientes a devolver POR LETRADO (1-50, por defecto 20).',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_closing_checklists',
+    description:
+      'Obtiene los checklists de cierre de un expediente (condiciones previas, entregables, hojas de firma) ' +
+      'con su progreso: total de partidas y cuántas están SATISFECHAS o RENUNCIADAS. Útil para "¿qué falta en ' +
+      'el cierre?", "¿cuál es el progreso del cierre?" o "¿qué condiciones previas faltan?". Cada checklist ' +
+      'muestra también la fecha de firma, cierre y longstop date (si existen).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+      },
+      required: ['matterReference'],
+    },
+  },
+  {
+    name: 'update_task_status',
+    description:
+      'ACTUALIZA el estado de una tarea existente del despacho (acción de ESCRITURA, reversible). ' +
+      'Cambia el status entre TODO → IN_PROGRESS → DONE → CANCELLED. Úsala SOLO cuando el usuario ' +
+      'pida explícitamente cambiar el estado de una tarea (p. ej. "marca como hecha", "estoy trabajando ' +
+      'en eso", "cancela esta tarea"). También puedes usarla para actualizar otros campos opcionalmente ' +
+      '(título, descripción, fecha de vencimiento). Tras actualizar, confirma al usuario el nuevo estado.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskId: {
+          type: 'string',
+          description: 'ID o identificador único de la tarea a actualizar.',
+        },
+        status: {
+          type: 'string',
+          enum: ['TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED'],
+          description: 'Nuevo estado de la tarea (TODO, IN_PROGRESS, DONE o CANCELLED).',
+        },
+        title: {
+          type: 'string',
+          description: 'Nuevo título de la tarea (opcional, 2-200 caracteres).',
+        },
+        description: {
+          type: 'string',
+          description: 'Nueva descripción de la tarea (opcional, hasta 2000 caracteres).',
+        },
+        dueDate: {
+          type: 'string',
+          description: 'Nueva fecha de vencimiento en formato YYYY-MM-DD (opcional).',
+        },
+      },
+      required: ['taskId', 'status'],
+    },
+  },
+  {
+    name: 'extend_task_deadline',
+    description:
+      'EXTIENDE el plazo de vencimiento de una tarea existente (acción de ESCRITURA, reversible). ' +
+      'Úsala SOLO cuando el usuario pida aplazar, diferir o extender una tarea/plazo. Proporciona ' +
+      'la tarea por su título (busca dentro de las tareas abiertas del despacho) y la nueva fecha ' +
+      'de vencimiento. Tras extenderla, confirma al usuario la tarea actualizada y la nueva fecha.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        taskTitle: {
+          type: 'string',
+          description:
+            'Título exacto o parte de la tarea a extender (búsqueda insensible a mayúsculas).',
+        },
+        newDueDate: {
+          type: 'string',
+          description: 'Nueva fecha de vencimiento en formato YYYY-MM-DD.',
+        },
+        reason: {
+          type: 'string',
+          description: 'Motivo del aplazamiento (opcional, para auditoría).',
+        },
+      },
+      required: ['taskTitle', 'newDueDate'],
+    },
+  },
 ];
 
 /** Instrucciones de sistema del asistente agéntico. */

@@ -20,6 +20,8 @@ import { TemplatesService } from '../templates/templates.service';
 import { ClientsService } from '../clients/clients.service';
 import { MattersService } from '../matters/matters.service';
 import { PresentationsService } from '../presentations/presentations.service';
+import { ClausesService } from '../clauses/clauses.service';
+import { ClosingService } from '../closing/closing.service';
 import { AiSearchService } from './ai-search.service';
 import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
@@ -59,6 +61,8 @@ const WRITE_TOOLS = new Set([
   'create_client',
   'create_matter',
   'apply_presentation_to_matter',
+  'update_task_status',
+  'extend_task_deadline',
 ]);
 const ACTIVE_MATTER_STATUSES = [MatterStatus.OPEN, MatterStatus.IN_PROGRESS];
 /** Tope de mensajes de historial que se reenvían al modelo (control de coste/contexto). */
@@ -84,6 +88,8 @@ export class AiAgentService {
     private readonly clients: ClientsService,
     private readonly matters: MattersService,
     private readonly presentations: PresentationsService,
+    private readonly clauses: ClausesService,
+    private readonly closing: ClosingService,
     private readonly search: AiSearchService,
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
   ) {}
@@ -267,6 +273,20 @@ export class AiAgentService {
           return { content: await this.createMatter(user, inv.input) };
         case 'apply_presentation_to_matter':
           return { content: await this.applyPresentationToMatter(user, inv.input) };
+        case 'get_task_detail':
+          return { content: await this.getTaskDetail(user, inv.input) };
+        case 'list_templates':
+          return { content: await this.listTemplates(user) };
+        case 'list_clauses':
+          return { content: await this.listClauses(user) };
+        case 'list_stale_matters_report':
+          return { content: await this.listStaleMatterReport(user, inv.input) };
+        case 'get_closing_checklists':
+          return { content: await this.getClosingChecklists(user, inv.input) };
+        case 'update_task_status':
+          return { content: await this.updateTaskStatus(user, inv.input) };
+        case 'extend_task_deadline':
+          return { content: await this.extendTaskDeadline(user, inv.input) };
         default:
           return { content: `Herramienta desconocida: ${inv.name}`, isError: true };
       }
@@ -970,6 +990,374 @@ export class AiAgentService {
       note: `Checklist instanciado con ${checklist.items.length} requisito(s); se han creado también las tareas asociadas.`,
     });
   }
+
+  private async getTaskDetail(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const taskId = str(input, 'taskId');
+    if (!taskId) return json({ error: 'Falta el ID de la tarea.' });
+
+    try {
+      const task = await this.tasks.findOne(user, taskId);
+
+      // Enriquecemos con la referencia del expediente si existe.
+      let matterRef: string | null = null;
+      if (task.matterId) {
+        const matter = await this.prisma.matter.findUnique({
+          where: { id: task.matterId },
+          select: { reference: true },
+        });
+        matterRef = matter?.reference ?? null;
+      }
+
+      // Obtenemos el nombre del responsable si está asignada.
+      let assigneeName: string | null = null;
+      if (task.assigneeId) {
+        const assignee = await this.prisma.user.findUnique({
+          where: { id: task.assigneeId },
+          select: { fullName: true },
+        });
+        assigneeName = assignee?.fullName ?? null;
+      }
+
+      return json({
+        found: true,
+        id: task.id,
+        title: task.title,
+        description: task.description ?? null,
+        status: task.status,
+        dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
+        matter: matterRef,
+        assignee: assigneeName,
+        isProcedural: task.isProcedural,
+        deadlineType: task.deadlineType ?? null,
+        notificationRef: task.notificationRef ?? null,
+        notifiedAt: task.notifiedAt ? task.notifiedAt.toISOString().slice(0, 10) : null,
+        createdAt: task.createdAt.toISOString().slice(0, 10),
+        updatedAt: task.updatedAt.toISOString().slice(0, 10),
+      });
+    } catch (e) {
+      if ((e as any).code === 'P2025' || (e as Error).message?.includes('notFound')) {
+        return json({ found: false, error: `No existe tarea con ID ${taskId}.` });
+      }
+      throw e;
+    }
+  }
+
+  private async listTemplates(user: RequestUser): Promise<string> {
+    const templates = await this.templates.list(user);
+    if (templates.length === 0)
+      return json({ count: 0, templates: [], note: 'No hay plantillas en la biblioteca.' });
+    return json({
+      count: templates.length,
+      templates: templates.map((t) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description ?? null,
+        tokens: t.tokens ?? [],
+      })),
+    });
+  }
+
+  private async listClauses(_user: RequestUser): Promise<string> {
+    // ClausesService.list() está acotado por RLS (igual que su controlador); el contexto de tenant de
+    // la petición del agente aplica las mismas políticas.
+    const clauses = await this.clauses.list();
+    if (clauses.length === 0) {
+      return json({ count: 0, clauses: [], note: 'Sin cláusulas en la biblioteca del despacho.' });
+    }
+    return json({
+      count: clauses.length,
+      clauses: clauses.map((c) => ({
+        id: c.id,
+        name: c.name,
+        body: c.body.slice(0, 500), // limita a 500 caracteres en el resumen
+      })),
+    });
+  }
+
+  private async listStaleMatterReport(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    // Validación de entrada
+    const staleDaysParam = int(input, 'staleDays', 30, 365);
+    const limit = int(input, 'limit', 20, 50);
+
+    // Usar staleDays del ENV si está configurado, sino el parámetro
+    const staleDays = Number(process.env.PRODUCTIVITY_STALE_DAYS ?? staleDaysParam);
+    const cutoff = new Date(Date.now() - staleDays * 86_400_000);
+
+    // Traer expedientes activos con abogado asignado
+    const matters = await this.prisma.matter.findMany({
+      where: {
+        tenantId: user.tenantId,
+        status: { in: ACTIVE_MATTER_STATUSES },
+        lawyerId: { not: null },
+      },
+      select: {
+        id: true,
+        reference: true,
+        title: true,
+        lawyerId: true,
+        createdAt: true,
+        updatedAt: true,
+        lawyer: { select: { fullName: true } },
+      },
+    });
+
+    if (matters.length === 0) {
+      return json({ count: 0, staleDays, matters: [], note: 'Sin expedientes activos.' });
+    }
+
+    const ids = matters.map((m) => m.id);
+
+    // Traer máximos de actividad (tiempo + ledger)
+    const [timeAgg, ledgerAgg] = await Promise.all([
+      this.prisma.timeEntry.groupBy({
+        by: ['matterId'],
+        where: { tenantId: user.tenantId, matterId: { in: ids } },
+        _max: { workedAt: true },
+      }),
+      this.prisma.ledgerEntry.groupBy({
+        by: ['matterId'],
+        where: { tenantId: user.tenantId, matterId: { in: ids } },
+        _max: { createdAt: true },
+      }),
+    ]);
+
+    const timeMax = new Map(timeAgg.map((r) => [r.matterId, r._max.workedAt]));
+    const ledgerMax = new Map(ledgerAgg.map((r) => [r.matterId, r._max.createdAt]));
+
+    // Clasificar expedientes dormidos
+    const byLawyer = new Map<
+      string,
+      {
+        lawyer: string;
+        matters: Array<{
+          reference: string;
+          title: string;
+          lastActivity: string;
+          daysInactive: number;
+        }>;
+      }
+    >();
+
+    for (const m of matters) {
+      const candidates = [m.updatedAt, timeMax.get(m.id), ledgerMax.get(m.id)].filter(
+        (d): d is Date => d instanceof Date,
+      );
+      const lastActivity = candidates.reduce((a, b) => (a > b ? a : b), m.createdAt);
+
+      if (lastActivity < cutoff && m.lawyerId) {
+        const daysInactive = Math.floor((Date.now() - lastActivity.getTime()) / 86_400_000);
+        const group = byLawyer.get(m.lawyerId) ?? {
+          lawyer: m.lawyer?.fullName ?? '(Sin asignar)',
+          matters: [],
+        };
+
+        group.matters.push({
+          reference: m.reference,
+          title: m.title,
+          lastActivity: lastActivity.toISOString().slice(0, 10),
+          daysInactive,
+        });
+
+        byLawyer.set(m.lawyerId, group);
+      }
+    }
+
+    // Agrupar y devolver
+    const report = [...byLawyer.values()]
+      .map((g) => ({
+        lawyer: g.lawyer,
+        count: g.matters.length,
+        matters: g.matters.sort((a, b) => b.daysInactive - a.daysInactive).slice(0, limit),
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    const totalStale = report.reduce((s, g) => s + g.count, 0);
+
+    return json({
+      count: totalStale,
+      staleDays,
+      reportDate: new Date().toISOString().slice(0, 10),
+      byLawyer: report,
+      note: totalStale === 0 ? 'Todos los expedientes tienen actividad reciente.' : undefined,
+    });
+  }
+
+  private async getClosingChecklists(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        found: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    const checklists = await this.closing.listByMatter(user, matter.id);
+    if (checklists.length === 0) {
+      return json({
+        found: true,
+        matter: matterReference,
+        count: 0,
+        checklists: [],
+        note: 'No hay checklists de cierre en este expediente.',
+      });
+    }
+
+    return json({
+      found: true,
+      matter: matterReference,
+      count: checklists.length,
+      checklists: checklists.map((c) => ({
+        id: c.id,
+        title: c.title,
+        progress: `${c.satisfied}/${c.total}`,
+        satisfied: c.satisfied,
+        total: c.total,
+        signingDate: c.signingDate ? c.signingDate.toISOString().slice(0, 10) : null,
+        closingDate: c.closingDate ? c.closingDate.toISOString().slice(0, 10) : null,
+        longstopDate: c.longstopDate ? c.longstopDate.toISOString().slice(0, 10) : null,
+        createdAt: c.createdAt ? c.createdAt.toISOString().slice(0, 10) : null,
+      })),
+    });
+  }
+
+  private async updateTaskStatus(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const taskId = str(input, 'taskId');
+    if (!taskId) {
+      return json({ error: 'El ID de la tarea es obligatorio.' });
+    }
+    const status = str(input, 'status');
+    if (!status || !['TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED'].includes(status)) {
+      return json({
+        error: 'Estado no válido. Usa: TODO, IN_PROGRESS, DONE o CANCELLED.',
+      });
+    }
+
+    const title = str(input, 'title');
+    if (title && title.length < 2) {
+      return json({ error: 'El título debe tener al menos 2 caracteres.' });
+    }
+
+    const description = str(input, 'description');
+    if (description && description.length > 2000) {
+      return json({ error: 'La descripción no puede exceder 2000 caracteres.' });
+    }
+
+    const dueRaw = str(input, 'dueDate');
+    let dueDate: string | undefined;
+    if (dueRaw) {
+      const d = new Date(dueRaw);
+      if (Number.isNaN(d.getTime())) {
+        return json({
+          error: `Fecha de vencimiento no válida: ${dueRaw}. Usa el formato YYYY-MM-DD.`,
+        });
+      }
+      dueDate = d.toISOString();
+    }
+
+    try {
+      const task = await this.tasks.update(user, taskId, {
+        status: status as any, // TaskStatus enum: TODO | IN_PROGRESS | DONE | CANCELLED
+        title: title ? title.slice(0, 200) : undefined,
+        description,
+        dueDate,
+      });
+      return json({
+        updated: true,
+        taskId: task.id,
+        title: task.title,
+        status: task.status,
+        dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
+      });
+    } catch (e) {
+      // TasksService.update lanza NotFoundException si la tarea no existe o no es del tenant.
+      const message = (e as Error).message;
+      if (message.includes('notFound')) {
+        return json({
+          error: `La tarea con ID ${taskId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async extendTaskDeadline(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const taskTitle = str(input, 'taskTitle');
+    const newDueDateRaw = str(input, 'newDueDate');
+    const reason = str(input, 'reason');
+
+    if (!taskTitle) {
+      return json({ error: 'Indica el título de la tarea a extender.' });
+    }
+    if (!newDueDateRaw) {
+      return json({ error: 'Indica la nueva fecha de vencimiento en formato YYYY-MM-DD.' });
+    }
+
+    // Valida que la fecha sea válida
+    const newDate = new Date(newDueDateRaw);
+    if (Number.isNaN(newDate.getTime())) {
+      return json({
+        error: `Fecha de vencimiento no válida: ${newDueDateRaw}. Usa el formato YYYY-MM-DD.`,
+      });
+    }
+
+    // Busca la tarea por título (dentro de las del tenant, búsqueda insensible)
+    const task = await this.prisma.task.findFirst({
+      where: {
+        tenantId: user.tenantId,
+        title: { contains: taskTitle, mode: 'insensitive' as const },
+      },
+      select: { id: true, title: true, dueDate: true },
+    });
+
+    if (!task) {
+      return json({
+        found: false,
+        note: `No existe tarea con título similar a "${taskTitle}".`,
+      });
+    }
+
+    // Actualiza la tarea vía TasksService (con auditoría y validaciones)
+    const updated = await this.tasks.update(user, task.id, {
+      dueDate: newDate.toISOString(),
+    });
+
+    // Log adicional de la razón si se proporciona
+    if (reason) {
+      await this.audit
+        .log(user, 'task.deadline_extended', 'Task', task.id, {
+          reason,
+          oldDueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
+          newDueDate: newDueDateRaw,
+        })
+        .catch(() => undefined);
+    }
+
+    return json({
+      extended: true,
+      taskId: updated.id,
+      title: updated.title,
+      oldDueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
+      newDueDate: updated.dueDate ? updated.dueDate.toISOString().slice(0, 10) : null,
+    });
+  }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────────────
@@ -1014,6 +1402,12 @@ function describeWrite(inv: AiToolInvocation): string {
   }
   if (inv.name === 'apply_presentation_to_matter') {
     return `Aplicar el checklist de presentación a ${ref ?? 'el expediente'} (creará tareas/plazos)`;
+  }
+  if (inv.name === 'update_task_status') {
+    return `Cambiar el estado de la tarea a "${str(inv.input, 'status') ?? ''}"`;
+  }
+  if (inv.name === 'extend_task_deadline') {
+    return `Aplazar el vencimiento de la tarea a ${str(inv.input, 'dueDate') ?? '(nueva fecha)'}`;
   }
   return inv.name;
 }
