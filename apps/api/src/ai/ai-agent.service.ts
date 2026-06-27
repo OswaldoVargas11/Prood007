@@ -1,6 +1,8 @@
 import { HttpException, Inject, Injectable } from '@nestjs/common';
 import {
   AI_ENGINE,
+  ClosingItemCategory,
+  ClosingItemPhase,
   Jurisdiction,
   MatterStatus,
   Role,
@@ -64,6 +66,11 @@ const WRITE_TOOLS = new Set([
   'apply_presentation_to_matter',
   'update_task_status',
   'extend_task_deadline',
+  'create_client_portal_user',
+  'add_matter_team_member',
+  'create_procedural_task',
+  'generate_document_package',
+  'add_closing_item',
 ]);
 const ACTIVE_MATTER_STATUSES = [MatterStatus.OPEN, MatterStatus.IN_PROGRESS];
 /** Tope de mensajes de historial que se reenvían al modelo (control de coste/contexto). */
@@ -294,6 +301,34 @@ export class AiAgentService {
           return { content: await this.updateTaskStatus(user, inv.input) };
         case 'extend_task_deadline':
           return { content: await this.extendTaskDeadline(user, inv.input) };
+        case 'list_assignable_lawyers':
+          return { content: await this.listAssignableLawyers(user) };
+        case 'create_client_portal_user':
+          return { content: await this.createClientPortalUser(user, inv.input) };
+        case 'add_matter_team_member':
+          return { content: await this.addMatterTeamMember(user, inv.input) };
+        case 'preview_task_from_deadline':
+          return { content: await this.previewTaskFromDeadline(user, inv.input) };
+        case 'create_procedural_task':
+          return { content: await this.createProceduralTask(user, inv.input) };
+        case 'generate_document_package':
+          return { content: await this.generateDocumentPackage(user, inv.input) };
+        case 'compare_document_versions':
+          return { content: await this.compareDocumentVersions(user, inv.input) };
+        case 'list_document_versions':
+          return { content: await this.listDocumentVersions(user, inv.input) };
+        case 'list_presentation_types':
+          return { content: await this.listPresentationTypes(user) };
+        case 'get_presentation_type':
+          return { content: await this.getPresentationType(user, inv.input) };
+        case 'list_matter_checklists':
+          return { content: await this.listMatterChecklists(user, inv.input) };
+        case 'export_checklist_pdf':
+          return { content: await this.exportChecklistPdf(user, inv.input) };
+        case 'add_closing_item':
+          return { content: await this.addClosingItem(user, inv.input) };
+        case 'generate_closing_binder':
+          return { content: await this.generateClosingBinder(user, inv.input) };
         default:
           return { content: `Herramienta desconocida: ${inv.name}`, isError: true };
       }
@@ -1381,6 +1416,722 @@ export class AiAgentService {
       newDueDate: updated.dueDate ? updated.dueDate.toISOString().slice(0, 10) : null,
     });
   }
+
+  private async listAssignableLawyers(user: RequestUser): Promise<string> {
+    // Valida FIRM_ADMIN
+    if (!user.roles.includes(Role.FIRM_ADMIN)) {
+      return json({
+        error: 'Solo administradores del despacho pueden listar letrados asignables.',
+      });
+    }
+
+    const lawyers = await this.matters.listAssignees(user);
+    if (lawyers.length === 0) {
+      return json({ count: 0, lawyers: [], note: 'No hay letrados asignables en el despacho.' });
+    }
+    return json({
+      count: lawyers.length,
+      lawyers: lawyers.map((l) => ({ id: l.id, name: l.fullName })),
+    });
+  }
+
+  private async createClientPortalUser(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const clientId = str(input, 'clientId');
+    if (!clientId) {
+      return json({ error: 'El ID del cliente es obligatorio.' });
+    }
+
+    const email = str(input, 'email');
+    if (!email) {
+      return json({ error: 'El correo electrónico es obligatorio.' });
+    }
+    if (!email.includes('@')) {
+      return json({ error: 'El correo debe ser válido.' });
+    }
+
+    const password = str(input, 'password');
+    if (!password || password.length < 10) {
+      return json({
+        error: 'La contraseña es obligatoria y debe tener al menos 10 caracteres.',
+      });
+    }
+
+    const fullName = str(input, 'fullName');
+    if (!fullName || fullName.length < 2) {
+      return json({
+        error: 'El nombre completo es obligatorio (mínimo 2 caracteres).',
+      });
+    }
+
+    try {
+      const result = await this.clients.createPortalUser(user, clientId, {
+        email,
+        password,
+        fullName,
+      });
+      return json({
+        created: true,
+        userId: result.userId,
+        email: result.email,
+        message:
+          'Acceso de portal creado exitosamente. Se ha enviado una invitación al cliente para fijar su contraseña.',
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound') || msg.includes('Not found')) {
+        return json({
+          created: false,
+          error: `El cliente con ID ${clientId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      if (msg.includes('Conflict') || msg.includes('already')) {
+        return json({
+          created: false,
+          error: 'El cliente ya tiene acceso de portal o el correo está registrado en el despacho.',
+        });
+      }
+      return json({
+        created: false,
+        error: msg,
+      });
+    }
+  }
+
+  private async addMatterTeamMember(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    const lawyerName = str(input, 'lawyerName');
+
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+    if (!lawyerName || lawyerName.length < 2) {
+      return json({ error: 'Indica el nombre del letrado (mínimo 2 caracteres).' });
+    }
+
+    // Resuelve el expediente por referencia (acotado por tenant)
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true, reference: true },
+    });
+    if (!matter) {
+      return json({
+        added: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    // Busca el letrado por nombre (búsqueda insensible, activos con rol LAWYER o FIRM_ADMIN)
+    const lawyer = await this.prisma.user.findFirst({
+      where: {
+        tenantId: user.tenantId,
+        isActive: true,
+        fullName: { contains: lawyerName, mode: 'insensitive' as const },
+        roles: { some: { role: { code: { in: [Role.LAWYER, Role.FIRM_ADMIN] } } } },
+      },
+      select: { id: true, fullName: true },
+    });
+    if (!lawyer) {
+      return json({
+        added: false,
+        note: `Letrado no encontrado con nombre similar a "${lawyerName}" o sin permisos de LAWYER/ADMIN.`,
+      });
+    }
+
+    // Añade el letrado al equipo vía MattersService.addAssignee (idempotente via upsert)
+    const team = await this.matters.addAssignee(user, matter.id, lawyer.id);
+
+    return json({
+      added: true,
+      matterReference: matter.reference,
+      lawyer: lawyer.fullName,
+      lead: team.lead ? team.lead.fullName : '(sin asignar)',
+      members: team.members.map((m) => m.fullName),
+      note: `Letrado "${lawyer.fullName}" añadido al equipo del expediente.`,
+    });
+  }
+
+  private async previewTaskFromDeadline(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const deadlineType = str(input, 'deadlineType');
+    if (!deadlineType || deadlineType.trim().length === 0) {
+      return json({ error: 'El tipo de plazo (deadlineType) es obligatorio.' });
+    }
+
+    const startDate = str(input, 'startDate');
+    if (!startDate) {
+      return json({
+        error: 'La fecha de inicio (startDate) es obligatoria en formato YYYY-MM-DD.',
+      });
+    }
+
+    // Valida que la fecha sea válida
+    const d = new Date(startDate);
+    if (Number.isNaN(d.getTime())) {
+      return json({
+        error: `Fecha de inicio no válida: ${startDate}. Usa el formato YYYY-MM-DD.`,
+      });
+    }
+
+    const days = int(input, 'days', 1, 999);
+    if (days < 1) {
+      return json({ error: 'El número de días debe ser positivo (mínimo 1).' });
+    }
+
+    try {
+      const deadline = await this.tasks.previewDeadline(user, {
+        deadlineType,
+        startDate,
+        days,
+      });
+
+      return json({
+        computed: true,
+        dueDate: deadline.dueDate,
+        startDate,
+        days,
+        deadlineType,
+        holidaysApplied: deadline.holidaysApplied ?? [],
+        holidayCount: Array.isArray(deadline.holidaysApplied) ? deadline.holidaysApplied.length : 0,
+        note: `Plazo vence el ${deadline.dueDate} (${Array.isArray(deadline.holidaysApplied) ? deadline.holidaysApplied.length : 0} festivo(s) aplicado(s)).`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      return json({
+        error:
+          msg.includes('deadlineType') || msg.includes('unknown')
+            ? `Tipo de plazo no reconocido: "${deadlineType}". Consulta con el despacho los tipos válidos para la jurisdicción.`
+            : msg,
+        hint: 'Verifica que deadlineType sea válido y que startDate esté en YYYY-MM-DD.',
+      });
+    }
+  }
+
+  private async createProceduralTask(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const title = str(input, 'title');
+    const deadlineType = str(input, 'deadlineType');
+    const startDate = str(input, 'startDate');
+    const days = int(input, 'days', 1, 365);
+    const matterId = str(input, 'matterId');
+    const assigneeId = str(input, 'assigneeId');
+    const notificationRef = str(input, 'notificationRef');
+
+    // Validaciones obligatorias
+    if (!deadlineType || deadlineType.length < 2) {
+      return json({ error: 'deadlineType obligatorio (mínimo 2 caracteres).' });
+    }
+    if (!startDate) {
+      return json({ error: 'startDate obligatoria en formato YYYY-MM-DD.' });
+    }
+    const startD = new Date(startDate);
+    if (Number.isNaN(startD.getTime())) {
+      return json({
+        error: `startDate no válida: ${startDate}. Usa el formato YYYY-MM-DD.`,
+      });
+    }
+    if (days < 1 || days > 365) {
+      return json({ error: 'days debe estar entre 1 y 365.' });
+    }
+
+    // Validar matterId si se proporciona
+    if (matterId) {
+      const matter = await this.prisma.matter.findFirst({
+        where: { tenantId: user.tenantId, id: matterId },
+        select: { id: true, reference: true },
+      });
+      if (!matter) {
+        return json({
+          created: false,
+          note: `No existe expediente con ID ${matterId} en tu despacho.`,
+        });
+      }
+    }
+
+    // Validar assigneeId si se proporciona
+    if (assigneeId) {
+      const assignee = await this.prisma.user.findFirst({
+        where: { tenantId: user.tenantId, id: assigneeId },
+        select: { id: true },
+      });
+      if (!assignee) {
+        return json({
+          created: false,
+          note: `No existe usuario con ID ${assigneeId} en tu despacho.`,
+        });
+      }
+    }
+
+    try {
+      // Delega a TasksService.createFromDeadline (que calcula el plazo procesal)
+      const { task, deadline } = await this.tasks.createFromDeadline(user, {
+        title: title ? title.slice(0, 200) : undefined,
+        deadlineType: deadlineType.slice(0, 80),
+        startDate: startDate,
+        days,
+        matterId,
+        assigneeId,
+        notificationRef: notificationRef ? notificationRef.slice(0, 120) : undefined,
+      });
+
+      return json({
+        created: true,
+        taskId: task.id,
+        title: task.title,
+        deadlineType: task.deadlineType,
+        isProcedural: task.isProcedural,
+        dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
+        startDate,
+        days,
+        holidaysApplied: deadline.holidaysApplied,
+        matterId: matterId ?? null,
+        notificationRef: task.notificationRef ?? null,
+        message: `Plazo procesal creado: ${task.title} vence el ${task.dueDate?.toISOString().slice(0, 10)} (${deadline.holidaysApplied} días hábiles + festivos).`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      return json({ created: false, error: msg });
+    }
+  }
+
+  private async generateDocumentPackage(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    const templateNames = Array.isArray(input.templateNames)
+      ? input.templateNames.filter((t) => typeof t === 'string')
+      : [];
+
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+    if (!templateNames || templateNames.length === 0) {
+      return json({ error: 'Indica al menos una plantilla para ensamblar.' });
+    }
+
+    // Resuelve el expediente por referencia (acotado por tenant)
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true, reference: true },
+    });
+    if (!matter) {
+      return json({
+        assembled: false,
+        note: `No existe expediente con referencia ${matterReference}; no se ha ensamblado el paquete.`,
+      });
+    }
+
+    // Resuelve los nombres de plantilla a sus IDs (acotado por tenant)
+    const templates = await this.prisma.documentTemplate.findMany({
+      where: {
+        tenantId: user.tenantId,
+        name: { in: templateNames },
+      },
+      select: { id: true, name: true },
+    });
+
+    if (templates.length === 0) {
+      return json({
+        assembled: false,
+        note: `Ninguna de las plantillas indicadas existe en el despacho. Verifica los nombres: ${templateNames.join(', ')}.`,
+      });
+    }
+
+    const missing = templateNames.filter((t) => !templates.some((tpl) => tpl.name === t));
+
+    // Delega al servicio (acotado por tenant, reutiliza generateFromTemplate por cada una)
+    const templateIds = templates.map((t) => t.id);
+    const result = await this.documents.generateFromTemplates(user, matter.id, templateIds);
+
+    return json({
+      assembled: true,
+      matterReference: matter.reference,
+      templatesRequested: templateNames.length,
+      templatesFound: templates.length,
+      missing: missing.length > 0 ? missing : null,
+      count: result.count,
+      documents: result.documents.map((d) => ({
+        id: d.id,
+        name: d.name,
+      })),
+      note:
+        result.count > 0
+          ? `Paquete ensamblado: ${result.count} documento(s) creado(s).`
+          : 'No se creó ningún documento.',
+    });
+  }
+
+  private async compareDocumentVersions(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const documentId = str(input, 'documentId');
+    const baseVersionId = str(input, 'baseVersionId');
+    const againstVersionId = str(input, 'againstVersionId');
+
+    if (!documentId) return json({ error: 'Falta el ID del documento.' });
+    if (!baseVersionId) return json({ error: 'Falta el ID de la versión BASE.' });
+    if (!againstVersionId) return json({ error: 'Falta el ID de la versión a comparar.' });
+
+    if (baseVersionId === againstVersionId) {
+      return json({ error: 'Las versiones BASE y NUEVA no pueden ser la misma.' });
+    }
+
+    try {
+      const result = await this.documents.compare(
+        user,
+        documentId,
+        baseVersionId,
+        againstVersionId,
+      );
+      return json({
+        found: true,
+        documentId,
+        baseVersion: result.baseVersion,
+        againstVersion: result.againstVersion,
+        extractable: result.extractable,
+        segments: result.extractable
+          ? result.segments.map((s) => ({
+              type: s.type,
+              value: s.value,
+            }))
+          : [],
+        statistics: {
+          wordsAdded: result.added,
+          wordsRemoved: result.removed,
+        },
+        note: result.extractable
+          ? `Comparación completada: ${result.added} palabra(s) añadida(s), ${result.removed} eliminada(s).`
+          : 'Las versiones no tienen contenido de texto extraíble; el redline no está disponible.',
+      });
+    } catch (e) {
+      if ((e as any).code === 'P2025' || (e as Error).message?.includes('notFound')) {
+        return json({
+          found: false,
+          error: 'No existe el documento o alguna de las versiones indicadas.',
+        });
+      }
+      const msg = (e as Error).message || 'Error desconocido';
+      if (msg.includes('Misma')) {
+        return json({
+          error: 'Las versiones BASE y NUEVA no pueden ser idénticas.',
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async listDocumentVersions(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const documentId = str(input, 'documentId');
+    if (!documentId) return json({ error: 'Falta el ID del documento.' });
+
+    const document = await this.documents.getOne(user, documentId);
+
+    if (!document.versions || document.versions.length === 0) {
+      return json({
+        found: true,
+        documentId: document.id,
+        documentName: document.name,
+        count: 0,
+        versions: [],
+        note: 'Sin historial de versiones.',
+      });
+    }
+
+    return json({
+      found: true,
+      documentId: document.id,
+      documentName: document.name,
+      count: document.versions.length,
+      versions: document.versions.map((v) => ({
+        version: v.version,
+        id: v.id,
+        uploadedAt: v.createdAt ? v.createdAt.toISOString().slice(0, 10) : null,
+        uploadedBy: v.uploadedBy?.fullName ?? '(Sin autor)',
+        mimeType: v.mimeType,
+        sizeBytes: v.sizeBytes,
+        reviewStatus: v.reviewStatus,
+        reviewCount: v.reviews?.length ?? 0,
+      })),
+    });
+  }
+
+  private async listPresentationTypes(user: RequestUser): Promise<string> {
+    const types = await this.presentations.listTypes(user);
+    if (types.length === 0) {
+      return json({ count: 0, types: [], note: 'No hay tipos de presentación configurados.' });
+    }
+    return json({
+      count: types.length,
+      types: types.map((t) => ({
+        id: t.id,
+        name: t.name,
+        sector: t.sector,
+        jurisdiction: t.jurisdiction ?? null,
+        description: t.description ?? null,
+        requirementsCount: t.requirements.length,
+        requirements: t.requirements.map((r) => ({
+          name: r.name,
+          description: r.description ?? null,
+          required: r.required,
+          order: r.order,
+        })),
+        taskTemplatesCount: t.taskTemplates.length,
+        taskTemplates: t.taskTemplates.map((tt) => ({
+          title: tt.title,
+          offsetDays: tt.offsetDays,
+          order: tt.order,
+        })),
+        usageCount: t._count.checklists,
+      })),
+    });
+  }
+
+  private async getPresentationType(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const presentationTypeId = str(input, 'presentationTypeId');
+    if (!presentationTypeId) return json({ error: 'Falta el ID del tipo de presentación.' });
+
+    try {
+      const type = await this.presentations.getType(user, presentationTypeId);
+      return json({
+        found: true,
+        id: type.id,
+        name: type.name,
+        sector: type.sector,
+        description: type.description ?? null,
+        jurisdiction: type.jurisdiction ?? null,
+        requirements: type.requirements.map((r) => ({
+          id: r.id,
+          name: r.name,
+          description: r.description ?? null,
+          required: r.required,
+          order: r.order,
+        })),
+        taskTemplates: type.taskTemplates.map((tt) => ({
+          id: tt.id,
+          title: tt.title,
+          offsetDays: tt.offsetDays,
+          order: tt.order,
+        })),
+        requirementCount: type.requirements.length,
+        taskTemplateCount: type.taskTemplates.length,
+      });
+    } catch (e) {
+      if ((e as any).code === 'P2025' || (e as Error).message?.includes('notFound')) {
+        return json({
+          found: false,
+          error: `No existe tipo de presentación con ID ${presentationTypeId}.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async listMatterChecklists(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        found: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+    const checklists = await this.presentations.listForMatter(user, matter.id);
+    if (checklists.length === 0) {
+      return json({
+        found: true,
+        matter: matterReference,
+        count: 0,
+        checklists: [],
+        note: 'No hay checklists de presentación en este expediente.',
+      });
+    }
+    return json({
+      found: true,
+      matter: matterReference,
+      count: checklists.length,
+      checklists: checklists.map((c) => ({
+        id: c.id,
+        title: c.title,
+        progress: `${c.progress.done}/${c.progress.total}`,
+        progressPercent: c.progress.percent,
+        itemsCount: c.items.length,
+        createdAt: c.createdAt ? c.createdAt.toISOString().slice(0, 10) : null,
+      })),
+    });
+  }
+
+  private async exportChecklistPdf(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const checklistId = str(input, 'checklistId');
+    if (!checklistId) {
+      return json({ error: 'Falta el ID de la checklist.' });
+    }
+
+    try {
+      const result = await this.presentations.checklistPdf(user, checklistId);
+      return json({
+        success: true,
+        filename: result.filename,
+        mimeType: 'application/pdf',
+        sizeBytes: result.buffer.length,
+        note: `PDF de checklist generado y listo para descargar: ${result.filename}`,
+      });
+    } catch (e) {
+      const message = (e as Error).message;
+      if (message.includes('notFound')) {
+        return json({
+          error: `La checklist con ID ${checklistId} no existe o no es accesible en tu despacho.`,
+        });
+      }
+      throw e;
+    }
+  }
+
+  private async addClosingItem(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const checklistId = str(input, 'checklistId');
+    if (!checklistId) {
+      return json({ error: 'El ID del checklist es obligatorio.' });
+    }
+
+    const category = str(input, 'category') as
+      | 'CONDITION_PRECEDENT'
+      | 'DELIVERABLE'
+      | 'SIGNATURE_PAGE'
+      | 'OTHER'
+      | undefined;
+    if (
+      !category ||
+      !['CONDITION_PRECEDENT', 'DELIVERABLE', 'SIGNATURE_PAGE', 'OTHER'].includes(category)
+    ) {
+      return json({
+        error:
+          'Categoría no válida. Elige una de: CONDITION_PRECEDENT, DELIVERABLE, SIGNATURE_PAGE, OTHER.',
+      });
+    }
+
+    const title = str(input, 'title');
+    if (!title || title.length < 2) {
+      return json({ error: 'El título del ítem es obligatorio (mínimo 2 caracteres).' });
+    }
+
+    const phaseRaw = str(input, 'phase');
+    const phase = (Object.values(ClosingItemPhase) as string[]).includes(phaseRaw ?? '')
+      ? (phaseRaw as ClosingItemPhase)
+      : undefined;
+    const responsibleParty = str(input, 'responsibleParty');
+    const assigneeId = str(input, 'assigneeId');
+    const documentId = str(input, 'documentId');
+    const detail = str(input, 'detail');
+    const inEscrow = typeof input.inEscrow === 'boolean' ? input.inEscrow : false;
+
+    const dueRaw = str(input, 'dueDate');
+    let dueDate: string | undefined;
+    if (dueRaw) {
+      const d = new Date(dueRaw);
+      if (Number.isNaN(d.getTime())) {
+        return json({
+          error: `Fecha de vencimiento no válida: ${dueRaw}. Usa el formato YYYY-MM-DD.`,
+        });
+      }
+      dueDate = d.toISOString();
+    }
+
+    try {
+      const checklist = await this.closing.addItem(user, checklistId, {
+        category: category as ClosingItemCategory,
+        phase,
+        title: title.slice(0, 200),
+        detail: detail ? detail.slice(0, 1000) : undefined,
+        responsibleParty,
+        assigneeId,
+        documentId,
+        dueDate,
+        inEscrow,
+      });
+
+      return json({
+        added: true,
+        checklistId: checklist.id,
+        itemCount: checklist.items.length,
+        title: title,
+        category,
+        phase: phase ?? null,
+        responsibleParty: responsibleParty ?? null,
+        dueDate: dueDate ? dueDate.slice(0, 10) : null,
+        inEscrow,
+        note: `Ítem añadido al checklist. Total de partidas: ${checklist.items.length}.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      if (msg.includes('notFound') || msg.includes('checklistNotFound')) {
+        return json({
+          added: false,
+          error: `No existe checklist con ID ${checklistId} en tu despacho.`,
+        });
+      }
+      if (msg.includes('notInFirm') || msg.includes('assigneeNotInFirm')) {
+        return json({
+          added: false,
+          error: 'El asignado o documento no pertenece a tu despacho.',
+        });
+      }
+      return json({
+        added: false,
+        error: `No se pudo añadir el ítem: ${msg}`,
+      });
+    }
+  }
+
+  private async generateClosingBinder(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const checklistId = str(input, 'checklistId');
+    if (!checklistId) {
+      return json({ error: 'El ID del checklist es obligatorio.' });
+    }
+
+    try {
+      const { filename, buffer } = await this.closing.buildBinder(user, checklistId);
+      return json({
+        generated: true,
+        filename,
+        sizeBytes: buffer.length,
+        note: `Closing binder generado exitosamente. ${buffer.length > 0 ? `Tamaño: ${(buffer.length / 1024).toFixed(1)} KB.` : 'El ZIP no contiene documentos.'}`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (msg.includes('notFound')) {
+        return json({
+          generated: false,
+          error: 'El checklist no existe o no pertenece a tu despacho.',
+        });
+      }
+      throw e;
+    }
+  }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────────────
@@ -1432,5 +2183,14 @@ function describeWrite(inv: AiToolInvocation): string {
   if (inv.name === 'extend_task_deadline') {
     return `Aplazar el vencimiento de la tarea a ${str(inv.input, 'dueDate') ?? '(nueva fecha)'}`;
   }
+  if (inv.name === 'create_client_portal_user')
+    return 'Crear un acceso de portal para el cliente (enviará invitación por correo)';
+  if (inv.name === 'add_matter_team_member')
+    return `Añadir un letrado al equipo del expediente ${ref ?? ''}`;
+  if (inv.name === 'create_procedural_task')
+    return `Crear un plazo procesal calculado${ref ? ` en ${ref}` : ''}`;
+  if (inv.name === 'generate_document_package')
+    return `Generar un paquete de documentos${ref ? ` en ${ref}` : ''}`;
+  if (inv.name === 'add_closing_item') return 'Añadir una partida al checklist de cierre';
   return inv.name;
 }

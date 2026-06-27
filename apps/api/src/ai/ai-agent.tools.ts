@@ -614,6 +614,369 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
       required: ['taskTitle', 'newDueDate'],
     },
   },
+  {
+    name: 'list_assignable_lawyers',
+    description:
+      'Lista los letrados del despacho asignables a expedientes (staff activo, LAWYER o FIRM_ADMIN). Solo accesible a FIRM_ADMIN. Devuelve id y nombre completo ordenados alfabéticamente. Úsala para buscar a quién asignar un expediente o un rol en el equipo.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'create_client_portal_user',
+    description:
+      'CREA un usuario de portal (rol CLIENT, solo lectura de expedientes del cliente) y ENVÍA invitación ' +
+      'para fijar contraseña (acción de ESCRITURA, reversible). Úsala SOLO cuando el usuario pida crear ' +
+      'acceso al portal para un cliente existente. El cliente recibirá un correo de activación para establecer ' +
+      'su contraseña en el primer acceso. Tras crear el acceso, confirma al usuario el cliente, correo y que ' +
+      'la invitación ha sido enviada.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        clientId: {
+          type: 'string',
+          description: 'ID único del cliente en el sistema al que darle acceso de portal.',
+        },
+        email: {
+          type: 'string',
+          description:
+            'Correo electrónico del usuario del portal (debe ser diferente al email del cliente si ya existe).',
+        },
+        password: {
+          type: 'string',
+          description: 'Contraseña inicial segura (mínimo 10 caracteres; se valida contra HIBP).',
+        },
+        fullName: {
+          type: 'string',
+          description: 'Nombre completo del usuario del portal (mínimo 2 caracteres).',
+        },
+      },
+      required: ['clientId', 'email', 'password', 'fullName'],
+    },
+  },
+  {
+    name: 'add_matter_team_member',
+    description:
+      'AÑADE un letrado adicional al equipo del expediente (acción de ESCRITURA, reversible, idempotente). ' +
+      'El letrado se suma al equipo junto al letrado responsable/líder (Matter.lawyerId). Si el letrado ya está ' +
+      'en el equipo, no duplica la asignación (idempotente). Solo administrador del despacho. Útil cuando múltiples ' +
+      'letrados trabajan en el mismo asunto. Tras añadirlo, confirma al usuario el equipo actualizado.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+        lawyerName: {
+          type: 'string',
+          description: 'Nombre completo del letrado a añadir (búsqueda insensible a mayúsculas).',
+        },
+      },
+      required: ['matterReference', 'lawyerName'],
+    },
+  },
+  {
+    name: 'preview_task_from_deadline',
+    description:
+      'Calcula la fecha de vencimiento de un plazo procesal (días hábiles, festivos jurisdiccionales y locales del despacho) SIN crear la tarea. Úsala para previsualizar el vencimiento antes de crear el plazo o para cálculos de plazos procedimentales. Devuelve la fecha límite exacta y cuántos festivos se aplicaron.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        deadlineType: {
+          type: 'string',
+          description:
+            'Tipo de plazo procesal (p. ej. "contestacion", "demanda", "apelacion", "ejecucion", etc.). Validado por la jurisdicción del despacho (ES o RD).',
+        },
+        startDate: {
+          type: 'string',
+          description:
+            'Fecha de inicio del cómputo en formato YYYY-MM-DD (típicamente fecha de notificación).',
+        },
+        days: {
+          type: 'integer',
+          description:
+            'Número de días para el plazo (los días se cuentan respetando días hábiles y festivos).',
+        },
+      },
+      required: ['deadlineType', 'startDate', 'days'],
+    },
+  },
+  {
+    name: 'create_procedural_task',
+    description:
+      'CREA una tarea con vencimiento calculado por plazo procesal (días hábiles + festivos + jurisdicción). ' +
+      'Acción de ESCRITURA, reversible y NO fiscal. Úsala cuando el letrado pida crear un plazo procesal ' +
+      '(p. ej. "crea un plazo de apelación de 20 días hábiles desde el 2026-06-27" o "plazo de contestación 10 días"). ' +
+      'Asocia a un expediente por su ID (matterId, opcional). Tras crearla, confirma la tarea y la fecha calculada.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description:
+            'Título de la tarea (opcional; si se omite se usa "Plazo: {deadlineType}"). ' +
+            'Máximo 200 caracteres.',
+        },
+        deadlineType: {
+          type: 'string',
+          description:
+            'Tipo de plazo procesal (jurisdicción-específico). Ejemplos: APELACION, CONTESTACION, ' +
+            'OPOSICION, REPLICACION. Máximo 80 caracteres. El ComplianceProvider valida según la jurisdicción.',
+        },
+        startDate: {
+          type: 'string',
+          description:
+            'Fecha de inicio del cómputo (normalmente la notificación) en formato YYYY-MM-DD. ' +
+            'El sistema calcula desde aquí los días hábiles + festivos.',
+        },
+        days: {
+          type: 'integer',
+          description:
+            'Número de días del plazo (1-365; p. ej. 20 para apelación, 10 para contestación).',
+        },
+        matterId: {
+          type: 'string',
+          description:
+            'ID del expediente al que asociar la tarea (opcional). Si se omite, la tarea es sin expediente. ' +
+            'Se valida que pertenezca al tenant del usuario.',
+        },
+        assigneeId: {
+          type: 'string',
+          description:
+            'ID del letrado responsable (opcional). Si se omite, sin asignar. ' +
+            'Se valida que sea usuario del mismo tenant.',
+        },
+        notificationRef: {
+          type: 'string',
+          description:
+            'Referencia/acuse de la notificación que genera el plazo (opcional). ' +
+            'Ejemplos: "LexNET-2026-123456", "Nº notificación 45678". Máximo 120 caracteres. ' +
+            'Se guarda en el registro para auditoría (LexNET-lite).',
+        },
+      },
+      required: ['deadlineType', 'startDate', 'days'],
+    },
+  },
+  {
+    name: 'generate_document_package',
+    description:
+      'ENSAMBLA un paquete de documentos en el expediente a partir de varias plantillas (una por cada plantilla). ' +
+      'Útil para generar sets de intake, documentación transaccional o kits de presentación de una pasada. ' +
+      'Cada plantilla se renderiza a PDF con el membrete del despacho. Úsala cuando el usuario pida ' +
+      '"generar un paquete de documentos", "crear los documentos de intake", "assemblar la documentación del cierre" ' +
+      'o similar (múltiples plantillas a la vez en un expediente). Tras ensamblarlos, confirma el expediente y ' +
+      'cuántos documentos se han creado.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description:
+            'Referencia exacta del expediente donde ensamblar el paquete (p. ej. EXP-2026-0042).',
+        },
+        templateNames: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Nombres exactos de las plantillas a incluir en el paquete (p. ej. ["Escrito de demanda", "Anexo I: Pruebas"]). ' +
+            'Si la plantilla no existe, se reporta pero continúa con las demás.',
+        },
+      },
+      required: ['matterReference', 'templateNames'],
+    },
+  },
+  {
+    name: 'compare_document_versions',
+    description:
+      'Compara dos versiones de un documento (redline a nivel de palabra). Extrae el texto de cada ' +
+      'versión, calcula el diff de palabras y devuelve segmentos estructurados (igual/añadido/eliminado) ' +
+      'más el recuento de cambios. Útil para auditar cambios en borrador/negociaciones o rastrear ' +
+      'modificaciones en documentos revisados. Ambas versiones deben ser del MISMO documento.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        documentId: {
+          type: 'string',
+          description: 'ID único del documento.',
+        },
+        baseVersionId: {
+          type: 'string',
+          description: 'ID de la versión BASE (origen) a la que se compara.',
+        },
+        againstVersionId: {
+          type: 'string',
+          description: 'ID de la versión NUEVA (destino) a comparar contra la base.',
+        },
+      },
+      required: ['documentId', 'baseVersionId', 'againstVersionId'],
+    },
+  },
+  {
+    name: 'list_document_versions',
+    description:
+      'Devuelve el historial completo de versiones de un documento (todos los números de versión, fechas, autores y ' +
+      'estados de revisión). Útil para auditar cambios del documento, ver quién hizo qué y cuándo, o restaurar una ' +
+      'versión anterior. Solo lectura; acotado al tenant del usuario.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        documentId: {
+          type: 'string',
+          description: 'ID único del documento (requerido).',
+        },
+      },
+      required: ['documentId'],
+    },
+  },
+  {
+    name: 'list_presentation_types',
+    description:
+      "Lista los tipos de presentación (checklists de requisitos) configurados en el despacho. Devuelve el nombre, descripción, sector, jurisdicción, requisitos documentales y plantillas de tareas asociadas a cada tipo. Útil para consultas como '¿qué tipos de presentación tengo?', '¿cuáles son los requisitos de una OPA?' o '¿qué checklist aplico a este expediente?'. Solo lectura: no edita ni crea tipos.",
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'get_presentation_type',
+    description:
+      'Obtiene el detalle completo de un tipo de presentación: requisitos documentales, descripción, ' +
+      'plantillas de tareas automáticas asociadas y su orden de ejecución. Úsala para consultar un tipo ' +
+      'antes de aplicarlo a un expediente o para entender qué checklists y tareas se crearán. NO crea ni ' +
+      'modifica tipos: esta herramienta es solo lectura. Devolverá el nombre, sector, descripción, lista ' +
+      'de requisitos (orden, descripción, si es obligatorio) y plantillas de tarea con sus plazos relativos.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        presentationTypeId: {
+          type: 'string',
+          description: 'ID único del tipo de presentación en el sistema.',
+        },
+      },
+      required: ['presentationTypeId'],
+    },
+  },
+  {
+    name: 'list_matter_checklists',
+    description:
+      'Lista los checklists de presentación ACTIVOS de un expediente (requisitos de documentos y progreso). Devuelve cada checklist con el porcentaje de documentos aportados vs. requisitos. Útil para "¿qué falta en los requisitos?" o "¿cuál es el progreso de aportaciones?" en una tramitación, oferta pública, fusión o due diligence.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+      },
+      required: ['matterReference'],
+    },
+  },
+  {
+    name: 'export_checklist_pdf',
+    description:
+      'Genera un PDF del estado de una checklist de presentación (documentos aportados vs pendientes) con membrete del despacho. Útil para enviar al cliente o documentar el progreso. Devuelve el PDF listo para descargar.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        checklistId: {
+          type: 'string',
+          description: 'ID único de la checklist a exportar.',
+        },
+      },
+      required: ['checklistId'],
+    },
+  },
+  {
+    name: 'add_closing_item',
+    description:
+      'AÑADE una partida (requisito) al checklist de cierre de un expediente (acción de ESCRITURA, reversible). ' +
+      'Una partida puede ser una condición precedente, entregable, hoja de firma u otro requisito en la lista de cierre. ' +
+      'Úsala SOLO cuando el usuario pida añadir, crear o registrar un item en un checklist de cierre existente. ' +
+      'Especifica la categoría (CONDITION_PRECEDENT, DELIVERABLE, SIGNATURE_PAGE, OTHER), el título, y opcionalmente: ' +
+      'fase procedural, responsable, asignado (letra de letrado), documento vinculado, vencimiento, y si va en depósito ' +
+      '(escrow). Tras añadirlo, confirma el checklist, el ítem y los detalles insertados.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        checklistId: {
+          type: 'string',
+          description: 'ID del checklist de cierre donde añadir el ítem (requerido).',
+        },
+        category: {
+          type: 'string',
+          enum: ['CONDITION_PRECEDENT', 'DELIVERABLE', 'SIGNATURE_PAGE', 'OTHER'],
+          description:
+            'Categoría del ítem: CONDITION_PRECEDENT (condición precedente), DELIVERABLE (entregable), ' +
+            'SIGNATURE_PAGE (hoja de firma) u OTHER (otro). Requerido.',
+        },
+        title: {
+          type: 'string',
+          description:
+            'Título/nombre del ítem (2-200 caracteres; p. ej. "Certificado de Constitución"). Requerido.',
+        },
+        phase: {
+          type: 'string',
+          description:
+            'Fase procedural asociada (opcional; p. ej. "Pre-cierre", "Post-cierre", "Fondos en depósito").',
+        },
+        responsibleParty: {
+          type: 'string',
+          description:
+            'Parte responsable de aportar/cumplir el ítem (opcional; p. ej. "Vendedor", "Comprador", "Notario").',
+        },
+        assigneeId: {
+          type: 'string',
+          description:
+            'ID del miembro del despacho asignado a dar seguimiento (opcional; debe existir en el despacho).',
+        },
+        documentId: {
+          type: 'string',
+          description:
+            'ID del documento vinculado a este ítem (opcional; documento existente en el expediente).',
+        },
+        dueDate: {
+          type: 'string',
+          description: 'Fecha de vencimiento en formato YYYY-MM-DD (opcional).',
+        },
+        detail: {
+          type: 'string',
+          description: 'Descripción/detalle adicional del ítem (opcional; máximo 1000 caracteres).',
+        },
+        inEscrow: {
+          type: 'boolean',
+          description:
+            'Si es true, marca el ítem como en depósito (retención hasta cierre; típico en hojas de firma). ' +
+            'Opcional, por defecto false.',
+        },
+      },
+      required: ['checklistId', 'category', 'title'],
+    },
+  },
+  {
+    name: 'generate_closing_binder',
+    description:
+      'GENERA el closing binder como un archivo ZIP que contiene: (1) un índice PDF con portada y todas las ' +
+      'partidas del checklist agrupadas por categoría (condiciones previas, entregables, hojas de firma), ' +
+      'mostrando estado, responsable, vencimiento y enlaces a los documentos; (2) los últimos ficheros de ' +
+      'cada documento vinculado a las partidas, organizados en una carpeta /documentos. El ZIP está listo ' +
+      'para descargar y distribuir a las partes. SOLO LECTURA: no modifica datos del expediente ni del ' +
+      'checklist. Úsala cuando el usuario pida generar, descargar o empaquetar el closing binder de una ' +
+      'operación.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        checklistId: {
+          type: 'string',
+          description: 'ID único del checklist de cierre del que generar el binder (obligatorio).',
+        },
+      },
+      required: ['checklistId'],
+    },
+  },
 ];
 
 /** Instrucciones de sistema del asistente agéntico. */
@@ -688,6 +1051,20 @@ const CORE_TOOLS = new Set<string>([
 
 /** Área de cada herramienta (para exposición por intención). Tools sin entrada se exponen por defecto. */
 const TOOL_AREAS: Record<string, string> = {
+  list_assignable_lawyers: 'matters',
+  create_client_portal_user: 'clients',
+  add_matter_team_member: 'matters',
+  preview_task_from_deadline: 'tasks',
+  create_procedural_task: 'tasks',
+  generate_document_package: 'documents',
+  compare_document_versions: 'documents',
+  list_document_versions: 'documents',
+  list_presentation_types: 'presentations',
+  get_presentation_type: 'presentations',
+  list_matter_checklists: 'presentations',
+  export_checklist_pdf: 'presentations',
+  add_closing_item: 'closing',
+  generate_closing_binder: 'closing',
   search_matters: 'matters',
   get_matter: 'matters',
   get_matter_timeline: 'matters',
