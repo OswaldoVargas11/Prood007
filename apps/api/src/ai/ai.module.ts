@@ -22,6 +22,7 @@ import { AiIndexCron } from './ai-index.cron';
 import { AiController } from './ai.controller';
 import { TasksModule } from '../tasks/tasks.module';
 import { DocumentsModule } from '../documents/documents.module';
+import { TemplatesModule } from '../templates/templates.module';
 
 /**
  * Núcleo de IA, agnóstico del modelo. El factory elige el motor por configuración:
@@ -31,7 +32,7 @@ import { DocumentsModule } from '../documents/documents.module';
  */
 @Global()
 @Module({
-  imports: [TasksModule, DocumentsModule],
+  imports: [TasksModule, DocumentsModule, TemplatesModule],
   controllers: [AiController],
   providers: [
     {

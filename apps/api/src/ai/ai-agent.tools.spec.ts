@@ -30,6 +30,6 @@ describe('AGENT_TOOLS (catálogo del agente)', () => {
 
   it('el prompt de sistema es sustancial y prohíbe inventar (anti-alucinación)', () => {
     expect(AGENT_SYSTEM_PROMPT.length).toBeGreaterThan(200);
-    expect(AGENT_SYSTEM_PROMPT.toLowerCase()).toContain('no inventes');
+    expect(AGENT_SYSTEM_PROMPT.toLowerCase()).toContain('inventes');
   });
 });

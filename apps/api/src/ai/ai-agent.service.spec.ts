@@ -80,6 +80,9 @@ function makeDeps(invocations: AiToolInvocation[]) {
   const documents = {
     saveAiDraft: jest.fn().mockResolvedValue({ document: { id: 'doc-1', name: 'Escrito' } }),
   };
+  const templates = {
+    create: jest.fn().mockResolvedValue({ id: 'tpl-1', name: 'Plantilla' }),
+  };
   const search = { search: jest.fn().mockResolvedValue([]) };
   const engine = new FakeEngine(invocations);
   /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -89,11 +92,12 @@ function makeDeps(invocations: AiToolInvocation[]) {
     audit as any,
     tasks as any,
     documents as any,
+    templates as any,
     search as any,
     engine,
   );
   /* eslint-enable @typescript-eslint/no-explicit-any */
-  return { service, prisma, quota, audit, tasks, documents, search, engine };
+  return { service, prisma, quota, audit, tasks, documents, templates, search, engine };
 }
 
 describe('AiAgentService', () => {
@@ -151,6 +155,7 @@ describe('AiAgentService', () => {
       prisma as any,
       quota as any,
       audit as any,
+      {} as any,
       {} as any,
       {} as any,
       {} as any,
@@ -391,6 +396,29 @@ describe('AiAgentService', () => {
     });
     expect(JSON.parse(out.content)).toMatchObject({ error: expect.any(String) });
     expect(documents.saveAiDraft).not.toHaveBeenCalled();
+  });
+
+  it('create_template crea una plantilla reutilizable vía TemplatesService (con campos {{merge}})', async () => {
+    const { service, engine, templates } = makeDeps([]);
+    templates.create.mockResolvedValue({ id: 'tpl-9', name: 'NDA M&A' });
+    await service.run(user, 'hola', [], true);
+    const out = await engine.lastExec!({
+      name: 'create_template',
+      input: { name: 'NDA M&A', body: 'Confidencialidad entre {{parte1}} y {{parte2}}.' },
+    });
+    expect(templates.create).toHaveBeenCalledWith(
+      user,
+      expect.objectContaining({ name: 'NDA M&A', body: expect.stringContaining('{{parte1}}') }),
+    );
+    expect(JSON.parse(out.content)).toMatchObject({ created: true, templateId: 'tpl-9' });
+  });
+
+  it('create_template sin body no escribe', async () => {
+    const { service, engine, templates } = makeDeps([]);
+    await service.run(user, 'hola', [], true);
+    const out = await engine.lastExec!({ name: 'create_template', input: { name: 'X' } });
+    expect(JSON.parse(out.content)).toMatchObject({ error: expect.any(String) });
+    expect(templates.create).not.toHaveBeenCalled();
   });
 
   it('create_task con expediente inexistente no escribe', async () => {

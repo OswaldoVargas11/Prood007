@@ -15,6 +15,7 @@ import { AiQuotaService } from './ai-quota.service';
 import { AuditService } from '../audit/audit.service';
 import { TasksService } from '../tasks/tasks.service';
 import { DocumentsService } from '../documents/documents.service';
+import { TemplatesService } from '../templates/templates.service';
 import { AiSearchService } from './ai-search.service';
 import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
@@ -45,7 +46,7 @@ export type AgentStreamEvent =
 
 const OPEN_TASK_STATUSES = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
 /** Herramientas que MUTAN estado: requieren confirmación humana salvo que el cliente la conceda. */
-const WRITE_TOOLS = new Set(['create_task', 'draft_and_save_document']);
+const WRITE_TOOLS = new Set(['create_task', 'draft_and_save_document', 'create_template']);
 const ACTIVE_MATTER_STATUSES = [MatterStatus.OPEN, MatterStatus.IN_PROGRESS];
 /** Tope de mensajes de historial que se reenvían al modelo (control de coste/contexto). */
 const MAX_HISTORY_MESSAGES = 20;
@@ -66,6 +67,7 @@ export class AiAgentService {
     private readonly audit: AuditService,
     private readonly tasks: TasksService,
     private readonly documents: DocumentsService,
+    private readonly templates: TemplatesService,
     private readonly search: AiSearchService,
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
   ) {}
@@ -225,6 +227,8 @@ export class AiAgentService {
           return { content: await this.createTask(user, inv.input) };
         case 'draft_and_save_document':
           return { content: await this.draftAndSaveDocument(user, inv.input) };
+        case 'create_template':
+          return { content: await this.createTemplate(user, inv.input) };
         default:
           return { content: `Herramienta desconocida: ${inv.name}`, isError: true };
       }
@@ -575,6 +579,28 @@ export class AiAgentService {
       status: 'borrador pendiente de revisión',
     });
   }
+
+  /**
+   * CREA una plantilla reutilizable en la biblioteca del despacho vía `TemplatesService.create` (valida
+   * tenant, audita). El modelo redacta el `body` (con campos {{merge}}). No fiscal, reversible.
+   */
+  private async createTemplate(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const name = str(input, 'name');
+    const body = typeof input.body === 'string' ? input.body : '';
+    if (!name || name.length < 2) {
+      return json({ error: 'Indica un nombre para la plantilla (mínimo 2 caracteres).' });
+    }
+    if (body.trim().length === 0) {
+      return json({ error: 'Falta el contenido (body) de la plantilla.' });
+    }
+    const description = str(input, 'description');
+    const tpl = await this.templates.create(user, {
+      name: name.slice(0, 200),
+      body: body.slice(0, 100_000),
+      description,
+    });
+    return json({ created: true, templateId: tpl.id, name: tpl.name });
+  }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────────────
@@ -605,6 +631,9 @@ function describeWrite(inv: AiToolInvocation): string {
   }
   if (inv.name === 'draft_and_save_document') {
     return `Redactar y guardar el documento "${title}" en ${ref ?? 'el expediente'} (borrador)`;
+  }
+  if (inv.name === 'create_template') {
+    return `Crear la plantilla "${str(inv.input, 'name') ?? ''}" en la biblioteca`;
   }
   return inv.name;
 }
