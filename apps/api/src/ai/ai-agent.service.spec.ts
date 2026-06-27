@@ -243,7 +243,7 @@ describe('AiAgentService', () => {
       title: 'Contestar demanda',
       dueDate: new Date('2026-07-10T00:00:00Z'),
     });
-    await service.run(user, 'hola');
+    await service.run(user, 'hola', [], true);
     const out = await engine.lastExec!({
       name: 'create_task',
       input: { title: 'Contestar demanda', matterReference: 'EXP-1', dueDate: '2026-07-10' },
@@ -262,7 +262,7 @@ describe('AiAgentService', () => {
 
   it('create_task sin título no escribe', async () => {
     const { service, engine, tasks } = makeDeps([]);
-    await service.run(user, 'hola');
+    await service.run(user, 'hola', [], true);
     const out = await engine.lastExec!({ name: 'create_task', input: {} });
     expect(JSON.parse(out.content)).toMatchObject({ error: expect.any(String) });
     expect(tasks.create).not.toHaveBeenCalled();
@@ -272,7 +272,7 @@ describe('AiAgentService', () => {
     const { service, engine, prisma, documents } = makeDeps([]);
     prisma.matter.findFirst.mockResolvedValue({ id: 'm-1' });
     documents.saveAiDraft.mockResolvedValue({ document: { id: 'doc-9', name: 'Demanda' } });
-    await service.run(user, 'hola');
+    await service.run(user, 'hola', [], true);
     const out = await engine.lastExec!({
       name: 'draft_and_save_document',
       input: { matterReference: 'EXP-1', title: 'Demanda', content: 'En la ciudad de...' },
@@ -290,7 +290,7 @@ describe('AiAgentService', () => {
 
   it('draft_and_save_document sin contenido no escribe', async () => {
     const { service, engine, documents } = makeDeps([]);
-    await service.run(user, 'hola');
+    await service.run(user, 'hola', [], true);
     const out = await engine.lastExec!({
       name: 'draft_and_save_document',
       input: { matterReference: 'EXP-1', title: 'X', content: '   ' },
@@ -302,12 +302,25 @@ describe('AiAgentService', () => {
   it('create_task con expediente inexistente no escribe', async () => {
     const { service, engine, prisma, tasks } = makeDeps([]);
     prisma.matter.findFirst.mockResolvedValue(null);
-    await service.run(user, 'hola');
+    await service.run(user, 'hola', [], true);
     const out = await engine.lastExec!({
       name: 'create_task',
       input: { title: 'Algo', matterReference: 'NOPE' },
     });
     expect(JSON.parse(out.content)).toMatchObject({ created: false });
     expect(tasks.create).not.toHaveBeenCalled();
+  });
+
+  it('HITL: sin allowWrites, una escritura NO se ejecuta y queda como pendiente de confirmación', async () => {
+    const { service, engine, tasks } = makeDeps([
+      { name: 'create_task', input: { title: 'Llamar al cliente' } },
+    ]);
+    const res = await service.run(user, 'crea una tarea para llamar al cliente');
+    expect(tasks.create).not.toHaveBeenCalled();
+    expect(res.pendingWrites).toEqual([
+      { action: 'create_task', summary: expect.stringContaining('Llamar al cliente') },
+    ]);
+    const out = await engine.lastExec!({ name: 'create_task', input: { title: 'X' } });
+    expect(JSON.parse(out.content)).toMatchObject({ status: 'requires_confirmation' });
   });
 });
