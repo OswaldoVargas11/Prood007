@@ -137,6 +137,30 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
       required: ['title'],
     },
   },
+  {
+    name: 'draft_and_save_document',
+    description:
+      'REDACTA y GUARDA un escrito en un expediente (acción de ESCRITURA, reversible). Genera un PDF con ' +
+      'el membrete del despacho que queda como BORRADOR pendiente de revisión del letrado. Úsala SOLO ' +
+      'cuando el usuario pida redactar/preparar/guardar un documento. TÚ redactas el contenido y lo pasas ' +
+      'en "content"; tras guardarlo, confirma el nombre y el expediente.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia del expediente donde guardar el escrito.',
+        },
+        title: { type: 'string', description: 'Título/nombre del documento (2-200 caracteres).' },
+        content: {
+          type: 'string',
+          description:
+            'Texto completo del escrito ya redactado (lo redactas tú; se renderiza a PDF).',
+        },
+      },
+      required: ['matterReference', 'title', 'content'],
+    },
+  },
 ];
 
 /** Instrucciones de sistema del asistente agéntico. */
@@ -154,6 +178,8 @@ export const AGENT_SYSTEM_PROMPT = [
   '  oficiales; NUNCA inventes sentencias, artículos ni citas: remite a la fuente primaria.',
   '- Puedes CREAR tareas/plazos con create_task, pero SOLO cuando el usuario lo pida explícitamente.',
   '  Tras crear una tarea, confirma lo que has creado (título, expediente, fecha de vencimiento).',
+  '- Puedes REDACTAR y GUARDAR un escrito en un expediente con draft_and_save_document (queda como',
+  '  borrador pendiente de revisión del letrado), SOLO cuando te lo pidan. Redacta tú el contenido.',
   '- No puedes modificar ni borrar nada más, ni emitir facturas, cobrar, firmar documentos ni enviar',
   '  correos. Si te lo piden, explica que esas acciones debe realizarlas el letrado.',
 ].join('\n');

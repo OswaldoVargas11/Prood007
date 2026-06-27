@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AiQuotaService } from './ai-quota.service';
 import { AuditService } from '../audit/audit.service';
 import { TasksService } from '../tasks/tasks.service';
+import { DocumentsService } from '../documents/documents.service';
 import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
 import type { RequestUser } from '../auth/auth.types';
@@ -43,6 +44,7 @@ export class AiAgentService {
     private readonly quota: AiQuotaService,
     private readonly audit: AuditService,
     private readonly tasks: TasksService,
+    private readonly documents: DocumentsService,
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
   ) {}
 
@@ -97,6 +99,8 @@ export class AiAgentService {
           return { content: this.legalResearch(user, inv.input) };
         case 'create_task':
           return { content: await this.createTask(user, inv.input) };
+        case 'draft_and_save_document':
+          return { content: await this.draftAndSaveDocument(user, inv.input) };
         default:
           return { content: `Herramienta desconocida: ${inv.name}`, isError: true };
       }
@@ -348,6 +352,49 @@ export class AiAgentService {
       title: task.title,
       matter: matterReference ?? null,
       dueDate: task.dueDate ? task.dueDate.toISOString().slice(0, 10) : null,
+    });
+  }
+
+  /**
+   * Redacta y GUARDA un escrito en el expediente reutilizando `DocumentsService.saveAiDraft` (PDF con
+   * membrete, pipeline cifrado, versión 1 en revisión PENDING). El contenido lo redacta el modelo. No es
+   * fiscal y es reversible. Resuelve la referencia del expediente a su id (acotado por tenant).
+   */
+  private async draftAndSaveDocument(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    const title = str(input, 'title');
+    const content = typeof input.content === 'string' ? input.content : '';
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+    if (!title || title.length < 2) {
+      return json({ error: 'Indica un título para el documento (mínimo 2 caracteres).' });
+    }
+    if (content.trim().length === 0) {
+      return json({ error: 'Falta el contenido del documento a guardar.' });
+    }
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        created: false,
+        note: `No existe expediente con referencia ${matterReference}; no se ha guardado el documento.`,
+      });
+    }
+    const { document } = await this.documents.saveAiDraft(user, {
+      matterId: matter.id,
+      title,
+      bodyText: content,
+    });
+    return json({
+      created: true,
+      documentId: document.id,
+      name: document.name,
+      matter: matterReference,
+      status: 'borrador pendiente de revisión',
     });
   }
 }
