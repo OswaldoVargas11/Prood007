@@ -23,6 +23,9 @@ import { AiController } from './ai.controller';
 import { TasksModule } from '../tasks/tasks.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { TemplatesModule } from '../templates/templates.module';
+import { ClientsModule } from '../clients/clients.module';
+import { MattersModule } from '../matters/matters.module';
+import { PresentationsModule } from '../presentations/presentations.module';
 import { DashboardModule } from '../dashboard/dashboard.module';
 
 /**
@@ -33,7 +36,15 @@ import { DashboardModule } from '../dashboard/dashboard.module';
  */
 @Global()
 @Module({
-  imports: [TasksModule, DocumentsModule, TemplatesModule, DashboardModule],
+  imports: [
+    TasksModule,
+    DocumentsModule,
+    TemplatesModule,
+    DashboardModule,
+    ClientsModule,
+    MattersModule,
+    PresentationsModule,
+  ],
   controllers: [AiController],
   providers: [
     {

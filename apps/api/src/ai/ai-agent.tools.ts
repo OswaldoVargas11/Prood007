@@ -210,6 +210,242 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
       required: ['name', 'body'],
     },
   },
+  {
+    name: 'check_conflict_of_interest',
+    description:
+      'Revisa CONFLICTOS DE INTERÉS (deontología): busca si una persona/empresa YA es cliente ' +
+      'del despacho o YA figura como adversario en otro expediente. Devuelve coincidencias en clientes ' +
+      'existentes y expedientes donde esa parte contraria interviene. Úsala ANTES de crear un cliente ' +
+      'o un expediente nuevo para validar que no hay conflicto de lealtad o representación conjunta. ' +
+      'Insensible a mayúsculas y búsqueda parcial.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description:
+            'Nombre o parte del nombre de la persona/empresa a revisar (mínimo 2 caracteres para búsqueda).',
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'get_client_detail',
+    description:
+      'Obtiene el detalle completo de un cliente por su ID: nombre, identificador fiscal, email, teléfono, ' +
+      'dirección, y cuántos expedientes tiene. Úsala tras localizarlo con find_client o cuando necesites ' +
+      'consultar los datos exactos de un cliente concreto para redactar escritos, asociar expedientes u ' +
+      'otra gestión. NO la uses para listar clientes (usa find_client para búsqueda) ni para modificar datos ' +
+      '(la herramienta es solo lectura).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        clientId: {
+          type: 'string',
+          description: 'ID único del cliente en el sistema (su clave primaria).',
+        },
+      },
+      required: ['clientId'],
+    },
+  },
+  {
+    name: 'get_matter_timeline',
+    description:
+      'Devuelve la cronología del expediente: feed temporal unificado de documentos, tareas/plazos ' +
+      'procedimentales, movimientos contables (honorarios, gastos), correos y mensajes de chat. ' +
+      'Únicamente lectura. Úsala para "¿cuál es el historial del expediente?", "¿qué ha pasado en...?" ' +
+      'o para contextualizar auditoría/progreso. Devuelve los eventos más recientes (máx. 80, de las ' +
+      'últimas 50 entradas de cada fuente) ordenados cronológicamente. NO la uses para crear acciones ' +
+      'ni para modificar nada; solo consulta.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+      },
+      required: ['matterReference'],
+    },
+  },
+  {
+    name: 'list_matters_by_status',
+    description:
+      'Lista expedientes del despacho filtrando por estado (OPEN, IN_PROGRESS, ON_HOLD, CLOSED, ARCHIVED). ' +
+      'Opcionalmente acotados a un cliente específico. Devuelve expedientes con cliente, abogado responsable ' +
+      'y total. Úsala para "¿cuántos expedientes tengo abiertos?", "expedientes en pausa", "cerrados este mes" ' +
+      'o "expedientes del cliente X". Siempre pagina los resultados (20 por defecto).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        status: {
+          type: 'string',
+          enum: ['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'CLOSED', 'ARCHIVED'],
+          description: 'Estado del expediente a filtrar (obligatorio).',
+        },
+        clientId: {
+          type: 'string',
+          description: 'ID del cliente para acotar la búsqueda (opcional).',
+        },
+        page: {
+          type: 'integer',
+          description: 'Página de resultados (1 por defecto).',
+        },
+        pageSize: {
+          type: 'integer',
+          description: 'Expedientes por página (1-50, por defecto 20).',
+        },
+      },
+      required: ['status'],
+    },
+  },
+  {
+    name: 'create_client',
+    description:
+      'CREA un cliente/empresa/persona en el despacho y la registra en la base de datos (acción de ESCRITURA, ' +
+      'reversible). Úsala SOLO cuando el usuario pida explícitamente crear, añadir o registrar un nuevo cliente. ' +
+      'El identificador fiscal (NIF/CIF/NIE en ES, RNC/Cédula en RD) se valida automáticamente contra la ' +
+      'jurisdicción del despacho; si no es válido, el sistema lo rechaza indicando el motivo. Si el usuario ' +
+      'trabaja en ambas jurisdicciones (ES + RD), se intenta con la otra si falla la primera. Tras crearlo, ' +
+      'confirma al usuario el nombre, identificador fiscal y que ya puede usarlo en expedientes. NO uses esta ' +
+      'herramienta para actualizaciones o cambios de datos existentes (usa el editor de clientes).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description:
+            'Nombre legal del cliente (empresa, persona o razón social; 2-200 caracteres).',
+        },
+        taxId: {
+          type: 'string',
+          description:
+            'Identificador fiscal válido en la jurisdicción del despacho: NIF/CIF/NIE (España) o ' +
+            'RNC/Cédula (República Dominicana). Se normaliza automáticamente.',
+        },
+        email: {
+          type: 'string',
+          description: 'Correo electrónico del cliente (opcional; usado para contacto y portal).',
+        },
+        phone: {
+          type: 'string',
+          description: 'Teléfono de contacto (opcional; máximo 40 caracteres).',
+        },
+        address: {
+          type: 'string',
+          description: 'Dirección postal del cliente (opcional; máximo 300 caracteres).',
+        },
+        docType: {
+          type: 'string',
+          enum: ['PASSPORT', 'OTHER'],
+          description:
+            'Tipo de documento si el cliente es extranjero. PASSPORT o OTHER activa validación ligera ' +
+            '(si se omite, validación fiscal estricta de la jurisdicción).',
+        },
+      },
+      required: ['name', 'taxId'],
+    },
+  },
+  {
+    name: 'create_matter',
+    description:
+      'CREA un nuevo expediente (acción de ESCRITURA, reversible). Úsala SOLO cuando el usuario pida ' +
+      'crear, abrir, registrar o añadir un nuevo asunto/caso. Asocia a un cliente existente (por su ' +
+      'nombre o identificador). Opcionalmente asigna un letrado responsable (si el usuario lo precisa) ' +
+      'y añade detalles de litigación (juzgado, parte contraria, nº de autos, fase procesal). El ' +
+      'expediente se abre en estado OPEN con referencia auto-generada (EXP-AAAA-NNNN) salvo que ' +
+      'proporciones una. CUÁNDO usarla: usuario dice "crear expediente", "abrir caso de X", "registro ' +
+      'nuevo asunto"; NO cuando pide crear una tarea O un documento dentro de un expediente existente ' +
+      '(usa create_task o draft_and_save_document). CUÁNDO NO: nunca uses esto para litigios fiscales, ' +
+      'insolvencia, quiebra sin explícita orden del usuario; firma siempre con el letrado responsable.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description:
+            'Título/asunto principal del expediente (2-200 caracteres; p. ej. "Compraventa inmueble Av. Principal").',
+        },
+        type: {
+          type: 'string',
+          description:
+            'Tipo de asunto: "Mercantil", "Civil", "Laboral", "Fiscal", "Penal", etc. (2-80 caracteres).',
+        },
+        clientName: {
+          type: 'string',
+          description:
+            'Nombre exacto del cliente (se resuelve a su ID; debe existir en el despacho).',
+        },
+        opposingParty: {
+          type: 'string',
+          description: 'Nombre de la parte contraria (opcional; p. ej. "Constructora ABC S.L.").',
+        },
+        opposingPartyTaxId: {
+          type: 'string',
+          description: 'Identificador fiscal de la contraparte (opcional; NIF, RNC, etc.).',
+        },
+        lawyerId: {
+          type: 'string',
+          description: 'ID del letrado responsable (opcional; si se omite, sin asignar al crear).',
+        },
+        court: {
+          type: 'string',
+          description:
+            'Juzgado/tribunal (para litigación; opcional; p. ej. "Juzgado de lo Mercantil Nº 3").',
+        },
+        caseNumber: {
+          type: 'string',
+          description:
+            'Número de autos/procedimiento (para litigación; opcional; p. ej. "3/2026").',
+        },
+        proceduralPhase: {
+          type: 'string',
+          description:
+            'Fase procesal (para litigación; opcional; p. ej. "Fase de alegaciones", "Sentencia").',
+        },
+        opposingCounsel: {
+          type: 'string',
+          description:
+            'Letrado de la contraparte (para litigación; opcional; p. ej. "Despacho XYZ").',
+        },
+        reference: {
+          type: 'string',
+          description: 'Referencia interna (opcional; si se omite, se genera auto. EXP-2026-NNNN).',
+        },
+      },
+      required: ['title', 'type', 'clientName'],
+    },
+  },
+  {
+    name: 'apply_presentation_to_matter',
+    description:
+      'CREA e INSTANCIA un checklist de presentación en un expediente (acción de ESCRITURA, reversible). ' +
+      'Aplica un tipo de presentación (conjunto de requisitos de documentos + tareas automáticas) a un ' +
+      'expediente concreto. Genera un checklist con ítems para rastrear la aportación de documentos y ' +
+      'crea automáticamente las tareas/plazos asociados al tipo. Útil para tramitaciones, ofertas públicas, ' +
+      'fusiones, procesos de due diligence o cualquier procedimiento con lista de requisitos. Úsala SOLO ' +
+      'cuando el usuario pida aplicar un tipo de presentación a un expediente (p. ej. "aplicar checklist ' +
+      'de OPA", "instancia el checklist de M&A", "usa el checklist de requisitos regulatorios"). ' +
+      'Tras aplicarla, confirma el expediente, el tipo de presentación y cuántos ítems/tareas se han creado.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        matterReference: {
+          type: 'string',
+          description:
+            'Referencia del expediente donde instanciar el checklist (p. ej. EXP-2026-0042).',
+        },
+        presentationTypeName: {
+          type: 'string',
+          description:
+            'Nombre del tipo de presentación a aplicar (se buscará dentro del despacho). ' +
+            'Ejemplos: "Oferta Pública de Adquisición", "Due Diligence de Fusión", "Requisitos SIC".',
+        },
+      },
+      required: ['matterReference', 'presentationTypeName'],
+    },
+  },
 ];
 
 /** Instrucciones de sistema del asistente agéntico. */
@@ -230,6 +466,16 @@ export const AGENT_SYSTEM_PROMPT = [
   '  piden "un paquete de plantillas de X" (p. ej. M&A: LOI, NDA, term sheet, SPA, checklist de due',
   '  diligence), crea las plantillas UNA POR UNA: una sola llamada a create_template por respuesta, nunca',
   '  todas en el mismo mensaje (evita exceder el límite de tokens).',
+  '- create_client: dar de alta un CLIENTE (valida el identificador fiscal de la jurisdicción).',
+  '- create_matter: abrir un EXPEDIENTE nuevo vinculado a un cliente.',
+  '- apply_presentation_to_matter: instanciar un checklist de presentación en un expediente (crea sus',
+  '  tareas/plazos asociados).',
+  '',
+  'PROCESOS (encadena herramientas): puedes resolver peticiones multi-paso combinando tus tools. Ejemplo:',
+  '"da de alta a [cliente] y abre un expediente de [asunto]" → check_conflict_of_interest →',
+  '(si no hay conflicto) create_client → create_matter → apply_presentation_to_matter. SIEMPRE comprueba',
+  'el CONFLICTO DE INTERÉS antes de crear cliente o expediente. Propón el plan completo y pide UNA sola',
+  'confirmación para todas las escrituras juntas.',
   '',
   'Confirmación (HITL): toda escritura requiere el visto bueno del letrado. Si una herramienta de escritura',
   'responde "requires_confirmation", la acción NO se ha hecho: di en una frase qué vas a crear y pide',

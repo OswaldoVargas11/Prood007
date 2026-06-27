@@ -93,6 +93,9 @@ function makeDeps(invocations: AiToolInvocation[]) {
     tasks as any,
     documents as any,
     templates as any,
+    {} as any,
+    {} as any,
+    {} as any,
     search as any,
     engine,
   );
@@ -159,6 +162,9 @@ describe('AiAgentService', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
       throwing as any,
     );
     /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -205,6 +211,19 @@ describe('AiAgentService', () => {
     const out = await engine.lastExec!({ name: 'no_existe', input: {} });
     expect(out.isError).toBe(true);
     expect(out.content).toContain('desconocida');
+  });
+
+  it('HITL: una escritura (create_client) NO se ejecuta sin confirmación; pide visto bueno', async () => {
+    const { service, engine } = makeDeps([]); // run() por defecto allowWrites=false
+    await service.run(user, 'hola');
+    const out = await engine.lastExec!({
+      name: 'create_client',
+      input: { name: 'ACME SL', taxId: 'B12345678' },
+    });
+    expect(JSON.parse(out.content)).toMatchObject({
+      status: 'requires_confirmation',
+      action: 'create_client',
+    });
   });
 
   it('list_open_tasks acotado por expediente filtra por referencia y estado abierto', async () => {
