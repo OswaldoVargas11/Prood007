@@ -408,6 +408,8 @@ model Tenant {
   conversations        Conversation[]
   conversationMembers  ConversationMember[]
   chatMessages         ChatMessage[]
+  aiConversations      AiConversation[]
+  aiChatMessages       AiChatMessage[]
   webhookEndpoints     WebhookEndpoint[]
 }
 
@@ -2274,6 +2276,42 @@ model ChatMessage {
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, conversationId])
+}
+
+/// Conversación con el asistente agéntico (Zora). PRIVADA del usuario que la inició (no se comparte con el
+/// resto del staff): `userId` escalar sin FK (patrón ConversationMember; los usuarios se desactivan, no se
+/// borran). Distinta del chat social interno (Conversation/ChatMessage, staff↔staff). RLS por tenant.
+model AiConversation {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  /// Título legible, derivado del primer mensaje del usuario.
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages AiChatMessage[]
+
+  @@index([tenantId, userId, updatedAt])
+}
+
+/// Un turno persistido de una conversación con Zora. `meta` guarda la UI rica del dock (tarjetas de
+/// herramientas + traza) solo en los mensajes del asistente, para poder restaurarla al reabrir el chat.
+model AiChatMessage {
+  id             String   @id @default(cuid())
+  tenantId       String
+  conversationId String
+  /// 'user' | 'assistant'.
+  role           String
+  content        String
+  meta           Json?
+  createdAt      DateTime @default(now())
+
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, conversationId, createdAt])
 }
 
 /// Idempotencia del webhook de suscripción de la PLATAFORMA (M-2). `id` = `event.id` de Stripe; el primer

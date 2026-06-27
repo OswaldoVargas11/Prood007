@@ -1,15 +1,17 @@
-import { Body, Controller, Get, Param, Post, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Res } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { Role } from '@legalflow/domain';
 import { AiService } from './ai.service';
 import { AiSearchService } from './ai-search.service';
+import { AiChatService } from './ai-chat.service';
 import { AiAgentService, type AgentStreamEvent } from './ai-agent.service';
 import {
   AgentDto,
   AskDto,
   DraftEmailDto,
   DraftFromTemplateDto,
+  SaveTurnsDto,
   SemanticSearchDto,
 } from './dto/ai.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -34,6 +36,7 @@ export class AiController {
     private readonly ai: AiService,
     private readonly search: AiSearchService,
     private readonly agent: AiAgentService,
+    private readonly chat: AiChatService,
   ) {}
 
   /** ¿Está la IA disponible y con qué modelo? (para gating de la UI). No llama al modelo → sin throttle estricto. */
@@ -138,6 +141,51 @@ export class AiController {
     } finally {
       if (!res.writableEnded) res.end();
     }
+  }
+
+  // ── Persistencia del chat de Zora ─────────────────────────────────────────
+  // CRUD del historial de conversaciones del usuario. NO llama al modelo (la generación va por
+  // `/ai/agent/stream`), así que se exime del throttle estricto de IA. Cada conversación es privada del
+  // usuario que la inició (el servicio filtra por userId además del aislamiento por tenant de RLS).
+
+  /** Historial de conversaciones del usuario con Zora (recientes primero). */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Get('conversations')
+  listConversations(@CurrentUser() user: RequestUser) {
+    return this.chat.list(user);
+  }
+
+  /** Carga una conversación con sus mensajes (para restaurar el chat). */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Get('conversations/:id')
+  getConversation(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.chat.get(user, id);
+  }
+
+  /** Crea una conversación con los mensajes de su primer turno. */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Post('conversations')
+  createConversation(@CurrentUser() user: RequestUser, @Body() dto: SaveTurnsDto) {
+    return this.chat.create(user, dto.messages);
+  }
+
+  /** Añade los mensajes de un turno a una conversación existente. */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Post('conversations/:id/messages')
+  appendTurn(@CurrentUser() user: RequestUser, @Param('id') id: string, @Body() dto: SaveTurnsDto) {
+    return this.chat.append(user, id, dto.messages);
+  }
+
+  /** Borra una conversación del usuario. */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Delete('conversations/:id')
+  deleteConversation(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.chat.remove(user, id);
   }
 
   /** Búsqueda semántica en lo indexado del despacho. (Avanzado: indexación/RAG.) */

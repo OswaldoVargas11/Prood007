@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
@@ -75,6 +76,30 @@ export class AgentDto {
   @IsOptional()
   @IsBoolean()
   allowWrites?: boolean;
+}
+
+/** Un turno a PERSISTIR en una conversación con Zora (texto + UI rica opcional en `meta`). */
+export class SaveTurnDto {
+  @IsIn(['user', 'assistant'])
+  role!: 'user' | 'assistant';
+
+  @IsString()
+  @MaxLength(16000)
+  content!: string;
+
+  /** Tarjetas de herramientas + traza para restaurar la UI (solo mensajes del asistente). */
+  @IsOptional()
+  @IsObject()
+  meta?: Record<string, unknown>;
+}
+
+/** Guardar un turno completo (1-2 mensajes: el del usuario y la respuesta del asistente). */
+export class SaveTurnsDto {
+  @IsArray()
+  @ArrayMaxSize(2)
+  @ValidateNested({ each: true })
+  @Type(() => SaveTurnDto)
+  messages!: SaveTurnDto[];
 }
 
 /** Búsqueda semántica. */

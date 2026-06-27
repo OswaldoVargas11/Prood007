@@ -16,6 +16,7 @@ import { VoyageEmbeddingsProvider } from './providers/voyage-embeddings.provider
 import { DisabledEmbeddingsProvider } from './providers/disabled-embeddings.provider';
 import { AiService } from './ai.service';
 import { AiSearchService } from './ai-search.service';
+import { AiChatService } from './ai-chat.service';
 import { AiAgentService } from './ai-agent.service';
 import { AiQuotaService } from './ai-quota.service';
 import { AiIndexCron } from './ai-index.cron';
@@ -128,6 +129,7 @@ import { DashboardModule } from '../dashboard/dashboard.module';
     },
     AiService,
     AiSearchService,
+    AiChatService,
     AiAgentService,
     AiQuotaService,
     AiIndexCron,
