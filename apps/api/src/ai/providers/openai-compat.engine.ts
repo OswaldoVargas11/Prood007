@@ -185,31 +185,43 @@ export class OpenAiCompatEngine implements AiEngine {
     };
   }
 
-  /** POST a /chat/completions y normaliza la respuesta. Lanza si la API responde no-2xx. */
+  /**
+   * POST a /chat/completions y normaliza la respuesta. Reintenta ante límites transitorios (429) o
+   * indisponibilidad (502/503) con backoff corto; lanza ante el resto de respuestas no-2xx.
+   */
   private async chat(body: Record<string, unknown>): Promise<ChatResult> {
-    const res = await fetch(`${this.baseURL}/chat/completions`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
-      body: JSON.stringify({ model: this.modelId, ...body }),
-    });
-    if (!res.ok) {
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const res = await fetch(`${this.baseURL}/chat/completions`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${this.apiKey}` },
+        body: JSON.stringify({ model: this.modelId, ...body }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          choices?: Array<{ message?: OpenAiMessage; finish_reason?: string }>;
+          usage?: { prompt_tokens?: number; completion_tokens?: number };
+          model?: string;
+        };
+        const choice = data.choices?.[0] ?? {};
+        return {
+          message: choice.message ?? { role: 'assistant', content: '' },
+          usage: {
+            input: data.usage?.prompt_tokens ?? 0,
+            output: data.usage?.completion_tokens ?? 0,
+          },
+          model: data.model ?? this.modelId,
+          finishReason: choice.finish_reason ?? 'stop',
+        };
+      }
       const detail = await res.text().catch(() => '');
+      const retryable = res.status === 429 || res.status === 502 || res.status === 503;
+      if (retryable && attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, 400 * attempt));
+        continue;
+      }
       throw new Error(`OpenAI-compat ${res.status}: ${detail.slice(0, 300)}`);
     }
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: OpenAiMessage; finish_reason?: string }>;
-      usage?: { prompt_tokens?: number; completion_tokens?: number };
-      model?: string;
-    };
-    const choice = data.choices?.[0] ?? {};
-    return {
-      message: choice.message ?? { role: 'assistant', content: '' },
-      usage: {
-        input: data.usage?.prompt_tokens ?? 0,
-        output: data.usage?.completion_tokens ?? 0,
-      },
-      model: data.model ?? this.modelId,
-      finishReason: choice.finish_reason ?? 'stop',
-    };
+    throw new Error('OpenAI-compat: agotados los reintentos');
   }
 }

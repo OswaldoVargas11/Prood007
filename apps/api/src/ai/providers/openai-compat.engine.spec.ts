@@ -109,5 +109,23 @@ describe('OpenAiCompatEngine', () => {
       /401/,
     );
   });
+
+  it('reintenta ante 429 (límite transitorio) y luego responde', async () => {
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 429, text: async () => 'rate limit' } as any)
+      .mockResolvedValueOnce(
+        jsonRes({
+          choices: [{ message: { content: 'ok' } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+          model: 'm',
+        }),
+      );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const engine = new OpenAiCompatEngine('key', config);
+    const res = await engine.complete({ messages: [{ role: 'user', content: 'hi' }] });
+    expect(res.text).toBe('ok');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
 /* eslint-enable @typescript-eslint/no-explicit-any */
