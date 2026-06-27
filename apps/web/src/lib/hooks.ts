@@ -107,6 +107,8 @@ import type {
   AiStatus,
   AiResponse,
   AiEmailDraft,
+  AgentResponse,
+  AgentMessage,
   SemanticHit,
 } from './types';
 
@@ -2163,6 +2165,17 @@ export function useDraftFromTemplate() {
       api.post<AiResponse>(`/ai/templates/${v.templateId}/draft`, {
         matterId: v.matterId,
         instructions: v.instructions,
+      }),
+  });
+}
+
+/** Asistente AGÉNTICO conversacional (tool-use): envía un mensaje + el historial previo. */
+export function useAgent() {
+  return useMutation({
+    mutationFn: (input: { message: string; history?: AgentMessage[] }) =>
+      api.post<AgentResponse>('/ai/agent', {
+        message: input.message,
+        history: input.history,
       }),
   });
 }

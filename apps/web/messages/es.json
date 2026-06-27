@@ -2272,7 +2272,22 @@
     "reindexed": "Expediente reindexado ({n} fragmentos).",
     "summarizeDoc": "Resumir con IA",
     "draftEmail": "Redactar con IA",
-    "draftEmailInstructions": "¿Qué quieres decir? (la IA redacta asunto y cuerpo)"
+    "draftEmailInstructions": "¿Qué quieres decir? (la IA redacta asunto y cuerpo)",
+    "agent": {
+      "title": "Asistente del despacho",
+      "subtitle": "Pregunta, busca y deja que actúe por ti.",
+      "placeholder": "Escribe tu consulta… (p. ej. ¿qué plazos vencen esta semana?)",
+      "send": "Enviar",
+      "thinking": "Pensando…",
+      "newChat": "Nueva conversación",
+      "open": "Abrir asistente de IA",
+      "close": "Cerrar",
+      "emptyTitle": "¿En qué te ayudo?",
+      "emptyHint": "Puedo consultar expedientes, tareas y clientes, buscar jurisprudencia y redactar borradores.",
+      "usedTools": "Consultó: {tools}",
+      "disclaimer": "Asistente de apoyo. Revisa siempre antes de actuar.",
+      "error": "No se pudo completar la consulta. Inténtalo de nuevo."
+    }
   },
   "entitlements": {
     "lockedTitle": "«{feature}» no está en tu plan",

@@ -13,6 +13,7 @@ import { AiPanel } from './ai-panel';
 import { NotificationsBell } from './notifications-bell';
 import { RealtimeToasts } from './realtime-toasts';
 import { MessagingDock } from './messaging-dock';
+import { AiAgentDock } from './ai-agent-dock';
 import { ForcePasswordChange } from './force-password-change';
 import { ConfirmEmail } from './confirm-email';
 import { FirmBadge } from './firm-badge';
@@ -124,6 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <Toaster />
       <RealtimeToasts />
       <MessagingDock />
+      <AiAgentDock />
       <WhatsNewDialog />
     </div>
   );
