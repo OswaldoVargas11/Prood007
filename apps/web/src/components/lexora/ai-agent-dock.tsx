@@ -2,12 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2, RotateCcw, Send, Sparkles, X } from 'lucide-react';
+import { Check, Loader2, RotateCcw, Send, Sparkles, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useAgent, useAiStatus } from '@/lib/hooks';
 import { useEntitlement } from '@/lib/entitlements';
 import { ApiError } from '@/lib/api';
-import type { AgentStep } from '@/lib/types';
+import type { AgentStep, PendingWrite } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -34,6 +34,7 @@ export function AiAgentDock() {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState<PendingWrite[] | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,25 +44,28 @@ export function AiAgentDock() {
   // Gating: solo staff y con IA habilitada en el servidor + entitlement del plan.
   if (!isStaff(user?.roles) || !hasAi || !status?.enabled) return null;
 
-  async function send() {
-    const text = input.trim();
-    if (!text || agent.isPending) return;
+  async function send(text: string, allowWrites = false) {
+    const trimmed = text.trim();
+    if (!trimmed || agent.isPending) return;
     setError(null);
+    setPending(null);
     // Historial COMMITTEADO (sin el nuevo turno): lo que se envía al servidor.
     const history = messages.map((m) => ({ role: m.role, content: m.content }));
     setInput('');
-    setMessages((prev) => [...prev, { role: 'user', content: text }]);
+    setMessages((prev) => [...prev, { role: 'user', content: trimmed }]);
     try {
-      const res = await agent.mutateAsync({ message: text, history });
+      const res = await agent.mutateAsync({ message: trimmed, history, allowWrites });
       setMessages((prev) => [
         ...prev,
         { role: 'assistant', content: res.output, steps: res.steps },
       ]);
+      // HITL: si el agente propuso escrituras, pídelas confirmar antes de ejecutarlas.
+      if (res.pendingWrites.length > 0) setPending(res.pendingWrites);
     } catch (e) {
       // Quita el turno optimista para no dejar el historial terminando en 'user' (rompería el siguiente
       // turno) y devuelve el texto al input para reintentar.
       setMessages((prev) => prev.slice(0, -1));
-      setInput(text);
+      setInput(trimmed);
       setError(e instanceof ApiError ? e.message : t('error'));
     }
   }
@@ -153,11 +157,36 @@ export function AiAgentDock() {
         {error && <p className="text-[12px] text-[var(--danger)]">{error}</p>}
       </div>
 
+      {/* Confirmación HITL: el agente propuso una escritura; el letrado decide. */}
+      {pending && !agent.isPending && (
+        <div className="border-t bg-amber-50 px-3 py-2 dark:bg-amber-950/30">
+          <p className="text-[12px] font-medium text-amber-800 dark:text-amber-300">
+            {t('confirmTitle')}
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {pending.map((p, i) => (
+              <li key={i} className="text-[12px] text-amber-900 dark:text-amber-200">
+                • {p.summary}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-2 flex gap-2">
+            <Button size="sm" onClick={() => void send(t('confirmReply'), true)}>
+              <Check className="size-3.5" />
+              {t('confirm')}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setPending(null)}>
+              {t('cancel')}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Entrada */}
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          void send();
+          void send(input);
         }}
         className="flex items-center gap-2 border-t p-2.5"
       >

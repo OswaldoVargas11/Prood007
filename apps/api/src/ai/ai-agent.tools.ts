@@ -187,6 +187,8 @@ export const AGENT_SYSTEM_PROMPT = [
   '  Tras crear una tarea, confirma lo que has creado (título, expediente, fecha de vencimiento).',
   '- Puedes REDACTAR y GUARDAR un escrito en un expediente con draft_and_save_document (queda como',
   '  borrador pendiente de revisión del letrado), SOLO cuando te lo pidan. Redacta tú el contenido.',
+  '- Si una herramienta de escritura responde "requires_confirmation", la acción NO se ha hecho: explica',
+  '  al usuario en una frase exactamente qué vas a hacer y pídele que lo confirme antes de proceder.',
   '- No puedes modificar ni borrar nada más, ni emitir facturas, cobrar, firmar documentos ni enviar',
   '  correos. Si te lo piden, explica que esas acciones debe realizarlas el letrado.',
 ].join('\n');

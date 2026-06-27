@@ -2286,7 +2286,11 @@
       "emptyHint": "Puedo consultar expedientes, tareas y clientes, buscar jurisprudencia y redactar borradores.",
       "usedTools": "Consultó: {tools}",
       "disclaimer": "Asistente de apoyo. Revisa siempre antes de actuar.",
-      "error": "No se pudo completar la consulta. Inténtalo de nuevo."
+      "error": "No se pudo completar la consulta. Inténtalo de nuevo.",
+      "confirmTitle": "El asistente quiere realizar esta acción. ¿La confirmas?",
+      "confirmReply": "Sí, confírmalo y procede.",
+      "confirm": "Confirmar",
+      "cancel": "Cancelar"
     }
   },
   "entitlements": {

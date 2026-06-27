@@ -19,6 +19,12 @@ import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
 import type { RequestUser } from '../auth/auth.types';
 
+/** Una acción de ESCRITURA propuesta por el agente y pendiente de confirmación del letrado (HITL). */
+export interface PendingWrite {
+  action: string;
+  summary: string;
+}
+
 /** Respuesta del asistente agéntico: texto final + traza de herramientas usadas (transparencia). */
 export interface AiAgentResponse {
   output: string;
@@ -27,9 +33,13 @@ export interface AiAgentResponse {
   model: string | null;
   /** Motivo de parada del turno ('end_turn', 'max_steps', ...). */
   stopReason: string;
+  /** Acciones de escritura que el agente quiso hacer pero quedaron a la espera de confirmación. */
+  pendingWrites: PendingWrite[];
 }
 
 const OPEN_TASK_STATUSES = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
+/** Herramientas que MUTAN estado: requieren confirmación humana salvo que el cliente la conceda. */
+const WRITE_TOOLS = new Set(['create_task', 'draft_and_save_document']);
 const ACTIVE_MATTER_STATUSES = [MatterStatus.OPEN, MatterStatus.IN_PROGRESS];
 /** Tope de mensajes de historial que se reenvían al modelo (control de coste/contexto). */
 const MAX_HISTORY_MESSAGES = 20;
@@ -61,10 +71,15 @@ export class AiAgentService {
     user: RequestUser,
     message: string,
     history: AiMessage[] = [],
+    allowWrites = false,
   ): Promise<AiAgentResponse> {
     await this.quota.consume(user);
 
-    const exec: AiToolExecutor = (invocation) => this.execute(user, invocation);
+    // HITL: salvo confirmación explícita del cliente, las herramientas de escritura NO se ejecutan; se
+    // proponen y se recogen aquí para que la UI pida confirmación antes de actuar.
+    const pendingWrites: PendingWrite[] = [];
+    const exec: AiToolExecutor = (invocation) =>
+      this.execute(user, invocation, allowWrites, pendingWrites);
     const result = await this.engine.runAgent(
       {
         system: AGENT_SYSTEM_PROMPT,
@@ -95,12 +110,32 @@ export class AiAgentService {
       steps: result.steps.map((s) => ({ tool: s.tool, isError: s.isError })),
       model: result.model ?? this.engine.model(),
       stopReason: result.stopReason,
+      pendingWrites,
     };
   }
 
   // ── Executor de herramientas (tenant-scoped; lectura + escritura acotada) ──────────────────────────
 
-  private async execute(user: RequestUser, inv: AiToolInvocation): Promise<AiToolOutcome> {
+  private async execute(
+    user: RequestUser,
+    inv: AiToolInvocation,
+    allowWrites: boolean,
+    pendingWrites: PendingWrite[],
+  ): Promise<AiToolOutcome> {
+    // Gate HITL: una escritura sin confirmación NO se ejecuta; se propone y se devuelve al modelo para que
+    // se lo explique al usuario y pida su confirmación (la UI re-envía el turno con allowWrites=true).
+    if (WRITE_TOOLS.has(inv.name) && !allowWrites) {
+      const summary = describeWrite(inv);
+      pendingWrites.push({ action: inv.name, summary });
+      return {
+        content: json({
+          status: 'requires_confirmation',
+          action: inv.name,
+          summary,
+          note: 'NO ejecutada. Explica al usuario exactamente esto y pídele que confirme antes de hacerlo.',
+        }),
+      };
+    }
     try {
       switch (inv.name) {
         case 'search_matters':
@@ -457,4 +492,17 @@ function int(input: Record<string, unknown>, key: string, def: number, max: numb
 /** Serializa el resultado de una herramienta a JSON compacto para devolvérselo al modelo. */
 function json(value: unknown): string {
   return JSON.stringify(value);
+}
+
+/** Resumen legible (para confirmación) de una acción de escritura propuesta por el agente. */
+function describeWrite(inv: AiToolInvocation): string {
+  const title = str(inv.input, 'title') ?? '';
+  const ref = str(inv.input, 'matterReference');
+  if (inv.name === 'create_task') {
+    return `Crear la tarea "${title}"${ref ? ` en el expediente ${ref}` : ''}`;
+  }
+  if (inv.name === 'draft_and_save_document') {
+    return `Redactar y guardar el documento "${title}" en ${ref ?? 'el expediente'} (borrador)`;
+  }
+  return inv.name;
 }

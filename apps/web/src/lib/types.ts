@@ -789,12 +789,19 @@ export interface AgentStep {
   isError: boolean;
 }
 
+/** Una acción de escritura que el agente propone y que requiere confirmación del letrado (HITL). */
+export interface PendingWrite {
+  action: string;
+  summary: string;
+}
+
 /** Respuesta del asistente agéntico (POST /ai/agent). */
 export interface AgentResponse {
   output: string;
   steps: AgentStep[];
   model: string | null;
   stopReason: string;
+  pendingWrites: PendingWrite[];
 }
 
 export interface SemanticHit {

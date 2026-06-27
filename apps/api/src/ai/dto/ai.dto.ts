@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -69,6 +70,11 @@ export class AgentDto {
   @ValidateNested({ each: true })
   @Type(() => AgentMessageDto)
   history?: AgentMessageDto[];
+
+  /** Concede permiso para EJECUTAR las acciones de escritura propuestas (confirmación humana, HITL). */
+  @IsOptional()
+  @IsBoolean()
+  allowWrites?: boolean;
 }
 
 /** Búsqueda semántica. */
