@@ -7,5 +7,6 @@ import { EngagementService } from './engagement.service';
   imports: [DocumentsModule],
   controllers: [EngagementController],
   providers: [EngagementService],
+  exports: [EngagementService],
 })
 export class EngagementModule {}

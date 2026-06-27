@@ -10,5 +10,6 @@ import { MattersModule } from '../matters/matters.module';
   imports: [AuthModule, ClientsModule, MattersModule],
   controllers: [LeadsController, IntakeController],
   providers: [LeadsService],
+  exports: [LeadsService],
 })
 export class LeadsModule {}

@@ -7,5 +7,6 @@ import { UsersModule } from '../users/users.module';
   imports: [UsersModule],
   controllers: [SettingsController],
   providers: [SettingsService],
+  exports: [SettingsService],
 })
 export class SettingsModule {}
