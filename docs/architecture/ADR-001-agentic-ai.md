@@ -27,6 +27,13 @@
 > embeddings (RAG real sobre el texto legal)** queda como evolución futura, reutilizando el motor
 > Voyage + coseno ya existente.
 
+> **Actualización Ola 3a (2026-06-27):** segunda herramienta de ESCRITURA, `draft_and_save_document`.
+> El modelo redacta el contenido y lo pasa en `content`; el executor lo persiste reutilizando
+> `DocumentsService.saveAiDraft` (PDF con membrete, pipeline cifrado, versión 1 en revisión **PENDING**,
+> hash SHA-256, indexado). Reversible y NO fiscal; el documento nace como borrador a revisar por el
+> letrado. Resuelve la referencia del expediente acotada por `tenantId` y rechaza referencias
+> inexistentes sin escribir. Sigue el mismo criterio de seguridad que `create_task`.
+
 ## Contexto
 
 La IA actual de Lawzora es **one-shot**: el modelo genera texto (asistente, resúmenes, plantillas, borradores de correo) y el humano ejecuta cualquier acción derivada. La arquitectura es limpia e intercambiable:

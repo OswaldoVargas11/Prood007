@@ -76,6 +76,9 @@ function makeDeps(invocations: AiToolInvocation[]) {
   const tasks = {
     create: jest.fn().mockResolvedValue({ id: 'task-1', title: 'X', dueDate: null }),
   };
+  const documents = {
+    saveAiDraft: jest.fn().mockResolvedValue({ document: { id: 'doc-1', name: 'Escrito' } }),
+  };
   const engine = new FakeEngine(invocations);
   /* eslint-disable @typescript-eslint/no-explicit-any */
   const service = new AiAgentService(
@@ -83,10 +86,11 @@ function makeDeps(invocations: AiToolInvocation[]) {
     quota as any,
     audit as any,
     tasks as any,
+    documents as any,
     engine,
   );
   /* eslint-enable @typescript-eslint/no-explicit-any */
-  return { service, prisma, quota, audit, tasks, engine };
+  return { service, prisma, quota, audit, tasks, documents, engine };
 }
 
 describe('AiAgentService', () => {
@@ -227,6 +231,37 @@ describe('AiAgentService', () => {
     const out = await engine.lastExec!({ name: 'create_task', input: {} });
     expect(JSON.parse(out.content)).toMatchObject({ error: expect.any(String) });
     expect(tasks.create).not.toHaveBeenCalled();
+  });
+
+  it('draft_and_save_document guarda el escrito vía DocumentsService resolviendo el expediente', async () => {
+    const { service, engine, prisma, documents } = makeDeps([]);
+    prisma.matter.findFirst.mockResolvedValue({ id: 'm-1' });
+    documents.saveAiDraft.mockResolvedValue({ document: { id: 'doc-9', name: 'Demanda' } });
+    await service.run(user, 'hola');
+    const out = await engine.lastExec!({
+      name: 'draft_and_save_document',
+      input: { matterReference: 'EXP-1', title: 'Demanda', content: 'En la ciudad de...' },
+    });
+    expect(documents.saveAiDraft).toHaveBeenCalledWith(
+      user,
+      expect.objectContaining({
+        matterId: 'm-1',
+        title: 'Demanda',
+        bodyText: 'En la ciudad de...',
+      }),
+    );
+    expect(JSON.parse(out.content)).toMatchObject({ created: true, documentId: 'doc-9' });
+  });
+
+  it('draft_and_save_document sin contenido no escribe', async () => {
+    const { service, engine, documents } = makeDeps([]);
+    await service.run(user, 'hola');
+    const out = await engine.lastExec!({
+      name: 'draft_and_save_document',
+      input: { matterReference: 'EXP-1', title: 'X', content: '   ' },
+    });
+    expect(JSON.parse(out.content)).toMatchObject({ error: expect.any(String) });
+    expect(documents.saveAiDraft).not.toHaveBeenCalled();
   });
 
   it('create_task con expediente inexistente no escribe', async () => {

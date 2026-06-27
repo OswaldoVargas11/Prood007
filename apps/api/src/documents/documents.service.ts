@@ -308,6 +308,44 @@ export class DocumentsService {
     return { count: documents.length, documents };
   }
 
+  /** Tope de tamaño del cuerpo redactado por la IA (defensa anti-abuso; un escrito no es un libro). */
+  private static readonly MAX_DRAFT_CHARS = 100_000;
+
+  /**
+   * Guarda un BORRADOR redactado por el asistente de IA como un Document + versión 1 en el expediente:
+   * el cuerpo (texto) se renderiza a un PDF con el membrete del despacho y pasa por el MISMO pipeline
+   * cifrado que una subida normal (almacenamiento, hash SHA-256, versionado, revisión PENDING, indexado).
+   * No es fiscal y es reversible. El contenido lo redacta el modelo; aquí solo se persiste.
+   */
+  async saveAiDraft(
+    user: RequestUser,
+    input: { matterId: string; title: string; bodyText: string },
+  ) {
+    await this.assertMatterInTenant(user, input.matterId);
+    const tenant = await this.prisma.tenant.findFirst({ where: { id: user.tenantId } });
+    const title = input.title.trim().slice(0, 200) || 'Borrador';
+    const bodyText = input.bodyText.slice(0, DocumentsService.MAX_DRAFT_CHARS);
+    const pdf = await buildDocumentPdf({
+      firmName: tenant?.name ?? 'Despacho',
+      firmTaxId: tenant?.taxId ?? null,
+      title,
+      bodyText,
+      generatedAt: new Date(),
+    });
+    const file: UploadedFile = {
+      originalname: `${slugify(title)}.pdf`,
+      mimetype: 'application/pdf',
+      size: pdf.length,
+      buffer: pdf,
+    };
+    const document = await this.prisma.document.create({
+      data: { tenantId: user.tenantId, matterId: input.matterId, name: title },
+    });
+    const version = await this.persistVersion(user, document.id, 1, file);
+    await this.audit.log(user, 'document.ai_drafted', 'Document', document.id, { title });
+    return { document, version };
+  }
+
   /** Añade una nueva versión a un documento existente. */
   async addVersion(user: RequestUser, documentId: string, file?: UploadedFile) {
     if (!file) throw new BadRequestException(apiError('documents.fileMissing'));
