@@ -9,7 +9,6 @@ import { AppSidebar, MobileSidebar } from './app-sidebar';
 import { PageTransition } from './page-transition';
 import { CommandMenu, useCommandMenu } from './command-menu';
 import { QuickAdd } from './quick-add';
-import { AiPanel } from './ai-panel';
 import { NotificationsBell } from './notifications-bell';
 import { RealtimeToasts } from './realtime-toasts';
 import { MessagingDock } from './messaging-dock';
@@ -111,7 +110,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           <QuickAdd />
           <FirmBadge />
           <div className="ml-auto flex items-center gap-2">
-            <AiPanel />
             <NotificationsBell />
             <ThemeToggle />
             <UserMenu />
