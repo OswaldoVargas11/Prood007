@@ -3,6 +3,7 @@ import {
   AI_ENGINE,
   Jurisdiction,
   MatterStatus,
+  Role,
   TaskStatus,
   type AiEngine,
   type AiMessage,
@@ -16,6 +17,9 @@ import { AuditService } from '../audit/audit.service';
 import { TasksService } from '../tasks/tasks.service';
 import { DocumentsService } from '../documents/documents.service';
 import { TemplatesService } from '../templates/templates.service';
+import { ClientsService } from '../clients/clients.service';
+import { MattersService } from '../matters/matters.service';
+import { PresentationsService } from '../presentations/presentations.service';
 import { AiSearchService } from './ai-search.service';
 import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
@@ -47,7 +51,14 @@ export type AgentStreamEvent =
 
 const OPEN_TASK_STATUSES = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
 /** Herramientas que MUTAN estado: requieren confirmación humana salvo que el cliente la conceda. */
-const WRITE_TOOLS = new Set(['create_task', 'draft_and_save_document', 'create_template']);
+const WRITE_TOOLS = new Set([
+  'create_task',
+  'draft_and_save_document',
+  'create_template',
+  'create_client',
+  'create_matter',
+  'apply_presentation_to_matter',
+]);
 const ACTIVE_MATTER_STATUSES = [MatterStatus.OPEN, MatterStatus.IN_PROGRESS];
 /** Tope de mensajes de historial que se reenvían al modelo (control de coste/contexto). */
 const MAX_HISTORY_MESSAGES = 20;
@@ -69,6 +80,9 @@ export class AiAgentService {
     private readonly tasks: TasksService,
     private readonly documents: DocumentsService,
     private readonly templates: TemplatesService,
+    private readonly clients: ClientsService,
+    private readonly matters: MattersService,
+    private readonly presentations: PresentationsService,
     private readonly search: AiSearchService,
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
   ) {}
@@ -233,6 +247,20 @@ export class AiAgentService {
           return { content: await this.draftAndSaveDocument(user, inv.input) };
         case 'create_template':
           return { content: await this.createTemplate(user, inv.input) };
+        case 'check_conflict_of_interest':
+          return { content: await this.checkConflictOfInterest(user, inv.input) };
+        case 'get_client_detail':
+          return { content: await this.getClientDetail(user, inv.input) };
+        case 'get_matter_timeline':
+          return { content: await this.getMatterTimeline(user, inv.input) };
+        case 'list_matters_by_status':
+          return { content: await this.listMattersByStatus(user, inv.input) };
+        case 'create_client':
+          return { content: await this.createClient(user, inv.input) };
+        case 'create_matter':
+          return { content: await this.createMatter(user, inv.input) };
+        case 'apply_presentation_to_matter':
+          return { content: await this.applyPresentationToMatter(user, inv.input) };
         default:
           return { content: `Herramienta desconocida: ${inv.name}`, isError: true };
       }
@@ -605,6 +633,337 @@ export class AiAgentService {
     });
     return json({ created: true, templateId: tpl.id, name: tpl.name });
   }
+
+  /**
+   * Revisa conflictos de interés (deontología): si la persona/empresa ya es cliente o ya aparece
+   * como parte contraria en un expediente activo. Reutiliza ClientsService.conflictCheck (tenant-scoped).
+   * Devuelve un resumen citable: coincidencias en clientes + expedientes afectados.
+   */
+  private async checkConflictOfInterest(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const query = str(input, 'query');
+    if (!query || query.length < 2) {
+      return json({ error: 'Indica el nombre o parte del mismo (mínimo 2 caracteres).' });
+    }
+    const result = await this.clients.conflictCheck(user, query);
+    const hasConflict = result.matches.length > 0 || result.opposingMatters.length > 0;
+    return json({
+      query: result.query,
+      hasConflict,
+      clientMatches: result.matches.map((c) => ({
+        name: c.name,
+        taxId: c.taxId ?? null,
+        matterCount: c.matters.length,
+        matters: c.matters.map((m) => ({
+          reference: m.reference,
+          title: m.title,
+          status: m.status,
+        })),
+      })),
+      opposingMatters: result.opposingMatters.map((m) => ({
+        reference: m.reference,
+        title: m.title,
+        opposingParty: m.opposingParty,
+        status: m.status,
+        clientName: m.client?.name ?? null,
+      })),
+      summary: hasConflict
+        ? `CONFLICTO DETECTADO: ${result.matches.length} cliente(s) coincidente(s) y/o ${result.opposingMatters.length} expediente(s) con parte contraria igual.`
+        : 'Sin conflictos detectados.',
+    });
+  }
+
+  private async getClientDetail(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const clientId = str(input, 'clientId');
+    if (!clientId) return json({ error: 'Falta el ID del cliente.' });
+
+    const client = await this.clients.findOne(user, clientId);
+
+    const matterCount = await this.prisma.matter.count({
+      where: { tenantId: user.tenantId, clientId },
+    });
+
+    return json({
+      found: true,
+      id: client.id,
+      name: client.name,
+      taxId: client.taxId,
+      email: client.email ?? null,
+      phone: client.phone ?? null,
+      address: client.address ?? null,
+      matterCount,
+    });
+  }
+
+  private async getMatterTimeline(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true },
+    });
+    if (!matter) {
+      return json({
+        found: false,
+        note: `No existe expediente con referencia ${matterReference}.`,
+      });
+    }
+
+    // Delega a MattersService.timeline() que ya está acotado por tenant y matterId
+    const timeline = await this.matters.timeline(user, matter.id);
+
+    return json({
+      found: true,
+      matter: matterReference,
+      eventCount: timeline.events.length,
+      events: timeline.events,
+    });
+  }
+
+  private async listMattersByStatus(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const status = str(input, 'status') as MatterStatus | undefined;
+    if (!status || !['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'CLOSED', 'ARCHIVED'].includes(status)) {
+      return json({
+        error: 'Estado no válido. Elige uno de: OPEN, IN_PROGRESS, ON_HOLD, CLOSED, ARCHIVED.',
+      });
+    }
+    const clientId = str(input, 'clientId');
+    const page = int(input, 'page', 1, 100);
+    const pageSize = int(input, 'pageSize', 20, 50);
+
+    const result = await this.matters.findAll(user, page, pageSize, status, clientId);
+    if (result.items.length === 0) {
+      return json({
+        count: 0,
+        status,
+        matters: [],
+        pagination: { page: result.page, pageSize: result.pageSize, total: result.total },
+        note: `No hay expedientes con estado ${status}.`,
+      });
+    }
+    return json({
+      count: result.items.length,
+      status,
+      matters: result.items.map((m) => ({
+        id: m.id,
+        reference: m.reference,
+        title: m.title,
+        type: m.type,
+        client: m.client?.name ?? null,
+        lawyer: m.lawyer?.fullName ?? null,
+        openedAt: m.openedAt?.toISOString().slice(0, 10) ?? null,
+      })),
+      pagination: { page: result.page, pageSize: result.pageSize, total: result.total },
+    });
+  }
+
+  private async createClient(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const name = str(input, 'name');
+    if (!name || name.length < 2) {
+      return json({ error: 'El nombre del cliente es obligatorio (mínimo 2 caracteres).' });
+    }
+    const taxId = str(input, 'taxId');
+    if (!taxId) {
+      return json({ error: 'Identificador fiscal (NIF/CIF/RNC) obligatorio.' });
+    }
+    const email = str(input, 'email');
+    const phone = str(input, 'phone');
+    const address = str(input, 'address');
+    const docTypeRaw = str(input, 'docType');
+    const docType = docTypeRaw === 'PASSPORT' || docTypeRaw === 'OTHER' ? docTypeRaw : undefined;
+
+    try {
+      const client = await this.clients.create(user, {
+        name: name.slice(0, 200),
+        taxId,
+        email,
+        phone: phone ? phone.slice(0, 40) : undefined,
+        address: address ? address.slice(0, 300) : undefined,
+        docType: docType as any,
+      });
+      return json({
+        created: true,
+        clientId: client.id,
+        name: client.name,
+        taxId: client.taxId,
+        taxIdKind: client.taxIdKind ?? null,
+        message: `Cliente "${client.name}" creado exitosamente. Ya puedes crear expedientes asociándolo a este cliente.`,
+      });
+    } catch (e) {
+      const msg = (e as Error).message || String(e);
+      return json({
+        created: false,
+        error:
+          msg.includes('invalid') || msg.includes('Invalid')
+            ? 'Identificador fiscal no válido en esta jurisdicción.'
+            : msg,
+      });
+    }
+  }
+
+  private async createMatter(user: RequestUser, input: Record<string, unknown>): Promise<string> {
+    const title = str(input, 'title');
+    if (!title || title.length < 2) {
+      return json({ error: 'El título del expediente es obligatorio (mínimo 2 caracteres).' });
+    }
+
+    const type = str(input, 'type');
+    if (!type || type.length < 2) {
+      return json({ error: 'El tipo de asunto es obligatorio (mínimo 2 caracteres).' });
+    }
+
+    const clientName = str(input, 'clientName');
+    if (!clientName) {
+      return json({ error: 'Nombre del cliente obligatorio para crear expediente.' });
+    }
+
+    // Resuelve el clientName a su ID (búsqueda exacta o por coincidencia).
+    const client = await this.prisma.client.findFirst({
+      where: {
+        tenantId: user.tenantId,
+        OR: [
+          { name: { equals: clientName, mode: 'insensitive' as const } },
+          { name: { contains: clientName, mode: 'insensitive' as const } },
+        ],
+      },
+      select: { id: true, name: true },
+    });
+    if (!client) {
+      return json({
+        created: false,
+        note: `Cliente no encontrado: "${clientName}". Verifica el nombre exacto en el despacho.`,
+      });
+    }
+
+    // Validación opcional del letrado (si se proporciona).
+    let lawyerId: string | undefined;
+    const lawyerIdInput = str(input, 'lawyerId');
+    if (lawyerIdInput) {
+      const lawyer = await this.prisma.user.findFirst({
+        where: {
+          id: lawyerIdInput,
+          tenantId: user.tenantId,
+          roles: { some: { role: { code: { in: [Role.LAWYER, Role.FIRM_ADMIN] } } } },
+        },
+        select: { id: true },
+      });
+      if (!lawyer) {
+        return json({
+          created: false,
+          note: `Letrado no encontrado o sin permisos: ${lawyerIdInput}.`,
+        });
+      }
+      lawyerId = lawyerIdInput;
+    }
+
+    // Campos opcionales de litigación.
+    const opposingParty = str(input, 'opposingParty');
+    const opposingPartyTaxId = str(input, 'opposingPartyTaxId');
+    const opposingCounsel = str(input, 'opposingCounsel');
+    const court = str(input, 'court');
+    const caseNumber = str(input, 'caseNumber');
+    const proceduralPhase = str(input, 'proceduralPhase');
+    const reference = str(input, 'reference');
+
+    try {
+      const matter = await this.matters.create(user, {
+        title: title.slice(0, 200),
+        type: type.slice(0, 80),
+        clientId: client.id,
+        lawyerId,
+        reference,
+        opposingParty,
+        opposingPartyTaxId,
+        opposingCounsel,
+        court,
+        caseNumber,
+        proceduralPhase,
+      });
+
+      return json({
+        created: true,
+        matterId: matter.id,
+        reference: matter.reference,
+        title: matter.title,
+        type: matter.type,
+        client: client.name,
+        status: matter.status,
+        lawyer: matter.lawyerId ? '(asignado)' : '(sin asignar)',
+      });
+    } catch (e) {
+      const msg = (e as Error).message || 'Error desconocido';
+      if (msg.includes('referenceExists')) {
+        return json({
+          created: false,
+          note: `La referencia ya existe. Omítela para generar automáticamente.`,
+        });
+      }
+      return json({ created: false, note: `No se pudo crear: ${msg}` });
+    }
+  }
+
+  private async applyPresentationToMatter(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    const presentationTypeName = str(input, 'presentationTypeName');
+
+    if (!matterReference) {
+      return json({ error: 'Falta la referencia del expediente.' });
+    }
+    if (!presentationTypeName) {
+      return json({ error: 'Falta el nombre del tipo de presentación a aplicar.' });
+    }
+
+    // Resuelve el expediente por referencia (acotado por tenant)
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true, reference: true },
+    });
+    if (!matter) {
+      return json({
+        applied: false,
+        note: `No existe expediente con referencia ${matterReference}; no se ha aplicado el checklist.`,
+      });
+    }
+
+    // Busca el tipo de presentación por nombre (acotado por tenant)
+    const presentationType = await this.prisma.presentationType.findFirst({
+      where: { tenantId: user.tenantId, name: presentationTypeName },
+      select: { id: true, name: true },
+    });
+    if (!presentationType) {
+      return json({
+        applied: false,
+        note: `No existe tipo de presentación "${presentationTypeName}" en el despacho; lista los tipos disponibles.`,
+      });
+    }
+
+    // Delega al servicio (que maneja la creación de checklist, ítems y tareas)
+    const checklist = await this.presentations.applyToMatter(user, matter.id, presentationType.id);
+
+    return json({
+      applied: true,
+      checklistId: checklist.id,
+      matterReference: matter.reference,
+      presentationType: presentationType.name,
+      itemsCount: checklist.items.length,
+      note: `Checklist instanciado con ${checklist.items.length} requisito(s); se han creado también las tareas asociadas.`,
+    });
+  }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────────────
@@ -638,6 +997,17 @@ function describeWrite(inv: AiToolInvocation): string {
   }
   if (inv.name === 'create_template') {
     return `Crear la plantilla "${str(inv.input, 'name') ?? ''}" en la biblioteca`;
+  }
+  if (inv.name === 'create_client') {
+    const taxId = str(inv.input, 'taxId');
+    return `Dar de alta el cliente "${str(inv.input, 'name') ?? ''}"${taxId ? ` (${taxId})` : ''}`;
+  }
+  if (inv.name === 'create_matter') {
+    const type = str(inv.input, 'type');
+    return `Abrir el expediente "${title}"${type ? ` (${type})` : ''}`;
+  }
+  if (inv.name === 'apply_presentation_to_matter') {
+    return `Aplicar el checklist de presentación a ${ref ?? 'el expediente'} (creará tareas/plazos)`;
   }
   return inv.name;
 }
