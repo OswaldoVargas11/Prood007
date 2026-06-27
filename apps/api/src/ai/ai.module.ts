@@ -26,6 +26,7 @@ import { TemplatesModule } from '../templates/templates.module';
 import { ClientsModule } from '../clients/clients.module';
 import { MattersModule } from '../matters/matters.module';
 import { PresentationsModule } from '../presentations/presentations.module';
+import { DashboardModule } from '../dashboard/dashboard.module';
 
 /**
  * Núcleo de IA, agnóstico del modelo. El factory elige el motor por configuración:
@@ -39,6 +40,7 @@ import { PresentationsModule } from '../presentations/presentations.module';
     TasksModule,
     DocumentsModule,
     TemplatesModule,
+    DashboardModule,
     ClientsModule,
     MattersModule,
     PresentationsModule,

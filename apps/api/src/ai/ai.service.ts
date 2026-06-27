@@ -13,6 +13,7 @@ import {
 } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import { AiQuotaService } from './ai-quota.service';
+import { DashboardService } from '../dashboard/dashboard.service';
 import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -25,6 +26,14 @@ const LOCALE = 'es';
 /** Adjuntos por encima de este tamaño no se mandan al modelo (coste/latencia). */
 const MAX_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 
+/** Resumen del día del dashboard: conciso, accionable y SIN inventar (solo datos dados). */
+const DAILY_BRIEF_SYSTEM =
+  'Eres el asistente de un despacho de abogados. A partir de los DATOS del panel (KPIs y próximos ' +
+  'vencimientos), redacta el "resumen del día" para el equipo: 3-5 viñetas en español, concisas y ' +
+  'ACCIONABLES, priorizando lo urgente (plazos que vencen hoy/esta semana, tareas y expedientes que ' +
+  'requieren atención). Usa Markdown (negritas y lista). NO inventes datos ni cifras: usa solo lo dado; ' +
+  'si no hay nada urgente, dilo en una frase. No añadas saludos ni cierres.';
+
 /**
  * Orquesta las capacidades de IA del despacho sobre el `AiAssistantProvider`/`AiEngine`. Ensambla el
  * CONTEXTO (expediente, cliente, tareas, documentos) como FUENTES citables, de modo que las respuestas
@@ -36,6 +45,7 @@ export class AiService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly quota: AiQuotaService,
+    private readonly dashboard: DashboardService,
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
     @Inject(AI_ASSISTANT_PROVIDER) private readonly assistant: AiAssistantProvider,
     @Inject(AI_EMBEDDINGS) private readonly embeddings: EmbeddingsProvider,
@@ -49,6 +59,38 @@ export class AiService {
       model: this.engine.model(),
       searchEnabled: this.embeddings.isEnabled(),
     };
+  }
+
+  /**
+   * Resumen del día para el dashboard: reutiliza el agregado de `DashboardService.summary` (ya acotado
+   * por tenant) y pide al modelo un brief accionable. Devuelve Markdown (lo renderiza el dashboard).
+   */
+  async dailyBrief(user: RequestUser): Promise<{ brief: string; model: string | null }> {
+    await this.quota.consume(user);
+    const s = await this.dashboard.summary(user);
+    const k = s.kpis;
+    const deadlines = (s.deadlines ?? [])
+      .slice(0, 12)
+      .map((d: { title?: string; dueDate?: Date | string | null; reference?: string | null }) => {
+        const due = d.dueDate ? new Date(d.dueDate).toISOString().slice(0, 10) : '—';
+        return `- ${d.title ?? 'Tarea'}${d.reference ? ` (${d.reference})` : ''} — vence ${due}`;
+      })
+      .join('\n');
+    const context =
+      `KPIs del despacho:\n` +
+      `- Expedientes activos: ${k.activeMatters} (total ${k.totalMatters})\n` +
+      `- Clientes: ${k.totalClients}\n` +
+      `- Tareas abiertas: ${k.openTasks}\n` +
+      `- Plazos próximos: ${k.upcomingDeadlines} (urgentes: ${k.urgentDeadlines})\n` +
+      `- Documentos pendientes de revisión: ${k.pendingReviews}\n\n` +
+      `Próximos vencimientos:\n${deadlines || '- (ninguno registrado)'}\n`;
+    const res = await this.engine.complete({
+      system: DAILY_BRIEF_SYSTEM,
+      messages: [{ role: 'user', content: context }],
+      maxTokens: 700,
+    });
+    await this.quota.recordUsage(user, res.usage?.inputTokens ?? 0, res.usage?.outputTokens ?? 0);
+    return { brief: res.text, model: res.model ?? this.engine.model() };
   }
 
   /** Pregunta libre sobre un expediente, anclada a su contexto. */
