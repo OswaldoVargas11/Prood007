@@ -91,6 +91,13 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
     },
   },
   {
+    name: 'firm_overview',
+    description:
+      'Visión rápida del despacho: nº de expedientes activos, tareas abiertas y plazos VENCIDOS. ' +
+      'Úsala para "¿cómo va el despacho?", "¿tengo algo urgente?" o "¿qué llevo vencido?".',
+    inputSchema: { type: 'object', properties: {}, required: [] },
+  },
+  {
     name: 'legal_research',
     description:
       'Devuelve enlaces a FUENTES JURÍDICAS OFICIALES (jurisprudencia y legislación) con los términos ' +

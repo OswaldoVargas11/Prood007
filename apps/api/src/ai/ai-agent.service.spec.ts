@@ -177,6 +177,31 @@ describe('AiAgentService', () => {
     expect(JSON.parse(out.content)).toMatchObject({ count: 1, tasks: [{ dueDate: '2026-07-01' }] });
   });
 
+  it('pasa el historial de conversación (multi-turno) al motor', async () => {
+    const { service, engine } = makeDeps([]);
+    const history: { role: 'user' | 'assistant'; content: string }[] = [
+      { role: 'user', content: 'hola' },
+      { role: 'assistant', content: 'buenas, ¿en qué ayudo?' },
+    ];
+    await service.run(user, 'sigue con lo anterior', history);
+    expect(engine.lastRequest?.history).toEqual(history);
+    expect(engine.lastRequest?.userMessage).toBe('sigue con lo anterior');
+  });
+
+  it('firm_overview devuelve contadores del despacho acotados por tenant', async () => {
+    const { service, engine, prisma } = makeDeps([]);
+    prisma.matter.count.mockResolvedValue(5);
+    prisma.task.count.mockResolvedValueOnce(8).mockResolvedValueOnce(2);
+    await service.run(user, 'hola');
+    const out = await engine.lastExec!({ name: 'firm_overview', input: {} });
+    expect(JSON.parse(out.content)).toMatchObject({
+      activeMatters: 5,
+      openTasks: 8,
+      overdueTasks: 2,
+    });
+    expect(prisma.matter.count.mock.calls[0]![0].where.tenantId).toBe('t1');
+  });
+
   it('legal_research devuelve fuentes oficiales (ES por defecto) sin tocar la BD', async () => {
     const { service, engine, prisma } = makeDeps([]);
     await service.run(user, 'hola');

@@ -94,6 +94,11 @@ export interface AiAgentRequest {
   system?: string;
   /** Mensaje del usuario que inicia el turno agéntico. */
   userMessage: string;
+  /**
+   * Historial de conversación previo (texto plano user/assistant, en orden), para diálogos MULTI-TURNO.
+   * Debe alternar y terminar en un turno de `assistant` (el `userMessage` es el nuevo turno de usuario).
+   */
+  history?: AiMessage[];
   /** Herramientas disponibles para este turno. */
   tools: AiToolDefinition[];
   /** Nº máximo de iteraciones de herramienta (el motor aplica además su propio tope de seguridad). */
