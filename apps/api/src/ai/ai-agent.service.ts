@@ -79,6 +79,7 @@ const WRITE_TOOLS = new Set([
   'create_client',
   'create_matter',
   'apply_presentation_to_matter',
+  'create_presentation_type',
   'update_task_status',
   'extend_task_deadline',
   'create_client_portal_user',
@@ -351,6 +352,8 @@ export class AiAgentService {
           return { content: await this.createMatter(user, inv.input) };
         case 'apply_presentation_to_matter':
           return { content: await this.applyPresentationToMatter(user, inv.input) };
+        case 'create_presentation_type':
+          return { content: await this.createPresentationType(user, inv.input) };
         case 'get_task_detail':
           return { content: await this.getTaskDetail(user, inv.input) };
         case 'list_templates':
@@ -1249,6 +1252,72 @@ export class AiAgentService {
       itemsCount: checklist.items.length,
       note: `Checklist instanciado con ${checklist.items.length} requisito(s); se han creado también las tareas asociadas.`,
     });
+  }
+
+  private async createPresentationType(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const name = str(input, 'name');
+    const sector = str(input, 'sector');
+    if (!name || name.length < 2) {
+      return json({
+        error: 'El nombre del tipo de presentación es obligatorio (mínimo 2 caracteres).',
+      });
+    }
+    if (!sector) {
+      return json({
+        error: 'El sector o gestión es obligatorio (p. ej. "Mercantil", "Extranjería").',
+      });
+    }
+    const jurRaw = str(input, 'jurisdiction');
+    const jurisdiction = jurRaw === 'ES' || jurRaw === 'DO' ? (jurRaw as Jurisdiction) : undefined;
+    const description = str(input, 'description');
+
+    const reqsIn = Array.isArray(input.requirements) ? input.requirements : [];
+    const requirements = reqsIn
+      .map((r) => (r && typeof r === 'object' ? (r as Record<string, unknown>) : {}))
+      .map((r) => ({
+        name: (str(r, 'name') ?? '').slice(0, 200),
+        description: str(r, 'description') || undefined,
+        required: typeof r.required === 'boolean' ? (r.required as boolean) : undefined,
+      }))
+      .filter((r) => r.name.length > 0);
+
+    const tplsIn = Array.isArray(input.taskTemplates) ? input.taskTemplates : [];
+    const taskTemplates = tplsIn
+      .map((t) => (t && typeof t === 'object' ? (t as Record<string, unknown>) : {}))
+      .map((t) => ({
+        title: (str(t, 'title') ?? '').slice(0, 200),
+        offsetDays: typeof t.offsetDays === 'number' ? (t.offsetDays as number) : undefined,
+      }))
+      .filter((t) => t.title.length > 0);
+
+    try {
+      const created = await this.presentations.createType(user, {
+        name: name.slice(0, 200),
+        sector: sector.slice(0, 120),
+        jurisdiction,
+        description: description ? description.slice(0, 2000) : undefined,
+        requirements,
+        taskTemplates,
+      });
+      return json({
+        created: true,
+        presentationTypeId: created.id,
+        name: created.name,
+        sector: created.sector,
+        requirements: created.requirements.length,
+        taskTemplates: created.taskTemplates.length,
+        message: `Tipo de presentación "${created.name}" creado con ${created.requirements.length} requisito(s) documental(es)${
+          created.taskTemplates.length
+            ? ` y ${created.taskTemplates.length} tarea(s) plantilla`
+            : ''
+        }. Ya puedes aplicarlo a un expediente con apply_presentation_to_matter.`,
+      });
+    } catch (e) {
+      return json({ created: false, error: (e as Error).message || String(e) });
+    }
   }
 
   private async getTaskDetail(user: RequestUser, input: Record<string, unknown>): Promise<string> {
@@ -5704,6 +5773,9 @@ function describeWrite(inv: AiToolInvocation): string {
   }
   if (inv.name === 'apply_presentation_to_matter') {
     return `Aplicar el checklist de presentación a ${ref ?? 'el expediente'} (creará tareas/plazos)`;
+  }
+  if (inv.name === 'create_presentation_type') {
+    return `Crear el tipo de presentación "${str(inv.input, 'name') ?? ''}" (sector ${str(inv.input, 'sector') ?? ''})`;
   }
   if (inv.name === 'update_task_status') {
     return `Cambiar el estado de la tarea a "${str(inv.input, 'status') ?? ''}"`;

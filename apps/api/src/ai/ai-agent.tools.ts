@@ -463,6 +463,73 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
     },
   },
   {
+    name: 'create_presentation_type',
+    description:
+      'CREA un Tipo de Presentación en el despacho (acción de ESCRITURA, reversible): una plantilla ' +
+      'reutilizable que define los REQUISITOS DOCUMENTALES y las TAREAS de una gestión, para luego ' +
+      'aplicarla a expedientes con apply_presentation_to_matter. Úsala cuando el usuario pida crear, ' +
+      'configurar o definir un tipo/checklist de presentación o los requisitos de una gestión (p. ej. ' +
+      '"crea un tipo de presentación para constitución de SL con sus documentos", "define los requisitos ' +
+      'de una solicitud de NIE"). Tras crearlo, confirma el nombre y cuántos requisitos/tareas se crearon.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          description:
+            'Nombre del tipo de presentación (p. ej. "Constitución de SL", "Solicitud de NIE").',
+        },
+        sector: {
+          type: 'string',
+          description:
+            'Sector o gestión a la que pertenece (p. ej. "Mercantil", "Extranjería", "Fiscal").',
+        },
+        jurisdiction: {
+          type: 'string',
+          enum: ['ES', 'DO'],
+          description:
+            'Jurisdicción a la que aplica (ES o DO). Opcional; si se omite, vale para ambas.',
+        },
+        description: {
+          type: 'string',
+          description: 'Descripción opcional del tipo de presentación.',
+        },
+        requirements: {
+          type: 'array',
+          description: 'Lista de requisitos documentales que componen la presentación.',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string', description: 'Nombre del documento requerido.' },
+              description: { type: 'string', description: 'Aclaración opcional del requisito.' },
+              required: {
+                type: 'boolean',
+                description: 'Si es obligatorio (true, por defecto) u opcional (false).',
+              },
+            },
+            required: ['name'],
+          },
+        },
+        taskTemplates: {
+          type: 'array',
+          description: 'Tareas que se crearán automáticamente al aplicar el tipo a un expediente.',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: 'Título de la tarea.' },
+              offsetDays: {
+                type: 'number',
+                description: 'Días desde la aplicación para el vencimiento (0 = mismo día).',
+              },
+            },
+            required: ['title'],
+          },
+        },
+      },
+      required: ['name', 'sector'],
+    },
+  },
+  {
     name: 'get_task_detail',
     description:
       'Devuelve el detalle completo de una tarea (plazo) por su ID: título, descripción, estado, ' +
@@ -2913,6 +2980,7 @@ const TOOL_AREAS: Record<string, string> = {
   list_templates: 'templates',
   create_template: 'templates',
   apply_presentation_to_matter: 'templates',
+  create_presentation_type: 'templates',
   list_clauses: 'clauses',
   get_closing_checklists: 'closing',
 };
