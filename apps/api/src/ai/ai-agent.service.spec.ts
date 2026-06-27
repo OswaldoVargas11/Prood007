@@ -213,6 +213,19 @@ describe('AiAgentService', () => {
     expect(out.content).toContain('desconocida');
   });
 
+  it('HITL: una escritura (create_client) NO se ejecuta sin confirmación; pide visto bueno', async () => {
+    const { service, engine } = makeDeps([]); // run() por defecto allowWrites=false
+    await service.run(user, 'hola');
+    const out = await engine.lastExec!({
+      name: 'create_client',
+      input: { name: 'ACME SL', taxId: 'B12345678' },
+    });
+    expect(JSON.parse(out.content)).toMatchObject({
+      status: 'requires_confirmation',
+      action: 'create_client',
+    });
+  });
+
   it('list_open_tasks acotado por expediente filtra por referencia y estado abierto', async () => {
     const { service, engine, prisma } = makeDeps([]);
     prisma.task.findMany.mockResolvedValue([
