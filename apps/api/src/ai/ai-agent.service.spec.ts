@@ -1,4 +1,4 @@
-import { AiAgentService } from './ai-agent.service';
+import { AiAgentService, type AgentStreamEvent } from './ai-agent.service';
 import { AGENT_TOOLS } from './ai-agent.tools';
 import type {
   AiAgentRequest,
@@ -221,6 +221,30 @@ describe('AiAgentService', () => {
     expect(where.tenantId).toBe('t1');
     expect(where.matter).toEqual({ reference: 'EXP-1' });
     expect(JSON.parse(out.content)).toMatchObject({ count: 1, tasks: [{ dueDate: '2026-07-01' }] });
+  });
+
+  it('runStream emite eventos de progreso por herramienta + un done final', async () => {
+    const { service } = makeDeps([{ name: 'search_matters', input: {} }]);
+    const events: AgentStreamEvent[] = [];
+    await service.runStream(user, 'hola', [], false, {
+      onEvent: (e) => events.push(e),
+      isAborted: () => false,
+    });
+    expect(events[0]).toEqual({ type: 'tool', tool: 'search_matters' });
+    const done = events[events.length - 1]!;
+    expect(done.type).toBe('done');
+    if (done.type === 'done') expect(done.output).toBe('RESPUESTA FINAL');
+  });
+
+  it('runStream con isAborted (Stop) corta: no ejecuta herramientas contra la BD', async () => {
+    const { service, prisma } = makeDeps([{ name: 'search_matters', input: { query: 'x' } }]);
+    const events: AgentStreamEvent[] = [];
+    await service.runStream(user, 'hola', [], false, {
+      onEvent: (e) => events.push(e),
+      isAborted: () => true,
+    });
+    expect(prisma.matter.findMany).not.toHaveBeenCalled();
+    expect(events[events.length - 1]!.type).toBe('done');
   });
 
   it('pasa el historial de conversación (multi-turno) al motor', async () => {

@@ -38,6 +38,11 @@ export interface AiAgentResponse {
   pendingWrites: PendingWrite[];
 }
 
+/** Evento del turno en STREAMING: progreso por herramienta ('tool') o respuesta final ('done'). */
+export type AgentStreamEvent =
+  | { type: 'tool'; tool: string }
+  | ({ type: 'done' } & AiAgentResponse);
+
 const OPEN_TASK_STATUSES = [TaskStatus.TODO, TaskStatus.IN_PROGRESS];
 /** Herramientas que MUTAN estado: requieren confirmación humana salvo que el cliente la conceda. */
 const WRITE_TOOLS = new Set(['create_task', 'draft_and_save_document']);
@@ -75,13 +80,56 @@ export class AiAgentService {
     history: AiMessage[] = [],
     allowWrites = false,
   ): Promise<AiAgentResponse> {
+    return this.runCore(user, message, history, allowWrites);
+  }
+
+  /**
+   * Variante STREAMING: emite eventos de progreso ('tool' por cada herramienta = thinking-traces) y un
+   * 'done' final con la respuesta. `isAborted` permite que el usuario detenga el turno (botón Stop): el
+   * executor corta en cuanto se aborta, sin ejecutar más herramientas.
+   */
+  async runStream(
+    user: RequestUser,
+    message: string,
+    history: AiMessage[] = [],
+    allowWrites = false,
+    opts: { onEvent: (e: AgentStreamEvent) => void; isAborted: () => boolean } = {
+      onEvent: () => undefined,
+      isAborted: () => false,
+    },
+  ): Promise<void> {
+    const res = await this.runCore(
+      user,
+      message,
+      history,
+      allowWrites,
+      (tool) => opts.onEvent({ type: 'tool', tool }),
+      opts.isAborted,
+    );
+    opts.onEvent({ type: 'done', ...res });
+  }
+
+  /** Núcleo del turno agéntico, compartido por `run` y `runStream`. */
+  private async runCore(
+    user: RequestUser,
+    message: string,
+    history: AiMessage[],
+    allowWrites: boolean,
+    onTool?: (name: string) => void,
+    isAborted?: () => boolean,
+  ): Promise<AiAgentResponse> {
     await this.quota.consume(user);
 
     // HITL: salvo confirmación explícita del cliente, las herramientas de escritura NO se ejecutan; se
     // proponen y se recogen aquí para que la UI pida confirmación antes de actuar.
     const pendingWrites: PendingWrite[] = [];
-    const exec: AiToolExecutor = (invocation) =>
-      this.execute(user, invocation, allowWrites, pendingWrites);
+    const exec: AiToolExecutor = (invocation) => {
+      if (isAborted?.()) {
+        return Promise.resolve({ content: 'Operación cancelada por el usuario.', isError: true });
+      }
+      onTool?.(invocation.name);
+      return this.execute(user, invocation, allowWrites, pendingWrites);
+    };
 
     let result;
     try {

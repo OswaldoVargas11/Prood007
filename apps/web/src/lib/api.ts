@@ -139,6 +139,50 @@ async function download(path: string, _retried = false): Promise<Blob> {
   return res.blob();
 }
 
+interface StreamOptions {
+  onEvent: (event: unknown) => void;
+  signal?: AbortSignal;
+  _retried?: boolean;
+}
+
+/**
+ * POST en STREAMING NDJSON: invoca `onEvent` por cada línea JSON recibida (eventos de progreso + final).
+ * Reutiliza el Bearer y refresca una vez ante 401. `signal` permite abortar (botón Stop). Un AbortError
+ * del fetch se propaga al llamante.
+ */
+async function stream(path: string, body: unknown, opts: StreamOptions): Promise<void> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  const res = await fetch(`${apiBaseUrl()}/api${path}`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(body),
+    signal: opts.signal,
+  });
+  if (res.status === 401 && !opts._retried && (await refreshAccessToken())) {
+    return stream(path, body, { ...opts, _retried: true });
+  }
+  if (!res.ok || !res.body) throw await errorFromResponse(res);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let nl = buf.indexOf('\n');
+    while (nl >= 0) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (line) opts.onEvent(JSON.parse(line));
+      nl = buf.indexOf('\n');
+    }
+  }
+  const tail = buf.trim();
+  if (tail) opts.onEvent(JSON.parse(tail));
+}
+
 export const api = {
   get: <T>(path: string, signal?: AbortSignal) => request<T>(path, { method: 'GET', signal }),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: 'POST', body }),
@@ -147,4 +191,5 @@ export const api = {
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
   upload,
   download,
+  stream,
 };
