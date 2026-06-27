@@ -11,9 +11,21 @@ import type { AgentResponse, AgentStep, PendingWrite } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ChatMarkdown } from './chat-markdown';
+import { ToolResultCard, type ToolCardData } from './tool-result-card';
 
-type ChatMsg = { role: 'user' | 'assistant'; content: string; steps?: AgentStep[] };
-type StreamEvent = { type: string; tool?: string; delta?: string } & Partial<AgentResponse>;
+type ChatMsg = {
+  role: 'user' | 'assistant';
+  content: string;
+  steps?: AgentStep[];
+  toolCards?: ToolCardData[];
+};
+type StreamEvent = {
+  type: string;
+  tool?: string;
+  delta?: string;
+  result?: string;
+  isError?: boolean;
+} & Partial<AgentResponse>;
 
 /** Etiquetas legibles del progreso por herramienta (thinking-traces) y de la traza posterior. */
 const TOOL_LABELS: Record<string, string> = {
@@ -97,6 +109,7 @@ export function AiAgentDock() {
   const [streaming, setStreaming] = useState(false);
   const [currentTool, setCurrentTool] = useState<string | null>(null);
   const [streamingText, setStreamingText] = useState('');
+  const [streamingCards, setStreamingCards] = useState<ToolCardData[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -117,9 +130,11 @@ export function AiAgentDock() {
     setStreaming(true);
     setCurrentTool(null);
     setStreamingText('');
+    setStreamingCards([]);
     const controller = new AbortController();
     abortRef.current = controller;
     let final: AgentResponse | null = null;
+    const cards: ToolCardData[] = [];
     try {
       await api.stream(
         '/ai/agent/stream',
@@ -129,7 +144,22 @@ export function AiAgentDock() {
           onEvent: (e) => {
             const ev = e as StreamEvent;
             if (ev.type === 'tool') setCurrentTool(ev.tool ?? null);
-            else if (ev.type === 'text') {
+            else if (ev.type === 'tool_result') {
+              setCurrentTool(null);
+              let parsed: unknown = ev.result ?? null;
+              try {
+                parsed = JSON.parse(ev.result ?? 'null');
+              } catch {
+                /* deja el string crudo si no es JSON */
+              }
+              const card: ToolCardData = {
+                tool: ev.tool ?? '',
+                result: parsed,
+                isError: Boolean(ev.isError),
+              };
+              cards.push(card);
+              setStreamingCards((prev) => [...prev, card]);
+            } else if (ev.type === 'text') {
               setCurrentTool(null);
               setStreamingText((prev) => prev + (ev.delta ?? ''));
             } else if (ev.type === 'done') {
@@ -148,7 +178,12 @@ export function AiAgentDock() {
       const done: AgentResponse = final;
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: done.output, steps: done.steps },
+        {
+          role: 'assistant',
+          content: done.output,
+          steps: done.steps,
+          toolCards: cards.length ? cards : undefined,
+        },
       ]);
       if (done.pendingWrites.length > 0) setPending(done.pendingWrites);
     } catch (err) {
@@ -163,6 +198,7 @@ export function AiAgentDock() {
       setStreaming(false);
       setCurrentTool(null);
       setStreamingText('');
+      setStreamingCards([]);
       abortRef.current = null;
     }
   }
@@ -238,32 +274,37 @@ export function AiAgentDock() {
             </div>
           </div>
         )}
-        {messages.map((m, i) => (
-          <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
-            <div
-              className={
-                m.role === 'user'
-                  ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-[var(--brand)] px-3 py-2 text-sm text-white'
-                  : 'max-w-[85%] rounded-2xl rounded-bl-sm border bg-[var(--surface-1)] px-3 py-2 text-sm'
-              }
-            >
-              {m.role === 'user' ? (
+        {messages.map((m, i) =>
+          m.role === 'user' ? (
+            <div key={i} className="flex justify-end">
+              <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-[var(--brand)] px-3 py-2 text-sm text-white">
                 <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
-              ) : (
-                <ChatMarkdown content={m.content} />
-              )}
-              {m.steps && m.steps.length > 0 && (
-                <p className="mt-1.5 border-t pt-1.5 text-[10.5px] text-muted-foreground">
-                  {t('usedTools', {
-                    tools: m.steps
-                      .map((s) => TOOL_LABELS[s.tool]?.replace('…', '') ?? s.tool)
-                      .join(', '),
-                  })}
-                </p>
+              </div>
+            </div>
+          ) : (
+            <div key={i} className="flex flex-col items-start gap-1.5">
+              {m.toolCards?.map((c, j) => (
+                <div key={j} className="w-[88%]">
+                  <ToolResultCard data={c} />
+                </div>
+              ))}
+              {m.content && (
+                <div className="max-w-[88%] rounded-2xl rounded-bl-sm border bg-[var(--surface-1)] px-3 py-2 text-sm">
+                  <ChatMarkdown content={m.content} />
+                </div>
               )}
             </div>
+          ),
+        )}
+        {streaming && streamingCards.length > 0 && (
+          <div className="flex flex-col items-start gap-1.5">
+            {streamingCards.map((c, j) => (
+              <div key={j} className="w-[88%]">
+                <ToolResultCard data={c} />
+              </div>
+            ))}
           </div>
-        ))}
+        )}
         {streaming && streamingText && (
           <div className="flex justify-start">
             <div className="max-w-[85%] rounded-2xl rounded-bl-sm border bg-[var(--surface-1)] px-3 py-2 text-sm">

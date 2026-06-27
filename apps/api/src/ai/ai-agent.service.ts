@@ -46,6 +46,7 @@ export interface AiAgentResponse {
 /** Evento del turno en STREAMING: progreso por herramienta ('tool') o respuesta final ('done'). */
 export type AgentStreamEvent =
   | { type: 'tool'; tool: string }
+  | { type: 'tool_result'; tool: string; result: string; isError: boolean }
   | { type: 'text'; delta: string }
   | ({ type: 'done' } & AiAgentResponse);
 
@@ -123,6 +124,7 @@ export class AiAgentService {
       (tool) => opts.onEvent({ type: 'tool', tool }),
       opts.isAborted,
       (delta) => opts.onEvent({ type: 'text', delta }),
+      (tool, result, isError) => opts.onEvent({ type: 'tool_result', tool, result, isError }),
     );
     opts.onEvent({ type: 'done', ...res });
   }
@@ -136,18 +138,22 @@ export class AiAgentService {
     onTool?: (name: string) => void,
     isAborted?: () => boolean,
     onText?: (delta: string) => void,
+    onToolResult?: (name: string, content: string, isError: boolean) => void,
   ): Promise<AiAgentResponse> {
     await this.quota.consume(user);
 
     // HITL: salvo confirmación explícita del cliente, las herramientas de escritura NO se ejecutan; se
     // proponen y se recogen aquí para que la UI pida confirmación antes de actuar.
     const pendingWrites: PendingWrite[] = [];
-    const exec: AiToolExecutor = (invocation) => {
+    const exec: AiToolExecutor = async (invocation) => {
       if (isAborted?.()) {
-        return Promise.resolve({ content: 'Operación cancelada por el usuario.', isError: true });
+        return { content: 'Operación cancelada por el usuario.', isError: true };
       }
       onTool?.(invocation.name);
-      return this.execute(user, invocation, allowWrites, pendingWrites);
+      const outcome = await this.execute(user, invocation, allowWrites, pendingWrites);
+      // Emite el RESULTADO de la herramienta para que la UI lo pinte como tarjeta (Generative UI).
+      onToolResult?.(invocation.name, outcome.content, Boolean(outcome.isError));
+      return outcome;
     };
 
     let result;
