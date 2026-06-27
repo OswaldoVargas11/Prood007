@@ -129,6 +129,40 @@ describe('AiAgentService', () => {
     );
   });
 
+  it('NUNCA devuelve 500: degrada con elegancia si el motor falla (p. ej. rate-limit del proveedor)', async () => {
+    const throwing = {
+      isEnabled: () => true,
+      model: () => 'm',
+      complete: async () => {
+        throw new Error('x');
+      },
+      runAgent: async () => {
+        throw new Error('OpenAI-compat 429: rate limit');
+      },
+    };
+    const prisma = makePrisma();
+    const quota = {
+      consume: jest.fn().mockResolvedValue(undefined),
+      recordUsage: jest.fn().mockResolvedValue(undefined),
+    };
+    const audit = { log: jest.fn().mockResolvedValue(undefined) };
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const service = new AiAgentService(
+      prisma as any,
+      quota as any,
+      audit as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      throwing as any,
+    );
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+    const res = await service.run(user, 'hola');
+    expect(res.stopReason).toBe('error');
+    expect(res.steps).toEqual([]);
+    expect(res.output).toContain('Inténtalo de nuevo');
+  });
+
   it('cada herramienta del catálogo está MANEJADA por el executor (ninguna queda "desconocida")', async () => {
     const { service, engine } = makeDeps([]);
     await service.run(user, 'hola');

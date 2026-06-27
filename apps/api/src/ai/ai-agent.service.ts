@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { HttpException, Inject, Injectable } from '@nestjs/common';
 import {
   AI_ENGINE,
   Jurisdiction,
@@ -82,16 +82,33 @@ export class AiAgentService {
     const pendingWrites: PendingWrite[] = [];
     const exec: AiToolExecutor = (invocation) =>
       this.execute(user, invocation, allowWrites, pendingWrites);
-    const result = await this.engine.runAgent(
-      {
-        system: AGENT_SYSTEM_PROMPT,
-        userMessage: message,
-        history: history.slice(-MAX_HISTORY_MESSAGES),
-        tools: AGENT_TOOLS,
-        maxSteps: 6,
-      },
-      exec,
-    );
+
+    let result;
+    try {
+      result = await this.engine.runAgent(
+        {
+          system: AGENT_SYSTEM_PROMPT,
+          userMessage: message,
+          history: history.slice(-MAX_HISTORY_MESSAGES),
+          tools: AGENT_TOOLS,
+          maxSteps: 6,
+        },
+        exec,
+      );
+    } catch (e) {
+      // El agente NUNCA debe devolver 500: ante un fallo del proveedor (rate-limit persistente, caída),
+      // degrada con elegancia. Se re-lanza solo el HttpException intencionado (p. ej. 503 ai.notConfigured).
+      if (e instanceof HttpException) throw e;
+      return {
+        output:
+          'No he podido completar la consulta ahora mismo (el servicio de IA está ocupado o no ' +
+          'disponible). Inténtalo de nuevo en unos segundos.',
+        steps: [],
+        model: this.engine.model(),
+        stopReason: 'error',
+        pendingWrites,
+      };
+    }
 
     await this.quota.recordUsage(
       user,
