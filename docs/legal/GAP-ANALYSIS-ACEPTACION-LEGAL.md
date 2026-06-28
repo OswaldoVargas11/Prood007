@@ -6,7 +6,7 @@
 
 > Nota de método: esto es un informe. No se ha modificado migración, RLS, default fiscal, secuencia de numeración ni secreto alguno.
 
-> **Decisión tomada (2026-06-28):** la aceptación NO usará proveedor de firma (Signaturit). Se implementa **clickwrap reforzado** (registro probatorio con hash, IP, User-Agent, versión, en `AuditLog` append-only) + **certificado PDF con acuse por email**. Fundamento y comparativa en §7.
+> **Decisión tomada (2026-06-28, ajustada):** la aceptación NO usará proveedor de firma (Signaturit). Se implementa **clickwrap reforzado** (registro probatorio con hash, IP, User-Agent, versión, append-only). **Solo se hace lo legalmente obligatorio**: se descarta el certificado PDF + acuse por email (no obligatorio; la prueba es el registro). El **email se usa únicamente para los avisos de subprocesadores** (obligación del art. 28.2 RGPD). Fundamento y comparativa en §7.
 
 ---
 
@@ -44,15 +44,15 @@ Un **DPA art. 28 RGPD no requiere firma** (ni manuscrita ni cualificada): el art
 
 Opciones in-house (todas sin terceros, piezas ya presentes en el repo):
 
-| Opción                                  | Qué es                                                                                     | Solidez                                 | Esfuerzo   |
-| --------------------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------- | ---------- |
-| 1. Clickwrap básico                     | checkbox + fila `LegalAcceptance`                                                          | suficiente B2B                          | bajo       |
-| **2. Clickwrap reforzado ⭐ (elegida)** | + SHA-256 del texto exacto, IP, UA, timestamp servidor, versión, en `AuditLog` append-only | alta (prueba _qué_ se aceptó)           | bajo-medio |
-| **3. + Certificado/acuse ⭐ (elegida)** | PDF "certificado de aceptación" guardado + email al despacho                               | alta + auto-evidencia                   | medio      |
-| 4. Type-to-sign                         | nombre+cargo tecleados / firma en canvas                                                   | igual en derecho                        | medio      |
-| 5. Escotilla cualificada (opt-in)       | el despacho sube su DPA firmado con su propio AutoFirma/cert; tú solo lo almacenas         | cualificada, sin proveedor por tu parte | bajo       |
+| Opción                                  | Qué es                                                                             | Solidez                                 | Esfuerzo   |
+| --------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------- | ---------- |
+| 1. Clickwrap básico                     | checkbox + fila `LegalAcceptance`                                                  | suficiente B2B                          | bajo       |
+| **2. Clickwrap reforzado ⭐ (elegida)** | + SHA-256 del texto exacto, IP, UA, timestamp servidor, versión, append-only       | alta (prueba _qué_ se aceptó)           | bajo-medio |
+| 3. + Certificado/acuse (descartada)     | PDF "certificado de aceptación" + email al despacho                                | alta + auto-evidencia                   | medio      |
+| 4. Type-to-sign                         | nombre+cargo tecleados / firma en canvas                                           | igual en derecho                        | medio      |
+| 5. Escotilla cualificada (opt-in)       | el despacho sube su DPA firmado con su propio AutoFirma/cert; tú solo lo almacenas | cualificada, sin proveedor por tu parte | bajo       |
 
-**Elegido: 2 + 3.** La 5 queda como vía de escape para el despacho que insista en firma cualificada (no requiere integrar nada, solo almacenar el fichero subido).
+**Elegido: solo la 2** (lo legalmente obligatorio). La 3 (certificado PDF + email) se **descarta** por no ser obligatoria: la prueba ya es el registro append-only. La 5 queda como vía de escape para el despacho que insista en firma cualificada (no requiere integrar nada, solo almacenar el fichero subido).
 
 ---
 
@@ -122,12 +122,17 @@ Implicaciones nuevas (solo perfil consumidor):
 - **Toca rutas prohibidas SI** se persiste como columnas nuevas en `Tenant` → migración → **PR-y-espera**. (Alternativa sin migración: reutilizar JSON existente si lo hubiera — a confirmar; por defecto asumir migración.)
 - **Contenido:** capturar domicilio fiscal en onboarding/ajustes; usarlo en encabezado de factura y en el DPA.
 
-### PR-H — Certificado de aceptación PDF + acuse por email _(reemplaza al antiguo PR-F de Signaturit)_
+### ~~PR-H — Certificado de aceptación PDF + acuse por email~~ — DESCARTADO (2026-06-28)
 
-- **No toca rutas prohibidas** (reutiliza `pdf-lib`/`pdfkit` y `mail.service`).
-- **Contenido:** al registrarse la aceptación, generar un **PDF "certificado de aceptación"** (despacho, usuario, cargo, documento+versión, **hash SHA-256** del texto, fecha/hora servidor, IP, User-Agent) y enviarlo por email (Brevo) al despacho; guardarlo como documento del tenant.
-- **Dependencia:** PR-A + PR-C.
-- **Nota:** se descarta el uso de Signaturit/cualquier proveedor de firma para esto (decisión 2026-06-28). El adaptador Signaturit existente sigue disponible para su uso actual (firma de documentos de expediente), no para la aceptación legal. Vía de escape para despachos que exijan firma cualificada: que suban su DPA firmado con su propio AutoFirma/certificado (reutiliza la subida de documentos; `method = 'uploaded'`), sin integración por nuestra parte.
+- **No es obligatorio.** La prueba de aceptación ya es el registro append-only `LegalAcceptance` (hash + IP + UA + versión). Generar un PDF y mandarlo por email es comodidad, no requisito legal → se elimina del alcance.
+- El **email solo se usa donde es obligatorio**: avisos de subprocesadores (PR-S, art. 28.2 RGPD).
+- Vía de escape para el despacho que exija firma cualificada: que suba su DPA firmado con su propio AutoFirma/certificado (`method = 'uploaded'`, reutiliza la subida de documentos), sin integración por nuestra parte.
+
+### PR-S — Subprocesadores: página pública + aviso/objeción _(antes P2; el único email obligatorio)_
+
+- 🚧 **parcial:** tabla `Subprocessor` versionada con hash + tabla de suscriptores → migración → **PR-y-espera**.
+- **Contenido:** página pública en Next (nombre, función, país, fecha de alta + changelog); suscripción opt-in por email (Brevo); **preaviso de 30 días** + ventana de objeción de 30 días; cláusula "quien no se suscribe renuncia al aviso previo" (patrón Vanta). Cumple el art. 28.2 RGPD (notificar cambios + permitir oposición).
+- **Dependencia:** PR-A (la lista se incorpora por referencia al DPA).
 
 ### PR-G — Fix menor: jurisdicción fresca en retainer
 
@@ -145,13 +150,15 @@ Implicaciones nuevas (solo perfil consumidor):
 ## 5. Secuencia recomendada
 
 ```
-PR-A 🚧 (modelo+RLS+accountType, PR-y-espera)
-   ├─> PR-C (clickwrap condicional por perfil) ──> PR-D (gate+re-aceptación)
-   ├─> PR-H (certificado PDF + acuse email)
+PR-A 🚧 (modelo+RLS+accountType, PR-y-espera)  ← HECHO (rama feat/legal-acceptance-layer)
+   ├─> PR-C (clickwrap condicional por perfil) ──> PR-D (gate+re-aceptación, solo cambios obligatorios)
+   ├─> PR-S 🚧 (subprocesadores: página + aviso/objeción por email — único email obligatorio)
    └─> PR-I (fiscal B2C: OSS + ITBIS RD)
 PR-B (DPA + ToS consumidor + subencargados)  [contenido en paralelo; persistencia tras PR-A]
 PR-E 🚧 (domicilio fiscal, PR-y-espera)   [independiente]
 PR-G (fix retainer)                        [independiente, trivial]
+
+DESCARTADO: PR-H (certificado PDF + acuse email) — no obligatorio.
 ```
 
 **Acciones de owner (fuera de código):** redacción/validación jurídica del DPA y de la política de subencargados; decisión sobre si `LegalDocument` es global o por-tenant; aprobación de las migraciones de PR-A y PR-E. (Ya **no** se requieren credenciales de Signaturit: la aceptación es 100% in-house, sin proveedor ni coste por firma.)
