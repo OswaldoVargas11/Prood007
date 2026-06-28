@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ThemeToggle } from '@/components/lexora/theme-toggle';
+import { AuthShell } from '@/components/lexora/auth-shell';
 
 /** "Olvidé mi contraseña" (público). El servidor responde siempre genérico (no revela existencia). */
 export default function ForgotPasswordPage() {
@@ -27,18 +27,8 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden p-6">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          background: 'radial-gradient(60% 50% at 50% 0%, var(--ai-from), transparent 70%)',
-        }}
-      />
-      <div className="absolute right-5 top-5">
-        <ThemeToggle />
-      </div>
-      <Card className="w-full max-w-sm shadow-lg">
+    <AuthShell>
+      <Card className="relative z-10 w-full max-w-sm shadow-lg">
         <CardHeader className="items-center text-center">
           <CardTitle className="text-xl">{t('title')}</CardTitle>
           <CardDescription>{t('subtitle')}</CardDescription>
@@ -94,6 +84,6 @@ export default function ForgotPasswordPage() {
           )}
         </CardContent>
       </Card>
-    </main>
+    </AuthShell>
   );
 }

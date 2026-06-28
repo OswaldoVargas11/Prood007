@@ -321,6 +321,7 @@
     "subtitle": "Plazos procesales · cómputo por jurisdicción con festivos aplicados.",
     "prevMonth": "Mes anterior",
     "nextMonth": "Mes siguiente",
+    "goToday": "Hoy",
     "todayBadge": "HOY",
     "today": "hoy",
     "overdue": "vencido",
@@ -707,13 +708,19 @@
       "anonymizedNote": "Los datos personales se han borrado y el portal está cortado. El expediente y las facturas se conservan por obligación legal."
     },
     "resetPortalPassword": "Restablecer contraseña del portal",
-    "emptyCta": "Crear el primer cliente"
+    "emptyCta": "Crear el primer cliente",
+    "searchPlaceholder": "Buscar por nombre o ID fiscal…",
+    "noResults": "Sin resultados para «{q}»."
   },
   "documentsOverview": {
     "title": "Documentos",
     "subtitle": "Todos los documentos del despacho, agrupados por expediente.",
     "loadError": "No se pudieron cargar los documentos.",
-    "empty": "Aún no hay documentos en el despacho."
+    "empty": "Aún no hay documentos en el despacho.",
+    "emptyHint": "Los documentos se suben dentro de cada expediente. Abre uno para añadir el primero.",
+    "emptyCta": "Ir a expedientes",
+    "searchPlaceholder": "Buscar por nombre o expediente…",
+    "noResults": "Sin resultados para «{q}»."
   },
   "billingOverview": {
     "title": "Facturación",
@@ -829,7 +836,8 @@
     "title": "Mensajes",
     "subtitle": "Conversaciones del despacho, una por expediente.",
     "loadError": "No se pudieron cargar los mensajes.",
-    "empty": "Aún no hay conversaciones."
+    "empty": "Aún no hay conversaciones.",
+    "emptyHint": "Las conversaciones se abren dentro de cada expediente, una por asunto."
   },
   "companySecretary": {
     "shareholders": "Libro de socios",

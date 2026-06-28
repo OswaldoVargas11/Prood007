@@ -16,6 +16,7 @@ import {
 import { toastMsg } from '@/lib/toasts';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -63,26 +64,26 @@ export default function LeadsPage() {
 
   return (
     <div className="mx-auto max-w-[1300px] space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={shareIntake} disabled={intake.isLoading}>
-            <Link2 /> {t('shareIntake')}
-          </Button>
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus /> {t('new')}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={shareIntake} disabled={intake.isLoading}>
+              <Link2 /> {t('shareIntake')}
+            </Button>
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <Plus /> {t('new')}
+            </Button>
+          </>
+        }
+      />
 
       {isLoading && <Skeleton className="h-64 w-full rounded-xl" />}
       {isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
 
       {!isLoading && !isError && (
-        <div className="flex gap-3 overflow-x-auto pb-2">
+        <div className="no-scrollbar scroll-fade-x flex gap-3 overflow-x-auto pb-2">
           {COLUMNS.map((col) => {
             const items = byStatus.get(col) ?? [];
             return (

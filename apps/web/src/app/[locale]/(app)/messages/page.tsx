@@ -6,6 +6,8 @@ import { useChatConversations } from '@/lib/hooks';
 import { Link } from '@/i18n/navigation';
 import { relativeTime } from '@/lib/activity';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 
 /**
@@ -19,10 +21,7 @@ export default function MessagesOverviewPage() {
 
   return (
     <div className="mx-auto max-w-[900px] space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="mt-1 text-[13.5px] text-muted-foreground">{t('subtitle')}</p>
-      </div>
+      <PageHeader title={t('title')} subtitle={t('subtitle')} />
 
       {isLoading && <Skeleton className="h-64 w-full rounded-xl" />}
       {isError && (
@@ -32,9 +31,8 @@ export default function MessagesOverviewPage() {
       )}
 
       {!isLoading && !isError && (conversations ?? []).length === 0 && (
-        <div className="rounded-xl border bg-card p-12 text-center">
-          <MessageSquare className="mx-auto size-7 text-muted-foreground" />
-          <p className="mt-3 text-sm text-muted-foreground">{t('empty')}</p>
+        <div className="rounded-xl border bg-card shadow-sm">
+          <EmptyState icon={MessageSquare} title={t('empty')} description={t('emptyHint')} />
         </div>
       )}
 

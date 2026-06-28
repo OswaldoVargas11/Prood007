@@ -25,6 +25,7 @@ import {
 } from '@/components/lexora/matter-parties';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -62,46 +63,49 @@ export default function MattersPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Conmutador tabla / tablero */}
-          <div className="flex rounded-lg border p-0.5">
-            <button
-              type="button"
-              onClick={() => setView('table')}
-              aria-label={t('viewTable')}
-              className={cn(
-                'flex size-7 items-center justify-center rounded-md transition-colors',
-                view === 'table'
-                  ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Rows3 className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('board')}
-              aria-label={t('viewBoard')}
-              className={cn(
-                'flex size-7 items-center justify-center rounded-md transition-colors',
-                view === 'board'
-                  ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <LayoutGrid className="size-4" />
-            </button>
-          </div>
-          <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus /> {t('new')}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow={
+          data ? `${data.total} ${data.total === 1 ? 'expediente' : 'expedientes'}` : undefined
+        }
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={
+          <>
+            {/* Conmutador tabla / tablero */}
+            <div className="flex rounded-lg border p-0.5">
+              <button
+                type="button"
+                onClick={() => setView('table')}
+                aria-label={t('viewTable')}
+                className={cn(
+                  'flex size-7 items-center justify-center rounded-md transition-colors',
+                  view === 'table'
+                    ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <Rows3 className="size-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setView('board')}
+                aria-label={t('viewBoard')}
+                className={cn(
+                  'flex size-7 items-center justify-center rounded-md transition-colors',
+                  view === 'board'
+                    ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                <LayoutGrid className="size-4" />
+              </button>
+            </div>
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <Plus /> {t('new')}
+            </Button>
+          </>
+        }
+      />
       <CreateMatterDialog open={creating} onClose={() => setCreating(false)} />
 
       {/* Filtro por estado (solo en vista de tabla) */}

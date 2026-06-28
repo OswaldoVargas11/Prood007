@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { AlertTriangle, Building2, Check, Loader2, Plus, User, Users } from 'lucide-react';
+import { AlertTriangle, Building2, Check, Loader2, Plus, Search, User, Users } from 'lucide-react';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useClients, useConflictCheck, useCreateClient } from '@/lib/hooks';
 import { formatMoney } from '@/lib/format';
@@ -10,6 +10,8 @@ import { ApiError } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -43,20 +45,47 @@ export default function ClientsPage() {
   const locale = useLocale();
   const { data, isLoading, isError, refetch } = useClients();
   const [creating, setCreating] = useState(false);
+  const [query, setQuery] = useState('');
   const currency = data?.currency ?? 'EUR';
+
+  const items = data?.items ?? [];
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? items.filter(
+        (c) => c.name.toLowerCase().includes(q) || (c.taxId ?? '').toLowerCase().includes(q),
+      )
+    : items;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
-        </div>
-        <Button size="sm" onClick={() => setCreating(true)}>
-          <Plus /> {t('new')}
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow={
+          data
+            ? `${data.items.length} ${data.items.length === 1 ? 'cliente' : 'clientes'}`
+            : undefined
+        }
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={
+          <Button size="sm" onClick={() => setCreating(true)}>
+            <Plus /> {t('new')}
+          </Button>
+        }
+      />
       <CreateClientDialog open={creating} onClose={() => setCreating(false)} />
+
+      {items.length > 0 && (
+        <div className="relative max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('searchPlaceholder')}
+            aria-label={t('searchPlaceholder')}
+            className="pl-9"
+          />
+        </div>
+      )}
 
       <Card className="overflow-hidden">
         <table className="w-full text-sm">
@@ -88,9 +117,16 @@ export default function ClientsPage() {
                   </td>
                 </tr>
               ))}
+            {!isLoading && !isError && items.length > 0 && filtered.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  {t('noResults', { q: query.trim() })}
+                </td>
+              </tr>
+            )}
             {!isLoading &&
               !isError &&
-              data?.items.map((c) => (
+              filtered.map((c) => (
                 <tr
                   key={c.id}
                   className="border-b border-border transition-colors last:border-0 hover:bg-accent"
@@ -147,13 +183,15 @@ export default function ClientsPage() {
           </div>
         )}
         {!isLoading && !isError && data?.items.length === 0 && (
-          <div className="flex flex-col items-center gap-3 p-12 text-center text-sm text-muted-foreground">
-            <Users className="size-6" />
-            {t('empty')}
-            <Button size="sm" onClick={() => setCreating(true)}>
-              <Plus /> {t('emptyCta')}
-            </Button>
-          </div>
+          <EmptyState
+            icon={Users}
+            title={t('empty')}
+            action={
+              <Button size="sm" onClick={() => setCreating(true)}>
+                <Plus /> {t('emptyCta')}
+              </Button>
+            }
+          />
         )}
       </Card>
     </div>

@@ -7,6 +7,7 @@ import { CalendarPlus, Check, ChevronLeft, ChevronRight, CalendarDays, Copy } fr
 import { useCalendarFeedLink, useMatters, useTasks } from '@/lib/hooks';
 import { useRouter } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
 import {
   Dialog,
@@ -90,9 +91,12 @@ export default function CalendarPage() {
     [deadlines],
   );
 
-  const monthLabel = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
+  // Capitalizamos SOLO la primera letra (no con CSS `capitalize`, que pondría "Junio De 2026").
+  const monthLabelRaw = new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(
     new Date(cursor.year, cursor.month, 1),
   );
+  const monthLabel = monthLabelRaw.charAt(0).toUpperCase() + monthLabelRaw.slice(1);
+  const isCurrentMonth = cursor.year === now.getFullYear() && cursor.month === now.getMonth();
 
   function shiftMonth(delta: number) {
     setCursor((c) => {
@@ -117,34 +121,40 @@ export default function CalendarPage() {
 
   return (
     <div className="mx-auto max-w-[1320px] space-y-4">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-          <p className="mt-1 text-[13.5px] text-muted-foreground">{t('subtitle')}</p>
-        </div>
-        <div className="flex items-center gap-2.5">
-          <SubscribeAgendaButton />
-          <button
-            type="button"
-            onClick={() => shiftMonth(-1)}
-            aria-label={t('prevMonth')}
-            className="flex size-8 items-center justify-center rounded-[9px] border bg-card text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-          <span className="min-w-[120px] text-center text-sm font-semibold capitalize">
-            {monthLabel}
-          </span>
-          <button
-            type="button"
-            onClick={() => shiftMonth(1)}
-            aria-label={t('nextMonth')}
-            className="flex size-8 items-center justify-center rounded-[9px] border bg-card text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
-      </div>
+      <PageHeader
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={
+          <>
+            <SubscribeAgendaButton />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCursor({ year: now.getFullYear(), month: now.getMonth() })}
+              disabled={isCurrentMonth}
+            >
+              {t('goToday')}
+            </Button>
+            <button
+              type="button"
+              onClick={() => shiftMonth(-1)}
+              aria-label={t('prevMonth')}
+              className="flex size-8 items-center justify-center rounded-[9px] border bg-card text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+            <span className="min-w-[120px] text-center text-sm font-semibold">{monthLabel}</span>
+            <button
+              type="button"
+              onClick={() => shiftMonth(1)}
+              aria-label={t('nextMonth')}
+              className="flex size-8 items-center justify-center rounded-[9px] border bg-card text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </>
+        }
+      />
 
       <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1fr_300px]">
         {/* Rejilla del mes */}

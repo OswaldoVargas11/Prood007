@@ -42,14 +42,29 @@ export default function DashboardPage() {
     return h < 12 ? t('morning') : h < 20 ? t('afternoon') : t('evening');
   })();
 
+  // Eyebrow de contexto (despacho · fecha). La fecha se fija tras el montaje para no arriesgar
+  // desajustes de hidratación entre la hora del servidor y la del cliente.
+  const locale = useLocale();
+  const [today, setToday] = useState('');
+  useEffect(() => {
+    setToday(formatDate(new Date(), locale));
+  }, [locale]);
+  const firmName = user?.tenant?.name;
+  const eyebrow = [firmName, today].filter(Boolean).join(' · ');
+
   return (
     <div className="mx-auto max-w-6xl space-y-4">
       <div className="flex items-end justify-between gap-4">
         <div>
+          {eyebrow && (
+            <p className="mb-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-[var(--text-subtle)]">
+              {eyebrow}
+            </p>
+          )}
           <h1 className="text-2xl font-semibold tracking-tight">{greeting}</h1>
           <p className="mt-1 text-sm text-muted-foreground">{t('subtitle')}</p>
         </div>
-        <Button asChild size="sm">
+        <Button asChild size="sm" variant="outline">
           <Link href="/matters">{t('goMatters')}</Link>
         </Button>
       </div>
@@ -325,7 +340,12 @@ function KpiRow({ data }: { data: DashboardSummary }) {
       {items.map((it) => {
         const Icon = it.icon;
         return (
-          <Card key={it.label}>
+          <Card key={it.label} className="relative overflow-hidden">
+            <span
+              aria-hidden
+              className="absolute inset-x-0 top-0 h-0.5"
+              style={{ background: it.color }}
+            />
             <CardContent className="p-4">
               <div className="mb-2.5 flex items-center justify-between">
                 <span className="text-xs font-medium text-muted-foreground">{it.label}</span>
