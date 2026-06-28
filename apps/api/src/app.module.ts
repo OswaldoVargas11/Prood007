@@ -8,6 +8,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { TenantContextInterceptor } from './prisma/tenant-context.interceptor';
 import { SubscriptionInterceptor } from './subscription/subscription.interceptor';
+import { LegalAcceptanceInterceptor } from './legal/legal-acceptance.interceptor';
 import { ComplianceModule } from './compliance/compliance.module';
 import { AuthModule } from './auth/auth.module';
 import { AuditModule } from './audit/audit.module';
@@ -152,6 +153,9 @@ import { HealthController } from './health.controller';
     { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
     // Muro de suscripción: bloquea (402) si la prueba caducó sin suscripción, salvo @AllowExpired.
     { provide: APP_INTERCEPTOR, useClass: SubscriptionInterceptor },
+    // Gate de aceptación legal (servidor): bloquea (403) las ESCRITURAS del staff si el despacho no ha
+    // aceptado el DPA y condiciones vigentes, salvo @AllowWithoutLegalAcceptance. Lecturas siempre pasan.
+    { provide: APP_INTERCEPTOR, useClass: LegalAcceptanceInterceptor },
   ],
 })
 export class AppModule {}

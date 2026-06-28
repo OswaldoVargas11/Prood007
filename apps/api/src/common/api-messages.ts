@@ -734,6 +734,12 @@ export const API_MESSAGES = {
     'es-ES': 'No hay ningún documento que aceptar.',
     'es-DO': 'No hay ningún documento que aceptar.',
   },
+  'legal.acceptanceRequired': {
+    'es-ES':
+      'Para introducir datos de clientes debes aceptar primero el DPA y las condiciones vigentes.',
+    'es-DO':
+      'Para introducir datos de clientes debes aceptar primero el DPA y las condiciones vigentes.',
+  },
 
   // ── Webhooks salientes ────────────────────────────────────────────────────
   'webhooks.notFound': {

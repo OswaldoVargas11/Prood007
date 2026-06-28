@@ -11,6 +11,7 @@ import {
 import type { Request } from 'express';
 import { LegalDocType, type Prisma } from '@prisma/client';
 import { AllowExpired } from '../subscription/allow-expired.decorator';
+import { AllowWithoutLegalAcceptance } from './allow-without-legal-acceptance.decorator';
 import { Public } from '../auth/decorators/public.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -33,6 +34,7 @@ const PUBLIC_TYPES: LegalDocType[] = [
  * rol de app dentro del contexto de tenant de la request (RLS), y queda append-only por privilegios de columna.
  */
 @AllowExpired()
+@AllowWithoutLegalAcceptance()
 @Controller('legal')
 export class LegalController {
   constructor(

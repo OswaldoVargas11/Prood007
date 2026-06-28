@@ -29,6 +29,11 @@ const REQUIRED_BY_ACCOUNT: Record<string, LegalDocType[]> = {
   CONSUMER: [LegalDocType.TERMS_CONSUMER, LegalDocType.PRIVACY, LegalDocType.WITHDRAWAL_WAIVER],
 };
 
+/** Documentos legales que una cuenta DEBE aceptar según su perfil. Compartido con el interceptor de gate. */
+export function requiredLegalDocTypes(accountType: string): LegalDocType[] {
+  return REQUIRED_BY_ACCOUNT[accountType] ?? PROFESSIONAL_DOCS;
+}
+
 /**
  * Capa de aceptación legal (clickwrap reforzado, SIN proveedor de firma). Resuelve qué documentos vigentes
  * debe aceptar cada cuenta (según su `accountType`) y registra cada aceptación en `LegalAcceptance` con el
@@ -40,7 +45,7 @@ export class LegalService {
   constructor(private readonly prisma: PrismaService) {}
 
   private requiredTypes(accountType: string): LegalDocType[] {
-    return REQUIRED_BY_ACCOUNT[accountType] ?? PROFESSIONAL_DOCS;
+    return requiredLegalDocTypes(accountType);
   }
 
   /** Documentos VIGENTES que esta cuenta debe aceptar (uno por tipo; prefiere el específico de jurisdicción). */

@@ -5,12 +5,15 @@ import { StripeBillingService } from './stripe-billing.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import { ChangeSeatsDto } from './dto/change-seats.dto';
 import { AllowExpired } from './allow-expired.decorator';
+import { AllowWithoutLegalAcceptance } from '../legal/allow-without-legal-acceptance.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 
 // Accesible aunque la prueba haya caducado: el muro necesita leer el estado, los planes y suscribirse.
+// También exento del gate legal: pagar la suscripción no exige tener el DPA aceptado.
 @AllowExpired()
+@AllowWithoutLegalAcceptance()
 @Roles(Role.FIRM_ADMIN, Role.LAWYER)
 @Controller('subscription')
 export class SubscriptionController {

@@ -32,11 +32,14 @@ import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AllowExpired } from '../subscription/allow-expired.decorator';
+import { AllowWithoutLegalAcceptance } from '../legal/allow-without-legal-acceptance.decorator';
 import type { RequestUser } from './auth.types';
 
 // Rutas de sesión accesibles aunque la prueba haya caducado (login/me/logout/refresh): sin esto, un
-// despacho con prueba expirada no podría ni cargar la sesión para llegar al muro de suscripción.
+// despacho con prueba expirada no podría ni cargar la sesión para llegar al muro de suscripción. Igual para
+// el gate legal: autenticación/sesión nunca se bloquean por aceptación pendiente.
 @AllowExpired()
+@AllowWithoutLegalAcceptance()
 @Controller('auth')
 export class AuthController {
   constructor(
