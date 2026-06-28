@@ -3,15 +3,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
+  AlarmClock,
+  ArrowUp,
+  BookMarked,
+  Briefcase,
   Check,
+  FileSearch,
   History,
+  LayoutDashboard,
   Loader2,
+  PenLine,
+  Plus,
   RotateCcw,
-  Send,
   Sparkles,
   Square,
   Trash2,
+  UserSearch,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useAiStatus } from '@/lib/hooks';
@@ -25,7 +34,6 @@ import type {
   PendingWrite,
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ChatMarkdown } from './chat-markdown';
 import { ToolResultCard, type ToolCardData } from './tool-result-card';
 
@@ -57,49 +65,75 @@ const TOOL_LABELS: Record<string, string> = {
   draft_and_save_document: 'Redactando el documento…',
 };
 
-/** Atajos de uso preconstruidos (skills): el botón rellena y envía un prompt accionable. */
-const SKILLS: { label: string; prompt: string }[] = [
+/** Atajos de uso preconstruidos (skills): la fila rellena y envía un prompt accionable. */
+const SKILLS: { label: string; icon: LucideIcon; prompt: string }[] = [
   {
     label: 'Panorámica del despacho',
+    icon: LayoutDashboard,
     prompt:
       'Dame una panorámica del estado del despacho ahora mismo: expedientes activos, tareas abiertas y, sobre todo, los plazos vencidos. Organiza por urgencia y termina con qué atender primero.',
   },
   {
     label: 'Plazos urgentes',
+    icon: AlarmClock,
     prompt:
       'Muéstrame las tareas y plazos abiertos ordenados por vencimiento, marcando claramente los vencidos. Indica para cada uno el expediente y qué acción requiere.',
   },
   {
     label: 'Estado de expediente',
+    icon: Briefcase,
     prompt:
       'Quiero el estado de un expediente. Pregúntame la referencia o el cliente, localízalo y resúmeme partes, materia, fase, tareas y documentos clave, con los próximos pasos sugeridos.',
   },
   {
     label: 'Buscar en documentos',
+    icon: FileSearch,
     prompt:
       'Busca dentro de los documentos del despacho lo que te indique (una cláusula, un importe, una fecha). Cita el documento y el expediente de cada resultado. Pregúntame qué quiero encontrar.',
   },
   {
     label: 'Jurisprudencia',
+    icon: BookMarked,
     prompt:
       'Ayúdame a localizar jurisprudencia y normativa sobre una cuestión jurídica, distinguiendo España o República Dominicana. Pregúntame el tema y la jurisdicción y dame enlaces a las fuentes oficiales.',
   },
   {
     label: 'Crear plazo/tarea',
+    icon: Plus,
     prompt:
       'Crea una tarea o plazo en un expediente. Pregúntame qué hay que hacer, en qué expediente y la fecha; muéstrame un resumen y pídeme confirmación antes de crearla.',
   },
   {
     label: 'Redactar escrito',
+    icon: PenLine,
     prompt:
       'Redacta un borrador de escrito y guárdalo en el expediente. Pregúntame el tipo de escrito, el expediente y los datos esenciales; muéstrame el borrador y guárdalo solo tras mi confirmación.',
   },
   {
     label: 'Buscar cliente',
+    icon: UserSearch,
     prompt:
       'Localiza un cliente y dame su ficha. Pregúntame el nombre o identificador fiscal, y devuélveme sus datos, los expedientes en los que es parte y sus tareas o plazos abiertos.',
   },
 ];
+
+/** Avatar de marca de Zora: tile con degradado IA + sparkle. Da identidad a la cabecera y a cada
+ *  respuesta del asistente (estilo moderno: el mensaje del asistente no lleva burbuja, lleva avatar). */
+function ZoraAvatar({ size = 28 }: { size?: number }) {
+  return (
+    <span
+      aria-hidden
+      className="flex shrink-0 items-center justify-center rounded-[10px] text-white shadow-sm"
+      style={{
+        width: size,
+        height: size,
+        background: 'linear-gradient(135deg, var(--ai-from), var(--ai-to))',
+      }}
+    >
+      <Sparkles style={{ width: size * 0.52, height: size * 0.52 }} />
+    </span>
+  );
+}
 
 function isStaff(roles: string[] | undefined): boolean {
   return Boolean(roles?.includes('FIRM_ADMIN') || roles?.includes('LAWYER'));
@@ -112,13 +146,25 @@ function isStaff(roles: string[] | undefined): boolean {
  * se PERSISTE en el servidor (privado por usuario): el historial sobrevive a recargas y se puede reabrir
  * desde el panel de conversaciones. Las escrituras requieren confirmación (HITL).
  */
-export function AiAgentDock() {
+/** Disponibilidad del asistente (staff + IA habilitada). La usa el botón del topbar para mostrarse o no. */
+export function useAiDockAvailable(): boolean {
+  const { user } = useAuth();
+  const { data: status } = useAiStatus();
+  const hasAi = useEntitlement('ai');
+  return isStaff(user?.roles) && hasAi && Boolean(status?.enabled);
+}
+
+export function AiAgentDock({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const t = useTranslations('ai.agent');
   const { user } = useAuth();
   const { data: status } = useAiStatus();
   const hasAi = useEntitlement('ai');
-
-  const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -139,6 +185,16 @@ export function AiAgentDock() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, streaming, currentTool]);
+
+  // Cerrar con Escape (patrón estándar de panel/slide-over).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onOpenChange(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onOpenChange]);
 
   /** Carga el historial de conversaciones del usuario (para el panel). */
   const loadHistory = useCallback(async () => {
@@ -305,30 +361,25 @@ export function AiAgentDock() {
     }
   }
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={t('open')}
-        className="fixed bottom-4 right-[5.5rem] z-40 flex size-12 items-center justify-center rounded-full bg-[var(--brand)] text-white shadow-lg transition-transform hover:scale-105 print:hidden"
-      >
-        <Sparkles className="size-5" />
-      </button>
-    );
-  }
+  if (!open) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 flex h-[min(560px,calc(100vh-6rem))] w-[min(400px,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border bg-[var(--surface-0,white)] shadow-2xl print:hidden">
-      <div className="flex items-center justify-between gap-2 border-b bg-[var(--surface-1)] px-3 py-2.5">
-        <div className="flex min-w-0 items-center gap-2">
-          <Sparkles className="size-4 shrink-0 text-[var(--brand)]" />
+    <div className="fixed inset-y-0 right-0 z-50 flex w-[min(440px,100vw)] flex-col border-l border-border bg-card shadow-2xl duration-200 animate-in slide-in-from-right print:hidden">
+      <div
+        className="flex items-center justify-between gap-2 border-b border-border/60 px-3.5 py-3"
+        style={{
+          background:
+            'linear-gradient(180deg, color-mix(in oklab, var(--ai-from) 8%, var(--card)), var(--card))',
+        }}
+      >
+        <div className="flex min-w-0 items-center gap-2.5">
+          <ZoraAvatar size={30} />
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{t('title')}</p>
+            <p className="truncate text-[14px] font-semibold leading-tight">{t('title')}</p>
             <p className="truncate text-[11px] text-muted-foreground">{t('subtitle')}</p>
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-0.5">
           {!streaming && (
             <Button
               size="icon"
@@ -352,7 +403,7 @@ export function AiAgentDock() {
             size="icon"
             variant="ghost"
             aria-label={t('close')}
-            onClick={() => setOpen(false)}
+            onClick={() => onOpenChange(false)}
           >
             <X className="size-4" />
           </Button>
@@ -402,67 +453,81 @@ export function AiAgentDock() {
         <>
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-3">
             {messages.length === 0 && !streaming && (
-              <div className="flex h-full flex-col items-center justify-center px-2 text-center">
-                <Sparkles className="mb-2 size-8 text-[var(--brand)] opacity-70" />
-                <p className="text-sm font-medium">{t('emptyTitle')}</p>
-                <p className="mt-1 text-[12px] text-muted-foreground">{t('emptyHint')}</p>
-                <div className="mt-3 flex flex-wrap justify-center gap-1.5">
-                  {SKILLS.map((s) => (
-                    <button
-                      key={s.label}
-                      type="button"
-                      onClick={() => void send(s.prompt)}
-                      className="rounded-full border px-2.5 py-1 text-[11.5px] text-muted-foreground transition-colors hover:border-[var(--brand)] hover:text-foreground"
-                    >
-                      {s.label}
-                    </button>
-                  ))}
+              <div className="flex flex-col items-center px-2 pt-5 text-center">
+                <ZoraAvatar size={44} />
+                <p className="mt-3 text-[15px] font-semibold">{t('emptyTitle')}</p>
+                <p className="mt-1 max-w-[34ch] text-[12.5px] leading-relaxed text-muted-foreground">
+                  {t('emptyHint')}
+                </p>
+                <div className="mt-4 w-full space-y-1.5 text-left">
+                  {SKILLS.map((s) => {
+                    const Icon = s.icon;
+                    return (
+                      <button
+                        key={s.label}
+                        type="button"
+                        onClick={() => void send(s.prompt)}
+                        className="group flex w-full items-center gap-2.5 rounded-xl border border-border/70 bg-[var(--surface-1)] px-3 py-2 text-left text-[13px] transition-colors hover:border-[var(--brand-line)] hover:bg-[var(--brand-soft)]"
+                      >
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-[var(--brand-soft)] text-[var(--brand)]">
+                          <Icon className="size-3.5" />
+                        </span>
+                        <span className="flex-1 font-medium">{s.label}</span>
+                        <ArrowUp className="size-3.5 rotate-45 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
             {messages.map((m, i) =>
               m.role === 'user' ? (
                 <div key={i} className="flex justify-end">
-                  <div className="max-w-[85%] rounded-2xl rounded-br-sm bg-[var(--brand)] px-3 py-2 text-sm text-white">
+                  <div className="max-w-[85%] rounded-2xl rounded-br-md bg-[var(--brand)] px-3.5 py-2 text-[13.5px] text-white">
                     <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
                   </div>
                 </div>
               ) : (
-                <div key={i} className="flex flex-col items-start gap-1.5">
-                  {m.toolCards?.map((c, j) => (
-                    <div key={j} className="w-[88%]">
-                      <ToolResultCard data={c} />
-                    </div>
-                  ))}
-                  {m.content && (
-                    <div className="max-w-[88%] rounded-2xl rounded-bl-sm border bg-[var(--surface-1)] px-3 py-2 text-sm">
-                      <ChatMarkdown content={m.content} />
-                    </div>
-                  )}
+                <div key={i} className="flex items-start gap-2.5">
+                  <ZoraAvatar size={26} />
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    {m.toolCards?.map((c, j) => (
+                      <ToolResultCard key={j} data={c} />
+                    ))}
+                    {m.content && (
+                      <div className="text-[13.5px] leading-relaxed">
+                        <ChatMarkdown content={m.content} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               ),
             )}
-            {streaming && streamingCards.length > 0 && (
-              <div className="flex flex-col items-start gap-1.5">
-                {streamingCards.map((c, j) => (
-                  <div key={j} className="w-[88%]">
-                    <ToolResultCard data={c} />
-                  </div>
-                ))}
-              </div>
-            )}
-            {streaming && streamingText && (
-              <div className="flex justify-start">
-                <div className="max-w-[85%] rounded-2xl rounded-bl-sm border bg-[var(--surface-1)] px-3 py-2 text-sm">
-                  <ChatMarkdown content={streamingText} />
+            {streaming && (streamingCards.length > 0 || streamingText) && (
+              <div className="flex items-start gap-2.5">
+                <ZoraAvatar size={26} />
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  {streamingCards.map((c, j) => (
+                    <ToolResultCard key={j} data={c} />
+                  ))}
+                  {streamingText && (
+                    <div className="text-[13.5px] leading-relaxed">
+                      <ChatMarkdown content={streamingText} />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
             {streaming && (
-              <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
-                {!streamingText && <Loader2 className="size-3.5 animate-spin" />}
-                {!streamingText &&
-                  (currentTool ? (TOOL_LABELS[currentTool] ?? t('thinking')) : t('thinking'))}
+              <div className="flex items-center gap-2 pl-[34px] text-[12px] text-muted-foreground">
+                {!streamingText && (
+                  <span className="inline-flex items-center gap-1.5">
+                    <Loader2 className="size-3.5 animate-spin text-[var(--brand)]" />
+                    <span className="animate-pulse">
+                      {currentTool ? (TOOL_LABELS[currentTool] ?? t('thinking')) : t('thinking')}
+                    </span>
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => abortRef.current?.abort()}
@@ -505,20 +570,34 @@ export function AiAgentDock() {
               e.preventDefault();
               void send(input);
             }}
-            className="flex items-center gap-2 border-t p-2.5"
+            className="border-t border-border/60 p-2.5"
           >
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={t('placeholder')}
-              aria-label={t('placeholder')}
-              disabled={streaming}
-            />
-            <Button type="submit" size="icon" disabled={streaming || !input.trim()}>
-              {streaming ? <Loader2 className="animate-spin" /> : <Send className="size-4" />}
-            </Button>
+            <div className="flex items-center gap-1.5 rounded-xl border border-border bg-[var(--surface-1)] p-1.5 transition-colors focus-within:border-[var(--brand-line)] focus-within:ring-2 focus-within:ring-[var(--brand-soft)]">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={t('placeholder')}
+                aria-label={t('placeholder')}
+                disabled={streaming}
+                className="min-w-0 flex-1 bg-transparent px-2 text-[13.5px] outline-none placeholder:text-muted-foreground disabled:opacity-60"
+              />
+              <button
+                type="submit"
+                disabled={streaming || !input.trim()}
+                aria-label={t('placeholder')}
+                className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--brand)] text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                {streaming ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ArrowUp className="size-4" />
+                )}
+              </button>
+            </div>
           </form>
-          <p className="px-3 pb-2 text-[10px] text-muted-foreground">{t('disclaimer')}</p>
+          <p className="px-3.5 pb-2.5 text-center text-[10px] text-muted-foreground">
+            {t('disclaimer')}
+          </p>
         </>
       )}
     </div>

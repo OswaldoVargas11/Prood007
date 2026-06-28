@@ -2,8 +2,9 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
-import { Command, Menu, Search } from 'lucide-react';
+import { Command, Menu, MessageCircle, Search, Sparkles } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { useMessagingUnreadCount } from '@/lib/hooks';
 import { useRouter } from '@/i18n/navigation';
 import { AppSidebar, MobileSidebar } from './app-sidebar';
 import { PageTransition } from './page-transition';
@@ -12,7 +13,7 @@ import { QuickAdd } from './quick-add';
 import { NotificationsBell } from './notifications-bell';
 import { RealtimeToasts } from './realtime-toasts';
 import { MessagingDock } from './messaging-dock';
-import { AiAgentDock } from './ai-agent-dock';
+import { AiAgentDock, useAiDockAvailable } from './ai-agent-dock';
 import { ForcePasswordChange } from './force-password-change';
 import { ConfirmEmail } from './confirm-email';
 import { FirmBadge } from './firm-badge';
@@ -38,6 +39,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const { open, setOpen } = useCommandMenu();
   const [navOpen, setNavOpen] = useState(false);
+  // Paneles laterales (slide-over) de Zora y Mensajería, abiertos desde la barra superior. Mutuamente
+  // excluyentes: ambos se anclan al borde derecho, así que solo uno puede estar abierto a la vez.
+  const [aiOpen, setAiOpen] = useState(false);
+  const [msgOpen, setMsgOpen] = useState(false);
 
   useEffect(() => {
     if (loading) return;
@@ -109,7 +114,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Button>
           <QuickAdd />
           <FirmBadge />
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1">
+            <ZoraTopbarButton
+              onClick={() => {
+                setMsgOpen(false);
+                setAiOpen(true);
+              }}
+            />
+            <MessagesTopbarButton
+              onClick={() => {
+                setAiOpen(false);
+                setMsgOpen(true);
+              }}
+            />
             <NotificationsBell />
             <ThemeToggle />
             <UserMenu />
@@ -122,9 +139,48 @@ export function AppShell({ children }: { children: ReactNode }) {
       <CommandMenu open={open} onOpenChange={setOpen} />
       <Toaster />
       <RealtimeToasts />
-      <MessagingDock />
-      <AiAgentDock />
+      <MessagingDock open={msgOpen} onOpenChange={setMsgOpen} />
+      <AiAgentDock open={aiOpen} onOpenChange={setAiOpen} />
       <WhatsNewDialog />
     </div>
+  );
+}
+
+/** Botón de Zora en la barra superior (sustituye la antigua burbuja flotante). Solo aparece si la IA
+ *  está disponible para el usuario. Abre el panel lateral del asistente. */
+function ZoraTopbarButton({ onClick }: { onClick: () => void }) {
+  const available = useAiDockAvailable();
+  if (!available) return null;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Zora"
+      className="flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-[13px] font-medium text-[var(--brand)] transition-colors hover:bg-[var(--brand-soft)]"
+    >
+      <Sparkles className="size-4" />
+      <span className="hidden sm:inline">Zora</span>
+    </button>
+  );
+}
+
+/** Botón de mensajería del equipo en la barra superior, con badge de no leídos. Abre el panel lateral. */
+function MessagesTopbarButton({ onClick }: { onClick: () => void }) {
+  const { data: unread } = useMessagingUnreadCount();
+  const count = unread?.count ?? 0;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Mensajes del equipo"
+      className="relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+    >
+      <MessageCircle className="size-[18px]" />
+      {count > 0 && (
+        <span className="absolute right-1 top-1 flex min-w-[15px] items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[9px] font-semibold text-white tabular-nums">
+          {count > 99 ? '99+' : count}
+        </span>
+      )}
+    </button>
   );
 }
