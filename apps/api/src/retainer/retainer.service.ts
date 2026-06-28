@@ -56,7 +56,7 @@ export class RetainerService {
     const matter = await this.prisma.matter.findFirst({
       where: { id: matterId, tenantId: user.tenantId },
       include: {
-        tenant: { select: { name: true, taxId: true, currency: true } },
+        tenant: { select: { name: true, taxId: true, currency: true, jurisdiction: true } },
         client: { select: { id: true, name: true, taxId: true } },
       },
     });
@@ -136,8 +136,10 @@ export class RetainerService {
     const retainerCurrency = account.currency;
     const issueDate = new Date().toISOString().slice(0, 10);
     const now = new Date();
-    // Impuesto de línea por jurisdicción (sale del provider; aquí solo el código estándar).
-    const taxCode = user.jurisdiction === Jurisdiction.DO ? 'ITBIS_STANDARD' : 'IVA_STANDARD';
+    // Impuesto de línea por jurisdicción (sale del provider; aquí solo el código estándar). Se toma de la
+    // jurisdicción del TENANT (BD), no del claim del JWT, para no depender de un token potencialmente añejo.
+    const tenantJurisdiction = matter.tenant.jurisdiction as unknown as Jurisdiction;
+    const taxCode = tenantJurisdiction === Jurisdiction.DO ? 'ITBIS_STANDARD' : 'IVA_STANDARD';
     const description = dto.description?.trim() || 'Provisión de fondos (anticipo de honorarios)';
 
     const out = await tenantTransaction(this.prisma, async (tx) => {
@@ -463,7 +465,9 @@ export class RetainerService {
       include: { lines: { take: 1 } },
     });
     const fallbackTaxCode =
-      user.jurisdiction === Jurisdiction.DO ? 'ITBIS_STANDARD' : 'IVA_STANDARD';
+      (matter.tenant.jurisdiction as unknown as Jurisdiction) === Jurisdiction.DO
+        ? 'ITBIS_STANDARD'
+        : 'IVA_STANDARD';
     const deductionLines = anticipoInvoices.map((inv) => ({
       description: `Deducción anticipo ${inv.number}`,
       quantity: '1',
