@@ -16,6 +16,7 @@ import { MessagingDock } from './messaging-dock';
 import { AiAgentDock, useAiDockAvailable } from './ai-agent-dock';
 import { ForcePasswordChange } from './force-password-change';
 import { ConfirmEmail } from './confirm-email';
+import { LegalGate } from './legal-gate';
 import { FirmBadge } from './firm-badge';
 import { WhatsNewDialog } from './whats-new-dialog';
 import { UserMenu } from './user-menu';
@@ -87,6 +88,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         {t('nav.skipToContent')}
       </a>
+      <LegalGate />
       <AppSidebar />
       <MobileSidebar open={navOpen} onOpenChange={setNavOpen} />
       <div className="flex min-w-0 flex-1 flex-col">

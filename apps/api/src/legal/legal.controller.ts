@@ -29,6 +29,12 @@ export class LegalController {
     return this.legal.pending(user);
   }
 
+  /** Documentos obligatorios que el gate exige aceptar (tipos nunca aceptados por el usuario). */
+  @Get('must-accept')
+  mustAccept(@CurrentUser() user: RequestUser) {
+    return this.legal.mustAccept(user);
+  }
+
   /** Registra la aceptación de uno o varios documentos con IP/user-agent de la request. */
   @Post('accept')
   accept(@CurrentUser() user: RequestUser, @Body() dto: AcceptDto, @Req() req: Request) {

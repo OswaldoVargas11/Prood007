@@ -81,6 +81,29 @@ export class LegalService {
     return types.map((t) => byType.get(t)).filter((d): d is (typeof docs)[number] => Boolean(d));
   }
 
+  /**
+   * Documentos cuyo TIPO el usuario no ha aceptado NUNCA (en ninguna versión) — lo que el gate obliga a
+   * aceptar antes de seguir. A diferencia de `pending` (cambio de versión), esto solo dispara con documentos
+   * obligatorios totalmente nuevos para el usuario (p. ej. el DPA para un despacho previo a esta capa, o un
+   * tipo nuevo). Los cambios de versión de un tipo ya aceptado NO bloquean (rige "uso continuado").
+   */
+  async mustAccept(user: RequestUser) {
+    const current = await this.currentDocuments(user);
+    if (current.length === 0) return [];
+
+    const accepted = await this.prisma.legalAcceptance.findMany({
+      where: {
+        tenantId: user.tenantId,
+        userId: user.userId,
+        documentType: { in: current.map((d) => d.type) },
+      },
+      select: { documentType: true },
+      distinct: ['documentType'],
+    });
+    const acceptedTypes = new Set(accepted.map((a) => a.documentType));
+    return current.filter((d) => !acceptedTypes.has(d.type));
+  }
+
   /** Documentos vigentes que este usuario AÚN no ha aceptado (en su versión actual). */
   async pending(user: RequestUser) {
     const current = await this.currentDocuments(user);
