@@ -16,8 +16,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
-import { ThemeToggle } from '@/components/lexora/theme-toggle';
 import { Logo } from '@/components/lexora/logo';
+import { AuthShell } from '@/components/lexora/auth-shell';
 
 const schema = z.object({
   email: z.string().email(),
@@ -118,20 +118,8 @@ export default function LoginPage() {
   }, []);
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden p-6">
-      {/* fondo con gradiente sutil del brand */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.07]"
-        style={{
-          background: 'radial-gradient(60% 50% at 50% 0%, var(--ai-from), transparent 70%)',
-        }}
-      />
-      <div className="absolute right-5 top-5">
-        <ThemeToggle />
-      </div>
-
-      <Card className="w-full max-w-sm border-border/60 shadow-xl shadow-black/5">
+    <AuthShell>
+      <Card className="relative z-10 w-full max-w-sm border-border/60 shadow-xl shadow-black/5">
         <CardHeader className="items-center space-y-3 pb-5 text-center">
           <Logo size={30} />
           <div className="space-y-1">
@@ -302,16 +290,7 @@ export default function LoginPage() {
           )}
         </CardContent>
       </Card>
-      <p className="mt-6 text-center text-[11.5px] text-muted-foreground">
-        <Link href="/privacy" className="hover:text-foreground hover:underline">
-          Privacidad
-        </Link>
-        <span className="mx-2">·</span>
-        <Link href="/terms" className="hover:text-foreground hover:underline">
-          Términos del servicio
-        </Link>
-      </p>
-    </main>
+    </AuthShell>
   );
 }
 

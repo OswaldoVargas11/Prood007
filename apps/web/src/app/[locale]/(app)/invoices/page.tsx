@@ -6,7 +6,10 @@ import { useInvoices } from '@/lib/hooks';
 import { useRouter } from '@/i18n/navigation';
 import { invoiceStatusVariant } from '@/lib/ledger';
 import { formatDate, formatMoney } from '@/lib/format';
+import { Receipt } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DunningRunButton } from '@/components/lexora/dunning';
 import { SavedViews } from '@/components/lexora/saved-views';
@@ -40,13 +43,7 @@ export default function InvoicesOverviewPage() {
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-          <p className="mt-1 text-[13.5px] text-muted-foreground">{t('subtitle')}</p>
-        </div>
-        <DunningRunButton />
-      </div>
+      <PageHeader title={t('title')} subtitle={t('subtitle')} actions={<DunningRunButton />} />
 
       <div className="flex flex-wrap gap-2">
         {FILTERS.map((f) => (
@@ -76,8 +73,8 @@ export default function InvoicesOverviewPage() {
       {query.isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
 
       {!query.isLoading && !query.isError && rows.length === 0 && (
-        <div className="rounded-xl border bg-card p-12 text-center text-sm text-muted-foreground">
-          {filter === 'all' ? t('empty') : t('emptyFiltered')}
+        <div className="rounded-xl border bg-card shadow-sm">
+          <EmptyState icon={Receipt} title={filter === 'all' ? t('empty') : t('emptyFiltered')} />
         </div>
       )}
 

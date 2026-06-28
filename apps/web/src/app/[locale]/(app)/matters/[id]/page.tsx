@@ -145,7 +145,7 @@ export default function MatterDetailPage() {
       <Tabs value={tab} onValueChange={setTab}>
         {/* Pestañas agrupadas por afinidad (Trabajo · Económico · Comunicación) con separadores
             sutiles, para que el hub del expediente sea fácil de escanear pese a tener muchas secciones. */}
-        <TabsList className="w-full overflow-x-auto">
+        <TabsList className="no-scrollbar scroll-fade-x w-full overflow-x-auto scroll-smooth">
           <TabsTrigger value="overview">{t('tabs.overview')}</TabsTrigger>
           <TabGroupDivider label={t('tabGroups.work')} />
           <TabsTrigger value="documents">{t('tabs.documents')}</TabsTrigger>

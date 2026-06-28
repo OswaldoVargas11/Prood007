@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import { api } from '@/lib/api';
@@ -8,7 +8,12 @@ import { useMatters } from '@/lib/hooks';
 import { Link } from '@/i18n/navigation';
 import { docStatusVariant, formatBytes, mimeLabel } from '@/lib/doc-status';
 import { formatDate } from '@/lib/format';
+import { FileText, Search } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { Input } from '@/components/ui/input';
+import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Matter, MatterDocument } from '@/lib/types';
 
@@ -47,25 +52,67 @@ export default function DocumentsOverviewPage() {
     mattersQuery.isLoading || (matters.length > 0 && docQueries.some((q) => q.isLoading));
   const isError = mattersQuery.isError;
 
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? rows.filter(
+        ({ matter, doc }) =>
+          doc.name.toLowerCase().includes(q) || matter.reference.toLowerCase().includes(q),
+      )
+    : rows;
+
   return (
     <div className="mx-auto max-w-[1100px] space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="mt-1 text-[13.5px] text-muted-foreground">{t('subtitle')}</p>
-      </div>
+      <PageHeader
+        eyebrow={
+          !loading && !isError
+            ? `${rows.length} ${rows.length === 1 ? 'documento' : 'documentos'}`
+            : undefined
+        }
+        title={t('title')}
+        subtitle={t('subtitle')}
+      />
 
       {loading && <Skeleton className="h-64 w-full rounded-xl" />}
       {isError && <p className="text-sm text-[var(--danger)]">{t('loadError')}</p>}
 
       {!loading && !isError && rows.length === 0 && (
-        <div className="rounded-xl border bg-card p-12 text-center text-sm text-muted-foreground">
-          {t('empty')}
+        <div className="rounded-xl border bg-card shadow-sm">
+          <EmptyState
+            icon={FileText}
+            title={t('empty')}
+            description={t('emptyHint')}
+            action={
+              <Button asChild size="sm" variant="outline">
+                <Link href="/matters">{t('emptyCta')}</Link>
+              </Button>
+            }
+          />
         </div>
       )}
 
       {!loading && !isError && rows.length > 0 && (
+        <div className="relative max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={t('searchPlaceholder')}
+            aria-label={t('searchPlaceholder')}
+            className="pl-9"
+          />
+        </div>
+      )}
+
+      {!loading && !isError && rows.length > 0 && filtered.length === 0 && (
+        <div className="rounded-xl border bg-card p-10 text-center text-sm text-muted-foreground shadow-sm">
+          {t('noResults', { q: query.trim() })}
+        </div>
+      )}
+
+      {!loading && !isError && filtered.length > 0 && (
         <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
-          {rows.map(({ matter, doc }) => {
+          {filtered.map(({ matter, doc }) => {
             const top = doc.versions[0];
             return (
               <Link

@@ -22,6 +22,7 @@ import {
 import { DocumentPackagesPanel } from '@/components/lexora/document-packages-panel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -69,15 +70,15 @@ export default function TemplatesPage() {
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-          <p className="mt-1 text-[13.5px] text-muted-foreground">{t('subtitle')}</p>
-        </div>
-        <Button size="sm" onClick={() => setEditing('new')}>
-          <Plus /> {t('new')}
-        </Button>
-      </div>
+      <PageHeader
+        title={t('title')}
+        subtitle={t('subtitle')}
+        actions={
+          <Button size="sm" onClick={() => setEditing('new')}>
+            <Plus /> {t('new')}
+          </Button>
+        }
+      />
 
       {isLoading && <Skeleton className="h-40 w-full rounded-xl" />}
 

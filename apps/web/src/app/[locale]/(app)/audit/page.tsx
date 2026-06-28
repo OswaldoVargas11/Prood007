@@ -4,10 +4,11 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
 import { useAuditLog } from '@/lib/hooks';
-import { activityLabel } from '@/lib/activity';
+import { activityLabel, entityLabel } from '@/lib/activity';
 import { formatDateTime } from '@/lib/format';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AuditPage() {
@@ -38,10 +39,11 @@ export default function AuditPage() {
 
   return (
     <div className="mx-auto max-w-[1000px] space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="mt-1 text-[13.5px] text-muted-foreground">{t('subtitle')}</p>
-      </div>
+      <PageHeader
+        eyebrow={data ? `${data.total} ${data.total === 1 ? 'evento' : 'eventos'}` : undefined}
+        title={t('title')}
+        subtitle={t('subtitle')}
+      />
 
       {isLoading && <Skeleton className="h-72 w-full rounded-xl" />}
       {isError && (
@@ -97,10 +99,10 @@ export default function AuditPage() {
                       {activityLabel(e.action)}
                     </td>
                     <td
-                      className="truncate px-4 py-2.5 font-mono text-[10.5px] text-[var(--text-subtle)]"
-                      title={e.entityType}
+                      className="truncate px-4 py-2.5 text-[11.5px] text-[var(--text-subtle)]"
+                      title={entityLabel(e.entityType)}
                     >
-                      {e.entityType}
+                      {entityLabel(e.entityType)}
                     </td>
                   </tr>
                 ))}

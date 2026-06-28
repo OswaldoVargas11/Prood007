@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { CalendarClock, Check, Loader2, Plus } from 'lucide-react';
+import { CalendarClock, Check, ListChecks, Loader2, Plus } from 'lucide-react';
 import {
   useCreateTask,
   useCreateTaskFromDeadline,
@@ -18,6 +18,7 @@ import type { DeadlineResult, TaskStatus } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -75,9 +76,7 @@ export function TasksPanel({ matterId }: { matterId?: string }) {
       )}
       {!isLoading && !isError && data?.length === 0 && (
         <Card>
-          <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            {t('empty')}
-          </CardContent>
+          <EmptyState icon={ListChecks} title={t('empty')} />
         </Card>
       )}
 

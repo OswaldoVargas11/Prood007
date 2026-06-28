@@ -8,6 +8,9 @@ import { useClients, useMatters } from '@/lib/hooks';
 import { Link } from '@/i18n/navigation';
 import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { ReceiptText } from 'lucide-react';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Matter, MatterLedger } from '@/lib/types';
 
@@ -102,10 +105,7 @@ export default function BillingOverviewPage() {
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="mt-1 text-[13.5px] text-muted-foreground">{t('subtitle')}</p>
-      </div>
+      <PageHeader title={t('title')} subtitle={t('subtitle')} />
 
       {loading && <Skeleton className="h-64 w-full rounded-xl" />}
       {isError && (
@@ -133,8 +133,8 @@ export default function BillingOverviewPage() {
 
           {/* Tabla por expediente */}
           {rows.length === 0 ? (
-            <div className="rounded-xl border bg-card p-12 text-center text-sm text-muted-foreground">
-              {t('empty')}
+            <div className="rounded-xl border bg-card shadow-sm">
+              <EmptyState icon={ReceiptText} title={t('empty')} />
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border bg-card shadow-sm">

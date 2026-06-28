@@ -20,17 +20,51 @@ const ACTION_LABELS: Record<string, string> = {
   'time.logged': 'registró tiempo',
   'invoice.issued': 'emitió una factura',
   'invoice.paid': 'marcó una factura como pagada',
+  'invoice.payment_recorded': 'registró un pago de factura',
   'ledger.entry_added': 'añadió un apunte al ledger',
   'cost.proposed': 'propuso un coste',
   'cost.approved': 'aprobó un coste',
   'cost.rejected': 'rechazó un coste',
   'user.created': 'dio de alta a un usuario',
   'user.updated': 'actualizó un usuario',
+  'user.password_changed': 'cambió su contraseña',
   'tenant.updated': 'actualizó los datos del despacho',
+  'auth.login_success': 'inició sesión',
+  'auth.login_failed': 'intento de inicio de sesión fallido',
+  'document.generated_from_template': 'generó un documento desde una plantilla',
+  'dunning.reminder_sent': 'envió un recordatorio de cobro',
+  'signature.requested': 'solicitó una firma',
+  'signature.canceled': 'canceló una firma',
+  'stripe.account_connected': 'conectó la cuenta de cobros',
+  'template.created': 'creó una plantilla',
+  'template.updated': 'actualizó una plantilla',
+  'template.deleted': 'eliminó una plantilla',
 };
 
 export function activityLabel(action: string): string {
   return ACTION_LABELS[action] ?? action.replace(/[._]/g, ' ');
+}
+
+/** Tipos de entidad del log de auditoría → etiqueta legible en español (el modelo está en inglés). */
+const ENTITY_LABELS: Record<string, string> = {
+  Client: 'Cliente',
+  Document: 'Documento',
+  DocumentTemplate: 'Plantilla',
+  DocumentVersion: 'Versión de documento',
+  DunningReminder: 'Recordatorio',
+  Invoice: 'Factura',
+  LedgerEntry: 'Apunte',
+  Matter: 'Expediente',
+  Payment: 'Pago',
+  SignatureRequest: 'Solicitud de firma',
+  Task: 'Tarea',
+  Tenant: 'Despacho',
+  TimeEntry: 'Registro de tiempo',
+  User: 'Usuario',
+};
+
+export function entityLabel(entityType: string): string {
+  return ENTITY_LABELS[entityType] ?? entityType;
 }
 
 /** Color semántico del punto del timeline según el tipo de acción. */

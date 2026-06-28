@@ -228,3 +228,33 @@
     }
   }
 }
+
+@layer utilities {
+  /* Oculta la barra de scroll nativa conservando el desplazamiento (barras de pestañas/segmentadas
+     desplazables, carruseles). El fade de borde (ver `scroll-fade-x`) señala que hay más contenido. */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Difumina los bordes izq/dcho de un contenedor con scroll horizontal: afordancia limpia de
+     "hay más →" sin barra de scroll. */
+  .scroll-fade-x {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 18px,
+      #000 calc(100% - 18px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 18px,
+      #000 calc(100% - 18px),
+      transparent 100%
+    );
+  }
+}

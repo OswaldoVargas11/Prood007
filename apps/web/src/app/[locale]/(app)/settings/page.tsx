@@ -54,6 +54,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
+import { PageHeader } from '@/components/ui/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
@@ -83,10 +84,7 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-[900px] space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-        <p className="mt-1 text-[13.5px] text-muted-foreground">{t('subtitle')}</p>
-      </div>
+      <PageHeader title={t('title')} subtitle={t('subtitle')} />
       <FirmCard />
       <LicenseCard />
       <StaffCard />
@@ -547,7 +545,8 @@ function Readonly({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1.5">
       <Label className="text-muted-foreground">{label}</Label>
-      <div className="flex h-9 items-center rounded-md border bg-[var(--surface-1)] px-3 text-sm">
+      {/* Solo lectura: borde discontinuo + fondo apagado para distinguirlo de un campo editable. */}
+      <div className="flex h-9 items-center rounded-md border border-dashed bg-[var(--surface-2)] px-3 text-sm text-muted-foreground">
         {value}
       </div>
     </div>

@@ -5,9 +5,12 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useTimeEntries } from '@/lib/hooks';
 import { Link } from '@/i18n/navigation';
 import { formatDate, formatMoney } from '@/lib/format';
+import { Clock, Receipt } from 'lucide-react';
 import { LogTimeDialog } from '@/components/lexora/log-time-dialog';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { TimeEntryItem } from '@/lib/types';
 
@@ -39,13 +42,7 @@ export default function TimePage() {
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-          <p className="mt-1 text-[13.5px] text-muted-foreground">{t('subtitle')}</p>
-        </div>
-        <LogTimeDialog />
-      </div>
+      <PageHeader title={t('title')} subtitle={t('subtitle')} actions={<LogTimeDialog />} />
 
       {/* Mi día */}
       <section className="space-y-3">
@@ -70,9 +67,7 @@ export default function TimePage() {
         )}
         {!dayQuery.isLoading && !dayQuery.isError && (dayQuery.data?.entries.length ?? 0) === 0 && (
           <Card>
-            <CardContent className="py-10 text-center text-sm text-muted-foreground">
-              {t('todayEmpty')}
-            </CardContent>
+            <EmptyState icon={Clock} title={t('todayEmpty')} />
           </Card>
         )}
         {!dayQuery.isLoading && (dayQuery.data?.entries.length ?? 0) > 0 && (
@@ -108,9 +103,7 @@ export default function TimePage() {
           !unbilledQuery.isError &&
           (unbilledQuery.data?.entries.length ?? 0) === 0 && (
             <Card>
-              <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                {t('unbilledEmpty')}
-              </CardContent>
+              <EmptyState icon={Receipt} title={t('unbilledEmpty')} />
             </Card>
           )}
         {!unbilledQuery.isLoading && (unbilledQuery.data?.entries.length ?? 0) > 0 && (

@@ -2,13 +2,14 @@
 
 import { useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Download, BarChart3, Receipt } from 'lucide-react';
+import { Download, Receipt } from 'lucide-react';
 import { useAgedReceivables, useProfitability, useTaxSummary, useTimeByLawyer } from '@/lib/hooks';
 import { useAuth } from '@/lib/auth';
 import { formatMoney } from '@/lib/format';
 import type { TaxSummaryJurisdiction } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PageHeader } from '@/components/ui/page-header';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CategoryBars } from '@/components/lexora/dashboard-charts';
 
@@ -46,13 +47,7 @@ export default function ReportsPage() {
 
   return (
     <div className="mx-auto max-w-[1000px] space-y-6">
-      <div className="flex items-center gap-3">
-        <BarChart3 className="size-6 text-[var(--brand)]" />
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
-          <p className="mt-0.5 text-[13.5px] text-muted-foreground">{t('subtitle')}</p>
-        </div>
-      </div>
+      <PageHeader title={t('title')} subtitle={t('subtitle')} />
 
       {/* Resumen fiscal para la gestoría */}
       <TaxSummaryCard />
