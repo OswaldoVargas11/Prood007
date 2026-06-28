@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { LegalController } from './legal.controller';
 import { LegalService } from './legal.service';
+import { TaxService } from './tax.service';
 
 /**
  * Capa de aceptación legal (clickwrap reforzado, sin proveedor de firma). Resuelve qué documentos vigentes
@@ -9,7 +10,7 @@ import { LegalService } from './legal.service';
  */
 @Module({
   controllers: [LegalController],
-  providers: [LegalService],
-  exports: [LegalService],
+  providers: [LegalService, TaxService],
+  exports: [LegalService, TaxService],
 })
 export class LegalModule {}

@@ -16,6 +16,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 import { apiError } from '../common/api-messages';
 import { LegalService } from './legal.service';
+import { TaxService } from './tax.service';
 import { AcceptDto, SubscribeDto } from './dto/legal.dto';
 
 /** Tipos cuyo texto vigente es público (sin autenticación). */
@@ -34,7 +35,16 @@ const PUBLIC_TYPES: LegalDocType[] = [
 @AllowExpired()
 @Controller('legal')
 export class LegalController {
-  constructor(private readonly legal: LegalService) {}
+  constructor(
+    private readonly legal: LegalService,
+    private readonly tax: TaxService,
+  ) {}
+
+  /** Clasificación fiscal de la suscripción para el tenant actual (perfil + país declarado, no IP/divisa). */
+  @Get('tax-preview')
+  taxPreview(@CurrentUser() user: RequestUser) {
+    return this.tax.classifyForTenant(user);
+  }
 
   /** Documentos vigentes que esta cuenta debe aceptar (según su perfil y jurisdicción). */
   @Get('documents')
