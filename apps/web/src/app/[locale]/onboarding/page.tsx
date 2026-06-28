@@ -38,6 +38,7 @@ export default function OnboardingPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [acceptLegal, setAcceptLegal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
@@ -55,11 +56,11 @@ export default function OnboardingPage() {
       case 4:
         return true; // el identificador fiscal es opcional en el alta
       case 5:
-        return fullName.trim().length >= 2 && emailValid && password.length >= 10;
+        return fullName.trim().length >= 2 && emailValid && password.length >= 10 && acceptLegal;
       default:
         return false;
     }
-  }, [step, firm, jurisdiction, currency, fullName, emailValid, password]);
+  }, [step, firm, jurisdiction, currency, fullName, emailValid, password, acceptLegal]);
 
   function selectJurisdiction(j: Jur) {
     setJurisdiction(j);
@@ -85,6 +86,7 @@ export default function OnboardingPage() {
       jurisdiction: jurisdiction!,
       currency: currency!,
       taxId: taxId.trim() || undefined,
+      acceptLegal,
       admin: { fullName: fullName.trim(), email: email.trim(), password },
     };
     setSubmitting(true);
@@ -340,6 +342,35 @@ export default function OnboardingPage() {
                       </div>
                     </div>
                   </div>
+
+                  <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border bg-card p-3">
+                    <input
+                      type="checkbox"
+                      checked={acceptLegal}
+                      onChange={(e) => setAcceptLegal(e.target.checked)}
+                      className="mt-0.5 size-4 flex-shrink-0 accent-[var(--brand)]"
+                    />
+                    <span className="text-[12px] leading-relaxed text-muted-foreground">
+                      Acepto los{' '}
+                      <Link
+                        href="/terms"
+                        target="_blank"
+                        className="font-medium text-[var(--brand)] underline underline-offset-2"
+                      >
+                        Términos del Servicio
+                      </Link>
+                      , la{' '}
+                      <Link
+                        href="/privacy"
+                        target="_blank"
+                        className="font-medium text-[var(--brand)] underline underline-offset-2"
+                      >
+                        Política de Privacidad
+                      </Link>{' '}
+                      y el Acuerdo de Encargado del Tratamiento (DPA), que forma parte de los
+                      Términos.
+                    </span>
+                  </label>
                 </div>
               )}
 

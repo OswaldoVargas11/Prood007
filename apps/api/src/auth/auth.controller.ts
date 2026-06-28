@@ -8,9 +8,10 @@ import {
   Param,
   Post,
   Query,
+  Req,
   Res,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
 import { Role } from '@legalflow/domain';
 import { AuthService } from './auth.service';
@@ -151,8 +152,10 @@ export class AuthController {
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('register-tenant')
-  registerTenant(@Body() dto: RegisterTenantDto) {
-    return this.auth.registerTenant(dto);
+  registerTenant(@Body() dto: RegisterTenantDto, @Req() req: Request) {
+    const ip = req.ip ?? req.socket?.remoteAddress ?? 'unknown';
+    const userAgent = req.get('user-agent') ?? 'unknown';
+    return this.auth.registerTenant(dto, { ip, userAgent });
   }
 
   // Límite estricto contra fuerza bruta de credenciales.

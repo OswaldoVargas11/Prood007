@@ -1,4 +1,5 @@
 import {
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsOptional,
@@ -44,6 +45,14 @@ export class RegisterTenantDto {
   @IsOptional()
   @IsString()
   locale?: string;
+
+  /**
+   * Aceptación clickwrap de los documentos legales vigentes (ToS + Privacidad + DPA) en el alta. La UI lo
+   * exige (casilla afirmativa). Cuando es true, el servidor registra la aceptación auditable con IP/UA.
+   */
+  @IsOptional()
+  @IsBoolean()
+  acceptLegal?: boolean;
 
   @ValidateNested()
   @Type(() => AdminUserDto)
