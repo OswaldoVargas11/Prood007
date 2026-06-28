@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import * as argon2 from 'argon2';
 import { Currency, Jurisdiction, Role, featuresForPlan, type Feature } from '@legalflow/domain';
+import { LegalDocType, Jurisdiction as PrismaJurisdiction, Prisma } from '@prisma/client';
 import { SystemPrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { TokensService } from './tokens.service';
@@ -59,7 +60,10 @@ export class AuthService {
    * Registra un despacho (tenant), siembra el RBAC base y crea el primer usuario FIRM_ADMIN.
    * Devuelve un par de tokens (auto-login). Todo en una transacción.
    */
-  async registerTenant(dto: RegisterTenantDto): Promise<{ tenantId: string; tokens: TokenPair }> {
+  async registerTenant(
+    dto: RegisterTenantDto,
+    ctx: { ip: string; userAgent: string } = { ip: 'unknown', userAgent: 'unknown' },
+  ): Promise<{ tenantId: string; tokens: TokenPair }> {
     await this.hibp.assertNotBreached(dto.admin.password);
     const passwordHash = await this.hashPassword(dto.admin.password);
 
@@ -81,6 +85,9 @@ export class AuthService {
         data: {
           name: dto.tenantName,
           taxId: dto.taxId,
+          fiscalAddress: dto.fiscalAddress,
+          // País fiscal derivado de la jurisdicción (no de geolocalización).
+          fiscalCountry: dto.jurisdiction === Jurisdiction.ES ? 'ES' : 'DO',
           jurisdiction: dto.jurisdiction as unknown as Jurisdiction,
           currency: dto.currency as unknown as Currency,
           // Un solo idioma de UI (`es`); la jurisdicción gobierna la terminología fiscal, no el locale.
@@ -123,6 +130,16 @@ export class AuthService {
         },
       });
 
+      // Clickwrap en el alta: registra la aceptación auditable de los documentos vigentes (ToS+Privacidad+DPA)
+      // dentro de la misma transacción. Solo si la UI envió la casilla afirmativa (`acceptLegal`).
+      if (dto.acceptLegal) {
+        await this.recordEnrollmentAcceptance(
+          tx,
+          { tenantId: tenant.id, userId: user.id, jurisdiction: dto.jurisdiction },
+          ctx,
+        );
+      }
+
       return { tenant, userId: user.id };
     });
 
@@ -132,6 +149,52 @@ export class AuthService {
     const userForToken = await this.tokens.loadUserForToken(result.userId);
     const tokens = await this.tokens.issuePair(userForToken);
     return { tenantId: result.tenant.id, tokens };
+  }
+
+  /**
+   * Registra la aceptación clickwrap de los documentos legales VIGENTES (ToS+Privacidad+DPA) en el alta,
+   * dentro de la transacción de registro. Si aún no hay documentos publicados, no falla el alta (el gate de
+   * versión los pedirá en el primer acceso). Un documento por tipo, prefiriendo el específico de jurisdicción.
+   */
+  private async recordEnrollmentAcceptance(
+    tx: Prisma.TransactionClient,
+    args: { tenantId: string; userId: string; jurisdiction: Jurisdiction },
+    ctx: { ip: string; userAgent: string },
+  ): Promise<void> {
+    const requiredTypes = [LegalDocType.TERMS, LegalDocType.PRIVACY, LegalDocType.DPA];
+    const docs = await tx.legalDocument.findMany({
+      where: {
+        type: { in: requiredTypes },
+        isCurrent: true,
+        OR: [
+          { jurisdiction: args.jurisdiction as unknown as PrismaJurisdiction },
+          { jurisdiction: null },
+        ],
+      },
+      select: { id: true, type: true, version: true, bodyHash: true, jurisdiction: true },
+    });
+    const byType = new Map<LegalDocType, (typeof docs)[number]>();
+    for (const d of docs) {
+      const ex = byType.get(d.type);
+      if (!ex || (d.jurisdiction !== null && ex.jurisdiction === null)) byType.set(d.type, d);
+    }
+    for (const d of byType.values()) {
+      await tx.legalAcceptance.create({
+        data: {
+          tenantId: args.tenantId,
+          userId: args.userId,
+          legalDocumentId: d.id,
+          documentType: d.type,
+          version: d.version,
+          documentHash: d.bodyHash,
+          method: 'CLICKWRAP',
+          act: 'ENROLLMENT',
+          shownSnapshot: { source: 'onboarding' },
+          ipAddress: ctx.ip,
+          userAgent: ctx.userAgent,
+        },
+      });
+    }
   }
 
   /**

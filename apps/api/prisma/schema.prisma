@@ -35,6 +35,42 @@ enum Currency {
   DOP
 }
 
+// Perfil de la cuenta suscriptora. DIRIGE: qué documentos legales hay que aceptar, el trato fiscal de la
+// suscripción (B2B vs B2C/OSS) y si aplica DPA. FIRM/PROFESSIONAL = responsable del tratamiento → DPA;
+// CONSUMER = interesado → protección al consumidor (desistimiento), sin DPA. NO se infiere de IP/divisa.
+enum AccountType {
+  FIRM
+  PROFESSIONAL
+  CONSUMER
+}
+
+// Tipo de documento legal versionado. TERMS = ToS profesional/despacho; TERMS_CONSUMER = ToS de consumidor
+// (TRLGDCU/LSSI); WITHDRAWAL_WAIVER = consentimiento de inicio inmediato + renuncia al desistimiento de 14 días.
+enum LegalDocType {
+  TERMS
+  TERMS_CONSUMER
+  PRIVACY
+  DPA
+  SUBPROCESSORS
+  WITHDRAWAL_WAIVER
+}
+
+// Método de aceptación. CLICKWRAP = casilla afirmativa; TYPED = nombre/cargo tecleados; UPLOADED = el cliente
+// sube su propio documento firmado (p. ej. con AutoFirma) — vía de escape sin proveedor de firma.
+enum AcceptanceMethod {
+  CLICKWRAP
+  TYPED
+  UPLOADED
+}
+
+// Naturaleza del acto de aceptación, para la trazabilidad. ENROLLMENT = en el alta; RE_ACCEPTANCE = al
+// cambiar la versión vigente; WITHDRAWAL_WAIVER = renuncia al desistimiento en el checkout del consumidor.
+enum AcceptanceAct {
+  ENROLLMENT
+  RE_ACCEPTANCE
+  WITHDRAWAL_WAIVER
+}
+
 enum MatterStatus {
   OPEN
   IN_PROGRESS
@@ -283,9 +319,18 @@ model Tenant {
   name                          String
   // Identificador fiscal del despacho emisor (NIF/CIF en ES, RNC en RD). Necesario para facturar.
   taxId                         String?
+  // Domicilio fiscal del despacho: encabeza las facturas e identifica a la parte en el DPA. Estructurado
+  // para no depender de geolocalización. `fiscalCountry` por defecto se deriva de la jurisdicción.
+  fiscalAddress                 String?
+  fiscalCity                    String?
+  fiscalPostalCode              String?
+  fiscalCountry                 String?
   jurisdiction                  Jurisdiction
   currency                      Currency
   locale                        String                 @default("es-ES")
+  // Perfil de la cuenta (despacho / profesional autónomo / consumidor). Dirige el conjunto de documentos
+  // legales a aceptar, el trato fiscal de la suscripción y si aplica DPA. Por defecto FIRM (alta de despacho).
+  accountType                   AccountType            @default(FIRM)
   // Licencia / suscripción: plan y plazas contratadas (asientos) por rol de staff.
   plan                          String                 @default("Profesional")
   // Máximo de usuarios ACTIVOS por rol (la licencia del despacho).
@@ -411,6 +456,8 @@ model Tenant {
   aiConversations      AiConversation[]
   aiChatMessages       AiChatMessage[]
   webhookEndpoints     WebhookEndpoint[]
+  legalAcceptances     LegalAcceptance[]
+  subprocessorSubs     SubprocessorSubscription[]
 }
 
 model User {
@@ -465,6 +512,7 @@ model User {
   oauthConnections   OAuthConnection[]
   schedulingConfig   SchedulingConfig?  @relation("LawyerScheduling")
   appointments       Appointment[]      @relation("LawyerAppointments")
+  LegalAcceptance    LegalAcceptance[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -2340,5 +2388,85 @@ model WebhookEndpoint {
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
+  @@index([tenantId])
+}
+
+/// Catálogo de documentos legales VERSIONADOS de Lawzora (ToS, Privacidad, DPA, lista de subprocesadores,
+/// renuncia al desistimiento). GLOBAL (no por tenant): los textos son del proveedor e iguales para todos,
+/// como `Permission`/`ProcessedStripeEvent`. Cada versión es INMUTABLE: el rol de app solo lee (SELECT); la
+/// publicación de versiones la hace el rol de sistema. `bodyHash` (SHA-256 del texto canónico) es la prueba
+/// de integridad a la que apunta cada aceptación. `jurisdiction` null = aplica a todas.
+model LegalDocument {
+  id            String        @id @default(cuid())
+  type          LegalDocType
+  jurisdiction  Jurisdiction?
+  locale        String        @default("es")
+  version       String
+  title         String
+  /// Texto canónico publicado de esta versión (el mismo cuyo SHA-256 es `bodyHash`).
+  body          String
+  /// SHA-256 hex del texto canónico; se copia en cada `LegalAcceptance` como prueba de qué se aceptó.
+  bodyHash      String
+  /// Referencia a la página/markdown que renderiza esta versión (p. ej. "app/[locale]/terms@2026-06-28").
+  sourceRef     String?
+  effectiveFrom DateTime
+  /// Versión vigente de su (type, jurisdiction, locale). Solo una activa a la vez por combinación.
+  isCurrent     Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+
+  acceptances LegalAcceptance[]
+
+  @@unique([type, jurisdiction, locale, version])
+  @@index([type, isCurrent])
+}
+
+/// Registro PROBATORIO de aceptación legal (clickwrap reforzado). APPEND-ONLY: el rol de app solo puede
+/// SELECT+INSERT (nunca UPDATE/DELETE), igual que `FiscalEvent`/`AuditLog`. Aislamiento por tenant (RLS
+/// fail-closed). Guarda el hash del texto exacto aceptado, IP, user-agent, versión, y `shownSnapshot` (lo
+/// que se mostró en pantalla: aviso + documentos enlazados + versiones), para máxima exigibilidad.
+model LegalAcceptance {
+  id              String           @id @default(cuid())
+  tenantId        String
+  userId          String
+  legalDocumentId String
+  /// Denormalizados desde el documento, para consulta directa sin join.
+  documentType    LegalDocType
+  version         String
+  /// Copia de `LegalDocument.bodyHash` en el momento de aceptar = prueba de QUÉ texto se aceptó.
+  documentHash    String
+  method          AcceptanceMethod
+  act             AcceptanceAct    @default(ENROLLMENT)
+  /// Snapshot determinista de lo mostrado al usuario (microcopia del aviso, documentos enlazados y sus
+  /// versiones). No es una imagen; es el render exacto, para reconstruir lo que el usuario vio al aceptar.
+  shownSnapshot   Json?
+  ipAddress       String
+  userAgent       String
+  /// Para method=TYPED (firma simple): nombre y cargo tecleados.
+  signerName      String?
+  signerRole      String?
+  /// Para method=UPLOADED: id del documento subido por el cliente (DPA firmado con su propio certificado).
+  evidenceDocId   String?
+  acceptedAt      DateTime         @default(now())
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  document LegalDocument @relation(fields: [legalDocumentId], references: [id])
+
+  @@index([tenantId, documentType, version])
+  @@index([tenantId, userId])
+}
+
+/// Suscripción de un despacho a los avisos de cambios de subprocesadores (art. 28.2 RGPD: notificación previa
+/// + derecho de oposición). Opt-in por email; quien no se suscribe renuncia al aviso previo individualizado.
+/// RLS por tenant (fail-closed).
+model SubprocessorSubscription {
+  id        String   @id @default(cuid())
+  tenantId  String
+  email     String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
   @@index([tenantId])
 }

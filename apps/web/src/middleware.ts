@@ -48,8 +48,8 @@ export default function middleware(req: NextRequest) {
     return intlMiddleware(req);
   }
 
-  // Páginas legales (privacidad, términos): públicas SIEMPRE, con o sin sesión (sin redirecciones).
-  if (rest === '/privacy' || rest === '/terms') {
+  // Páginas legales (privacidad, términos, subprocesadores): públicas SIEMPRE, con o sin sesión.
+  if (rest === '/privacy' || rest === '/terms' || rest === '/subprocessors') {
     return intlMiddleware(req);
   }
 

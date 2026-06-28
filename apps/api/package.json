@@ -16,6 +16,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "seed:legal": "node scripts/seed-legal-docs.mjs",
     "postinstall": "prisma generate"
   },
   "dependencies": {
