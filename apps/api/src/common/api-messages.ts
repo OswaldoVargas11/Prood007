@@ -725,6 +725,16 @@ export const API_MESSAGES = {
     'es-DO': 'No se encontró la conversación.',
   },
 
+  // ── Aceptación legal (clickwrap) ──────────────────────────────────────────
+  'legal.invalidDocument': {
+    'es-ES': 'El documento legal no es válido o no está vigente.',
+    'es-DO': 'El documento legal no es válido o no está vigente.',
+  },
+  'legal.nothingToAccept': {
+    'es-ES': 'No hay ningún documento que aceptar.',
+    'es-DO': 'No hay ningún documento que aceptar.',
+  },
+
   // ── Webhooks salientes ────────────────────────────────────────────────────
   'webhooks.notFound': {
     'es-ES': 'Endpoint de webhook no encontrado.',
