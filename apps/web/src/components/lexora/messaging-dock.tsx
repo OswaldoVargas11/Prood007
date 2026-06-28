@@ -3,23 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
-import {
-  ChevronLeft,
-  Hash,
-  Loader2,
-  MessageCircle,
-  Search,
-  SendHorizonal,
-  SmilePlus,
-  X,
-} from 'lucide-react';
+import { ArrowUp, ChevronLeft, Hash, Loader2, Search, SmilePlus, Users, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import {
   useConversationMessages,
   useDirectory,
   useMarkConversationRead,
   useMessagingConversations,
-  useMessagingUnreadCount,
   useOpenDirect,
   useReactConversationMessage,
   useSendConversationMessage,
@@ -28,7 +18,6 @@ import type { MessagingConversation } from '@/lib/types';
 import { getSocket } from '@/lib/socket';
 import { formatDateTime } from '@/lib/format';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
@@ -54,11 +43,16 @@ type ActiveConversation = {
  *
  * Solo se monta en el shell del despacho (staff); los clientes no participan.
  */
-export function MessagingDock() {
+export function MessagingDock({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const t = useTranslations('messaging');
   const qc = useQueryClient();
   const { user } = useAuth();
-  const [open, setOpen] = useState(false);
   const [active, setActive] = useState<ActiveConversation | null>(null);
   const [filter, setFilter] = useState('');
   const [online, setOnline] = useState<string[]>([]);
@@ -70,7 +64,6 @@ export function MessagingDock() {
     refetch: refetchDir,
   } = useDirectory();
   const { data: conversations } = useMessagingConversations();
-  const { data: unread } = useMessagingUnreadCount();
   const openDirect = useOpenDirect();
 
   // Presencia del despacho + avisos de bandeja (badge/lista), aunque el dock esté cerrado.
@@ -93,6 +86,16 @@ export function MessagingDock() {
     };
   }, [qc]);
 
+  // Cerrar con Escape (patrón estándar de panel/slide-over).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onOpenChange(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onOpenChange]);
+
   // DM existente por id del compañero (para badge de no leídos + previsualización en el directorio).
   const dmByPeer = useMemo(() => {
     const map = new Map<string, MessagingConversation>();
@@ -109,7 +112,6 @@ export function MessagingDock() {
       .filter((u) => !q || u.fullName.toLowerCase().includes(q));
   }, [directory, filter]);
 
-  const totalUnread = unread?.count ?? 0;
   const onlineSet = useMemo(() => new Set(online), [online]);
 
   function openConversation(c: ActiveConversation) {
@@ -131,179 +133,168 @@ export function MessagingDock() {
     });
   }
 
-  if (!user) return null;
+  if (!user || !open) return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 print:hidden">
-      {!open && (
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label={t('open')}
-          className="relative flex size-12 items-center justify-center rounded-full bg-[var(--brand)] text-[var(--primary-foreground)] shadow-[var(--shadow-md)] transition-transform hover:scale-105"
-        >
-          <MessageCircle className="size-5" />
-          {totalUnread > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex min-w-[18px] items-center justify-center rounded-full bg-[var(--danger)] px-1 text-[10px] font-semibold text-white tabular-nums">
-              {totalUnread > 99 ? '99+' : totalUnread}
-            </span>
-          )}
-        </button>
-      )}
+    <div className="fixed inset-y-0 right-0 z-50 flex w-[min(420px,100vw)] flex-col border-l border-border bg-card shadow-2xl duration-200 animate-in slide-in-from-right print:hidden">
+      {active ? (
+        <ConversationView
+          conversation={active}
+          currentUserId={user.userId}
+          isPeerOnline={active.peer ? onlineSet.has(active.peer.id) : false}
+          onBack={() => setActive(null)}
+          onClose={() => {
+            setActive(null);
+            onOpenChange(false);
+          }}
+        />
+      ) : (
+        <>
+          {/* Cabecera */}
+          <div
+            className="flex items-center justify-between gap-2 border-b border-border/60 px-3.5 py-3"
+            style={{
+              background:
+                'linear-gradient(180deg, color-mix(in oklab, var(--brand) 8%, var(--card)), var(--card))',
+            }}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="flex size-[30px] items-center justify-center rounded-[10px] bg-[var(--brand-soft)] text-[var(--brand)]">
+                <Users className="size-4" />
+              </span>
+              <span className="text-[14px] font-semibold">{t('title')}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => onOpenChange(false)}
+              aria-label={t('close')}
+              className="flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
 
-      {open && (
-        <div className="flex h-[30rem] w-[20rem] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-lg)] sm:w-[22rem]">
-          {active ? (
-            <ConversationView
-              conversation={active}
-              currentUserId={user.userId}
-              isPeerOnline={active.peer ? onlineSet.has(active.peer.id) : false}
-              onBack={() => setActive(null)}
-              onClose={() => {
-                setActive(null);
-                setOpen(false);
-              }}
-            />
-          ) : (
-            <>
-              {/* Cabecera */}
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <span className="text-sm font-semibold">{t('title')}</span>
+          <div className="flex-1 overflow-y-auto">
+            {/* Conversaciones: canal «General» + DMs con actividad (siempre visibles como filas) */}
+            {(conversations ?? []).map((c) => {
+              const isChannel = c.kind === 'CHANNEL';
+              const name = isChannel ? t('general') : (c.peer?.fullName ?? '—');
+              const isOnline = c.peer ? onlineSet.has(c.peer.id) : false;
+              return (
                 <button
+                  key={c.id}
                   type="button"
-                  onClick={() => setOpen(false)}
-                  aria-label={t('close')}
-                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() =>
+                    openConversation({ id: c.id, kind: c.kind, title: c.title, peer: c.peer })
+                  }
+                  className="flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left hover:bg-accent"
                 >
-                  <X className="size-4" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto">
-                {/* Conversaciones: canal «General» + DMs con actividad (siempre visibles como filas) */}
-                {(conversations ?? []).map((c) => {
-                  const isChannel = c.kind === 'CHANNEL';
-                  const name = isChannel ? t('general') : (c.peer?.fullName ?? '—');
-                  const isOnline = c.peer ? onlineSet.has(c.peer.id) : false;
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() =>
-                        openConversation({ id: c.id, kind: c.kind, title: c.title, peer: c.peer })
-                      }
-                      className="flex w-full items-center gap-3 border-b border-border px-4 py-2.5 text-left hover:bg-accent"
+                  <span className="relative shrink-0">
+                    <span
+                      className={cn(
+                        'flex size-9 items-center justify-center rounded-full text-xs font-semibold uppercase',
+                        isChannel
+                          ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
+                          : 'bg-[var(--surface-2)]',
+                      )}
                     >
-                      <span className="relative shrink-0">
-                        <span
-                          className={cn(
-                            'flex size-9 items-center justify-center rounded-full text-xs font-semibold uppercase',
-                            isChannel
-                              ? 'bg-[var(--brand-soft)] text-[var(--brand)]'
-                              : 'bg-[var(--surface-2)]',
-                          )}
-                        >
-                          {isChannel ? <Hash className="size-4" /> : initials(name)}
-                        </span>
-                        {!isChannel && (
+                      {isChannel ? <Hash className="size-4" /> : initials(name)}
+                    </span>
+                    {!isChannel && (
+                      <span
+                        className={cn(
+                          'absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card',
+                          isOnline ? 'bg-[var(--success)]' : 'bg-[var(--text-subtle)]',
+                        )}
+                      />
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{name}</span>
+                    <span className="block truncate text-[11.5px] text-muted-foreground">
+                      {c.last?.body ?? (isChannel ? t('generalHint') : t('online'))}
+                    </span>
+                  </span>
+                  {c.unread > 0 && <UnreadDot count={c.unread} />}
+                </button>
+              );
+            })}
+
+            {/* Iniciar conversación: directorio de compañeros del despacho */}
+            <div className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('startChat')}
+            </div>
+
+            {/* Buscador de personas */}
+            <div className="px-3 pb-2">
+              <div className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5">
+                <Search className="size-3.5 text-muted-foreground" />
+                <input
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder={t('searchPeople')}
+                  aria-label={t('searchPeople')}
+                  className="w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+                />
+              </div>
+            </div>
+
+            {/* Directorio con estados explícitos (carga / error / vacío) — nunca un blanco silencioso */}
+            {dirLoading && (
+              <div className="space-y-2 px-4 py-2">
+                <Skeleton className="h-9 w-full" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            )}
+            {dirError && (
+              <div className="space-y-2 px-4 py-4 text-center">
+                <p className="text-[13px] text-[var(--danger)]">{t('directoryError')}</p>
+                <Button size="sm" variant="outline" onClick={() => refetchDir()}>
+                  {t('retry')}
+                </Button>
+              </div>
+            )}
+            {!dirLoading && !dirError && (
+              <ul>
+                {people.map((p) => {
+                  const isOnline = onlineSet.has(p.id);
+                  return (
+                    <li key={p.id}>
+                      <button
+                        type="button"
+                        onClick={() => void openPerson(p.id, p.fullName)}
+                        className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-accent"
+                      >
+                        <span className="relative shrink-0">
+                          <span className="flex size-9 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-semibold uppercase">
+                            {initials(p.fullName)}
+                          </span>
                           <span
                             className={cn(
                               'absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card',
                               isOnline ? 'bg-[var(--success)]' : 'bg-[var(--text-subtle)]',
                             )}
                           />
-                        )}
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{name}</span>
-                        <span className="block truncate text-[11.5px] text-muted-foreground">
-                          {c.last?.body ?? (isChannel ? t('generalHint') : t('online'))}
                         </span>
-                      </span>
-                      {c.unread > 0 && <UnreadDot count={c.unread} />}
-                    </button>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{p.fullName}</span>
+                          <span className="block truncate text-[11.5px] text-muted-foreground">
+                            {isOnline ? t('online') : t('offline')}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
                   );
                 })}
-
-                {/* Iniciar conversación: directorio de compañeros del despacho */}
-                <div className="px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  {t('startChat')}
-                </div>
-
-                {/* Buscador de personas */}
-                <div className="px-3 pb-2">
-                  <div className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5">
-                    <Search className="size-3.5 text-muted-foreground" />
-                    <input
-                      value={filter}
-                      onChange={(e) => setFilter(e.target.value)}
-                      placeholder={t('searchPeople')}
-                      aria-label={t('searchPeople')}
-                      className="w-full bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
-                    />
-                  </div>
-                </div>
-
-                {/* Directorio con estados explícitos (carga / error / vacío) — nunca un blanco silencioso */}
-                {dirLoading && (
-                  <div className="space-y-2 px-4 py-2">
-                    <Skeleton className="h-9 w-full" />
-                    <Skeleton className="h-9 w-full" />
-                  </div>
+                {people.length === 0 && (
+                  <li className="px-4 py-6 text-center text-[13px] text-muted-foreground">
+                    {filter ? t('noMatches') : t('noPeople')}
+                  </li>
                 )}
-                {dirError && (
-                  <div className="space-y-2 px-4 py-4 text-center">
-                    <p className="text-[13px] text-[var(--danger)]">{t('directoryError')}</p>
-                    <Button size="sm" variant="outline" onClick={() => refetchDir()}>
-                      {t('retry')}
-                    </Button>
-                  </div>
-                )}
-                {!dirLoading && !dirError && (
-                  <ul>
-                    {people.map((p) => {
-                      const isOnline = onlineSet.has(p.id);
-                      return (
-                        <li key={p.id}>
-                          <button
-                            type="button"
-                            onClick={() => void openPerson(p.id, p.fullName)}
-                            className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-accent"
-                          >
-                            <span className="relative shrink-0">
-                              <span className="flex size-9 items-center justify-center rounded-full bg-[var(--surface-2)] text-xs font-semibold uppercase">
-                                {initials(p.fullName)}
-                              </span>
-                              <span
-                                className={cn(
-                                  'absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-card',
-                                  isOnline ? 'bg-[var(--success)]' : 'bg-[var(--text-subtle)]',
-                                )}
-                              />
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-medium">
-                                {p.fullName}
-                              </span>
-                              <span className="block truncate text-[11.5px] text-muted-foreground">
-                                {isOnline ? t('online') : t('offline')}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                    {people.length === 0 && (
-                      <li className="px-4 py-6 text-center text-[13px] text-muted-foreground">
-                        {filter ? t('noMatches') : t('noPeople')}
-                      </li>
-                    )}
-                  </ul>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+              </ul>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
@@ -480,10 +471,10 @@ function ConversationView({
             >
               <div
                 className={cn(
-                  'max-w-[85%] rounded-lg px-3 py-1.5 text-[13px]',
+                  'max-w-[85%] rounded-2xl px-3.5 py-2 text-[13px] leading-relaxed',
                   own
-                    ? 'bg-[var(--brand)] text-[var(--primary-foreground)]'
-                    : 'bg-[var(--surface-2)]',
+                    ? 'rounded-br-md bg-[var(--brand)] text-white'
+                    : 'rounded-bl-md bg-[var(--surface-2)]',
                 )}
               >
                 {kind === 'CHANNEL' && !own && (
@@ -556,20 +547,32 @@ function ConversationView({
       </div>
 
       {/* Envío */}
-      <form onSubmit={submit} className="flex gap-2 border-t border-border p-2.5">
-        <Input
-          value={text}
-          onChange={(e) => {
-            setText(e.target.value);
-            emitTyping(e.target.value.length > 0);
-          }}
-          onBlur={() => emitTyping(false)}
-          placeholder={t('placeholder')}
-          aria-label={t('placeholder')}
-        />
-        <Button type="submit" size="icon" disabled={send.isPending || !text.trim()}>
-          {send.isPending ? <Loader2 className="animate-spin" /> : <SendHorizonal />}
-        </Button>
+      <form onSubmit={submit} className="border-t border-border/60 p-2.5">
+        <div className="flex items-center gap-1.5 rounded-xl border border-border bg-[var(--surface-1)] p-1.5 transition-colors focus-within:border-[var(--brand-line)] focus-within:ring-2 focus-within:ring-[var(--brand-soft)]">
+          <input
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              emitTyping(e.target.value.length > 0);
+            }}
+            onBlur={() => emitTyping(false)}
+            placeholder={t('placeholder')}
+            aria-label={t('placeholder')}
+            className="min-w-0 flex-1 bg-transparent px-2 text-[13.5px] outline-none placeholder:text-muted-foreground"
+          />
+          <button
+            type="submit"
+            disabled={send.isPending || !text.trim()}
+            aria-label={t('placeholder')}
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[var(--brand)] text-white transition-opacity hover:opacity-90 disabled:opacity-40"
+          >
+            {send.isPending ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <ArrowUp className="size-4" />
+            )}
+          </button>
+        </div>
       </form>
     </>
   );
