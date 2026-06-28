@@ -1,11 +1,30 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
-import type { Prisma } from '@prisma/client';
+import { LegalDocType, type Prisma } from '@prisma/client';
 import { AllowExpired } from '../subscription/allow-expired.decorator';
+import { Public } from '../auth/decorators/public.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
+import { apiError } from '../common/api-messages';
 import { LegalService } from './legal.service';
-import { AcceptDto } from './dto/legal.dto';
+import { AcceptDto, SubscribeDto } from './dto/legal.dto';
+
+/** Tipos cuyo texto vigente es público (sin autenticación). */
+const PUBLIC_TYPES: LegalDocType[] = [
+  LegalDocType.TERMS,
+  LegalDocType.TERMS_CONSUMER,
+  LegalDocType.PRIVACY,
+  LegalDocType.SUBPROCESSORS,
+];
 
 /**
  * Aceptación legal del usuario (clickwrap reforzado). Disponible aunque la prueba haya caducado
@@ -45,5 +64,27 @@ export class LegalController {
       userAgent,
       shownSnapshot: dto.shownSnapshot as Prisma.InputJsonValue | undefined,
     });
+  }
+
+  /** Texto público vigente de un documento (para páginas públicas: subprocesadores, ToS, privacidad). */
+  @Public()
+  @Get('public/:type')
+  publicDocument(@Param('type') type: string) {
+    const upper = type.toUpperCase() as LegalDocType;
+    if (!PUBLIC_TYPES.includes(upper))
+      throw new BadRequestException(apiError('legal.invalidDocument'));
+    return this.legal.publicCurrent(upper);
+  }
+
+  /** Suscribirse a los avisos de cambios de subprocesadores (art. 28.2 RGPD). */
+  @Post('subprocessors/subscribe')
+  subscribe(@CurrentUser() user: RequestUser, @Body() dto: SubscribeDto) {
+    return this.legal.subscribeSubprocessors(user, dto.email);
+  }
+
+  /** Darse de baja de los avisos de subprocesadores. */
+  @Delete('subprocessors/subscribe')
+  unsubscribe(@CurrentUser() user: RequestUser, @Body() dto: SubscribeDto) {
+    return this.legal.unsubscribeSubprocessors(user, dto.email);
   }
 }

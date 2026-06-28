@@ -451,6 +451,7 @@ model Tenant {
   aiChatMessages       AiChatMessage[]
   webhookEndpoints     WebhookEndpoint[]
   legalAcceptances     LegalAcceptance[]
+  subprocessorSubs     SubprocessorSubscription[]
 }
 
 model User {
@@ -2447,4 +2448,19 @@ model LegalAcceptance {
 
   @@index([tenantId, documentType, version])
   @@index([tenantId, userId])
+}
+
+/// Suscripción de un despacho a los avisos de cambios de subprocesadores (art. 28.2 RGPD: notificación previa
+/// + derecho de oposición). Opt-in por email; quien no se suscribe renuncia al aviso previo individualizado.
+/// RLS por tenant (fail-closed).
+model SubprocessorSubscription {
+  id        String   @id @default(cuid())
+  tenantId  String
+  email     String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
 }

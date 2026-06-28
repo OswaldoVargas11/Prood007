@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsEmail,
   IsEnum,
   IsObject,
   IsOptional,
@@ -53,4 +54,9 @@ export class AcceptDto {
   @IsOptional()
   @IsObject()
   shownSnapshot?: Record<string, unknown>;
+}
+
+export class SubscribeDto {
+  @IsEmail()
+  email!: string;
 }

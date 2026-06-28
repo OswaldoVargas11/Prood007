@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { AcceptanceAct, AcceptanceMethod, LegalDocType, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { apiError } from '../common/api-messages';
@@ -175,5 +175,34 @@ export class LegalService {
     );
 
     return { accepted: created };
+  }
+
+  /** Documento público vigente por tipo (para páginas públicas: ToS, Privacidad, subprocesadores). */
+  async publicCurrent(type: LegalDocType) {
+    const doc = await this.prisma.legalDocument.findFirst({
+      where: { type, isCurrent: true, jurisdiction: null, locale: 'es' },
+      select: { title: true, version: true, body: true, effectiveFrom: true },
+    });
+    if (!doc) throw new NotFoundException(apiError('legal.invalidDocument'));
+    return doc;
+  }
+
+  /** Alta en los avisos de cambios de subprocesadores (opt-in, idempotente). */
+  async subscribeSubprocessors(user: RequestUser, email: string) {
+    const e = email.trim().toLowerCase();
+    await this.prisma.subprocessorSubscription.upsert({
+      where: { tenantId_email: { tenantId: user.tenantId, email: e } },
+      update: {},
+      create: { tenantId: user.tenantId, email: e },
+    });
+    return { subscribed: true };
+  }
+
+  /** Baja de los avisos de subprocesadores. */
+  async unsubscribeSubprocessors(user: RequestUser, email: string) {
+    await this.prisma.subprocessorSubscription.deleteMany({
+      where: { tenantId: user.tenantId, email: email.trim().toLowerCase() },
+    });
+    return { subscribed: false };
   }
 }
