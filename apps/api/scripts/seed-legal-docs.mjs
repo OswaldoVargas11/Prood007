@@ -52,10 +52,9 @@ async function main() {
     }
     const bodyHash = createHash('sha256').update(body, 'utf8').digest('hex');
 
-    const existing = await prisma.legalDocument.findUnique({
-      where: {
-        type_jurisdiction_locale_version: { type, jurisdiction, locale, version },
-      },
+    // findFirst (no findUnique): Prisma rechaza `null` en una clave única compuesta con campo nullable.
+    const existing = await prisma.legalDocument.findFirst({
+      where: { type, jurisdiction, locale, version },
       select: { id: true },
     });
     if (existing) {
