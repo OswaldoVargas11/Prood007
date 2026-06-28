@@ -42,6 +42,12 @@ export class RegisterTenantDto {
   @IsString()
   taxId?: string;
 
+  /** Domicilio fiscal del despacho (encabeza facturas e identifica a la parte en el DPA). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  fiscalAddress?: string;
+
   @IsOptional()
   @IsString()
   locale?: string;

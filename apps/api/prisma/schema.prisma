@@ -319,6 +319,12 @@ model Tenant {
   name                          String
   // Identificador fiscal del despacho emisor (NIF/CIF en ES, RNC en RD). Necesario para facturar.
   taxId                         String?
+  // Domicilio fiscal del despacho: encabeza las facturas e identifica a la parte en el DPA. Estructurado
+  // para no depender de geolocalización. `fiscalCountry` por defecto se deriva de la jurisdicción.
+  fiscalAddress                 String?
+  fiscalCity                    String?
+  fiscalPostalCode              String?
+  fiscalCountry                 String?
   jurisdiction                  Jurisdiction
   currency                      Currency
   locale                        String                 @default("es-ES")

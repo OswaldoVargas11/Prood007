@@ -11,6 +11,8 @@ export interface RegisterTenantInput {
   jurisdiction: 'es' | 'do';
   currency: 'EUR' | 'DOP';
   taxId?: string;
+  /** Domicilio fiscal del despacho (opcional en el alta; encabeza facturas e identifica la parte del DPA). */
+  fiscalAddress?: string;
   /** Aceptación clickwrap de ToS + Privacidad + DPA en el alta (casilla afirmativa obligatoria en la UI). */
   acceptLegal?: boolean;
   admin: { fullName: string; email: string; password: string };

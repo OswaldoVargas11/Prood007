@@ -85,6 +85,9 @@ export class AuthService {
         data: {
           name: dto.tenantName,
           taxId: dto.taxId,
+          fiscalAddress: dto.fiscalAddress,
+          // País fiscal derivado de la jurisdicción (no de geolocalización).
+          fiscalCountry: dto.jurisdiction === Jurisdiction.ES ? 'ES' : 'DO',
           jurisdiction: dto.jurisdiction as unknown as Jurisdiction,
           currency: dto.currency as unknown as Currency,
           // Un solo idioma de UI (`es`); la jurisdicción gobierna la terminología fiscal, no el locale.
