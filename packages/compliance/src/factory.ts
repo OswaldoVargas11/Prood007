@@ -21,7 +21,9 @@ export class ComplianceProviderFactory {
     let provider: ComplianceProvider;
     switch (jurisdiction) {
       case Jurisdiction.ES:
-        provider = new SpainComplianceProvider();
+        // Host del QR de la AEAT parametrizable por entorno (preproducción por defecto; producción cuando
+        // se ratifique). Sin la variable, mantiene el default y no altera los golden.
+        provider = new SpainComplianceProvider(process.env.VERIFACTU_QR_HOST || undefined);
         break;
       case Jurisdiction.DO:
         provider = new DominicanComplianceProvider();

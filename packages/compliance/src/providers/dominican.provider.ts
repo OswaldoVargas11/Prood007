@@ -126,13 +126,17 @@ export class DominicanComplianceProvider implements ComplianceProvider {
       '</ECF>',
     ].join('\n');
 
-    const recordHash = createHash('sha256').update(ecfXml).digest('hex');
+    // Si la API aporta el firmador (custodia el .p12 del despacho), el e-CF se firma AQUÍ y la huella se
+    // calcula sobre el XML YA FIRMADO — que es lo que se transmite y conserva. Sin firmador (golden puros
+    // / despacho sin certificado), se mantiene el comportamiento previo: XML sin firma y huella sobre él.
+    const finalXml = invoice.ecfSigner ? invoice.ecfSigner(ecfXml) : ecfXml;
+    const recordHash = createHash('sha256').update(finalXml).digest('hex');
 
     return {
       jurisdiction: Jurisdiction.DO,
       format: this.invoiceFormat,
       totals,
-      payload: { ecfXml },
+      payload: { ecfXml: finalXml },
       recordHash,
       submission: {
         status: 'STUBBED',

@@ -26,9 +26,23 @@ import type {
   TaxRatesResult,
 } from '../types';
 
+/** Host base del servicio de cotejo de QR de la AEAT (preproducción). Default actual: no rompe los golden. */
+export const AEAT_QR_HOST_PREPROD = 'https://prewww2.aeat.es';
+/**
+ * Host base de PRODUCCIÓN del cotejo de QR de la AEAT. Se ratifica con el set de pruebas/manual de la AEAT
+ * antes de poner Verifactu en producción; se selecciona vía `VERIFACTU_QR_HOST` (ver factory) sin tocar código.
+ */
+export const AEAT_QR_HOST_PROD = 'https://www2.agenciatributaria.gob.es';
+
 export class SpainComplianceProvider implements ComplianceProvider {
   readonly jurisdiction = Jurisdiction.ES;
   readonly invoiceFormat = 'VERIFACTU';
+
+  /**
+   * @param qrBaseUrl Host base del cotejo de QR de la AEAT. Por defecto preproducción (no rompe los golden);
+   *   la factory inyecta el host de producción cuando `VERIFACTU_QR_HOST` está definido.
+   */
+  constructor(private readonly qrBaseUrl: string = AEAT_QR_HOST_PREPROD) {}
 
   validateTaxId(id: string, declaredKind?: TaxIdKind): TaxIdValidationResult {
     if (declaredKind === TaxIdKind.PASSPORT || declaredKind === TaxIdKind.OTHER) {
@@ -112,7 +126,7 @@ export class SpainComplianceProvider implements ComplianceProvider {
     const [anio, mes, dia] = invoice.issueDate.slice(0, 10).split('-');
     const fechaQr = `${dia}-${mes}-${anio}`;
     const qrUrl =
-      'https://prewww2.aeat.es/wlpl/TIKE-CONT/ValidarQR?' +
+      `${this.qrBaseUrl}/wlpl/TIKE-CONT/ValidarQR?` +
       `nif=${encodeURIComponent(invoice.seller.taxId)}` +
       `&numserie=${encodeURIComponent(invoice.invoiceNumber)}` +
       `&fecha=${encodeURIComponent(fechaQr)}` +

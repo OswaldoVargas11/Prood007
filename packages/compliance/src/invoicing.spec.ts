@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { InvoiceDocumentType, RectificationMode } from '@legalflow/domain';
 import type { InvoiceInput } from './types';
 import { SpainComplianceProvider } from './providers/spain.provider';
@@ -60,6 +61,20 @@ describe('España — buildInvoiceRecord (Verifactu)', () => {
     expect(qr).toContain('fecha=15-01-2026');
     expect(qr).not.toContain('fecha=2026-01-15');
   });
+
+  it('el host base del QR es parametrizable (default preproducción; producción sin tocar el resto)', async () => {
+    // Default: preproducción (no rompe los golden existentes).
+    const def = await new SpainComplianceProvider().buildInvoiceRecord(baseInvoice());
+    expect((def.payload as { qrUrl: string }).qrUrl).toContain('https://prewww2.aeat.es/');
+
+    // Inyectando el host de producción, solo cambia el host; la ruta y los parámetros se mantienen.
+    const prodHost = 'https://www2.agenciatributaria.gob.es';
+    const prod = await new SpainComplianceProvider(prodHost).buildInvoiceRecord(baseInvoice());
+    const qr = (prod.payload as { qrUrl: string }).qrUrl;
+    expect(qr.startsWith(`${prodHost}/wlpl/TIKE-CONT/ValidarQR?`)).toBe(true);
+    expect(qr).toContain('importe=1210.00');
+    expect(qr).toContain('fecha=15-01-2026');
+  });
 });
 
 describe('República Dominicana — buildInvoiceRecord (e-CF)', () => {
@@ -82,6 +97,40 @@ describe('República Dominicana — buildInvoiceRecord (e-CF)', () => {
     expect(String((rec.payload as { ecfXml: string }).ecfXml)).toContain(
       '<MontoTotal>1180.00</MontoTotal>',
     );
+  });
+
+  it('RD: con firmador inyectado, persiste el e-CF FIRMADO y la huella es sobre el XML firmado', async () => {
+    const dom = new DominicanComplianceProvider();
+    const invoice = baseInvoice({
+      currency: 'DOP',
+      invoiceNumber: 'E310000000001',
+      seller: { name: 'Despacho', taxId: '101010101' },
+      buyer: { name: 'Cliente', taxId: '130000000' },
+      lines: [
+        { description: 'Honorarios', quantity: '5', unitPrice: '200', taxCode: 'ITBIS_STANDARD' },
+      ],
+    });
+
+    // Firmador DETERMINISTA de prueba (en producción es la firma XAdES-BES real, con certificado).
+    const stubSign = (xml: string): string =>
+      xml.replace('</ECF>', '  <Signature>STUB-DET</Signature>\n</ECF>');
+
+    const unsigned = await dom.buildInvoiceRecord(invoice);
+    const signed = await dom.buildInvoiceRecord({ ...invoice, ecfSigner: stubSign });
+
+    // El XML persistido va firmado y la huella se calcula sobre el XML YA firmado.
+    expect(String((signed.payload as { ecfXml: string }).ecfXml)).toContain(
+      '<Signature>STUB-DET</Signature>',
+    );
+    const expectedHash = createHash('sha256')
+      .update(stubSign((unsigned.payload as { ecfXml: string }).ecfXml))
+      .digest('hex');
+    expect(signed.recordHash).toBe(expectedHash);
+    // La huella del XML firmado difiere de la del borrador (la firma forma parte del documento sellado).
+    expect(signed.recordHash).not.toBe(unsigned.recordHash);
+    // Determinista: mismo input + mismo firmador ⇒ misma huella.
+    const signed2 = await dom.buildInvoiceRecord({ ...invoice, ecfSigner: stubSign });
+    expect(signed2.recordHash).toBe(signed.recordHash);
   });
 });
 

@@ -121,6 +121,14 @@ export interface InvoiceInput {
   deductedAdvances?: DeductedAdvance[];
   /** Hash del registro fiscal inmediatamente anterior (encadenamiento Verifactu). */
   previousRecordHash?: string;
+  /**
+   * Firmador del e-CF (RD): firma XAdES-BES del XML del e-CF, inyectada por la capa API (que custodia el
+   * certificado del despacho). Si se aporta, el provider dominicano firma el XML, lo persiste FIRMADO y
+   * calcula `recordHash` sobre el XML YA FIRMADO (no sobre el borrador). Si se omite (p. ej. sin
+   * certificado o en los golden puros), el comportamiento es el de hoy: XML sin firma y huella sobre él.
+   * El núcleo de compliance se mantiene puro: no importa la criptografía; solo invoca el callback.
+   */
+  ecfSigner?: (ecfXml: string) => string;
 }
 
 export interface PartyInput {
