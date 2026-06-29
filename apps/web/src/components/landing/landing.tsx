@@ -72,7 +72,7 @@ import './landing.css';
  * conversión apuntan a `/onboarding` (alta de despacho) y el de sesión a `/login`.
  *
  * Estilos: `landing.css` (generado del handoff, scopeado bajo `.lz-land`). Iconos: lucide-react (el set
- * que ya usa la app). Tipografía serif: Newsreader vía next/font (`--font-newsreader`).
+ * que ya usa la app). Tipografía sans-forward (Geist) con mono (Geist Mono) para datos fiscales.
  */
 
 // ── Icon bridge (lucide-react por nombre, como en el handoff) ──────────────────
@@ -824,7 +824,7 @@ function StageRedline() {
                 border: '1px solid var(--line)',
                 borderRadius: 9,
                 padding: '11px 12px',
-                background: 'oklch(1 0 0 / 0.02)',
+                background: 'var(--fill)',
                 height: 'calc(100% - 22px)',
               }}
             >
@@ -879,7 +879,7 @@ function StageDataRoom() {
                 border: '1px solid var(--line)',
                 borderRadius: 9,
                 padding: 11,
-                background: 'oklch(1 0 0 / 0.02)',
+                background: 'var(--fill)',
               }}
             >
               {[
@@ -2077,8 +2077,8 @@ function Pricing() {
                   lg
                   style={{
                     background: 'var(--copper-2)',
-                    color: '#2a1808',
-                    boxShadow: '0 8px 28px rgba(206,138,58,0.32)',
+                    color: '#fff',
+                    boxShadow: '0 8px 24px -10px rgba(206,138,58,0.5)',
                   }}
                 >
                   Reservar plaza fundador <Icon name="ArrowRight" size={15} />

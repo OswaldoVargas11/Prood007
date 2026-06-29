@@ -40,7 +40,7 @@
     },
     "diff": {
       "badge": "El diferenciador",
-      "title": "Y nativamente al día con Verifactu y e-CF",
+      "title": "Verifactu y e-CF, de serie en cada factura",
       "body": "La facturación electrónica es obligatoria — Verifactu en España y e-CF en R. Dominicana. Lawzora la emite con su registro fiscal encadenado y su QR/eNCF de cotejo, listo para AEAT y DGII. Sin un segundo programa, sin integraciones a medias y sin sustos cuando llega la inspección.",
       "invoiceUrl": "Factura FAC-2026-0042 · Verifactu",
       "lineFees": "Honorarios profesionales",
@@ -177,7 +177,7 @@
     },
     "finalCta": {
       "title": "Pon tu despacho en un sitio",
-      "body": "Empieza gratis 15 días. Sin tarjeta, todo incluido y al día con Verifactu (ES) y e-CF (RD) desde el primer momento.",
+      "body": "Empieza gratis 15 días. Sin tarjeta, todo incluido y con registro fiscal encadenado para Verifactu (ES) y e-CF (RD) en cada factura.",
       "ctaPrimary": "Empieza gratis 15 días",
       "ctaSecondary": "Solicitar una demo"
     },
@@ -391,6 +391,34 @@
     "continue": "Continuar",
     "create": "Crear despacho",
     "genericError": "No se pudo crear el despacho. Inténtalo de nuevo.",
+    "formTitle": "Crea tu despacho",
+    "formSub": "Rellena los datos y entra directo al panel. Sin tarjeta.",
+    "secFirm": "Tu despacho",
+    "secAccount": "Tu cuenta",
+    "currencyHint": "Se sugiere según la jurisdicción; puedes cambiarla.",
+    "fiscalToggle": "Añadir identificación fiscal",
+    "fiscalOptional": "opcional · puedes hacerlo luego desde Ajustes",
+    "createFree": "Crear despacho gratis",
+    "login": "Inicia sesión",
+    "optional": "opcional",
+    "phoneLabel": "Teléfono",
+    "firmSizeLabel": "Tamaño del despacho",
+    "firmSize": {
+      "1": "En solitario",
+      "2-5": "2–5",
+      "6-20": "6–20",
+      "21+": "+20"
+    },
+    "aside": {
+      "tag": "Alta de despacho",
+      "title": "Tu despacho, listo para operar.",
+      "sub": "Crea la cuenta y empieza la prueba — sin tarjeta y sin llamada de ventas.",
+      "v1": "15 días gratis, sin tarjeta",
+      "v2": "Todo incluido durante la prueba",
+      "v3": "Registro fiscal encadenado para Verifactu (ES) y e-CF (RD)",
+      "v4": "Cifrado AES-256 en reposo · RGPD y Ley 172-13",
+      "compliance": "Verifactu · e-CF · AEAT · DGII · RGPD"
+    },
     "step1": {
       "nav": "Despacho",
       "title": "¿Cómo se llama tu despacho?",

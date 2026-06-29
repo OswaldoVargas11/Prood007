@@ -15,7 +15,9 @@ export interface RegisterTenantInput {
   fiscalAddress?: string;
   /** Aceptación clickwrap de ToS + Privacidad + DPA en el alta (casilla afirmativa obligatoria en la UI). */
   acceptLegal?: boolean;
-  admin: { fullName: string; email: string; password: string };
+  /** Tamaño del despacho declarado en el alta (opcional): "1" | "2-5" | "6-20" | "21+". */
+  firmSize?: string;
+  admin: { fullName: string; email: string; password: string; phone?: string };
 }
 
 /** Si el usuario tiene MFA, `login` devuelve este desafío en vez de iniciar sesión. */

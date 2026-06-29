@@ -84,6 +84,7 @@ export class AuthService {
       const tenant = await tx.tenant.create({
         data: {
           name: dto.tenantName,
+          firmSize: dto.firmSize,
           taxId: dto.taxId,
           fiscalAddress: dto.fiscalAddress,
           // País fiscal derivado de la jurisdicción (no de geolocalización).
@@ -126,6 +127,7 @@ export class AuthService {
           email: dto.admin.email.toLowerCase(),
           passwordHash,
           fullName: dto.admin.fullName,
+          phone: dto.admin.phone,
           roles: { create: [{ roleId: adminRoleId }] },
         },
       });

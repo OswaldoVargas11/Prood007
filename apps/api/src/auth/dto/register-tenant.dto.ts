@@ -2,6 +2,7 @@ import {
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   MaxLength,
@@ -24,6 +25,12 @@ class AdminUserDto {
   @IsString()
   @MinLength(2)
   fullName!: string;
+
+  /** Teléfono de contacto (opcional): recuperación/seguridad, no ventas. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  phone?: string;
 }
 
 export class RegisterTenantDto {
@@ -51,6 +58,11 @@ export class RegisterTenantDto {
   @IsOptional()
   @IsString()
   locale?: string;
+
+  /** Tamaño del despacho declarado en el alta (opcional): dimensiona plan/onboarding. */
+  @IsOptional()
+  @IsIn(['1', '2-5', '6-20', '21+'])
+  firmSize?: string;
 
   /**
    * Aceptación clickwrap de los documentos legales vigentes (ToS + Privacidad + DPA) en el alta. La UI lo

@@ -1,65 +1,75 @@
-/* Estilos de la landing pública — port del handoff de diseño "Sello" (theme.css + cycle.css +
-   pass2.css del proyecto de diseño Lawzora), concatenados y SCOPEADOS bajo `.lz-land` para que no
-   filtren al resto de la app (login, dashboard y portal usan Tailwind/shadcn). Pareja con landing.tsx.
-   Si reimportas el handoff, vuelve a scopear igual; evita editar selectores genéricos a mano. */
+/* Estilos de la landing pública — dirección "Sello · luz": claro, minimalista y preciso
+   (estilo Stripe/Linear) sobre un canvas frío casi-blanco. Tinta pizarra, UN solo acento teal,
+   y el COBRE reservado exclusivamente al momento de verificación fiscal (no decora: significa
+   "registro sellado"). Todo scopeado bajo `.lz-land` para no filtrar al resto de la app.
 
-/* ============ theme.css ============ */
+   Tipografía: sans protagonista (Geist) con tracking ajustado en titulares; mono (Geist Mono)
+   como voz característica para identificadores fiscales/legales, importes y timestamps. Sin serif.
+   Los NOMBRES de variable se conservan (los consume landing.tsx); solo cambian los VALORES. */
+
 /* ============================================================
-   LAWZORA — Landing theme (dark editorial · "Sello")
-   Tinta/carbón profunda · acento teal (jewel) · cobre SOLO en
-   verificación fiscal · superficies de PAPEL cálido para documentos.
-   Builds on the design-system tokens (styles.css). Whole page is dark.
+   TOKENS — paleta clara "Sello · luz"
    ============================================================ */
-
 .lz-land {
-  /* ---- ink base (deeper than the app's .dark) ---- */
-  --ink: #0e1116;
-  --ink-1: #11151a;
-  --ink-2: #161b21;
-  --ink-3: #1c222a;
-  --line: oklch(1 0 0 / 0.08);
-  --line-2: oklch(1 0 0 / 0.14);
-  --line-3: oklch(1 0 0 / 0.22);
+  /* ---- canvas + superficies (antes "ink"; ahora luz) ---- */
+  --ink: oklch(0.99 0.003 240); /* canvas de página */
+  --ink-1: oklch(1 0 0); /* tarjeta / superficie elevada */
+  --ink-2: oklch(0.974 0.004 240); /* relleno sutil / superficie alterna */
+  --ink-3: oklch(0.96 0.005 240); /* un paso más */
 
-  /* ---- text ---- */
-  --txt: oklch(0.97 0.003 225);
-  --txt-2: oklch(0.78 0.012 226);
-  --mut: oklch(0.64 0.013 228);
-  --faint: oklch(0.5 0.012 232);
+  /* ---- hairlines (tinta a baja opacidad) ---- */
+  --line: oklch(0.24 0.03 255 / 0.08);
+  --line-2: oklch(0.24 0.03 255 / 0.12);
+  --line-3: oklch(0.24 0.03 255 / 0.2);
 
-  /* ---- jewel accent (teal) ---- */
-  --teal: oklch(0.78 0.11 192);
-  --teal-2: oklch(0.86 0.09 188);
-  --teal-deep: oklch(0.6 0.1 198);
-  --teal-soft: oklch(0.78 0.11 192 / 0.13);
-  --teal-line: oklch(0.78 0.11 192 / 0.36);
-  --teal-glow: oklch(0.78 0.11 192 / 0.28);
+  /* ---- relleno tenue sobre claro (sustituye los velos blancos del tema oscuro) ---- */
+  --fill: oklch(0.24 0.03 255 / 0.025);
+  --fill-2: oklch(0.24 0.03 255 / 0.045);
 
-  /* ---- seal copper (reserved for fiscal verification) ---- */
-  --copper: oklch(0.76 0.13 62);
-  --copper-2: oklch(0.84 0.12 70);
-  --copper-soft: oklch(0.76 0.13 62 / 0.16);
-  --copper-line: oklch(0.76 0.13 62 / 0.4);
+  /* ---- texto ---- */
+  --txt: oklch(0.24 0.02 255);
+  --txt-2: oklch(0.42 0.018 255);
+  --mut: oklch(0.54 0.015 255);
+  --faint: oklch(0.66 0.012 255);
 
-  /* ---- warm paper (documents: binder, invoice, engagement letter) ---- */
-  --paper: #f6f4ef;
-  --paper-2: #ece8df;
-  --paper-edge: #ded8ca;
-  --paper-ink: #211f19;
+  /* ---- acento teal (joya · único color de marca) ---- */
+  --teal: oklch(0.55 0.11 199);
+  --teal-2: oklch(0.47 0.1 200); /* énfasis / texto / hover */
+  --teal-deep: oklch(0.42 0.09 201);
+  --teal-soft: oklch(0.55 0.11 199 / 0.1);
+  --teal-line: oklch(0.55 0.11 199 / 0.28);
+  --teal-glow: oklch(0.55 0.11 199 / 0.16);
+
+  /* ---- cobre del sello (SOLO verificación fiscal) ---- */
+  --copper: oklch(0.56 0.12 56);
+  --copper-2: oklch(0.47 0.11 54); /* cobre como texto (AA en claro) */
+  --copper-soft: oklch(0.56 0.12 56 / 0.12);
+  --copper-line: oklch(0.56 0.12 56 / 0.32);
+
+  /* ---- papel cálido (documentos: encargo, factura, binder) ---- */
+  --paper: #fcfbf7;
+  --paper-2: #f3f1ea;
+  --paper-edge: #e6e2d6;
+  --paper-ink: #24221b;
   --paper-mut: #6f685a;
-  --paper-line: rgba(40, 33, 20, 0.13);
-  --paper-line-2: rgba(40, 33, 20, 0.22);
+  --paper-line: rgba(40, 33, 20, 0.12);
+  --paper-line-2: rgba(40, 33, 20, 0.2);
 
-  /* ---- status (re-tuned for ink) ---- */
-  --ok: oklch(0.78 0.14 158);
-  --ok-soft: oklch(0.78 0.14 158 / 0.14);
-  --warn: oklch(0.82 0.13 80);
-  --warn-soft: oklch(0.82 0.13 80 / 0.14);
-  --info: oklch(0.74 0.12 232);
-  --info-soft: oklch(0.74 0.12 232 / 0.14);
+  /* ---- estado (AA en claro) ---- */
+  --ok: oklch(0.52 0.13 158);
+  --ok-soft: oklch(0.52 0.13 158 / 0.12);
+  --warn: oklch(0.56 0.12 66);
+  --warn-soft: oklch(0.56 0.12 66 / 0.14);
+  --info: oklch(0.52 0.12 250);
+  --info-soft: oklch(0.52 0.12 250 / 0.12);
 
-  --maxw: 1180px;
-  --serif: 'Newsreader', Georgia, 'Times New Roman', serif;
+  /* ---- sombras suaves en dos capas (tinte pizarra) ---- */
+  --sh-sm: 0 1px 2px oklch(0.2 0.03 255 / 0.06), 0 1px 1px oklch(0.2 0.03 255 / 0.04);
+  --sh-md: 0 2px 4px oklch(0.2 0.03 255 / 0.05), 0 10px 28px -8px oklch(0.2 0.03 255 / 0.12);
+  --sh-lg: 0 2px 6px oklch(0.2 0.03 255 / 0.05), 0 24px 56px -18px oklch(0.2 0.03 255 / 0.18);
+
+  --maxw: 1200px;
+  --serif: var(--font-sans); /* dirección sans-forward: sin serif editorial */
 }
 
 .lz-land * {
@@ -74,12 +84,9 @@
   }
 }
 
-.lz-land,
 .lz-land {
   margin: 0;
   padding: 0;
-}
-.lz-land {
   background: var(--ink);
   color: var(--txt);
   font-family: var(--font-sans);
@@ -87,9 +94,8 @@
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  /* `clip` recorta el desbordamiento horizontal (glow del hero, chips dispersos) SIN crear un
-     contexto de scroll — `hidden` sí lo crearía y rompería el `position: sticky` del scrollytelling
-     del ciclo. No cambiar a `hidden`. */
+  /* `clip` recorta el desbordamiento horizontal SIN crear contexto de scroll (no romper el
+     `position: sticky` del scrollytelling). No cambiar a `hidden`. */
   overflow-x: clip;
 }
 
@@ -111,9 +117,9 @@
 
 /* ---- type helpers ---- */
 .lz-land .serif {
-  font-family: var(--serif);
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  font-family: var(--font-sans);
+  font-weight: 560;
+  letter-spacing: -0.02em;
 }
 .lz-land .mono {
   font-family: var(--font-mono);
@@ -135,7 +141,6 @@
   height: 5px;
   border-radius: 50%;
   background: var(--teal);
-  box-shadow: 0 0 10px var(--teal-glow);
 }
 
 .lz-land a {
@@ -155,8 +160,8 @@
 }
 .lz-land .nav.scrolled {
   border-bottom-color: var(--line);
-  background: color-mix(in oklch, var(--ink) 72%, transparent);
-  backdrop-filter: blur(14px) saturate(1.2);
+  background: color-mix(in oklch, var(--ink) 78%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
 }
 .lz-land .nav-in {
   height: 66px;
@@ -189,7 +194,7 @@
   }
 }
 
-/* shared CTA buttons (landing-scoped, beyond .lz-btn) */
+/* shared CTA buttons (landing-scoped) */
 .lz-land .btn {
   display: inline-flex;
   align-items: center;
@@ -212,7 +217,7 @@
     box-shadow 0.18s ease;
 }
 .lz-land .btn:active {
-  transform: scale(0.975);
+  transform: scale(0.98);
 }
 .lz-land .btn-lg {
   height: 48px;
@@ -222,13 +227,16 @@
 }
 .lz-land .btn-primary {
   background: var(--teal);
-  color: #062024;
+  color: #fff;
   box-shadow:
-    0 1px 0 oklch(1 0 0 / 0.2) inset,
-    0 8px 28px var(--teal-glow);
+    0 1px 0 oklch(1 0 0 / 0.25) inset,
+    var(--sh-sm);
 }
 .lz-land .btn-primary:hover {
   background: var(--teal-2);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.25) inset,
+    var(--sh-md);
 }
 .lz-land .btn-ghost {
   background: transparent;
@@ -237,34 +245,35 @@
 }
 .lz-land .btn-ghost:hover {
   color: var(--txt);
-  background: oklch(1 0 0 / 0.05);
+  background: var(--fill-2);
 }
 .lz-land .btn-outline {
-  background: oklch(1 0 0 / 0.02);
+  background: var(--ink-1);
   color: var(--txt);
   border-color: var(--line-2);
+  box-shadow: var(--sh-sm);
 }
 .lz-land .btn-outline:hover {
   border-color: var(--line-3);
-  background: oklch(1 0 0 / 0.06);
+  background: var(--ink-2);
 }
 
 /* =================== HERO =================== */
 .lz-land .hero {
   position: relative;
-  padding: 92px 0 56px;
+  padding: 96px 0 56px;
   overflow: hidden;
 }
 .lz-land .hero-glow {
   position: absolute;
   left: 50%;
-  top: -240px;
+  top: -280px;
   transform: translateX(-50%);
-  width: 1100px;
-  height: 720px;
+  width: 1200px;
+  height: 760px;
   pointer-events: none;
   z-index: 0;
-  background: radial-gradient(48% 50% at 50% 0%, oklch(0.78 0.11 192 / 0.16), transparent 72%);
+  background: radial-gradient(46% 50% at 50% 0%, var(--teal-glow), transparent 70%);
 }
 .lz-land .hero-grid-bg {
   position: absolute;
@@ -276,9 +285,9 @@
     linear-gradient(90deg, var(--line) 1px, transparent 1px);
   background-size: 64px 64px;
   background-position: center -1px;
-  mask-image: radial-gradient(70% 55% at 50% 0%, #000 0%, transparent 78%);
-  -webkit-mask-image: radial-gradient(70% 55% at 50% 0%, #000 0%, transparent 78%);
-  opacity: 0.6;
+  mask-image: radial-gradient(72% 56% at 50% 0%, #000 0%, transparent 80%);
+  -webkit-mask-image: radial-gradient(72% 56% at 50% 0%, #000 0%, transparent 80%);
+  opacity: 0.7;
 }
 .lz-land .hero-in {
   position: relative;
@@ -286,22 +295,22 @@
   text-align: center;
 }
 .lz-land .hero h1 {
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: clamp(40px, 6.4vw, 78px);
-  line-height: 1.02;
-  letter-spacing: -0.02em;
+  font-family: var(--font-sans);
+  font-weight: 580;
+  font-size: clamp(40px, 6.2vw, 76px);
+  line-height: 1.04;
+  letter-spacing: -0.035em;
   margin: 22px auto 0;
-  max-width: 16ch;
+  max-width: 15ch;
   text-wrap: balance;
   color: var(--txt);
 }
 .lz-land .hero h1 em {
-  font-style: italic;
+  font-style: normal;
   color: var(--teal-2);
 }
 .lz-land .hero-sub {
-  margin: 22px auto 0;
+  margin: 24px auto 0;
   max-width: 56ch;
   font-size: clamp(16px, 1.8vw, 19px);
   line-height: 1.6;
@@ -315,7 +324,7 @@
   display: flex;
   gap: 12px;
   justify-content: center;
-  margin-top: 30px;
+  margin-top: 32px;
   flex-wrap: wrap;
 }
 .lz-land .hero-note {
@@ -326,7 +335,7 @@
 
 /* trust strip */
 .lz-land .trust {
-  margin-top: 40px;
+  margin-top: 44px;
 }
 .lz-land .trust-label {
   font-family: var(--font-mono);
@@ -350,7 +359,8 @@
   padding: 9px 15px;
   border: 1px solid var(--line);
   border-radius: 11px;
-  background: oklch(1 0 0 / 0.02);
+  background: var(--ink-1);
+  box-shadow: var(--sh-sm);
   font-size: 13px;
   color: var(--txt-2);
 }
@@ -388,9 +398,7 @@
   border-radius: 16px;
   overflow: hidden;
   background: var(--ink-1);
-  box-shadow:
-    0 1px 0 oklch(1 0 0 / 0.05) inset,
-    0 40px 90px -30px oklch(0 0 0 / 0.8);
+  box-shadow: var(--sh-lg);
 }
 .lz-land .win-bar {
   display: flex;
@@ -420,7 +428,7 @@
   color: var(--mut);
   padding: 4px 11px;
   border-radius: 7px;
-  background: oklch(1 0 0 / 0.03);
+  background: var(--ink-1);
   border: 1px solid var(--line);
 }
 .lz-land .win-url svg {
@@ -430,7 +438,7 @@
 /* =================== HERO product panel =================== */
 .lz-land .hero-panel {
   max-width: 1040px;
-  margin: 56px auto 0;
+  margin: 60px auto 0;
   position: relative;
   z-index: 1;
 }
@@ -478,7 +486,7 @@
   border: 1px solid var(--line);
   border-radius: 11px;
   padding: 12px;
-  background: oklch(1 0 0 / 0.02);
+  background: var(--ink-1);
 }
 .lz-land .kpi-k {
   font-size: 11px;
@@ -493,7 +501,7 @@
   letter-spacing: -0.01em;
 }
 .lz-land .kpi-v.teal {
-  color: var(--teal);
+  color: var(--teal-2);
 }
 .lz-land .kpi-d {
   font-size: 10.5px;
@@ -509,7 +517,7 @@
   padding: 11px 13px;
   border: 1px solid var(--line);
   border-radius: 11px;
-  background: oklch(1 0 0 / 0.02);
+  background: var(--ink-1);
   margin-bottom: 8px;
 }
 .lz-land .row:last-child {
@@ -551,7 +559,7 @@
 }
 .lz-land .tag-teal {
   background: var(--teal-soft);
-  color: var(--teal);
+  color: var(--teal-2);
 }
 .lz-land .tag-copper {
   background: var(--copper-soft);
@@ -570,7 +578,7 @@
   gap: 8px;
   font-size: 12px;
   font-weight: 600;
-  color: var(--teal);
+  color: var(--teal-2);
 }
 .lz-land .side-h svg {
   color: var(--teal);
@@ -591,7 +599,7 @@
   flex: none;
   border-radius: 10px;
   background: var(--teal-soft);
-  color: var(--teal);
+  color: var(--teal-2);
 }
 .lz-land .date-chip b {
   font-size: 16px;
@@ -614,7 +622,7 @@
   position: relative;
 }
 .lz-land .sec {
-  padding: 110px 0;
+  padding: 116px 0;
 }
 .lz-land .sec-head {
   max-width: 64ch;
@@ -624,21 +632,21 @@
   text-align: center;
 }
 .lz-land h2.sec-title {
-  font-family: var(--serif);
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  font-size: clamp(30px, 4.2vw, 52px);
-  line-height: 1.06;
+  font-family: var(--font-sans);
+  font-weight: 580;
+  letter-spacing: -0.03em;
+  font-size: clamp(30px, 4.2vw, 50px);
+  line-height: 1.08;
   margin: 18px 0 0;
   color: var(--txt);
   text-wrap: balance;
 }
 .lz-land h2.sec-title em {
-  font-style: italic;
+  font-style: normal;
   color: var(--teal-2);
 }
 .lz-land .sec-lead {
-  margin: 18px 0 0;
+  margin: 20px 0 0;
   font-size: clamp(16px, 1.7vw, 18px);
   line-height: 1.62;
   color: var(--txt-2);
@@ -652,7 +660,7 @@
 .lz-land .prob-band {
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
-  background: var(--ink-1);
+  background: var(--ink-2);
 }
 .lz-land .prob-grid {
   display: grid;
@@ -685,7 +693,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: oklch(1 0 0 / 0.04);
+  background: var(--ink-1);
   color: var(--mut);
   border: 1px solid var(--line);
 }
@@ -714,16 +722,16 @@
   padding: 10px 14px;
   border-radius: 11px;
   border: 1px solid var(--line-2);
-  background: var(--ink-2);
+  background: var(--ink-1);
   font-size: 13px;
   color: var(--txt-2);
-  box-shadow: 0 18px 40px -22px oklch(0 0 0 / 0.9);
+  box-shadow: var(--sh-md);
 }
 .lz-land .scatter .chip svg {
   color: var(--faint);
 }
 .lz-land .scatter .chip.muted {
-  opacity: 0.62;
+  opacity: 0.72;
 }
 
 @media (max-width: 900px) {
@@ -742,15 +750,13 @@
     height: 320px;
   }
   .lz-land .sec {
-    padding: 76px 0;
+    padding: 80px 0;
   }
 }
 
-/* ============ cycle.css ============ */
 /* ============================================================
-   LAWZORA — Operation-cycle scrollytelling (signature element)
+   CICLO — scrollytelling de 6 etapas + closing binder
    ============================================================ */
-
 .lz-land .cycle {
   position: relative;
   background: var(--ink);
@@ -767,13 +773,14 @@
   pointer-events: none;
   z-index: 0;
   border-radius: 50%;
-  background: radial-gradient(circle, oklch(0.78 0.11 192 / 0.06), transparent 62%);
+  background: radial-gradient(circle, var(--teal-glow), transparent 60%);
+  opacity: 0.5;
 }
 .lz-land .cycle-intro {
   position: relative;
   z-index: 1;
   text-align: center;
-  padding: 104px 0 8px;
+  padding: 110px 0 8px;
 }
 
 .lz-land .cycle-track {
@@ -800,7 +807,7 @@
   top: 8px;
   bottom: 8px;
   width: 2px;
-  background: var(--line);
+  background: var(--line-2);
   border-radius: 2px;
   overflow: hidden;
 }
@@ -811,7 +818,6 @@
   width: 100%;
   background: linear-gradient(var(--teal), var(--teal-deep));
   border-radius: 2px;
-  box-shadow: 0 0 12px var(--teal-glow);
   transition: height 0.2s linear;
 }
 .lz-land .rail-item {
@@ -820,14 +826,14 @@
   gap: 16px;
   padding: 13px 0;
   cursor: pointer;
-  opacity: 0.42;
+  opacity: 0.5;
   transition: opacity 0.35s ease;
 }
 .lz-land .rail-item.active {
   opacity: 1;
 }
 .lz-land .rail-item.done {
-  opacity: 0.72;
+  opacity: 0.8;
 }
 .lz-land .rail-dot {
   flex: none;
@@ -841,20 +847,20 @@
   font-size: 11px;
   font-weight: 600;
   color: var(--mut);
-  background: var(--ink-2);
+  background: var(--ink-1);
   border: 1px solid var(--line-2);
   z-index: 1;
   transition: all 0.3s ease;
 }
 .lz-land .rail-item.active .rail-dot {
   background: var(--teal);
-  color: #062024;
+  color: #fff;
   border-color: var(--teal);
   box-shadow: 0 0 0 5px var(--teal-soft);
 }
 .lz-land .rail-item.done .rail-dot {
   background: var(--teal-soft);
-  color: var(--teal);
+  color: var(--teal-2);
   border-color: var(--teal-line);
 }
 .lz-land .rail-tx h5 {
@@ -943,7 +949,7 @@
   border: 1px solid var(--line);
   border-radius: 9px;
   padding: 9px 11px;
-  background: oklch(1 0 0 / 0.02);
+  background: var(--ink-1);
   font-size: 13px;
   color: var(--txt);
 }
@@ -961,7 +967,7 @@
   gap: 3px;
   padding: 3px;
   border-radius: 9px;
-  background: oklch(1 0 0 / 0.04);
+  background: var(--ink-2);
   border: 1px solid var(--line);
 }
 .lz-land .seg span {
@@ -971,8 +977,9 @@
   color: var(--mut);
 }
 .lz-land .seg span.on {
-  background: var(--teal-soft);
-  color: var(--teal);
+  background: var(--ink-1);
+  color: var(--teal-2);
+  box-shadow: var(--sh-sm);
 }
 
 /* file tree (data room) */
@@ -992,7 +999,7 @@
   border: 1px solid transparent;
 }
 .lz-land .tnode:hover {
-  background: oklch(1 0 0 / 0.03);
+  background: var(--fill);
 }
 .lz-land .tnode .tn-ic {
   color: var(--teal);
@@ -1027,7 +1034,7 @@
   border-radius: 8px;
   font-size: 12.5px;
   color: var(--txt-2);
-  background: oklch(1 0 0 / 0.02);
+  background: var(--ink-1);
 }
 .lz-land .clause .grip {
   color: var(--faint);
@@ -1044,7 +1051,7 @@
   color: var(--txt-2);
 }
 .lz-land .redline .del {
-  color: oklch(0.7 0.16 24);
+  color: var(--danger, oklch(0.55 0.19 25));
   text-decoration: line-through;
   opacity: 0.7;
 }
@@ -1055,7 +1062,7 @@
   padding: 0 2px;
 }
 .lz-land .redline .cur {
-  background: oklch(1 0 0 / 0.05);
+  background: var(--fill-2);
   border-radius: 3px;
 }
 
@@ -1109,7 +1116,7 @@
 .lz-land .progbar {
   height: 6px;
   border-radius: 4px;
-  background: oklch(1 0 0 / 0.06);
+  background: var(--fill-2);
   overflow: hidden;
 }
 .lz-land .progbar i {
@@ -1126,9 +1133,8 @@
   color: var(--paper-ink);
   border-radius: 8px;
   position: relative;
-  box-shadow:
-    0 1px 0 #fff inset,
-    0 30px 60px -28px oklch(0 0 0 / 0.85);
+  border: 1px solid var(--paper-edge);
+  box-shadow: var(--sh-lg);
   overflow: hidden;
 }
 .lz-land .paper-pad {
@@ -1149,9 +1155,10 @@
   color: var(--paper-mut);
 }
 .lz-land .paper-h {
-  font-family: var(--serif);
-  font-size: 19px;
-  font-weight: 500;
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   margin: 5px 0 0;
   color: var(--paper-ink);
 }
@@ -1198,7 +1205,7 @@
   border-top: 1px solid var(--paper-line);
 }
 .lz-land .sign-mark {
-  font-family: var(--serif);
+  font-family: Georgia, 'Times New Roman', serif;
   font-style: italic;
   font-size: 22px;
   color: #1b3a44;
@@ -1216,17 +1223,17 @@
   color: #146e5a;
 }
 
-/* ====== fiscal verification block — the ONLY copper + glow moment ====== */
+/* ====== fiscal verification block — el ÚNICO momento de cobre + brillo ====== */
 .lz-land .fiscal {
   margin-top: 14px;
   border-radius: 10px;
   padding: 14px;
   position: relative;
-  background: linear-gradient(180deg, #faf7f0, #f1ece1);
+  background: linear-gradient(180deg, #fdfbf5, #f6f0e3);
   border: 1px solid var(--copper-line);
   box-shadow:
-    0 0 0 1px rgba(180, 120, 50, 0.08),
-    0 18px 50px -16px rgba(190, 120, 40, 0.45);
+    0 0 0 1px rgba(180, 120, 50, 0.06),
+    0 18px 44px -18px rgba(190, 120, 40, 0.32);
 }
 .lz-land .fiscal::after {
   content: '';
@@ -1234,7 +1241,7 @@
   inset: -1px;
   border-radius: 10px;
   pointer-events: none;
-  background: radial-gradient(120% 120% at 90% 0%, rgba(206, 138, 58, 0.22), transparent 55%);
+  background: radial-gradient(120% 120% at 90% 0%, rgba(206, 138, 58, 0.16), transparent 55%);
 }
 .lz-land .fiscal-head {
   position: relative;
@@ -1332,7 +1339,7 @@
   color: var(--mut);
 }
 .lz-land .binder-count b {
-  color: var(--teal);
+  color: var(--teal-2);
 }
 .lz-land .tabs {
   display: grid;
@@ -1345,7 +1352,7 @@
   padding: 10px 9px 9px;
   min-height: 70px;
   border: 1px dashed var(--line-2);
-  background: oklch(1 0 0 / 0.015);
+  background: var(--ink-2);
   color: var(--faint);
   display: flex;
   flex-direction: column;
@@ -1373,9 +1380,7 @@
   border-color: var(--paper-edge);
   background: linear-gradient(180deg, var(--paper), var(--paper-2));
   color: var(--paper-ink);
-  box-shadow:
-    0 1px 0 #fff inset,
-    0 10px 22px -14px oklch(0 0 0 / 0.8);
+  box-shadow: var(--sh-md);
   transform: translateY(-2px);
 }
 .lz-land .btab.filled .btab-n {
@@ -1407,8 +1412,8 @@
 .lz-land .btab.copper.filled {
   border-color: var(--copper-line);
   box-shadow:
-    0 1px 0 #fff inset,
-    0 10px 26px -12px rgba(190, 120, 40, 0.6);
+    var(--sh-md),
+    0 10px 26px -14px rgba(190, 120, 40, 0.5);
 }
 .lz-land .btab.copper.filled .btab-check {
   color: #8a5418;
@@ -1443,7 +1448,7 @@
   font-size: 12px;
   font-weight: 600;
   background: var(--teal-soft);
-  color: var(--teal);
+  color: var(--teal-2);
   border: 1px solid var(--teal-line);
 }
 .lz-land .cstep-h h5 {
@@ -1480,11 +1485,8 @@
   }
 }
 
-/* ============ pass2.css ============ */
 /* ============================================================
-   LAWZORA — Landing pass 2
-   Bento · fiscal differentiator · jurisdiction · security ·
-   pricing · founder · FAQ · final CTA · footer
+   BENTO · fiscal · jurisdicción · seguridad · precios · founder · FAQ · CTA · footer
    ============================================================ */
 
 /* =================== BENTO =================== */
@@ -1503,30 +1505,29 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-shadow: var(--sh-sm);
   transition:
     border-color 0.25s ease,
     transform 0.25s ease,
-    box-shadow 0.25s ease,
-    background 0.25s ease;
+    box-shadow 0.25s ease;
 }
 .lz-land .tile:hover {
   border-color: var(--line-2);
   transform: translateY(-3px);
-  box-shadow: 0 30px 60px -34px oklch(0 0 0 / 0.9);
-  background: var(--ink-2);
+  box-shadow: var(--sh-lg);
 }
 .lz-land .tile .t-label {
   font-family: var(--font-mono);
   font-size: 10.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--teal);
+  color: var(--teal-2);
 }
 .lz-land .tile h3 {
-  font-family: var(--serif);
-  font-weight: 500;
-  font-size: 22px;
-  letter-spacing: -0.01em;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 21px;
+  letter-spacing: -0.02em;
   margin: 10px 0 0;
   color: var(--txt);
 }
@@ -1585,7 +1586,7 @@
   padding: 9px 11px;
   border: 1px solid var(--line);
   border-radius: 9px;
-  background: oklch(1 0 0 / 0.02);
+  background: var(--ink-2);
   margin-bottom: 7px;
   font-size: 12.5px;
 }
@@ -1622,7 +1623,7 @@
 }
 .lz-land .funnel-bar b {
   font-family: var(--font-mono);
-  color: var(--teal);
+  color: var(--teal-2);
   font-weight: 500;
 }
 
@@ -1631,7 +1632,7 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 11px 12px;
-  background: oklch(1 0 0 / 0.02);
+  background: var(--ink-2);
   font-size: 12.5px;
   color: var(--txt-2);
   line-height: 1.5;
@@ -1648,7 +1649,7 @@
   padding: 2px 6px;
   border-radius: 5px;
   background: var(--teal-soft);
-  color: var(--teal);
+  color: var(--teal-2);
   margin: 0 2px;
   vertical-align: middle;
 }
@@ -1672,6 +1673,7 @@
   position: relative;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #fdfbf6, var(--ink));
   overflow: hidden;
 }
 .lz-land .fiscal-band::before {
@@ -1683,7 +1685,7 @@
   height: 760px;
   border-radius: 50%;
   pointer-events: none;
-  background: radial-gradient(circle, rgba(206, 138, 58, 0.16), transparent 62%);
+  background: radial-gradient(circle, rgba(206, 138, 58, 0.12), transparent 60%);
 }
 .lz-land .fiscal-grid {
   position: relative;
@@ -1694,7 +1696,6 @@
 }
 .lz-land .eyebrow.copper .dot {
   background: var(--copper-2);
-  box-shadow: 0 0 10px rgba(206, 138, 58, 0.5);
 }
 .lz-land .eyebrow.copper {
   color: var(--copper-2);
@@ -1704,8 +1705,9 @@
   gap: 4px;
   padding: 4px;
   border-radius: 10px;
-  background: oklch(1 0 0 / 0.04);
+  background: var(--ink-1);
   border: 1px solid var(--line);
+  box-shadow: var(--sh-sm);
   margin-top: 22px;
 }
 .lz-land .jur-toggle button {
@@ -1790,6 +1792,7 @@
   border-radius: 16px;
   background: var(--ink-1);
   padding: 24px;
+  box-shadow: var(--sh-sm);
 }
 .lz-land .jur-head {
   display: flex;
@@ -1806,7 +1809,7 @@
   font-size: 19px;
   flex: none;
   border: 1px solid var(--line);
-  background: oklch(1 0 0 / 0.03);
+  background: var(--ink-2);
 }
 .lz-land .jur-head h4 {
   margin: 0;
@@ -1852,7 +1855,7 @@
 /* =================== SECURITY =================== */
 .lz-land .sec-band {
   border-top: 1px solid var(--line);
-  background: var(--ink-1);
+  background: var(--ink-2);
 }
 .lz-land .sec-grid {
   display: grid;
@@ -1864,7 +1867,8 @@
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 20px;
-  background: var(--ink);
+  background: var(--ink-1);
+  box-shadow: var(--sh-sm);
 }
 .lz-land .sec-card .si {
   width: 38px;
@@ -1874,7 +1878,7 @@
   align-items: center;
   justify-content: center;
   background: var(--teal-soft);
-  color: var(--teal);
+  color: var(--teal-2);
 }
 .lz-land .sec-card h4 {
   margin: 14px 0 0;
@@ -1905,8 +1909,9 @@
   gap: 4px;
   padding: 5px;
   border-radius: 12px;
-  background: oklch(1 0 0 / 0.04);
+  background: var(--ink-1);
   border: 1px solid var(--line);
+  box-shadow: var(--sh-sm);
   margin: 26px auto 0;
 }
 .lz-land .price-toggle button {
@@ -1923,7 +1928,7 @@
 }
 .lz-land .price-toggle button.on {
   background: var(--teal);
-  color: #062024;
+  color: #fff;
   font-weight: 500;
 }
 .lz-land .price-toggle .save {
@@ -1947,11 +1952,12 @@
   display: flex;
   flex-direction: column;
   position: relative;
+  box-shadow: var(--sh-sm);
 }
 .lz-land .tier.featured {
   border-color: var(--teal-line);
-  background: linear-gradient(180deg, var(--teal-soft), transparent 40%), var(--ink-1);
-  box-shadow: 0 30px 70px -38px var(--teal-glow);
+  background: linear-gradient(180deg, var(--teal-soft), transparent 36%), var(--ink-1);
+  box-shadow: var(--sh-lg);
 }
 .lz-land .tier-flag {
   position: absolute;
@@ -1961,7 +1967,7 @@
   font-size: 10px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--teal);
+  color: var(--teal-2);
   padding: 4px 9px;
   border-radius: 999px;
   background: var(--teal-soft);
@@ -2004,7 +2010,7 @@
   min-height: 17px;
 }
 .lz-land .tier-bill b {
-  color: var(--teal);
+  color: var(--teal-2);
   font-weight: 500;
 }
 .lz-land .tier ul {
@@ -2050,7 +2056,8 @@
   margin-top: 20px;
   padding: 44px;
   border: 1px solid var(--copper-line);
-  background: linear-gradient(135deg, rgba(120, 72, 28, 0.16), transparent 55%), var(--ink-1);
+  background: linear-gradient(135deg, rgba(206, 138, 58, 0.1), transparent 55%), var(--ink-1);
+  box-shadow: var(--sh-md);
 }
 .lz-land .founder::after {
   content: '';
@@ -2061,7 +2068,7 @@
   height: 460px;
   border-radius: 50%;
   pointer-events: none;
-  background: radial-gradient(circle, rgba(206, 138, 58, 0.22), transparent 64%);
+  background: radial-gradient(circle, rgba(206, 138, 58, 0.16), transparent 64%);
 }
 .lz-land .founder-grid {
   position: relative;
@@ -2074,15 +2081,15 @@
   color: var(--copper-2);
 }
 .lz-land .founder h3 {
-  font-family: var(--serif);
-  font-weight: 500;
+  font-family: var(--font-sans);
+  font-weight: 600;
   font-size: clamp(26px, 3vw, 36px);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   margin: 14px 0 0;
   color: var(--txt);
 }
 .lz-land .founder h3 em {
-  font-style: italic;
+  font-style: normal;
   color: var(--copper-2);
 }
 .lz-land .founder-lead {
@@ -2133,8 +2140,8 @@
   border: 1px solid var(--copper-line);
   border-radius: 16px;
   padding: 22px;
-  background: rgba(20, 15, 8, 0.4);
-  backdrop-filter: blur(6px);
+  background: var(--ink-1);
+  box-shadow: var(--sh-sm);
 }
 .lz-land .cupo-n {
   font-family: var(--font-mono);
@@ -2152,7 +2159,7 @@
 .lz-land .cupo-bar {
   height: 8px;
   border-radius: 5px;
-  background: oklch(1 0 0 / 0.08);
+  background: var(--copper-soft);
   overflow: hidden;
   margin-top: 18px;
 }
@@ -2257,7 +2264,8 @@
   text-align: center;
   margin-top: 8px;
   border: 1px solid var(--teal-line);
-  background: linear-gradient(160deg, rgba(20, 70, 72, 0.4), var(--ink-1));
+  background: linear-gradient(160deg, var(--teal-soft), var(--ink-1) 60%);
+  box-shadow: var(--sh-md);
 }
 .lz-land .final::before {
   content: '';
@@ -2272,16 +2280,16 @@
 }
 .lz-land .final h2 {
   position: relative;
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: clamp(32px, 4.6vw, 56px);
-  letter-spacing: -0.02em;
-  line-height: 1.04;
+  font-family: var(--font-sans);
+  font-weight: 580;
+  font-size: clamp(32px, 4.6vw, 54px);
+  letter-spacing: -0.03em;
+  line-height: 1.06;
   margin: 0;
   color: var(--txt);
 }
 .lz-land .final h2 em {
-  font-style: italic;
+  font-style: normal;
   color: var(--teal-2);
 }
 .lz-land .final p {
@@ -2370,7 +2378,6 @@
 
 /* ---- app integration overrides ---- */
 .lz-land {
-  --serif: var(--font-newsreader), Georgia, 'Times New Roman', serif;
-  --foreground: oklch(0.97 0.003 225);
+  --foreground: var(--txt);
   min-height: 100vh;
 }
