@@ -3,6 +3,10 @@
 > Documentación **derivada del código real** (no de la intención ni de la memoria). Cada recuento al
 > final es verificable enumerando el repositorio. Lo **diferido / no cableado** se marca como tal.
 > Versión: `main`. Diagramas en Mermaid (renderizan en GitHub).
+>
+> 🆕 **[diagramas/](diagramas/README.md)** — set visual completo y actualizado (2026-06-29): contexto,
+> topología, mapa de 60 módulos, ERD de 82 modelos, flujos de negocio/fiscales, IA agéntica, CI/CD y
+> catálogo de funcionalidades (29 diagramas Mermaid).
 
 Lexora (nombre interno **LegalFlow**) es una plataforma **multi-tenant** de gestión de despachos de
 abogados para **España (ES)** y **República Dominicana (RD)**, con facturación electrónica conforme

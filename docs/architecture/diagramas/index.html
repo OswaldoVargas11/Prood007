@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lawzora · Diagramas de arquitectura</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --panel:#ffffff; --ink:#0b1220; --muted:#5b6677;
+    --line:#e3e7ef; --brand:#1e40af; --brand2:#6d28d9; --chip:#eef2ff;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--brand);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+  /* Sidebar */
+  aside{position:sticky;top:0;height:100vh;overflow:auto;background:var(--panel);
+    border-right:1px solid var(--line);padding:22px 18px}
+  aside h1{font-size:16px;margin:0 0 2px}
+  aside .sub{color:var(--muted);font-size:12px;margin-bottom:16px}
+  nav .grp{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+    margin:16px 0 6px}
+  nav a{display:block;padding:5px 8px;border-radius:7px;color:var(--ink);font-size:13.5px}
+  nav a:hover{background:var(--chip);text-decoration:none}
+  /* Main */
+  main{padding:32px 40px;max-width:1180px}
+  header.top{margin-bottom:26px}
+  header.top h2{margin:0 0 6px;font-size:26px;
+    background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  header.top p{color:var(--muted);margin:0;max-width:70ch}
+  .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap}
+  .pill{background:var(--chip);color:var(--brand);border:1px solid #dbe3ff;
+    padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600}
+  section.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:18px 20px 22px;margin:0 0 26px;scroll-margin-top:18px;
+    box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  section.card h3{margin:0 0 2px;font-size:18px}
+  section.card .src{color:var(--muted);font-size:12px;margin-bottom:14px}
+  .figbox{overflow:auto;border:1px dashed var(--line);border-radius:10px;
+    background:#fff;padding:14px;text-align:center}
+  .figbox img{max-width:100%;height:auto}
+  footer{color:var(--muted);font-size:12px;margin:30px 0 60px}
+  @media (max-width:880px){.wrap{grid-template-columns:1fr}aside{position:static;height:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <aside>
+    <h1>Lawzora · Arquitectura</h1>
+    <div class="sub">29 diagramas · 2026-06-29</div>
+    <nav id="nav"></nav>
+  </aside>
+  <main>
+    <header class="top">
+      <h2>Diagramas de arquitectura</h2>
+      <p>Funcionalidades, flujos, modelo de datos e infraestructura de Lawzora / LegalFlow,
+         derivados del código real. Versión navegable de los archivos Markdown + Mermaid de esta carpeta.</p>
+      <div class="meta">
+        <span class="pill">60 módulos API</span>
+        <span class="pill">82 modelos</span>
+        <span class="pill">16 dominios</span>
+        <span class="pill">ES + RD</span>
+        <span class="pill">29 diagramas</span>
+      </div>
+    </header>
+    <div id="content"></div>
+    <footer>Generado con mermaid-cli · fuente editable en los <code>.md</code> de esta carpeta · <a href="README.md">README</a></footer>
+  </main>
+</div>
+
+<script>
+const GROUPS = [
+  {grp:"01 · Contexto y topología", src:"01-contexto-y-topologia.md", items:[
+    ["01-contexto-y-topologia--1","Contexto del sistema (C4-L1)"],
+    ["01-contexto-y-topologia--2","Topología de despliegue (infra)"],
+  ]},
+  {grp:"02 · Módulos y arquitectura", src:"02-modulos-y-arquitectura.md", items:[
+    ["02-modulos-y-arquitectura--1","Monorepo (C4-L2)"],
+    ["02-modulos-y-arquitectura--2","Módulos del API por dominio"],
+    ["02-modulos-y-arquitectura--3","Ciclo de vida de una petición"],
+    ["02-modulos-y-arquitectura--4","Multitenancy y RLS (3 roles)"],
+  ]},
+  {grp:"03 · Modelo de datos", src:"03-modelo-datos.md", items:[
+    ["03-modelo-datos--1","ERD · Identidad / Tenant / RBAC"],
+    ["03-modelo-datos--2","ERD · Expedientes, clientes, tareas"],
+    ["03-modelo-datos--3","ERD · Documentos, carpetas, firma"],
+    ["03-modelo-datos--4","ERD · Fiscal, facturación, cobro"],
+    ["03-modelo-datos--5","ERD · Transaccional, data room, secretaría"],
+    ["03-modelo-datos--6","ERD · Comunicación, IA, auditoría"],
+  ]},
+  {grp:"04 · Flujos de negocio", src:"04-flujos-negocio.md", items:[
+    ["04-flujos-negocio--1","Autenticación, sesión y refresco"],
+    ["04-flujos-negocio--2","Gating RBAC en el borde"],
+    ["04-flujos-negocio--3","Ciclo de documento + firma"],
+    ["04-flujos-negocio--4","Deal · closing · data room"],
+    ["04-flujos-negocio--5","Mensajería en tiempo real"],
+  ]},
+  {grp:"05 · Flujos fiscales", src:"05-flujos-fiscales.md", items:[
+    ["05-flujos-fiscales--1","Patrón proveedor (ES / DO)"],
+    ["05-flujos-fiscales--2","e-CF DGII (República Dominicana)"],
+    ["05-flujos-fiscales--3","Verifactu (España)"],
+    ["05-flujos-fiscales--4","Suscripción, billing y dunning"],
+  ]},
+  {grp:"06 · IA agéntica", src:"06-ia-agentica.md", items:[
+    ["06-ia-agentica--1","Bucle del agente (tool-use)"],
+    ["06-ia-agentica--2","Catálogo de tools y gate HITL"],
+    ["06-ia-agentica--3","RAG citable"],
+  ]},
+  {grp:"07 · CI/CD y seguridad", src:"07-cicd-y-seguridad.md", items:[
+    ["07-cicd-y-seguridad--1","Pipeline de CI (GitHub Actions)"],
+    ["07-cicd-y-seguridad--2","Agentes de IA en CI"],
+    ["07-cicd-y-seguridad--3","Capas de seguridad"],
+  ]},
+  {grp:"08 · Catálogo de funcionalidades", src:"08-catalogo-funcionalidades.md", items:[
+    ["08-catalogo-funcionalidades--1","Mapa mental del producto"],
+  ]},
+];
+
+const nav=document.getElementById("nav");
+const content=document.getElementById("content");
+for(const g of GROUPS){
+  const gh=document.createElement("div");gh.className="grp";gh.textContent=g.grp;nav.appendChild(gh);
+  for(const [id,title] of g.items){
+    const a=document.createElement("a");a.href="#"+id;a.textContent=title;nav.appendChild(a);
+    const sec=document.createElement("section");sec.className="card";sec.id=id;
+    sec.innerHTML=
+      '<h3>'+title+'</h3>'+
+      '<div class="src">'+g.grp+' · <a href="'+g.src+'">ver fuente Markdown</a></div>'+
+      '<div class="figbox"><img loading="lazy" src="assets/'+id+'.svg" alt="'+title+'"></div>';
+    content.appendChild(sec);
+  }
+}
+</script>
+</body>
+</html>
