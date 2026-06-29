@@ -400,6 +400,15 @@
     "fiscalOptional": "opcional · puedes hacerlo luego desde Ajustes",
     "createFree": "Crear despacho gratis",
     "login": "Inicia sesión",
+    "optional": "opcional",
+    "phoneLabel": "Teléfono",
+    "firmSizeLabel": "Tamaño del despacho",
+    "firmSize": {
+      "1": "En solitario",
+      "2-5": "2–5",
+      "6-20": "6–20",
+      "21+": "+20"
+    },
     "aside": {
       "tag": "Alta de despacho",
       "title": "Tu despacho, listo para operar.",

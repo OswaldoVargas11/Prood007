@@ -35,6 +35,7 @@ export default function OnboardingPage() {
   const router = useRouter();
 
   const [firm, setFirm] = useState('');
+  const [firmSize, setFirmSize] = useState<string | null>(null);
   const [jurisdiction, setJurisdiction] = useState<Jur | null>(null);
   const [currency, setCurrency] = useState<Cur | null>(null);
   const [showFiscal, setShowFiscal] = useState(false);
@@ -42,6 +43,7 @@ export default function OnboardingPage() {
   const [fiscalAddress, setFiscalAddress] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [acceptLegal, setAcceptLegal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -77,8 +79,14 @@ export default function OnboardingPage() {
       currency: currency!,
       taxId: taxId.trim() || undefined,
       fiscalAddress: fiscalAddress.trim() || undefined,
+      firmSize: firmSize ?? undefined,
       acceptLegal,
-      admin: { fullName: fullName.trim(), email: email.trim(), password },
+      admin: {
+        fullName: fullName.trim(),
+        email: email.trim(),
+        password,
+        phone: phone.trim() || undefined,
+      },
     };
     setSubmitting(true);
     try {
@@ -244,6 +252,36 @@ export default function OnboardingPage() {
                 <p className="mt-2 text-[11.5px] text-[var(--text-subtle)]">{t('currencyHint')}</p>
               </div>
 
+              <div>
+                <Label className="mb-2 block text-[12.5px] text-muted-foreground">
+                  {t('firmSizeLabel')}{' '}
+                  <span className="text-[var(--text-subtle)]">· {t('optional')}</span>
+                </Label>
+                <div
+                  className="flex flex-wrap gap-2"
+                  role="radiogroup"
+                  aria-label={t('firmSizeLabel')}
+                >
+                  {(['1', '2-5', '6-20', '21+'] as const).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      role="radio"
+                      aria-checked={firmSize === k}
+                      onClick={() => setFirmSize((v) => (v === k ? null : k))}
+                      className={cn(
+                        'rounded-lg border px-3.5 py-1.5 text-[13px] font-medium transition-colors',
+                        firmSize === k
+                          ? 'border-[var(--brand)] bg-[var(--brand-soft)] text-[var(--brand)]'
+                          : 'border-border text-muted-foreground hover:border-[var(--brand-line)]',
+                      )}
+                    >
+                      {t(`firmSize.${k}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Datos fiscales · opcionales, plegados por defecto */}
               {!showFiscal ? (
                 <button
@@ -323,6 +361,19 @@ export default function OnboardingPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="marco@bufeteaurora.es"
+                  className="h-11"
+                />
+              </Field>
+              <Field label={`${t('phoneLabel')} · ${t('optional')}`} htmlFor="ob-phone">
+                <Input
+                  id="ob-phone"
+                  name="tel"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+34 600 000 000"
                   className="h-11"
                 />
               </Field>
