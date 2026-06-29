@@ -45,7 +45,12 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       {/* `reducedMotion="user"`: TODA animación de framer-motion respeta prefers-reduced-motion. */}
       <MotionConfig reducedMotion="user" transition={{ ease: EASE_STANDARD }}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
       </MotionConfig>
