@@ -45,10 +45,13 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       {/* `reducedMotion="user"`: TODA animación de framer-motion respeta prefers-reduced-motion. */}
       <MotionConfig reducedMotion="user" transition={{ ease: EASE_STANDARD }}>
+        {/* Marca light-first: el interior abre SIEMPRE en claro por defecto. `enableSystem={false}`
+            para que no lo pise el tema oscuro del SO; el usuario puede elegir oscuro con el toggle
+            (queda guardado como preferencia explícita). */}
         <ThemeProvider
           attribute="class"
           defaultTheme="light"
-          enableSystem
+          enableSystem={false}
           disableTransitionOnChange
         >
           <AuthProvider>{children}</AuthProvider>
