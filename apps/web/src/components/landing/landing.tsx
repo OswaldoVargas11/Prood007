@@ -38,6 +38,7 @@ import {
   ListChecks,
   Lock,
   Mail,
+  Menu,
   Pencil,
   PlayCircle,
   Plus,
@@ -47,6 +48,7 @@ import {
   Sparkles,
   Table2,
   Users,
+  X,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import {
@@ -106,6 +108,7 @@ const ICONS: Record<string, LucideIcon> = {
   ListChecks,
   Lock,
   Mail,
+  Menu,
   Pencil,
   PlayCircle,
   Plus,
@@ -115,6 +118,7 @@ const ICONS: Record<string, LucideIcon> = {
   Sparkles,
   Table2,
   Users,
+  X,
 };
 
 function Icon({
@@ -283,23 +287,40 @@ function CtaLink({
 // ───────────────────────────────────────────────────────────────────────────────
 // NAV
 // ───────────────────────────────────────────────────────────────────────────────
+const NAV_LINKS: [string, string][] = [
+  ['El ciclo', '#ciclo'],
+  ['Producto', '#producto'],
+  ['Cumplimiento', '#cumplimiento'],
+  ['Precios', '#precios'],
+];
+
 function Nav() {
   const [scrolled, setScrolled] = useState(false);
+  const [open, setOpen] = useState(false);
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 12);
     window.addEventListener('scroll', h, { passive: true });
     h();
     return () => window.removeEventListener('scroll', h);
   }, []);
+  // Cierra el panel al pasar a desktop para no dejar estado colgado tras un resize.
+  useEffect(() => {
+    const h = () => {
+      if (window.innerWidth > 860) setOpen(false);
+    };
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
   return (
-    <header className={`nav ${scrolled ? 'scrolled' : ''}`.trim()}>
+    <header className={`nav ${scrolled ? 'scrolled' : ''} ${open ? 'open' : ''}`.trim()}>
       <div className="wrap nav-in">
         <Logo size={26} />
         <nav className="nav-links">
-          <a href="#ciclo">El ciclo</a>
-          <a href="#producto">Producto</a>
-          <a href="#cumplimiento">Cumplimiento</a>
-          <a href="#precios">Precios</a>
+          {NAV_LINKS.map(([label, href]) => (
+            <a href={href} key={href}>
+              {label}
+            </a>
+          ))}
         </nav>
         <div className="nav-right">
           <Link href={LOGIN} className="btn btn-ghost">
@@ -307,7 +328,29 @@ function Nav() {
           </Link>
           <CtaLink href={SIGNUP}>Empezar ahora</CtaLink>
         </div>
+        <button
+          type="button"
+          className="nav-toggle"
+          onClick={() => setOpen((o) => !o)}
+          aria-label={open ? 'Cerrar menú' : 'Abrir menú'}
+          aria-expanded={open}
+        >
+          <Icon name={open ? 'X' : 'Menu'} size={22} />
+        </button>
       </div>
+      <nav className="nav-mobile" hidden={!open}>
+        {NAV_LINKS.map(([label, href]) => (
+          <a href={href} key={href} onClick={() => setOpen(false)}>
+            {label}
+          </a>
+        ))}
+        <Link href={LOGIN} className="btn btn-outline" onClick={() => setOpen(false)}>
+          Iniciar sesión
+        </Link>
+        <Link href={SIGNUP} className="btn btn-primary" onClick={() => setOpen(false)}>
+          Empezar ahora <Icon name="ArrowRight" size={16} />
+        </Link>
+      </nav>
     </header>
   );
 }
@@ -443,7 +486,7 @@ function HeroPanel() {
                 <Icon name="ShieldCheck" size={16} />
               </span>
               <div style={{ fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.4 }}>
-                Verifactu y e-CF <b style={{ color: 'var(--txt)' }}>al día</b>
+                Verifactu y e-CF <b style={{ color: 'var(--txt)' }}>conformes</b>
               </div>
             </div>
           </div>
@@ -2170,8 +2213,8 @@ function FinalCta() {
             Del encargo al cierre, <em>en un sitio</em>.
           </h2>
           <p>
-            Ponte al día con Verifactu y e-CF desde el primer momento, y deja que el closing binder
-            se ensamble solo. Crea tu despacho en minutos.
+            Emite con registro fiscal encadenado y conforme para Verifactu y e-CF, y deja que el
+            closing binder se ensamble solo. Crea tu despacho en minutos.
           </p>
           <div className="hero-cta" style={{ marginTop: 30 }}>
             <CtaLink href={SIGNUP} lg>
