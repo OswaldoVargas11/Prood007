@@ -1029,6 +1029,63 @@
       "REGISTRO_TITULOS_RD": "Registro de Títulos (RD)",
       "CAMARA_COMERCIO_RD": "Cámara de Comercio (RD)",
       "OTHER": "Otro"
+    },
+    "fundsFlow": {
+      "title": "Flujo de fondos y escrow",
+      "hint": "Estado de flujo de fondos del cierre: quién paga, a quién, en qué cuenta y bajo qué condición. Es un registro/documento de la operación, no mueve dinero real.",
+      "exportPdf": "Closing statement (PDF)",
+      "addLine": "Añadir línea",
+      "editLine": "Editar línea",
+      "deleteLine": "Eliminar línea",
+      "emptyLines": "Aún no hay líneas de flujo de fondos. Añade pagos, depósitos en escrow, honorarios o ajustes.",
+      "externalParty": "Parte externa",
+      "paid": "Sale",
+      "received": "Entra",
+      "balanced": "Cuadra",
+      "imbalance": "Descuadre: {amount}",
+      "byParty": "Totales por parte",
+      "account": "Cuenta",
+      "condition": "Condición",
+      "amount": "Importe",
+      "currency": "Moneda",
+      "kindLabel": "Tipo",
+      "statusLabel": "Estado",
+      "payer": "Pagador",
+      "payee": "Beneficiario",
+      "kind": {
+        "PAYMENT": "Pago",
+        "ESCROW_DEPOSIT": "Depósito escrow",
+        "ESCROW_RELEASE": "Liberación escrow",
+        "FEE": "Honorarios/gastos",
+        "ADJUSTMENT": "Ajuste"
+      },
+      "status": {
+        "PLANNED": "Previsto",
+        "SETTLED": "Liquidado"
+      },
+      "escrowStatus": {
+        "HELD": "Retenido",
+        "PARTIALLY_RELEASED": "Parcialmente liberado",
+        "RELEASED": "Liberado"
+      },
+      "escrow": {
+        "title": "Depósitos en garantía (escrow)",
+        "add": "Añadir depósito",
+        "empty": "Aún no hay depósitos en garantía. Añade un holdback con su importe y agente.",
+        "addTitle": "Añadir depósito en garantía",
+        "editTitle": "Editar depósito en garantía",
+        "label": "Concepto",
+        "amount": "Importe retenido",
+        "agent": "Agente de depósito",
+        "trigger": "Disparador de liberación",
+        "released": "Liberado",
+        "remaining": "Remanente",
+        "release": "Liberar",
+        "releaseTitle": "Liberar depósito",
+        "releaseAmount": "Importe a liberar",
+        "reason": "Motivo",
+        "confirmRelease": "Confirmar liberación"
+      }
     }
   },
   "engagement": {
