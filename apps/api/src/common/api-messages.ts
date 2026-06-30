@@ -724,6 +724,14 @@ export const API_MESSAGES = {
     'es-ES': 'No se encontró la conversación.',
     'es-DO': 'No se encontró la conversación.',
   },
+  'ai.workflowNotFound': {
+    'es-ES': 'No se encontró el flujo.',
+    'es-DO': 'No se encontró el flujo.',
+  },
+  'ai.unknownWorkflowTool': {
+    'es-ES': 'El flujo usa una herramienta que no existe en el catálogo: {tool}.',
+    'es-DO': 'El flujo usa una herramienta que no existe en el catálogo: {tool}.',
+  },
 
   // ── Aceptación legal (clickwrap) ──────────────────────────────────────────
   'legal.invalidDocument': {
