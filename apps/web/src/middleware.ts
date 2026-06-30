@@ -83,14 +83,17 @@ export default function middleware(req: NextRequest) {
   const isDataRoom = rest === '/dataroom' || rest.startsWith('/dataroom/');
   // Landing pública (raíz): el visitante anónimo la ve; con sesión se le lleva a su home.
   const isLanding = rest === '/';
-  const isPublic = isLanding || isLogin || isOnboarding || isRecovery || isIntake || isDataRoom;
+  // Página pública de precios (captación/conversión): accesible sin sesión. NO expulsa a los usuarios
+  // con sesión (un letrado puede consultarla); por eso se excluye del rebote a home más abajo.
+  const isPricing = rest === '/precios' || rest.startsWith('/precios/');
+  const isPublic = isLanding || isLogin || isOnboarding || isRecovery || isIntake || isDataRoom || isPricing;
   const isPortal = rest === '/portal' || rest.startsWith('/portal/');
   const home = scope === 'client' ? 'portal' : 'dashboard';
 
   if (!hasSession && !isPublic) {
     return NextResponse.redirect(new URL(`/${locale}/login`, req.url));
   }
-  if (hasSession && isPublic && !isDataRoom) {
+  if (hasSession && isPublic && !isDataRoom && !isPricing) {
     return NextResponse.redirect(new URL(`/${locale}/${home}`, req.url));
   }
   // Gate de rol (solo si conocemos el ámbito; si falta, el shell de cliente lo resuelve).
