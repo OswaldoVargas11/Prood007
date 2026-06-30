@@ -967,7 +967,13 @@
       "targetDate": "Fecha objetivo",
       "status": "Estado",
       "notes": "Notas",
-      "pendingConditionsWarning": "Quedan {count} condición(es) previa(s) sin satisfacer para esta fase: {titles}. ¿Marcar el hito como hecho de todas formas?"
+      "pendingConditionsWarning": "Quedan {count} condición(es) previa(s) sin satisfacer para esta fase: {titles}. ¿Marcar el hito como hecho de todas formas?",
+      "urgency": {
+        "overdue": "Vencido",
+        "overdueDays": "Vencido hace {count} día(s)",
+        "dueToday": "Vence hoy",
+        "dueInDays": "Vence en {count} día(s)"
+      }
     },
     "milestoneKind": {
       "SIGNING": "Firma",

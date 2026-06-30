@@ -26,6 +26,7 @@ import {
   useMatterReadiness,
 } from '@/lib/hooks';
 import { formatDate } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import type {
   DealFundsFlowLine,
   DealMilestone,
@@ -1067,6 +1068,27 @@ function milestoneStatusVariant(s: DealMilestoneStatus): 'default' | 'secondary'
   return 'outline';
 }
 
+/** Días naturales hasta la fecha objetivo (negativo si ya venció). A medianoche UTC, igual que el avisador del API. */
+function milestoneDaysUntil(targetDate: string): number {
+  const d = new Date(targetDate);
+  const target = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const n = new Date();
+  const today = Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate());
+  return Math.floor((target - today) / 86_400_000);
+}
+
+type MilestoneUrgency = 'overdue' | 'dueSoon' | null;
+
+/** Resalte de plazo (solo hitos activos): vencido o próximo a vencer (≤7 días). DONE no urge. MISSED = vencido. */
+function milestoneUrgency(m: DealMilestone): MilestoneUrgency {
+  if (m.status === 'DONE') return null;
+  if (m.status === 'MISSED') return 'overdue';
+  const days = milestoneDaysUntil(m.targetDate);
+  if (days < 0) return 'overdue';
+  if (days <= 7) return 'dueSoon';
+  return null;
+}
+
 // Hito → fase de gating cuyas condiciones previas deben estar satisfechas antes de marcarlo DONE.
 const MILESTONE_GATING_PHASE: Partial<Record<DealMilestoneKind, 'AT_SIGNING' | 'AT_CLOSING'>> = {
   SIGNING: 'AT_SIGNING',
@@ -1134,10 +1156,19 @@ function MilestonesCard({
           <p className="text-xs text-muted-foreground">{t('milestones.empty')}</p>
         ) : (
           <div className="space-y-2">
-            {sorted.map((m) => (
+            {sorted.map((m) => {
+              const urgency = milestoneUrgency(m);
+              const days = milestoneDaysUntil(m.targetDate);
+              return (
               <div
                 key={m.id}
-                className="flex items-start gap-3 rounded-lg border bg-[var(--surface-1)] p-3"
+                className={cn(
+                  'flex items-start gap-3 rounded-lg border bg-[var(--surface-1)] p-3',
+                  urgency === 'overdue' &&
+                    'border-[var(--danger)] bg-[var(--danger-soft)] ring-1 ring-[var(--danger)]/30',
+                  urgency === 'dueSoon' &&
+                    'border-[var(--warning)] bg-[var(--warning-soft)] ring-1 ring-[var(--warning)]/30',
+                )}
               >
                 <select
                   value={m.status}
@@ -1161,6 +1192,22 @@ function MilestonesCard({
                     )}
                     <span className="text-sm font-medium">{m.title}</span>
                     <Badge variant={milestoneStatusVariant(m.status)}>{tStatus(m.status)}</Badge>
+                    {urgency === 'overdue' && (
+                      <Badge className="bg-[var(--danger)] text-white hover:bg-[var(--danger)]">
+                        <TriangleAlert className="size-3" />
+                        {days < 0
+                          ? t('milestones.urgency.overdueDays', { count: -days })
+                          : t('milestones.urgency.overdue')}
+                      </Badge>
+                    )}
+                    {urgency === 'dueSoon' && (
+                      <Badge className="bg-[var(--warning)] text-[var(--surface-0)] hover:bg-[var(--warning)]">
+                        <TriangleAlert className="size-3" />
+                        {days === 0
+                          ? t('milestones.urgency.dueToday')
+                          : t('milestones.urgency.dueInDays', { count: days })}
+                      </Badge>
+                    )}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {formatDate(m.targetDate, locale)}
@@ -1187,7 +1234,8 @@ function MilestonesCard({
                   </Button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>
