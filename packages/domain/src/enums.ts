@@ -146,6 +146,32 @@ export enum DisclosureScheduleStatus {
   AGREED = 'AGREED',
 }
 
+/**
+ * Naturaleza de una línea del funds-flow (estado de flujo de fondos del cierre): pago entre partes,
+ * depósito o liberación de escrow, honorarios/gastos del cierre, o ajuste. Es REGISTRO de la operación,
+ * no un movimiento de dinero real (no toca cobros/Stripe).
+ */
+export enum FundsFlowKind {
+  PAYMENT = 'PAYMENT',
+  ESCROW_DEPOSIT = 'ESCROW_DEPOSIT',
+  ESCROW_RELEASE = 'ESCROW_RELEASE',
+  FEE = 'FEE',
+  ADJUSTMENT = 'ADJUSTMENT',
+}
+
+/** Estado de una línea del funds-flow: prevista (planned) vs liquidada/ejecutada (settled). */
+export enum FundsFlowStatus {
+  PLANNED = 'PLANNED',
+  SETTLED = 'SETTLED',
+}
+
+/** Estado de un depósito en garantía (escrow): retenido, parcialmente liberado o totalmente liberado. */
+export enum EscrowStatus {
+  HELD = 'HELD',
+  PARTIALLY_RELEASED = 'PARTIALLY_RELEASED',
+  RELEASED = 'RELEASED',
+}
+
 /** Estado de una tarea. */
 export enum TaskStatus {
   TODO = 'TODO',

@@ -1466,6 +1466,80 @@ export interface DealOverview {
   registryFilings: RegistryFiling[];
 }
 
+// ── Funds flow / escrow (closing statement) ───────────────────────────────────
+
+export type FundsFlowKind = 'PAYMENT' | 'ESCROW_DEPOSIT' | 'ESCROW_RELEASE' | 'FEE' | 'ADJUSTMENT';
+export type FundsFlowStatus = 'PLANNED' | 'SETTLED';
+export type EscrowStatus = 'HELD' | 'PARTIALLY_RELEASED' | 'RELEASED';
+
+export interface DealFundsFlowLine {
+  id: string;
+  kind: FundsFlowKind;
+  payerPartyId: string | null;
+  payeePartyId: string | null;
+  /** Importe como string decimal (p. ej. "1000000.00"). */
+  amount: string;
+  currency: string;
+  account: string | null;
+  condition: string | null;
+  status: FundsFlowStatus;
+  settledAt: string | null;
+  sortOrder: number;
+}
+
+export interface EscrowRelease {
+  id: string;
+  amount: string;
+  releasedAt: string;
+  reason: string | null;
+}
+
+export interface EscrowHolding {
+  id: string;
+  label: string;
+  amount: string;
+  currency: string;
+  agent: string | null;
+  depositedAt: string | null;
+  releaseTrigger: string | null;
+  status: EscrowStatus;
+  notes: string | null;
+  sortOrder: number;
+  releases: EscrowRelease[];
+  /** Liberado y remanente, calculados en el servidor (strings decimales). */
+  released: string;
+  remaining: string;
+}
+
+export interface CurrencyReconciliation {
+  currency: string;
+  totalPaid: number;
+  totalReceived: number;
+  imbalance: number;
+  balanced: boolean;
+}
+
+export interface PartyBalance {
+  partyId: string;
+  currency: string;
+  paid: number;
+  received: number;
+  net: number;
+}
+
+export interface FundsFlowReconciliation {
+  byCurrency: CurrencyReconciliation[];
+  byParty: PartyBalance[];
+  balanced: boolean;
+}
+
+/** Vista del funds-flow + escrow (`GET /deal/:matterId/funds-flow`; cada mutación devuelve este objeto). */
+export interface FundsFlowOverview {
+  lines: DealFundsFlowLine[];
+  escrowHoldings: EscrowHolding[];
+  reconciliation: FundsFlowReconciliation;
+}
+
 /** Coste propuesto pendiente de aprobación (de `GET /ledger/approvals`). */
 export interface CostApproval {
   id: string;

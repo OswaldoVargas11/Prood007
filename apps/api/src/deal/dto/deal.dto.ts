@@ -4,8 +4,10 @@ import {
   IsIn,
   IsISO8601,
   IsInt,
+  IsNumberString,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -31,6 +33,16 @@ const REGISTRY_KINDS = [
   'CAMARA_COMERCIO_RD',
   'OTHER',
 ] as const;
+const FUNDS_FLOW_KINDS = [
+  'PAYMENT',
+  'ESCROW_DEPOSIT',
+  'ESCROW_RELEASE',
+  'FEE',
+  'ADJUSTMENT',
+] as const;
+const FUNDS_FLOW_STATUSES = ['PLANNED', 'SETTLED'] as const;
+// Moneda ISO-4217 (3 letras mayúsculas). Por defecto EUR.
+const CURRENCY_RE = /^[A-Z]{3}$/;
 
 // ── Partes de la operación ────────────────────────────────────────────────────
 
@@ -165,6 +177,179 @@ export class UpdateMilestoneDto {
   @IsOptional()
   @IsInt()
   sortOrder?: number;
+}
+
+// ── Funds flow (closing statement) ────────────────────────────────────────────
+
+export class CreateFundsFlowLineDto {
+  @IsOptional()
+  @IsIn(FUNDS_FLOW_KINDS)
+  kind?: string;
+
+  /** Id de DealParty pagadora (validado en el servicio; '' / omitido = sin parte). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  payerPartyId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  payeePartyId?: string;
+
+  /** Importe como string decimal (p. ej. "1000000.00"). */
+  @IsNumberString()
+  amount!: string;
+
+  @IsOptional()
+  @Matches(CURRENCY_RE)
+  currency?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  account?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  condition?: string;
+
+  @IsOptional()
+  @IsIn(FUNDS_FLOW_STATUSES)
+  status?: string;
+}
+
+export class UpdateFundsFlowLineDto {
+  @IsOptional()
+  @IsIn(FUNDS_FLOW_KINDS)
+  kind?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  payerPartyId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  payeePartyId?: string;
+
+  @IsOptional()
+  @IsNumberString()
+  amount?: string;
+
+  @IsOptional()
+  @Matches(CURRENCY_RE)
+  currency?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  account?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  condition?: string;
+
+  @IsOptional()
+  @IsIn(FUNDS_FLOW_STATUSES)
+  status?: string;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+}
+
+// ── Escrow (depósito en garantía) ─────────────────────────────────────────────
+
+export class CreateEscrowHoldingDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  label!: string;
+
+  /** Importe retenido como string decimal. */
+  @IsNumberString()
+  amount!: string;
+
+  @IsOptional()
+  @Matches(CURRENCY_RE)
+  currency?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  agent?: string;
+
+  @IsOptional()
+  @IsISO8601()
+  depositedAt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  releaseTrigger?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string;
+}
+
+export class UpdateEscrowHoldingDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  label?: string;
+
+  @IsOptional()
+  @IsNumberString()
+  amount?: string;
+
+  @IsOptional()
+  @Matches(CURRENCY_RE)
+  currency?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  agent?: string;
+
+  @IsOptional()
+  @IsISO8601()
+  depositedAt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  releaseTrigger?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string;
+
+  @IsOptional()
+  @IsInt()
+  sortOrder?: number;
+}
+
+export class CreateEscrowReleaseDto {
+  /** Importe a liberar como string decimal. No puede exceder el remanente (validado en el servicio). */
+  @IsNumberString()
+  amount!: string;
+
+  @IsOptional()
+  @IsISO8601()
+  releasedAt?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  reason?: string;
 }
 
 // ── Disclosure schedules ──────────────────────────────────────────────────────

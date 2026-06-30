@@ -261,6 +261,14 @@ export const API_MESSAGES = {
     'es-ES': 'Elemento de la operación no encontrado.',
     'es-DO': 'Elemento de la operación no encontrado.',
   },
+  'deal.partyNotInMatter': {
+    'es-ES': 'La parte indicada no pertenece a esta operación.',
+    'es-DO': 'La parte indicada no pertenece a esta operación.',
+  },
+  'deal.escrowReleaseExceeds': {
+    'es-ES': 'La liberación supera el importe disponible en el depósito.',
+    'es-DO': 'La liberación supera el importe disponible en el depósito.',
+  },
 
   // ── Data room (due diligence) ─────────────────────────────────────────────
   'dataRoom.notFound': {

@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { Role } from '@legalflow/domain';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
@@ -7,11 +8,16 @@ import type { RequestUser } from '../auth/auth.types';
 import { DealService } from './deal.service';
 import {
   CreateDisclosureDto,
+  CreateEscrowHoldingDto,
+  CreateEscrowReleaseDto,
   CreateFilingDto,
+  CreateFundsFlowLineDto,
   CreateMilestoneDto,
   CreatePartyDto,
   UpdateDisclosureDto,
+  UpdateEscrowHoldingDto,
   UpdateFilingDto,
+  UpdateFundsFlowLineDto,
   UpdateMilestoneDto,
   UpdatePartyDto,
 } from './dto/deal.dto';
@@ -79,6 +85,87 @@ export class DealController {
   @Delete('filings/:id')
   removeFiling(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.service.removeFiling(user, id);
+  }
+
+  // ── Funds flow / escrow (rutas por id de recurso, antes que las paramétricas) ──
+  @Patch('funds-flow/:id')
+  updateFundsFlowLine(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateFundsFlowLineDto,
+  ) {
+    return this.service.updateFundsFlowLine(user, id, dto);
+  }
+
+  @Delete('funds-flow/:id')
+  removeFundsFlowLine(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.removeFundsFlowLine(user, id);
+  }
+
+  @Delete('escrow/releases/:id')
+  removeEscrowRelease(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.removeEscrowRelease(user, id);
+  }
+
+  @Post('escrow/:id/releases')
+  addEscrowRelease(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: CreateEscrowReleaseDto,
+  ) {
+    return this.service.addEscrowRelease(user, id, dto);
+  }
+
+  @Patch('escrow/:id')
+  updateEscrowHolding(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateEscrowHoldingDto,
+  ) {
+    return this.service.updateEscrowHolding(user, id, dto);
+  }
+
+  @Delete('escrow/:id')
+  removeEscrowHolding(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.service.removeEscrowHolding(user, id);
+  }
+
+  // Statement PDF (segmentos literales) antes que el overview por expediente.
+  @Get(':matterId/funds-flow/statement')
+  async fundsFlowStatement(
+    @CurrentUser() user: RequestUser,
+    @Param('matterId') matterId: string,
+    @Res() res: Response,
+  ) {
+    const { filename, buffer } = await this.service.buildFundsFlowStatement(user, matterId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', String(buffer.length));
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buffer);
+  }
+
+  @Get(':matterId/funds-flow')
+  fundsFlow(@CurrentUser() user: RequestUser, @Param('matterId') matterId: string) {
+    return this.service.fundsFlowOverview(user, matterId);
+  }
+
+  @Post(':matterId/funds-flow')
+  addFundsFlowLine(
+    @CurrentUser() user: RequestUser,
+    @Param('matterId') matterId: string,
+    @Body() dto: CreateFundsFlowLineDto,
+  ) {
+    return this.service.addFundsFlowLine(user, matterId, dto);
+  }
+
+  @Post(':matterId/escrow')
+  addEscrowHolding(
+    @CurrentUser() user: RequestUser,
+    @Param('matterId') matterId: string,
+    @Body() dto: CreateEscrowHoldingDto,
+  ) {
+    return this.service.addEscrowHolding(user, matterId, dto);
   }
 
   @Get(':matterId')
