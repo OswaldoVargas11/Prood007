@@ -69,6 +69,8 @@ export class ClientsController {
     return this.clients.update(user, id, dto);
   }
 
+  /** Borrado de la ficha de cliente: operación destructiva, solo FIRM_ADMIN (como gdpr-export/anonymize). */
+  @Roles(Role.FIRM_ADMIN)
   @Delete(':id')
   remove(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.clients.remove(user, id);
