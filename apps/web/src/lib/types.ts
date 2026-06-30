@@ -1353,6 +1353,26 @@ export interface ClosingChecklistItem {
   releasedAt: string | null;
 }
 
+/** Fases de gating del cierre (condiciones a la firma / al cierre). */
+export type GatingPhase = 'AT_SIGNING' | 'AT_CLOSING';
+
+/** Readiness de una fase: estado de las condiciones previas (CPs) que la gatean. */
+export interface PhaseReadiness {
+  phase: GatingPhase;
+  total: number;
+  satisfied: number;
+  waived: number;
+  pending: number;
+  pendingTitles: string[];
+  pct: number;
+  ready: boolean;
+}
+
+/** Readiness de gating por fase (`readiness` en el detalle del checklist y `…/readiness` por expediente). */
+export interface ChecklistReadiness {
+  byPhase: PhaseReadiness[];
+}
+
 /** Checklist con sus partidas (`GET /closing/:id`). */
 export interface ClosingChecklistDetail {
   id: string;
@@ -1362,6 +1382,8 @@ export interface ClosingChecklistDetail {
   signingDate: string | null;
   longstopDate: string | null;
   items: ClosingChecklistItem[];
+  /** Readiness de gating (CPs por fase) computada server-side (T-2). */
+  readiness: ChecklistReadiness;
 }
 
 /** Resumen de un checklist en la lista de un expediente (`GET /closing/by-matter/:matterId`). */

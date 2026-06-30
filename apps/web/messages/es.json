@@ -966,7 +966,8 @@
       "kind": "Tipo",
       "targetDate": "Fecha objetivo",
       "status": "Estado",
-      "notes": "Notas"
+      "notes": "Notas",
+      "pendingConditionsWarning": "Quedan {count} condición(es) previa(s) sin satisfacer para esta fase: {titles}. ¿Marcar el hito como hecho de todas formas?"
     },
     "milestoneKind": {
       "SIGNING": "Firma",
@@ -1255,6 +1256,16 @@
       "AT_SIGNING": "A la firma",
       "AT_CLOSING": "Al cierre",
       "POST_CLOSING": "Post-cierre"
+    },
+    "readiness": {
+      "phase": {
+        "AT_SIGNING": "Listo para firmar",
+        "AT_CLOSING": "Listo para cerrar"
+      },
+      "ready": "Listo",
+      "noConditions": "Sin condiciones",
+      "pendingCount": "{count} pendiente{count, plural, one {} other {s}}",
+      "summary": "{satisfied}/{total} condiciones previas satisfechas · {pct}%"
     }
   },
   "documents": {

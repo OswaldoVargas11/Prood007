@@ -20,6 +20,7 @@ import type {
   CompanySecretaryOverview,
   EngagementLetter,
   ExternalDataRoom,
+  ChecklistReadiness,
   ClosingChecklistDetail,
   ClosingChecklistSummary,
   ClosingItemCategory,
@@ -2564,6 +2565,15 @@ export function useChecklist(id: string | null) {
     queryKey: ['closing', 'checklist', id],
     queryFn: () => api.get<ClosingChecklistDetail>(`/closing/${id}`),
     enabled: Boolean(id),
+  });
+}
+
+/** Readiness de gating agregada de la operación (CPs por fase) para el aviso al firmar/cerrar (T-2). */
+export function useMatterReadiness(matterId: string) {
+  return useQuery({
+    queryKey: ['closing', 'readiness', matterId],
+    queryFn: () => api.get<ChecklistReadiness>(`/closing/by-matter/${matterId}/readiness`),
+    enabled: Boolean(matterId),
   });
 }
 

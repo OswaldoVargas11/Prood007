@@ -19,6 +19,7 @@ import {
 } from '@/lib/hooks';
 import { formatDate } from '@/lib/format';
 import type {
+  ChecklistReadiness,
   ClosingChecklistItem,
   ClosingItemCategory,
   ClosingItemPhase,
@@ -351,6 +352,9 @@ function ChecklistDetail({
           </div>
         </div>
 
+        {/* Readiness de gating (condiciones previas por fase) — T-2 */}
+        <ReadinessPanel readiness={checklist.readiness} />
+
         {/* Grupos por categoría */}
         <div className="space-y-5">
           {CATEGORY_ORDER.map((cat) => {
@@ -379,6 +383,49 @@ function ChecklistDetail({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * Indicador de readiness al firmar/cerrar: por cada fase de gating muestra cuántas condiciones previas
+ * están satisfechas/dispensadas y cuáles quedan pendientes. Se alimenta del campo `readiness` del detalle
+ * (computado server-side) — sin llamadas extra.
+ */
+function ReadinessPanel({ readiness }: { readiness: ChecklistReadiness }) {
+  const t = useTranslations('closing.readiness');
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {readiness.byPhase.map((p) => (
+        <div key={p.phase} className="rounded-lg border bg-[var(--surface-1)] p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold text-[var(--brand-strong)]">
+              {t(`phase.${p.phase}`)}
+            </span>
+            {p.total === 0 ? (
+              <Badge variant="outline">{t('noConditions')}</Badge>
+            ) : p.ready ? (
+              <Badge variant="default">{t('ready')}</Badge>
+            ) : (
+              <Badge variant="secondary">{t('pendingCount', { count: p.pending })}</Badge>
+            )}
+          </div>
+          {p.total > 0 && (
+            <>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('summary', { satisfied: p.satisfied, total: p.total, pct: p.pct })}
+              </p>
+              {p.pendingTitles.length > 0 && (
+                <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-xs text-muted-foreground">
+                  {p.pendingTitles.map((title, i) => (
+                    <li key={i}>{title}</li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 

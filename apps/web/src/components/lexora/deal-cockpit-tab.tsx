@@ -23,6 +23,7 @@ import {
   useFundsFlow,
   useFundsFlowActions,
   useMatterDocuments,
+  useMatterReadiness,
 } from '@/lib/hooks';
 import { formatDate } from '@/lib/format';
 import type {
@@ -102,7 +103,7 @@ export function DealCockpitTab({ matterId }: { matterId: string }) {
     <div className="space-y-4">
       <PartiesCard parties={data.parties} actions={actions} />
       <FundsFlowCard matterId={matterId} parties={data.parties} />
-      <MilestonesCard milestones={data.milestones} actions={actions} />
+      <MilestonesCard matterId={matterId} milestones={data.milestones} actions={actions} />
       <DisclosuresCard
         disclosures={data.disclosureSchedules}
         actions={actions}
@@ -1066,16 +1067,25 @@ function milestoneStatusVariant(s: DealMilestoneStatus): 'default' | 'secondary'
   return 'outline';
 }
 
+// Hito → fase de gating cuyas condiciones previas deben estar satisfechas antes de marcarlo DONE.
+const MILESTONE_GATING_PHASE: Partial<Record<DealMilestoneKind, 'AT_SIGNING' | 'AT_CLOSING'>> = {
+  SIGNING: 'AT_SIGNING',
+  CLOSING: 'AT_CLOSING',
+};
+
 function MilestonesCard({
+  matterId,
   milestones,
   actions,
 }: {
+  matterId: string;
   milestones: DealMilestone[];
   actions: Actions;
 }) {
   const t = useTranslations('deal');
   const tStatus = useTranslations('deal.milestoneStatus');
   const locale = useLocale();
+  const { data: readiness } = useMatterReadiness(matterId);
   const [editing, setEditing] = useState<DealMilestone | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -1086,6 +1096,25 @@ function MilestonesCard({
       ),
     [milestones],
   );
+
+  // Aviso (no bloqueo duro) al marcar un hito de firma/cierre como DONE con CPs pendientes: el usuario
+  // confirma explícitamente. Por defecto, si no hay datos de readiness o no quedan pendientes, no molesta.
+  const changeStatus = (m: DealMilestone, status: DealMilestoneStatus) => {
+    if (status === 'DONE') {
+      const phase = MILESTONE_GATING_PHASE[m.kind];
+      const pr = phase ? readiness?.byPhase.find((p) => p.phase === phase) : undefined;
+      if (pr && pr.pending > 0) {
+        const ok = window.confirm(
+          t('milestones.pendingConditionsWarning', {
+            count: pr.pending,
+            titles: pr.pendingTitles.join(', '),
+          }),
+        );
+        if (!ok) return;
+      }
+    }
+    actions.updateMilestone.mutate({ id: m.id, status });
+  };
 
   return (
     <Card>
@@ -1112,12 +1141,7 @@ function MilestonesCard({
               >
                 <select
                   value={m.status}
-                  onChange={(e) =>
-                    actions.updateMilestone.mutate({
-                      id: m.id,
-                      status: e.target.value as DealMilestoneStatus,
-                    })
-                  }
+                  onChange={(e) => changeStatus(m, e.target.value as DealMilestoneStatus)}
                   className="h-8 shrink-0 rounded-md border bg-[var(--surface-1)] px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {MILESTONE_STATUSES.map((s) => (
