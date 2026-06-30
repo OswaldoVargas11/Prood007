@@ -45,7 +45,7 @@ import { DashboardModule } from '../dashboard/dashboard.module';
 
 /**
  * Núcleo de IA, agnóstico del modelo. El factory elige el motor por configuración:
- *   · `ANTHROPIC_API_KEY` presente → `AnthropicEngine` (modelo por `AI_MODEL`, default claude-opus-4-6).
+ *   · `ANTHROPIC_API_KEY` presente → `AnthropicEngine` (modelo por `AI_MODEL`, default claude-opus-4-8).
  *   · ausente → `DisabledEngine` (todo cableado; las features se muestran apagadas, nada se rompe).
  * Igual para embeddings con `VOYAGE_API_KEY`. "Enchufar el agente" = añadir la clave a los secrets.
  */

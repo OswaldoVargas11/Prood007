@@ -85,9 +85,14 @@ export type AiToolExecutor = (invocation: AiToolInvocation) => Promise<AiToolOut
  * Hooks opcionales de streaming. Si se proveen, el motor emite el texto del modelo de forma incremental
  * (`onText` por cada delta) para el efecto "escribiendo en vivo". Si no, el turno funciona igual y el texto
  * llega solo en el resultado final (retrocompatible).
+ *
+ * `signal` permite CANCELAR el turno en curso (botón Stop del cliente): el motor lo propaga a la petición
+ * del proveedor para cortar de verdad la generación en vuelo (deja de gastar tokens), no solo entre pasos.
+ * Los motores que no lo soporten deben ignorarlo de forma segura.
  */
 export interface AiAgentHooks {
   onText?: (delta: string) => void;
+  signal?: AbortSignal;
 }
 
 /** Traza de un paso agéntico (para transparencia/auditoría). */
@@ -129,7 +134,7 @@ export interface AiAgentResult {
 export interface AiEngine {
   /** ¿Hay un modelo configurado y listo para usar? Si no, las features de IA se muestran deshabilitadas. */
   isEnabled(): boolean;
-  /** Identificador del modelo activo (p. ej. 'claude-opus-4-6'); null si está deshabilitado. */
+  /** Identificador del modelo activo (p. ej. 'claude-opus-4-8'); null si está deshabilitado. */
   model(): string | null;
   complete(req: AiCompletionRequest): Promise<AiCompletion>;
   /**
