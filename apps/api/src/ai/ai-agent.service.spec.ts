@@ -1,6 +1,7 @@
 import { AiAgentService, type AgentStreamEvent } from './ai-agent.service';
 import { AGENT_TOOLS } from './ai-agent.tools';
 import type {
+  AiAgentHooks,
   AiAgentRequest,
   AiAgentResult,
   AiEngine,
@@ -17,6 +18,7 @@ import type { RequestUser } from '../auth/auth.types';
 class FakeEngine implements AiEngine {
   lastExec?: AiToolExecutor;
   lastRequest?: AiAgentRequest;
+  lastHooks?: AiAgentHooks;
 
   constructor(private readonly invocations: AiToolInvocation[]) {}
 
@@ -29,9 +31,14 @@ class FakeEngine implements AiEngine {
   async complete(): Promise<never> {
     throw new Error('no usado');
   }
-  async runAgent(req: AiAgentRequest, exec: AiToolExecutor): Promise<AiAgentResult> {
+  async runAgent(
+    req: AiAgentRequest,
+    exec: AiToolExecutor,
+    hooks?: AiAgentHooks,
+  ): Promise<AiAgentResult> {
     this.lastExec = exec;
     this.lastRequest = req;
+    this.lastHooks = hooks;
     const steps = [];
     for (const inv of this.invocations) {
       const out = await exec(inv);
@@ -297,6 +304,17 @@ describe('AiAgentService', () => {
     });
     expect(prisma.matter.findMany).not.toHaveBeenCalled();
     expect(events[events.length - 1]!.type).toBe('done');
+  });
+
+  it('runStream propaga el AbortSignal al motor (corta la generación en vuelo, no solo entre pasos)', async () => {
+    const { service, engine } = makeDeps([]);
+    const ac = new AbortController();
+    await service.runStream(user, 'hola', [], false, {
+      onEvent: () => undefined,
+      isAborted: () => false,
+      signal: ac.signal,
+    });
+    expect(engine.lastHooks?.signal).toBe(ac.signal);
   });
 
   it('pasa el historial de conversación (multi-turno) al motor', async () => {

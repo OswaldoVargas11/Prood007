@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Res } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { Role } from '@legalflow/domain';
@@ -6,13 +6,16 @@ import { AiService } from './ai.service';
 import { AiSearchService } from './ai-search.service';
 import { AiChatService } from './ai-chat.service';
 import { AiAgentService, type AgentStreamEvent } from './ai-agent.service';
+import { AiWorkflowService } from './ai-workflow.service';
 import {
   AgentDto,
   AskDto,
   DraftEmailDto,
   DraftFromTemplateDto,
+  RunWorkflowDto,
   SaveTurnsDto,
   SemanticSearchDto,
+  WorkflowDto,
 } from './dto/ai.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
@@ -37,6 +40,7 @@ export class AiController {
     private readonly search: AiSearchService,
     private readonly agent: AiAgentService,
     private readonly chat: AiChatService,
+    private readonly workflows: AiWorkflowService,
   ) {}
 
   /** ¿Está la IA disponible y con qué modelo? (para gating de la UI). No llama al modelo → sin throttle estricto. */
@@ -117,9 +121,14 @@ export class AiController {
     res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('X-Accel-Buffering', 'no');
+    // Botón Stop del cliente: al abortar el fetch, la conexión se cierra ('close'). Marcamos `aborted`
+    // (corta entre herramientas) y además disparamos un AbortController cuyo `signal` el motor propaga a
+    // la petición del proveedor para CANCELAR la generación en vuelo (deja de gastar tokens al instante).
     let aborted = false;
+    const ac = new AbortController();
     res.on('close', () => {
       aborted = true;
+      ac.abort();
     });
     const write = (e: AgentStreamEvent) => {
       if (!res.writableEnded) res.write(`${JSON.stringify(e)}\n`);
@@ -128,6 +137,7 @@ export class AiController {
       await this.agent.runStream(user, dto.message, dto.history, dto.allowWrites, {
         onEvent: write,
         isAborted: () => aborted,
+        signal: ac.signal,
       });
     } catch {
       write({
@@ -186,6 +196,74 @@ export class AiController {
   @Delete('conversations/:id')
   deleteConversation(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.chat.remove(user, id);
+  }
+
+  // ── Workflows builder (flujos agénticos multi-paso) ───────────────────────
+  // Define/lanza flujos que encadenan herramientas del catálogo del agente. Ejecución secuencial que
+  // respeta el gate HITL: un paso de escritura sin `allowWrites` detiene el flujo y expone `pendingWrites`.
+  // El CRUD no llama al modelo; `run` sí ejecuta tools (la mayoría de lectura) → mantiene el throttle de IA.
+
+  /** Catálogo de herramientas disponibles para componer un flujo (para el builder). No llama al modelo. */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Get('workflows/catalog')
+  workflowCatalog(@CurrentUser() user: RequestUser) {
+    return this.workflows.catalog(user);
+  }
+
+  /** Lista los flujos del despacho. */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Get('workflows')
+  listWorkflows(@CurrentUser() user: RequestUser) {
+    return this.workflows.list(user);
+  }
+
+  /** Detalle de un flujo. */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Get('workflows/:id')
+  getWorkflow(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.workflows.get(user, id);
+  }
+
+  /** Crea un flujo (nombre + pasos que encadenan tools del catálogo). */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Post('workflows')
+  createWorkflow(@CurrentUser() user: RequestUser, @Body() dto: WorkflowDto) {
+    return this.workflows.create(user, dto);
+  }
+
+  /** Actualiza la definición de un flujo. */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Put('workflows/:id')
+  updateWorkflow(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: WorkflowDto,
+  ) {
+    return this.workflows.update(user, id, dto);
+  }
+
+  /** Borra un flujo. */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Delete('workflows/:id')
+  deleteWorkflow(@CurrentUser() user: RequestUser, @Param('id') id: string) {
+    return this.workflows.remove(user, id);
+  }
+
+  /** Lanza un flujo: ejecuta sus pasos en orden (HITL respetado). `allowWrites` confirma las escrituras. */
+  @RequiresFeature('ai')
+  @Post('workflows/:id/run')
+  runWorkflow(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: RunWorkflowDto,
+  ) {
+    return this.workflows.run(user, id, dto.allowWrites ?? false);
   }
 
   /** Búsqueda semántica en lo indexado del despacho. (Avanzado: indexación/RAG.) */

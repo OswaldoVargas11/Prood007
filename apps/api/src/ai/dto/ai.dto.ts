@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsIn,
@@ -100,6 +101,45 @@ export class SaveTurnsDto {
   @ValidateNested({ each: true })
   @Type(() => SaveTurnDto)
   messages!: SaveTurnDto[];
+}
+
+/** Un paso de un workflow: invoca una herramienta del catálogo por nombre + input. */
+export class WorkflowStepDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  tool!: string;
+
+  @IsOptional()
+  @IsObject()
+  input?: Record<string, unknown>;
+}
+
+/** Definición de un workflow agéntico multi-paso (crear/actualizar). */
+export class WorkflowDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => WorkflowStepDto)
+  steps!: WorkflowStepDto[];
+}
+
+/** Lanzar un workflow; `allowWrites` concede la confirmación HITL para los pasos de escritura. */
+export class RunWorkflowDto {
+  @IsOptional()
+  @IsBoolean()
+  allowWrites?: boolean;
 }
 
 /** Búsqueda semántica. */

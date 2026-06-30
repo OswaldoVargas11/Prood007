@@ -6,15 +6,27 @@ import {
   CalendarClock,
   Check,
   ClipboardCopy,
+  Download,
   FileText,
   Loader2,
+  Lock,
   Plus,
   Trash2,
+  TriangleAlert,
   Users,
+  Wallet,
 } from 'lucide-react';
-import { useDeal, useDealActions, useMatterDocuments } from '@/lib/hooks';
+import {
+  downloadFundsFlowStatement,
+  useDeal,
+  useDealActions,
+  useFundsFlow,
+  useFundsFlowActions,
+  useMatterDocuments,
+} from '@/lib/hooks';
 import { formatDate } from '@/lib/format';
 import type {
+  DealFundsFlowLine,
   DealMilestone,
   DealMilestoneKind,
   DealMilestoneStatus,
@@ -23,6 +35,9 @@ import type {
   DealPartySide,
   DisclosureSchedule,
   DisclosureScheduleStatus,
+  EscrowHolding,
+  FundsFlowKind,
+  FundsFlowStatus,
   RegistryFiling,
   RegistryFilingStatus,
   RegistryKind,
@@ -86,6 +101,7 @@ export function DealCockpitTab({ matterId }: { matterId: string }) {
   return (
     <div className="space-y-4">
       <PartiesCard parties={data.parties} actions={actions} />
+      <FundsFlowCard matterId={matterId} parties={data.parties} />
       <MilestonesCard milestones={data.milestones} actions={actions} />
       <DisclosuresCard
         disclosures={data.disclosureSchedules}
@@ -358,6 +374,683 @@ function PartyEditor({
           <Button onClick={save} disabled={!name.trim() || pending}>
             {pending && <Loader2 className="size-4 animate-spin" />}
             {t('save')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Funds flow / escrow (closing statement) ───────────────────────────────────
+
+const FUNDS_FLOW_KINDS: FundsFlowKind[] = [
+  'PAYMENT',
+  'ESCROW_DEPOSIT',
+  'ESCROW_RELEASE',
+  'FEE',
+  'ADJUSTMENT',
+];
+const FUNDS_FLOW_STATUSES: FundsFlowStatus[] = ['PLANNED', 'SETTLED'];
+
+type FundsFlowActions = ReturnType<typeof useFundsFlowActions>;
+
+function fmtMoney(amount: string | number, currency: string): string {
+  const n = typeof amount === 'number' ? amount : Number(amount);
+  const formatted = Number.isFinite(n)
+    ? n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : String(amount);
+  return `${formatted} ${currency}`;
+}
+
+function FundsFlowCard({ matterId, parties }: { matterId: string; parties: DealParty[] }) {
+  const t = useTranslations('deal.fundsFlow');
+  const tDeal = useTranslations('deal');
+  const { data, isLoading } = useFundsFlow(matterId);
+  const actions = useFundsFlowActions(matterId);
+  const [editingLine, setEditingLine] = useState<DealFundsFlowLine | null>(null);
+  const [addingLine, setAddingLine] = useState(false);
+  const [editingHolding, setEditingHolding] = useState<EscrowHolding | null>(null);
+  const [addingHolding, setAddingHolding] = useState(false);
+  const [releasingHolding, setReleasingHolding] = useState<EscrowHolding | null>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const partyLabel = useMemo(() => {
+    const map = new Map(parties.map((p) => [p.id, p.name]));
+    return (id: string | null) => (id ? (map.get(id) ?? t('externalParty')) : '—');
+  }, [parties, t]);
+
+  const exportPdf = async () => {
+    setDownloading(true);
+    try {
+      await downloadFundsFlowStatement(matterId, `funds-flow-${matterId}.pdf`);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  if (isLoading || !data) return <Skeleton className="h-48 w-full" />;
+
+  const { lines, escrowHoldings, reconciliation } = data;
+  const hasContent = lines.length > 0 || escrowHoldings.length > 0;
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 pt-6">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Wallet className="size-4 text-[var(--brand)]" />
+            <h3 className="text-sm font-semibold">{t('title')}</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              disabled={!hasContent || downloading}
+              onClick={exportPdf}
+            >
+              {downloading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Download className="size-4" />
+              )}
+              {t('exportPdf')}
+            </Button>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => setAddingLine(true)}>
+              <Plus className="size-4" /> {t('addLine')}
+            </Button>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">{t('hint')}</p>
+
+        {/* Cuadre por moneda + aviso de descuadre */}
+        {reconciliation.byCurrency.length > 0 && (
+          <div className="space-y-2">
+            {reconciliation.byCurrency.map((c) => (
+              <div
+                key={c.currency}
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-xs ${
+                  c.balanced
+                    ? 'bg-[var(--surface-1)]'
+                    : 'border-[var(--danger)]/40 bg-[var(--danger)]/5'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  {c.balanced ? (
+                    <Check className="size-4 text-[var(--success,#15803d)]" />
+                  ) : (
+                    <TriangleAlert className="size-4 text-[var(--danger)]" />
+                  )}
+                  <span className="font-semibold">{c.currency}</span>
+                  <span className="text-muted-foreground">
+                    {t('paid')} {fmtMoney(c.totalPaid, c.currency)} · {t('received')}{' '}
+                    {fmtMoney(c.totalReceived, c.currency)}
+                  </span>
+                </div>
+                <span
+                  className={c.balanced ? 'font-medium text-[var(--success,#15803d)]' : 'font-semibold text-[var(--danger)]'}
+                >
+                  {c.balanced
+                    ? t('balanced')
+                    : t('imbalance', { amount: fmtMoney(c.imbalance, c.currency) })}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Totales por parte */}
+        {reconciliation.byParty.length > 0 && (
+          <div className="space-y-1">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--brand-strong)]">
+              {t('byParty')}
+            </h4>
+            <div className="grid gap-1 sm:grid-cols-2">
+              {reconciliation.byParty.map((p) => (
+                <div
+                  key={`${p.partyId}-${p.currency}`}
+                  className="flex items-center justify-between rounded-md border bg-[var(--surface-1)] px-2.5 py-1.5 text-xs"
+                >
+                  <span className="truncate font-medium">{partyLabel(p.partyId)}</span>
+                  <span
+                    className={p.net < 0 ? 'text-[var(--danger)]' : 'text-[var(--success,#15803d)]'}
+                  >
+                    {p.net >= 0 ? '+' : ''}
+                    {fmtMoney(p.net, p.currency)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Líneas del funds-flow */}
+        {lines.length === 0 ? (
+          <p className="text-xs text-muted-foreground">{t('emptyLines')}</p>
+        ) : (
+          <div className="space-y-2">
+            {lines.map((l) => (
+              <div
+                key={l.id}
+                className="flex items-start gap-3 rounded-lg border bg-[var(--surface-1)] p-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">{t(`kind.${l.kind}`)}</Badge>
+                    <span className="text-sm font-medium">{fmtMoney(l.amount, l.currency)}</span>
+                    <Badge variant={l.status === 'SETTLED' ? 'default' : 'outline'}>
+                      {t(`status.${l.status}`)}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {partyLabel(l.payerPartyId)} → {partyLabel(l.payeePartyId)}
+                  </div>
+                  {(l.account || l.condition) && (
+                    <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+                      {l.account && <span>{t('account')}: {l.account}</span>}
+                      {l.condition && <span>{t('condition')}: {l.condition}</span>}
+                    </div>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setEditingLine(l)}
+                  >
+                    {tDeal('edit')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2"
+                    aria-label={t('deleteLine')}
+                    onClick={() => actions.removeLine.mutate(l.id)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Escrow */}
+        <div className="space-y-2 border-t pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Lock className="size-4 text-[var(--brand)]" />
+              <h4 className="text-sm font-semibold">{t('escrow.title')}</h4>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              onClick={() => setAddingHolding(true)}
+            >
+              <Plus className="size-4" /> {t('escrow.add')}
+            </Button>
+          </div>
+          {escrowHoldings.length === 0 ? (
+            <p className="text-xs text-muted-foreground">{t('escrow.empty')}</p>
+          ) : (
+            <div className="space-y-2">
+              {escrowHoldings.map((h) => (
+                <EscrowHoldingRow
+                  key={h.id}
+                  holding={h}
+                  actions={actions}
+                  onEdit={() => setEditingHolding(h)}
+                  onRelease={() => setReleasingHolding(h)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </CardContent>
+
+      {(addingLine || editingLine) && (
+        <FundsFlowLineEditor
+          actions={actions}
+          parties={parties}
+          line={editingLine}
+          onClose={() => {
+            setAddingLine(false);
+            setEditingLine(null);
+          }}
+        />
+      )}
+      {(addingHolding || editingHolding) && (
+        <EscrowEditor
+          actions={actions}
+          holding={editingHolding}
+          onClose={() => {
+            setAddingHolding(false);
+            setEditingHolding(null);
+          }}
+        />
+      )}
+      {releasingHolding && (
+        <EscrowReleaseEditor
+          actions={actions}
+          holding={releasingHolding}
+          onClose={() => setReleasingHolding(null)}
+        />
+      )}
+    </Card>
+  );
+}
+
+function EscrowHoldingRow({
+  holding,
+  actions,
+  onEdit,
+  onRelease,
+}: {
+  holding: EscrowHolding;
+  actions: FundsFlowActions;
+  onEdit: () => void;
+  onRelease: () => void;
+}) {
+  const t = useTranslations('deal.fundsFlow');
+  const tDeal = useTranslations('deal');
+  const statusVariant = holding.status === 'RELEASED' ? 'default' : 'secondary';
+  return (
+    <div className="rounded-lg border bg-[var(--surface-1)] p-3">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium">{holding.label}</span>
+            <Badge variant={statusVariant}>{t(`escrowStatus.${holding.status}`)}</Badge>
+          </div>
+          <div className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+            <span>{t('escrow.amount')}: {fmtMoney(holding.amount, holding.currency)}</span>
+            <span>{t('escrow.released')}: {fmtMoney(holding.released, holding.currency)}</span>
+            <span>{t('escrow.remaining')}: {fmtMoney(holding.remaining, holding.currency)}</span>
+          </div>
+          {(holding.agent || holding.releaseTrigger) && (
+            <div className="mt-0.5 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+              {holding.agent && <span>{t('escrow.agent')}: {holding.agent}</span>}
+              {holding.releaseTrigger && (
+                <span>{t('escrow.trigger')}: {holding.releaseTrigger}</span>
+              )}
+            </div>
+          )}
+          {holding.releases.length > 0 && (
+            <ul className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+              {holding.releases.map((r) => (
+                <li key={r.id} className="flex items-center gap-2">
+                  <span>· {fmtMoney(r.amount, holding.currency)}</span>
+                  {r.reason && <span className="truncate">— {r.reason}</span>}
+                  <button
+                    type="button"
+                    className="text-[var(--danger)] hover:underline"
+                    onClick={() => actions.removeRelease.mutate(r.id)}
+                  >
+                    {tDeal('delete')}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {holding.status !== 'RELEASED' && (
+            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={onRelease}>
+              {t('escrow.release')}
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={onEdit}>
+            {tDeal('edit')}
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2"
+            aria-label={tDeal('delete')}
+            onClick={() => actions.removeHolding.mutate(holding.id)}
+          >
+            <Trash2 className="size-3.5" />
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FundsFlowLineEditor({
+  actions,
+  parties,
+  line,
+  onClose,
+}: {
+  actions: FundsFlowActions;
+  parties: DealParty[];
+  line: DealFundsFlowLine | null;
+  onClose: () => void;
+}) {
+  const t = useTranslations('deal.fundsFlow');
+  const tDeal = useTranslations('deal');
+  const [kind, setKind] = useState<FundsFlowKind>(line?.kind ?? 'PAYMENT');
+  const [payerPartyId, setPayerPartyId] = useState(line?.payerPartyId ?? '');
+  const [payeePartyId, setPayeePartyId] = useState(line?.payeePartyId ?? '');
+  const [amount, setAmount] = useState(line?.amount ?? '');
+  const [currency, setCurrency] = useState(line?.currency ?? 'EUR');
+  const [account, setAccount] = useState(line?.account ?? '');
+  const [condition, setCondition] = useState(line?.condition ?? '');
+  const [status, setStatus] = useState<FundsFlowStatus>(line?.status ?? 'PLANNED');
+
+  const pending = actions.addLine.isPending || actions.updateLine.isPending;
+  const validAmount = /^\d+(\.\d{1,2})?$/.test(amount.trim());
+
+  const save = () => {
+    if (!validAmount) return;
+    const body = {
+      kind,
+      payerPartyId,
+      payeePartyId,
+      amount: amount.trim(),
+      currency: currency.trim().toUpperCase(),
+      account,
+      condition,
+      status,
+    };
+    if (line) {
+      actions.updateLine.mutate({ id: line.id, ...body }, { onSuccess: onClose });
+    } else {
+      actions.addLine.mutate(body, { onSuccess: onClose });
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{line ? t('editLine') : t('addLine')}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ff-kind">{t('kindLabel')}</Label>
+              <select
+                id="ff-kind"
+                value={kind}
+                onChange={(e) => setKind(e.target.value as FundsFlowKind)}
+                className={selectClass}
+              >
+                {FUNDS_FLOW_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {t(`kind.${k}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ff-status">{t('statusLabel')}</Label>
+              <select
+                id="ff-status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value as FundsFlowStatus)}
+                className={selectClass}
+              >
+                {FUNDS_FLOW_STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {t(`status.${s}`)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ff-payer">{t('payer')}</Label>
+              <select
+                id="ff-payer"
+                value={payerPartyId}
+                onChange={(e) => setPayerPartyId(e.target.value)}
+                className={selectClass}
+              >
+                <option value="">{tDeal('none')}</option>
+                {parties.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ff-payee">{t('payee')}</Label>
+              <select
+                id="ff-payee"
+                value={payeePartyId}
+                onChange={(e) => setPayeePartyId(e.target.value)}
+                className={selectClass}
+              >
+                <option value="">{tDeal('none')}</option>
+                {parties.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-[1fr_7rem] gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ff-amount">{t('amount')}</Label>
+              <Input
+                id="ff-amount"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ff-currency">{t('currency')}</Label>
+              <Input
+                id="ff-currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                maxLength={3}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ff-account">{t('account')}</Label>
+            <Input id="ff-account" value={account} onChange={(e) => setAccount(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ff-condition">{t('condition')}</Label>
+            <Input
+              id="ff-condition"
+              value={condition}
+              onChange={(e) => setCondition(e.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {tDeal('cancel')}
+          </Button>
+          <Button onClick={save} disabled={!validAmount || pending}>
+            {pending && <Loader2 className="size-4 animate-spin" />}
+            {tDeal('save')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EscrowEditor({
+  actions,
+  holding,
+  onClose,
+}: {
+  actions: FundsFlowActions;
+  holding: EscrowHolding | null;
+  onClose: () => void;
+}) {
+  const t = useTranslations('deal.fundsFlow');
+  const tDeal = useTranslations('deal');
+  const [label, setLabel] = useState(holding?.label ?? '');
+  const [amount, setAmount] = useState(holding?.amount ?? '');
+  const [currency, setCurrency] = useState(holding?.currency ?? 'EUR');
+  const [agent, setAgent] = useState(holding?.agent ?? '');
+  const [releaseTrigger, setReleaseTrigger] = useState(holding?.releaseTrigger ?? '');
+  const [notes, setNotes] = useState(holding?.notes ?? '');
+
+  const pending = actions.addHolding.isPending || actions.updateHolding.isPending;
+  const validAmount = /^\d+(\.\d{1,2})?$/.test(amount.trim());
+
+  const save = () => {
+    if (!label.trim() || !validAmount) return;
+    const body = {
+      label: label.trim(),
+      amount: amount.trim(),
+      currency: currency.trim().toUpperCase(),
+      agent,
+      releaseTrigger,
+      notes,
+    };
+    if (holding) {
+      actions.updateHolding.mutate({ id: holding.id, ...body }, { onSuccess: onClose });
+    } else {
+      actions.addHolding.mutate(body, { onSuccess: onClose });
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{holding ? t('escrow.editTitle') : t('escrow.addTitle')}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="es-label">{t('escrow.label')}</Label>
+            <Input id="es-label" value={label} onChange={(e) => setLabel(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-[1fr_7rem] gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="es-amount">{t('escrow.amount')}</Label>
+              <Input
+                id="es-amount"
+                inputMode="decimal"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="es-currency">{t('currency')}</Label>
+              <Input
+                id="es-currency"
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value)}
+                maxLength={3}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="es-agent">{t('escrow.agent')}</Label>
+            <Input id="es-agent" value={agent} onChange={(e) => setAgent(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="es-trigger">{t('escrow.trigger')}</Label>
+            <Input
+              id="es-trigger"
+              value={releaseTrigger}
+              onChange={(e) => setReleaseTrigger(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="es-notes">{tDeal('parties.notes')}</Label>
+            <Textarea
+              id="es-notes"
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {tDeal('cancel')}
+          </Button>
+          <Button onClick={save} disabled={!label.trim() || !validAmount || pending}>
+            {pending && <Loader2 className="size-4 animate-spin" />}
+            {tDeal('save')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EscrowReleaseEditor({
+  actions,
+  holding,
+  onClose,
+}: {
+  actions: FundsFlowActions;
+  holding: EscrowHolding;
+  onClose: () => void;
+}) {
+  const t = useTranslations('deal.fundsFlow');
+  const tDeal = useTranslations('deal');
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+
+  const pending = actions.addRelease.isPending;
+  const remaining = Number(holding.remaining);
+  const validAmount =
+    /^\d+(\.\d{1,2})?$/.test(amount.trim()) &&
+    Number(amount) > 0 &&
+    Number(amount) <= remaining + 1e-9;
+
+  const save = () => {
+    if (!validAmount) return;
+    actions.addRelease.mutate(
+      { holdingId: holding.id, amount: amount.trim(), reason },
+      { onSuccess: onClose },
+    );
+  };
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t('escrow.releaseTitle')}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            {t('escrow.remaining')}: {fmtMoney(holding.remaining, holding.currency)}
+          </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="er-amount">{t('escrow.releaseAmount')}</Label>
+            <Input
+              id="er-amount"
+              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="er-reason">{t('escrow.reason')}</Label>
+            <Input id="er-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {tDeal('cancel')}
+          </Button>
+          <Button onClick={save} disabled={!validAmount || pending}>
+            {pending && <Loader2 className="size-4 animate-spin" />}
+            {t('escrow.confirmRelease')}
           </Button>
         </DialogFooter>
       </DialogContent>

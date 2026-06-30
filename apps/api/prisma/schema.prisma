@@ -168,6 +168,28 @@ enum DisclosureScheduleStatus {
   AGREED
 }
 
+// Naturaleza de una línea del funds-flow del cierre. Es REGISTRO de la operación, no movimiento de dinero real.
+enum FundsFlowKind {
+  PAYMENT
+  ESCROW_DEPOSIT
+  ESCROW_RELEASE
+  FEE
+  ADJUSTMENT
+}
+
+// Estado de una línea del funds-flow: prevista vs liquidada/ejecutada.
+enum FundsFlowStatus {
+  PLANNED
+  SETTLED
+}
+
+// Estado de un depósito en garantía (escrow): retenido, parcialmente liberado o totalmente liberado.
+enum EscrowStatus {
+  HELD
+  PARTIALLY_RELEASED
+  RELEASED
+}
+
 enum TaskStatus {
   TODO
   IN_PROGRESS
@@ -440,6 +462,9 @@ model Tenant {
   dealMilestones       DealMilestone[]
   disclosureSchedules  DisclosureSchedule[]
   registryFilings      RegistryFiling[]
+  dealFundsFlowLines   DealFundsFlowLine[]
+  escrowHoldings       EscrowHolding[]
+  escrowReleases       EscrowRelease[]
   engagementLetters    EngagementLetter[]
   corporateMinutes     CorporateMinute[]
   shareholders         Shareholder[]
@@ -458,6 +483,8 @@ model Tenant {
   chatMessages         ChatMessage[]
   aiConversations      AiConversation[]
   aiChatMessages       AiChatMessage[]
+  aiWorkflows          AiWorkflow[]
+  aiWorkflowRuns       AiWorkflowRun[]
   webhookEndpoints     WebhookEndpoint[]
   legalAcceptances     LegalAcceptance[]
   subprocessorSubs     SubprocessorSubscription[]
@@ -717,6 +744,8 @@ model Matter {
   dealMilestones        DealMilestone[]
   disclosureSchedules   DisclosureSchedule[]
   registryFilings       RegistryFiling[]
+  dealFundsFlowLines    DealFundsFlowLine[]
+  escrowHoldings        EscrowHolding[]
   engagementLetter      EngagementLetter?
   folders               Folder[]
   checklists            MatterChecklist[]
@@ -1071,6 +1100,90 @@ model RegistryFiling {
 
   @@index([tenantId])
   @@index([tenantId, matterId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Funds-flow / closing statement: quién paga qué, a quién, en qué cuenta y bajo qué condición. El
+// artefacto financiero central del cierre. payer/payee referencian DealParty por id ESCALAR (sin
+// relación tipada, igual que documentId/assigneeId): se validan en la capa de app, acotados por tenant.
+// Es REGISTRO/documento de la operación — NO mueve dinero real (no toca cobros/Stripe). Tenant-scoped RLS.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model DealFundsFlowLine {
+  id           String          @id @default(cuid())
+  tenantId     String
+  matterId     String
+  kind         FundsFlowKind   @default(PAYMENT)
+  // Partes pagadora y beneficiaria (ids de DealParty; nullable: una de las dos puede ser externa/no listada).
+  payerPartyId String?
+  payeePartyId String?
+  amount       Decimal         @db.Decimal(18, 2)
+  // Moneda ISO-4217 (EUR, USD, DOP…). El cuadre del statement es POR moneda.
+  currency     String          @default("EUR")
+  // Cuenta de abono/cargo (texto libre: IBAN, banco, cuenta de escrow…).
+  account      String?
+  // Condición a la que se sujeta el flujo (texto libre: "Al cierre", "Tras inscripción"…).
+  condition    String?
+  status       FundsFlowStatus @default(PLANNED)
+  settledAt    DateTime?
+  sortOrder    Int             @default(0)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Depósito en garantía (escrow holdback) con IMPORTES y workflow de liberación. El estado
+// (HELD/PARTIALLY_RELEASED/RELEASED) lo deriva el servicio del total liberado vs el importe retenido.
+// Por expediente. Tenant-scoped con RLS.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model EscrowHolding {
+  id             String       @id @default(cuid())
+  tenantId       String
+  matterId       String
+  // Etiqueta del depósito (p. ej. "Holdback de garantías 18 meses").
+  label          String
+  amount         Decimal      @db.Decimal(18, 2)
+  currency       String       @default("EUR")
+  // Agente de depósito (escrow agent): notaría, banco, despacho depositario… (texto libre).
+  agent          String?
+  depositedAt    DateTime?
+  // Evento/disparador de liberación (texto libre: "Aniversario 18m", "Resolución de contingencia"…).
+  releaseTrigger String?
+  status         EscrowStatus @default(HELD)
+  notes          String?
+  sortOrder      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  tenant   Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter   Matter          @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  releases EscrowRelease[]
+
+  @@index([tenantId])
+  @@index([tenantId, matterId])
+}
+
+model EscrowRelease {
+  id         String   @id @default(cuid())
+  tenantId   String
+  holdingId  String
+  amount     Decimal  @db.Decimal(18, 2)
+  releasedAt DateTime @default(now())
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  tenant  Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  holding EscrowHolding @relation(fields: [holdingId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([holdingId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2366,6 +2479,49 @@ model AiChatMessage {
   conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, conversationId, createdAt])
+}
+
+/// Definición declarativa de un FLUJO agéntico multi-paso (Zora workflows builder, LAW-22). Cada paso
+/// invoca una herramienta del catálogo del agente (`AGENT_TOOLS`) por nombre + input. Los pasos se ejecutan
+/// en orden (`steps` es un array JSON ordenado de `{ tool, input }`). Compartido por todo el staff del
+/// despacho (no privado por usuario, a diferencia de AiConversation): es un activo reutilizable del despacho.
+model AiWorkflow {
+  id              String   @id @default(cuid())
+  tenantId        String
+  /// Usuario que lo creó (para trazabilidad; no restringe la visibilidad).
+  createdByUserId String
+  name            String
+  description     String?
+  /// Array JSON ordenado de pasos: `[{ tool: string, input: object }]`.
+  steps           Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  runs   AiWorkflowRun[]
+
+  @@index([tenantId, updatedAt])
+}
+
+/// Registro de una EJECUCIÓN de un workflow. `status`: 'completed' (todos los pasos OK), 'failed' (un paso
+/// devolvió error y se detuvo) o 'requires_confirmation' (se alcanzó un paso de ESCRITURA sin confirmación
+/// HITL; se detiene y se exponen `pendingWrites` para que el letrado confirme y relance con allowWrites).
+/// `stepResults` guarda la traza por paso `[{ tool, input, output, isError, status }]`.
+model AiWorkflowRun {
+  id              String   @id @default(cuid())
+  tenantId        String
+  workflowId      String
+  startedByUserId String
+  /// 'completed' | 'failed' | 'requires_confirmation'.
+  status          String
+  stepResults     Json
+  pendingWrites   Json
+  createdAt       DateTime @default(now())
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workflow AiWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, workflowId, createdAt])
 }
 
 /// Idempotencia del webhook de suscripción de la PLATAFORMA (M-2). `id` = `event.id` de Stripe; el primer

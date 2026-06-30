@@ -261,6 +261,14 @@ export const API_MESSAGES = {
     'es-ES': 'Elemento de la operación no encontrado.',
     'es-DO': 'Elemento de la operación no encontrado.',
   },
+  'deal.partyNotInMatter': {
+    'es-ES': 'La parte indicada no pertenece a esta operación.',
+    'es-DO': 'La parte indicada no pertenece a esta operación.',
+  },
+  'deal.escrowReleaseExceeds': {
+    'es-ES': 'La liberación supera el importe disponible en el depósito.',
+    'es-DO': 'La liberación supera el importe disponible en el depósito.',
+  },
 
   // ── Data room (due diligence) ─────────────────────────────────────────────
   'dataRoom.notFound': {
@@ -723,6 +731,14 @@ export const API_MESSAGES = {
   'ai.conversationNotFound': {
     'es-ES': 'No se encontró la conversación.',
     'es-DO': 'No se encontró la conversación.',
+  },
+  'ai.workflowNotFound': {
+    'es-ES': 'No se encontró el flujo.',
+    'es-DO': 'No se encontró el flujo.',
+  },
+  'ai.unknownWorkflowTool': {
+    'es-ES': 'El flujo usa una herramienta que no existe en el catálogo: {tool}.',
+    'es-DO': 'El flujo usa una herramienta que no existe en el catálogo: {tool}.',
   },
 
   // ── Aceptación legal (clickwrap) ──────────────────────────────────────────

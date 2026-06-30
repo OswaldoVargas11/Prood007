@@ -16,15 +16,18 @@ Ya implementado y desplegable:
 - ✅ Custodia del `.p12` por despacho (`dgii-credential.service.ts`, `POST /dgii/certificate`, FIRM_ADMIN).
 - ✅ **Numeración eNCF desde rango autorizado** por tipo (`EcfSequence`, `GET/POST /dgii/ecf-sequences`).
 - ✅ Motor de transmisión semilla→token→recepción→estado, gated por `DGII_ENV` (`ecf-transmission.service.ts`).
-- ✅ Firma XML-DSig envuelta correcta (`dgii-signer.ts`).
+- ✅ Firma **XAdES-BES** envuelta (`dgii-signer.ts`): XML-DSig + propiedades cualificadas (`SigningTime`,
+  `SigningCertificate`) y `<Reference>` a `SignedProperties`, FIRMADA y verificable (`dgii-signer.spec.ts`).
+- ✅ **Huella sobre el XML firmado** — con el firmador inyectado, el provider dominicano persiste el e-CF
+  FIRMADO y calcula `recordHash` sobre el XML ya firmado (`dominican.provider.ts`, seam `ecfSigner`).
 
 **Pendiente (rellenar en certificación CerteCF con el cert real):**
 
-1. **XAdES-BES** — añadir las propiedades cualificadas (`SigningTime`, `SigningCertificate`) y el
-   `<Reference>` a `SignedProperties`. **Único punto:** `apps/api/src/dgii/dgii-signer.ts` →
-   `signEnvelopedXml()` (el comentario marca el seam). El resto del flujo no cambia.
-2. **Huella sobre el XML firmado** — calcular/persistir `recordHash` del e-CF sobre el XML **ya firmado**
-   (hoy es sobre el XML previo a la firma). Punto: `packages/compliance/src/providers/dominican.provider.ts`.
+1. **Perfil XAdES exacto** — ratificar contra el set de pruebas de CerteCF el perfil que pide la DGII
+   (`SigningCertificateV2`, política de firma, forma RFC2253 del `IssuerName`). El núcleo XAdES-BES y el
+   seam ya están cerrados; solo se afina el cuerpo de `signEnvelopedXml()` con el certificado real.
+2. **Cableado del firmador en la emisión** — pasar `ecfSigner` (firma con el `.p12` del despacho) al
+   construir el e-CF, gated por la presencia del certificado. Depende del cert real.
 3. **Activar transmisión** — `DGII_ENV=cert` (set de pruebas) → iterar hasta aprobar → `DGII_ENV=prod`.
 
 Owner: RNC activo + `.p12` de una CA acreditada por INDOTEL + rangos eNCF aprobados en la Oficina Virtual.
@@ -39,15 +42,18 @@ Ya implementado y desplegable:
   inmutable (`FiscalEvent`) e inalterabilidad en BD.
 - ✅ **Custodia del certificado de firma ES por despacho** (`verifactu-credential.service.ts`,
   `POST /verifactu/certificate`, FIRM_ADMIN) — FNMT/representante, SEPARADO del `.p12` de DGII.
+- ✅ **Firma del registro** — `VerifactuSignerService` firma el registro Verifactu (XAdES-BES) consumiendo
+  `VerifactuCredentialService.loadCert(tenantId)`; gated (devuelve `null` sin certificado). Verificable
+  (`verifactu-signer.service.spec.ts`).
+- ✅ **QR parametrizable** — el host base del QR se inyecta (`SpainComplianceProvider(qrBaseUrl)` +
+  `VERIFACTU_QR_HOST`); default preproducción (no rompe los golden), producción sin tocar código.
 
 **Pendiente (rellenar en certificación con el cert real):**
 
-1. **Firma del registro** — firmar el registro Verifactu con el certificado del despacho. **Único punto:**
-   nuevo `VerifactuSignerService` que consuma `VerifactuCredentialService.loadCert(tenantId)` (ya entrega el
-   material PEM). El seam de carga del cert ya está; falta la función de firma según el formato AEAT.
-2. **QR a producción** — hoy el QR apunta a preproducción (`prewww2.aeat.es`) en
-   `packages/compliance/src/providers/spain.provider.ts`. Para producción: usar el host de producción de la
-   AEAT (parametrizar la base del QR; mantener el default actual no rompe los golden).
+1. **Perfil XAdES AEAT** — ratificar el perfil exacto (política de firma, `SigningCertificateV2`) contra el
+   banco de pruebas de la AEAT. El seam de firma ya está cerrado; solo se afina el cuerpo.
+2. **Host de producción del QR** — fijar `VERIFACTU_QR_HOST` al host de producción ratificado en el manual
+   de la AEAT (`AEAT_QR_HOST_PROD` es el candidato; confirmar antes de producción).
 3. **Modalidad de remisión:**
    - **No-VERI\*FACTU** (firma + conserva + QR): hito mínimo válido para vender en ES. Solo requiere (1)+(2).
    - **VERI\*FACTU** (remisión automática a la AEAT): nuevo `VerifactuSubmissionService` con el servicio web

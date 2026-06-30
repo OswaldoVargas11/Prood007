@@ -41,7 +41,7 @@ import { SettingsService } from '../settings/settings.service';
 import { DocumentPackagesService } from '../document-packages/document-packages.service';
 import { FoldersService } from '../folders/folders.service';
 import { AiSearchService } from './ai-search.service';
-import { AGENT_SYSTEM_PROMPT, selectAgentTools } from './ai-agent.tools';
+import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS, selectAgentTools } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -183,14 +183,20 @@ export class AiAgentService {
   /**
    * Variante STREAMING: emite eventos de progreso ('tool' por cada herramienta = thinking-traces) y un
    * 'done' final con la respuesta. `isAborted` permite que el usuario detenga el turno (botón Stop): el
-   * executor corta en cuanto se aborta, sin ejecutar más herramientas.
+   * executor corta en cuanto se aborta, sin ejecutar más herramientas. `signal` (cuando el controlador lo
+   * propaga al cerrarse la conexión) corta ADEMÁS la generación en vuelo del proveedor: deja de gastar
+   * tokens en el acto, no solo entre pasos.
    */
   async runStream(
     user: RequestUser,
     message: string,
     history: AiMessage[] = [],
     allowWrites = false,
-    opts: { onEvent: (e: AgentStreamEvent) => void; isAborted: () => boolean } = {
+    opts: {
+      onEvent: (e: AgentStreamEvent) => void;
+      isAborted: () => boolean;
+      signal?: AbortSignal;
+    } = {
       onEvent: () => undefined,
       isAborted: () => false,
     },
@@ -204,8 +210,43 @@ export class AiAgentService {
       opts.isAborted,
       (delta) => opts.onEvent({ type: 'text', delta }),
       (tool, result, isError) => opts.onEvent({ type: 'tool_result', tool, result, isError }),
+      opts.signal,
     );
     opts.onEvent({ type: 'done', ...res });
+  }
+
+  // ── Ejecución directa de herramientas (motor de workflows, LAW-22) ─────────────────────────────────
+  // El constructor de flujos multi-paso (AiWorkflowService) invoca herramientas del catálogo POR NOMBRE,
+  // sin pasar por el modelo. Para no duplicar el dispatch ni el gate HITL, reutiliza el mismo `execute`
+  // privado: así hay una ÚNICA fuente de verdad para "qué hace cada tool" y "qué requiere confirmación".
+
+  /** ¿Esta herramienta MUTA estado (requiere confirmación HITL salvo allowWrites)? */
+  isWriteTool(name: string): boolean {
+    return WRITE_TOOLS.has(name);
+  }
+
+  /** Catálogo de herramientas para el builder de workflows (nombre + descripción + si es de escritura). */
+  toolCatalog(): { name: string; description: string; isWrite: boolean }[] {
+    return AGENT_TOOLS.map((t) => ({
+      name: t.name,
+      description: t.description,
+      isWrite: WRITE_TOOLS.has(t.name),
+    }));
+  }
+
+  /**
+   * Ejecuta UNA herramienta del catálogo de forma directa (sin el modelo), respetando el gate HITL: si es
+   * de escritura y `allowWrites` es falso, NO se ejecuta — se devuelve `requires_confirmation` y se recoge
+   * en `pendingWrites`. Reutilizado por el motor de workflows; cada paso de un flujo es una invocación.
+   */
+  async executeTool(
+    user: RequestUser,
+    invocation: AiToolInvocation,
+    allowWrites = false,
+  ): Promise<{ outcome: AiToolOutcome; pendingWrites: PendingWrite[] }> {
+    const pendingWrites: PendingWrite[] = [];
+    const outcome = await this.execute(user, invocation, allowWrites, pendingWrites);
+    return { outcome, pendingWrites };
   }
 
   /** Núcleo del turno agéntico, compartido por `run` y `runStream`. */
@@ -218,6 +259,7 @@ export class AiAgentService {
     isAborted?: () => boolean,
     onText?: (delta: string) => void,
     onToolResult?: (name: string, content: string, isError: boolean) => void,
+    signal?: AbortSignal,
   ): Promise<AiAgentResponse> {
     await this.quota.consume(user);
 
@@ -250,7 +292,7 @@ export class AiAgentService {
           maxSteps: 6,
         },
         exec,
-        onText ? { onText } : undefined,
+        onText || signal ? { onText, signal } : undefined,
       );
     } catch (e) {
       // El agente NUNCA debe devolver 500: ante un fallo del proveedor (rate-limit persistente, caída),

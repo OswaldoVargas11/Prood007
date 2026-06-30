@@ -32,6 +32,9 @@ import type {
   DealPartySide,
   DealMilestoneKind,
   DisclosureScheduleStatus,
+  FundsFlowKind,
+  FundsFlowStatus,
+  FundsFlowOverview,
   RegistryKind,
   RegistryFilingStatus,
   Client,
@@ -2817,6 +2820,126 @@ export function useDealActions(matterId: string) {
       onSuccess: (d) => d && set(d),
     }),
   };
+}
+
+// ── Funds flow / escrow (closing statement) ───────────────────────────────────
+
+export interface CreateFundsFlowLineInput {
+  amount: string;
+  kind?: FundsFlowKind;
+  payerPartyId?: string;
+  payeePartyId?: string;
+  currency?: string;
+  account?: string;
+  condition?: string;
+  status?: FundsFlowStatus;
+}
+export interface UpdateFundsFlowLineInput {
+  kind?: FundsFlowKind;
+  payerPartyId?: string;
+  payeePartyId?: string;
+  amount?: string;
+  currency?: string;
+  account?: string;
+  condition?: string;
+  status?: FundsFlowStatus;
+  sortOrder?: number;
+}
+export interface CreateEscrowHoldingInput {
+  label: string;
+  amount: string;
+  currency?: string;
+  agent?: string;
+  depositedAt?: string;
+  releaseTrigger?: string;
+  notes?: string;
+}
+export interface UpdateEscrowHoldingInput {
+  label?: string;
+  amount?: string;
+  currency?: string;
+  agent?: string;
+  depositedAt?: string;
+  releaseTrigger?: string;
+  notes?: string;
+  sortOrder?: number;
+}
+export interface CreateEscrowReleaseInput {
+  amount: string;
+  releasedAt?: string;
+  reason?: string;
+}
+
+const fundsFlowKey = (matterId: string) => ['funds-flow', matterId] as const;
+
+export function useFundsFlow(matterId: string) {
+  return useQuery({
+    queryKey: fundsFlowKey(matterId),
+    queryFn: () => api.get<FundsFlowOverview>(`/deal/${matterId}/funds-flow`),
+    enabled: Boolean(matterId),
+  });
+}
+
+/**
+ * Mutaciones del funds-flow / escrow. Cada endpoint devuelve la vista completa, así que el éxito
+ * simplemente fija el resultado en la caché de la query del expediente.
+ */
+export function useFundsFlowActions(matterId: string) {
+  const qc = useQueryClient();
+  const set = (data: FundsFlowOverview) => qc.setQueryData(fundsFlowKey(matterId), data);
+  return {
+    addLine: useMutation({
+      mutationFn: (body: CreateFundsFlowLineInput) =>
+        api.post<FundsFlowOverview>(`/deal/${matterId}/funds-flow`, body),
+      onSuccess: set,
+    }),
+    updateLine: useMutation({
+      mutationFn: ({ id, ...body }: UpdateFundsFlowLineInput & { id: string }) =>
+        api.patch<FundsFlowOverview>(`/deal/funds-flow/${id}`, body),
+      onSuccess: set,
+    }),
+    removeLine: useMutation({
+      mutationFn: (id: string) => api.del<FundsFlowOverview>(`/deal/funds-flow/${id}`),
+      onSuccess: (d) => d && set(d),
+    }),
+    addHolding: useMutation({
+      mutationFn: (body: CreateEscrowHoldingInput) =>
+        api.post<FundsFlowOverview>(`/deal/${matterId}/escrow`, body),
+      onSuccess: set,
+    }),
+    updateHolding: useMutation({
+      mutationFn: ({ id, ...body }: UpdateEscrowHoldingInput & { id: string }) =>
+        api.patch<FundsFlowOverview>(`/deal/escrow/${id}`, body),
+      onSuccess: set,
+    }),
+    removeHolding: useMutation({
+      mutationFn: (id: string) => api.del<FundsFlowOverview>(`/deal/escrow/${id}`),
+      onSuccess: (d) => d && set(d),
+    }),
+    addRelease: useMutation({
+      mutationFn: ({ holdingId, ...body }: CreateEscrowReleaseInput & { holdingId: string }) =>
+        api.post<FundsFlowOverview>(`/deal/escrow/${holdingId}/releases`, body),
+      onSuccess: set,
+    }),
+    removeRelease: useMutation({
+      mutationFn: (id: string) => api.del<FundsFlowOverview>(`/deal/escrow/releases/${id}`),
+      onSuccess: (d) => d && set(d),
+    }),
+  };
+}
+
+/** Descarga el closing statement (PDF: funds-flow + cuadre + escrow) de la operación. */
+export async function downloadFundsFlowStatement(
+  matterId: string,
+  filename: string,
+): Promise<void> {
+  const blob = await api.download(`/deal/${matterId}/funds-flow/statement`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── Data room (due diligence) ─────────────────────────────────────────────────
