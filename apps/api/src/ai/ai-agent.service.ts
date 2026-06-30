@@ -183,14 +183,20 @@ export class AiAgentService {
   /**
    * Variante STREAMING: emite eventos de progreso ('tool' por cada herramienta = thinking-traces) y un
    * 'done' final con la respuesta. `isAborted` permite que el usuario detenga el turno (botón Stop): el
-   * executor corta en cuanto se aborta, sin ejecutar más herramientas.
+   * executor corta en cuanto se aborta, sin ejecutar más herramientas. `signal` (cuando el controlador lo
+   * propaga al cerrarse la conexión) corta ADEMÁS la generación en vuelo del proveedor: deja de gastar
+   * tokens en el acto, no solo entre pasos.
    */
   async runStream(
     user: RequestUser,
     message: string,
     history: AiMessage[] = [],
     allowWrites = false,
-    opts: { onEvent: (e: AgentStreamEvent) => void; isAborted: () => boolean } = {
+    opts: {
+      onEvent: (e: AgentStreamEvent) => void;
+      isAborted: () => boolean;
+      signal?: AbortSignal;
+    } = {
       onEvent: () => undefined,
       isAborted: () => false,
     },
@@ -204,6 +210,7 @@ export class AiAgentService {
       opts.isAborted,
       (delta) => opts.onEvent({ type: 'text', delta }),
       (tool, result, isError) => opts.onEvent({ type: 'tool_result', tool, result, isError }),
+      opts.signal,
     );
     opts.onEvent({ type: 'done', ...res });
   }
@@ -218,6 +225,7 @@ export class AiAgentService {
     isAborted?: () => boolean,
     onText?: (delta: string) => void,
     onToolResult?: (name: string, content: string, isError: boolean) => void,
+    signal?: AbortSignal,
   ): Promise<AiAgentResponse> {
     await this.quota.consume(user);
 
@@ -250,7 +258,7 @@ export class AiAgentService {
           maxSteps: 6,
         },
         exec,
-        onText ? { onText } : undefined,
+        onText || signal ? { onText, signal } : undefined,
       );
     } catch (e) {
       // El agente NUNCA debe devolver 500: ante un fallo del proveedor (rate-limit persistente, caída),

@@ -14,7 +14,7 @@ import type {
 /**
  * Motor de IA sobre la API de Anthropic (Claude). Es la implementación REAL del `AiEngine`: enchufar el
  * agente = tener `ANTHROPIC_API_KEY` (el factory de `AiModule` inyecta esta clase en ese caso). El modelo
- * se elige por `AI_MODEL` (default `claude-opus-4-6`) — cambiarlo es una sola variable de entorno.
+ * se elige por `AI_MODEL` (default `claude-opus-4-8`) — cambiarlo es una sola variable de entorno.
  *
  * Notas de diseño:
  * - System como bloque con `cache_control` efímero: en conversaciones/resúmenes repetidos el prefijo de
@@ -33,7 +33,7 @@ export class AnthropicEngine implements AiEngine {
 
   constructor(apiKey: string, config: ConfigService) {
     this.client = new Anthropic({ apiKey });
-    this.modelId = config.get<string>('AI_MODEL') || 'claude-opus-4-6';
+    this.modelId = config.get<string>('AI_MODEL') || 'claude-opus-4-8';
     const configured = Number(config.get<string>('AI_MAX_OUTPUT_TOKENS'));
     this.defaultMaxTokens = Number.isFinite(configured) && configured > 0 ? configured : 4096;
   }
@@ -141,20 +141,43 @@ export class AnthropicEngine implements AiEngine {
     let inputTokens = 0;
     let outputTokens = 0;
     let model = this.modelId;
+    // El botón Stop del cliente cierra la conexión; el controlador propaga ese corte como `signal`. Lo
+    // pasamos a CADA petición de streaming para CANCELAR de verdad la generación en curso en el proveedor
+    // (no solo dejar de pedir más herramientas): se deja de gastar tokens en el acto.
+    const reqOpts = hooks?.signal ? { signal: hooks.signal } : undefined;
+    const aborted = () => Boolean(hooks?.signal?.aborted);
+    const abortedResult = (): AiAgentResult => ({
+      text: '',
+      steps,
+      usage: { inputTokens, outputTokens },
+      model,
+      stopReason: 'aborted',
+    });
 
     for (let step = 0; step < maxSteps; step++) {
+      if (aborted()) return abortedResult();
       // Streaming bajo el capó: emite deltas de texto vía `hooks.onText` (efecto "escribiendo en vivo")
       // y evita timeouts HTTP en respuestas largas. `finalMessage()` devuelve el mensaje completo igual
       // que `create`, así que el resto del protocolo tool-use no cambia.
-      const stream = this.client.messages.stream({
-        model: this.modelId,
-        max_tokens: maxTokens,
-        ...(system ? { system } : {}),
-        tools,
-        messages,
-      });
+      const stream = this.client.messages.stream(
+        {
+          model: this.modelId,
+          max_tokens: maxTokens,
+          ...(system ? { system } : {}),
+          tools,
+          messages,
+        },
+        reqOpts,
+      );
       if (hooks?.onText) stream.on('text', (delta) => hooks.onText!(delta));
-      const res = await stream.finalMessage();
+      let res: Anthropic.Message;
+      try {
+        res = await stream.finalMessage();
+      } catch (e) {
+        // Un abort (Stop) no es un fallo: corta limpiamente con el coste acumulado hasta aquí.
+        if (aborted()) return abortedResult();
+        throw e;
+      }
       inputTokens += res.usage.input_tokens;
       outputTokens += res.usage.output_tokens;
       model = res.model;
@@ -200,15 +223,25 @@ export class AnthropicEngine implements AiEngine {
       messages.push({ role: 'user', content: toolResults });
     }
 
+    if (aborted()) return abortedResult();
     // Tope de pasos alcanzado: pide la respuesta final SIN herramientas para cerrar el turno limpiamente.
-    const finalStream = this.client.messages.stream({
-      model: this.modelId,
-      max_tokens: maxTokens,
-      ...(system ? { system } : {}),
-      messages,
-    });
+    const finalStream = this.client.messages.stream(
+      {
+        model: this.modelId,
+        max_tokens: maxTokens,
+        ...(system ? { system } : {}),
+        messages,
+      },
+      reqOpts,
+    );
     if (hooks?.onText) finalStream.on('text', (delta) => hooks.onText!(delta));
-    const final = await finalStream.finalMessage();
+    let final: Anthropic.Message;
+    try {
+      final = await finalStream.finalMessage();
+    } catch (e) {
+      if (aborted()) return abortedResult();
+      throw e;
+    }
     inputTokens += final.usage.input_tokens;
     outputTokens += final.usage.output_tokens;
     model = final.model;

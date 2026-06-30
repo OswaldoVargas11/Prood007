@@ -117,9 +117,14 @@ export class AiController {
     res.setHeader('Content-Type', 'application/x-ndjson; charset=utf-8');
     res.setHeader('Cache-Control', 'no-cache, no-transform');
     res.setHeader('X-Accel-Buffering', 'no');
+    // Botón Stop del cliente: al abortar el fetch, la conexión se cierra ('close'). Marcamos `aborted`
+    // (corta entre herramientas) y además disparamos un AbortController cuyo `signal` el motor propaga a
+    // la petición del proveedor para CANCELAR la generación en vuelo (deja de gastar tokens al instante).
     let aborted = false;
+    const ac = new AbortController();
     res.on('close', () => {
       aborted = true;
+      ac.abort();
     });
     const write = (e: AgentStreamEvent) => {
       if (!res.writableEnded) res.write(`${JSON.stringify(e)}\n`);
@@ -128,6 +133,7 @@ export class AiController {
       await this.agent.runStream(user, dto.message, dto.history, dto.allowWrites, {
         onEvent: write,
         isAborted: () => aborted,
+        signal: ac.signal,
       });
     } catch {
       write({
