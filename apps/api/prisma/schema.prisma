@@ -458,6 +458,8 @@ model Tenant {
   chatMessages         ChatMessage[]
   aiConversations      AiConversation[]
   aiChatMessages       AiChatMessage[]
+  aiWorkflows          AiWorkflow[]
+  aiWorkflowRuns       AiWorkflowRun[]
   webhookEndpoints     WebhookEndpoint[]
   legalAcceptances     LegalAcceptance[]
   subprocessorSubs     SubprocessorSubscription[]
@@ -2366,6 +2368,49 @@ model AiChatMessage {
   conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, conversationId, createdAt])
+}
+
+/// Definición declarativa de un FLUJO agéntico multi-paso (Zora workflows builder, LAW-22). Cada paso
+/// invoca una herramienta del catálogo del agente (`AGENT_TOOLS`) por nombre + input. Los pasos se ejecutan
+/// en orden (`steps` es un array JSON ordenado de `{ tool, input }`). Compartido por todo el staff del
+/// despacho (no privado por usuario, a diferencia de AiConversation): es un activo reutilizable del despacho.
+model AiWorkflow {
+  id              String   @id @default(cuid())
+  tenantId        String
+  /// Usuario que lo creó (para trazabilidad; no restringe la visibilidad).
+  createdByUserId String
+  name            String
+  description     String?
+  /// Array JSON ordenado de pasos: `[{ tool: string, input: object }]`.
+  steps           Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  runs   AiWorkflowRun[]
+
+  @@index([tenantId, updatedAt])
+}
+
+/// Registro de una EJECUCIÓN de un workflow. `status`: 'completed' (todos los pasos OK), 'failed' (un paso
+/// devolvió error y se detuvo) o 'requires_confirmation' (se alcanzó un paso de ESCRITURA sin confirmación
+/// HITL; se detiene y se exponen `pendingWrites` para que el letrado confirme y relance con allowWrites).
+/// `stepResults` guarda la traza por paso `[{ tool, input, output, isError, status }]`.
+model AiWorkflowRun {
+  id              String   @id @default(cuid())
+  tenantId        String
+  workflowId      String
+  startedByUserId String
+  /// 'completed' | 'failed' | 'requires_confirmation'.
+  status          String
+  stepResults     Json
+  pendingWrites   Json
+  createdAt       DateTime @default(now())
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workflow AiWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, workflowId, createdAt])
 }
 
 /// Idempotencia del webhook de suscripción de la PLATAFORMA (M-2). `id` = `event.id` de Stripe; el primer

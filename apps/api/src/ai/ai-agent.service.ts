@@ -41,7 +41,7 @@ import { SettingsService } from '../settings/settings.service';
 import { DocumentPackagesService } from '../document-packages/document-packages.service';
 import { FoldersService } from '../folders/folders.service';
 import { AiSearchService } from './ai-search.service';
-import { AGENT_SYSTEM_PROMPT, selectAgentTools } from './ai-agent.tools';
+import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS, selectAgentTools } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -213,6 +213,40 @@ export class AiAgentService {
       opts.signal,
     );
     opts.onEvent({ type: 'done', ...res });
+  }
+
+  // ── Ejecución directa de herramientas (motor de workflows, LAW-22) ─────────────────────────────────
+  // El constructor de flujos multi-paso (AiWorkflowService) invoca herramientas del catálogo POR NOMBRE,
+  // sin pasar por el modelo. Para no duplicar el dispatch ni el gate HITL, reutiliza el mismo `execute`
+  // privado: así hay una ÚNICA fuente de verdad para "qué hace cada tool" y "qué requiere confirmación".
+
+  /** ¿Esta herramienta MUTA estado (requiere confirmación HITL salvo allowWrites)? */
+  isWriteTool(name: string): boolean {
+    return WRITE_TOOLS.has(name);
+  }
+
+  /** Catálogo de herramientas para el builder de workflows (nombre + descripción + si es de escritura). */
+  toolCatalog(): { name: string; description: string; isWrite: boolean }[] {
+    return AGENT_TOOLS.map((t) => ({
+      name: t.name,
+      description: t.description,
+      isWrite: WRITE_TOOLS.has(t.name),
+    }));
+  }
+
+  /**
+   * Ejecuta UNA herramienta del catálogo de forma directa (sin el modelo), respetando el gate HITL: si es
+   * de escritura y `allowWrites` es falso, NO se ejecuta — se devuelve `requires_confirmation` y se recoge
+   * en `pendingWrites`. Reutilizado por el motor de workflows; cada paso de un flujo es una invocación.
+   */
+  async executeTool(
+    user: RequestUser,
+    invocation: AiToolInvocation,
+    allowWrites = false,
+  ): Promise<{ outcome: AiToolOutcome; pendingWrites: PendingWrite[] }> {
+    const pendingWrites: PendingWrite[] = [];
+    const outcome = await this.execute(user, invocation, allowWrites, pendingWrites);
+    return { outcome, pendingWrites };
   }
 
   /** Núcleo del turno agéntico, compartido por `run` y `runStream`. */

@@ -18,6 +18,7 @@ import { AiService } from './ai.service';
 import { AiSearchService } from './ai-search.service';
 import { AiChatService } from './ai-chat.service';
 import { AiAgentService } from './ai-agent.service';
+import { AiWorkflowService } from './ai-workflow.service';
 import { AiQuotaService } from './ai-quota.service';
 import { AiIndexCron } from './ai-index.cron';
 import { AiController } from './ai.controller';
@@ -131,6 +132,7 @@ import { DashboardModule } from '../dashboard/dashboard.module';
     AiSearchService,
     AiChatService,
     AiAgentService,
+    AiWorkflowService,
     AiQuotaService,
     AiIndexCron,
   ],
