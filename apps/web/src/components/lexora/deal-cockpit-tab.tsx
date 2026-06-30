@@ -404,6 +404,7 @@ function fmtMoney(amount: string | number, currency: string): string {
 
 function FundsFlowCard({ matterId, parties }: { matterId: string; parties: DealParty[] }) {
   const t = useTranslations('deal.fundsFlow');
+  const tDeal = useTranslations('deal');
   const { data, isLoading } = useFundsFlow(matterId);
   const actions = useFundsFlowActions(matterId);
   const [editingLine, setEditingLine] = useState<DealFundsFlowLine | null>(null);
@@ -558,7 +559,7 @@ function FundsFlowCard({ matterId, parties }: { matterId: string; parties: DealP
                     className="h-7 px-2 text-xs"
                     onClick={() => setEditingLine(l)}
                   >
-                    {useTranslations('deal')('edit')}
+                    {tDeal('edit')}
                   </Button>
                   <Button
                     size="sm"
