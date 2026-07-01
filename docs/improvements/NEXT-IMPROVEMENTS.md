@@ -1,5 +1,8 @@
 # Próximas mejoras de producto — estudio
 
+> ⚠️ **Doc de planificación (puede estar STALE).** Estado real "hecho vs pendiente" → **`docs/PROJECT-STATUS.md`**.
+> A 2026-07-01: **1.2–3.4 ya entregadas** (Tanda 2, PRs #174–#184); solo queda **1.1** (notificaciones del chat).
+
 Estudio de mejoras del mismo estilo que la tanda recién entregada (checklists de presentación,
 sistema de carpetas, dashboards con gráficos, reorganización del workspace y chat tipo red social).
 Pensado para priorizar el siguiente ciclo. Cada propuesta indica **impacto**, **esfuerzo** y el punto
