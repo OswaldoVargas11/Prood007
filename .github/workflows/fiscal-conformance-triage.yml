@@ -49,7 +49,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
-      - uses: anthropics/claude-code-action@30544b674398ee15c84819bd87caf8a87e8c7b55 # v1
+      - uses: anthropics/claude-code-action@6c0083bb7289c31716797a039b6367b3079cc46e # v1
         with:
           # Auth por SUSCRIPCIÓN (Pro/Max), no por API key de pago. Genera el token
           # con `claude setup-token` y guárdalo como secret CLAUDE_CODE_OAUTH_TOKEN.
