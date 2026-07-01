@@ -1,5 +1,8 @@
 # Roadmap del agente de IA: gaps de paridad no cerrados en esta tanda
 
+> ⚠️ **Doc de planificación (puede estar STALE).** Estado real → **`docs/PROJECT-STATUS.md`**.
+> A 2026-07-01: el **gap #1 (builder de workflows no-code)** está **CERRADO y DESPLEGADO en prod** (LAW-22 backend + LAW-67 UI). Quedan gap #2 (Word/Outlook) y gap #3 (token-a-token, cosmético).
+
 > Generado 2026-06-27.
 
 Esta tanda eleva el agente de Lawzora (`POST /ai/agent`, despachos ES + RD) a la barra

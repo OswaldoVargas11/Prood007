@@ -486,7 +486,7 @@ function HeroPanel() {
                 <Icon name="ShieldCheck" size={16} />
               </span>
               <div style={{ fontSize: 12, color: 'var(--txt-2)', lineHeight: 1.4 }}>
-                Verifactu y e-CF <b style={{ color: 'var(--txt)' }}>conformes</b>
+                Verifactu y e-CF: <b style={{ color: 'var(--txt)' }}>registro encadenado conforme</b>
               </div>
             </div>
           </div>
@@ -1430,7 +1430,7 @@ function FiscalMiniUI() {
     <div className="t-ui">
       <div className="mini-row" style={{ borderColor: 'var(--teal-line)' }}>
         <span className="mt" style={{ display: 'inline-flex', gap: 7, alignItems: 'center' }}>
-          <Icon name="ShieldCheck" size={14} style={{ color: 'var(--teal)' }} /> Verifactu · AEAT
+          <Icon name="ShieldCheck" size={14} style={{ color: 'var(--teal)' }} /> Verifactu · encadenado
         </span>
         <Tag tone="ok" icon="Check">
           Conforme
