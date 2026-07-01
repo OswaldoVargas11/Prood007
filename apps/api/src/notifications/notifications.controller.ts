@@ -36,7 +36,7 @@ export class NotificationsController {
     @CurrentUser() user: RequestUser,
     @Body() dto: UpdateNotificationPreferencesDto,
   ) {
-    return this.notifications.updatePreferences(user, dto.deadlineEmailRemindersEnabled);
+    return this.notifications.updatePreferences(user, dto);
   }
 
   @Patch(':id/read')

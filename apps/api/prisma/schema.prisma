@@ -517,6 +517,12 @@ model User {
   // Recordatorios de plazos por correo: interruptor del USUARIO (self-service). En false, este usuario
   // no recibe el email del recordatorio (pero sí el aviso in-app). Combina con el flag del despacho.
   deadlineEmailRemindersEnabled Boolean   @default(true)
+  // Resumen por correo de mensajes de chat sin leer (NEXT 1.1): OPT-IN por usuario (default false, no
+  // sorprender con correos nuevos). El cron solo envía a quien lo activa y con la feature global encendida.
+  chatDigestEmailEnabled        Boolean   @default(false)
+  // Última vez que se envió a este usuario el resumen de chat: ancla del anti-spam (intervalo mínimo) y de
+  // la deduplicación (solo cuentan como "nuevos" los mensajes posteriores a esta marca). Null = nunca.
+  lastChatDigestAt              DateTime?
   // MFA (2FA TOTP): secreto base32 CIFRADO (AES-256-GCM) y códigos de respaldo (hashes argon2 en JSON).
   // mfaEnabled false con mfaSecret presente = configuración a medias (pendiente de confirmar el código).
   mfaEnabled                    Boolean   @default(false)

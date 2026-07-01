@@ -43,6 +43,7 @@ function NotificationsCard() {
   const { data, isLoading } = useNotificationPreferences();
   const update = useUpdateNotificationPreferences();
   const enabled = data?.deadlineEmailRemindersEnabled ?? true;
+  const chatDigest = data?.chatDigestEmailEnabled ?? false;
 
   return (
     <Card>
@@ -57,17 +58,31 @@ function NotificationsCard() {
         {isLoading ? (
           <Skeleton className="h-10 w-full" />
         ) : (
-          <div className="flex items-center justify-between gap-4 rounded-lg border bg-[var(--surface-1)] px-4 py-3">
-            <div className="min-w-0">
-              <div className="text-[13.5px] font-medium">{t('deadlineEmail')}</div>
-              <p className="mt-0.5 text-[12px] text-muted-foreground">{t('deadlineEmailHint')}</p>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-4 rounded-lg border bg-[var(--surface-1)] px-4 py-3">
+              <div className="min-w-0">
+                <div className="text-[13.5px] font-medium">{t('deadlineEmail')}</div>
+                <p className="mt-0.5 text-[12px] text-muted-foreground">{t('deadlineEmailHint')}</p>
+              </div>
+              <Switch
+                checked={enabled}
+                disabled={update.isPending}
+                aria-label={t('deadlineEmail')}
+                onCheckedChange={(v) => update.mutate({ deadlineEmailRemindersEnabled: v })}
+              />
             </div>
-            <Switch
-              checked={enabled}
-              disabled={update.isPending}
-              aria-label={t('deadlineEmail')}
-              onCheckedChange={(v) => update.mutate({ deadlineEmailRemindersEnabled: v })}
-            />
+            <div className="flex items-center justify-between gap-4 rounded-lg border bg-[var(--surface-1)] px-4 py-3">
+              <div className="min-w-0">
+                <div className="text-[13.5px] font-medium">{t('chatDigest')}</div>
+                <p className="mt-0.5 text-[12px] text-muted-foreground">{t('chatDigestHint')}</p>
+              </div>
+              <Switch
+                checked={chatDigest}
+                disabled={update.isPending}
+                aria-label={t('chatDigest')}
+                onCheckedChange={(v) => update.mutate({ chatDigestEmailEnabled: v })}
+              />
+            </div>
           </div>
         )}
       </CardContent>

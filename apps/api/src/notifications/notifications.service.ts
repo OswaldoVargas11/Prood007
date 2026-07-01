@@ -56,23 +56,43 @@ export class NotificationsService {
   }
 
   /** Preferencias de notificación del propio usuario (canales). Self-service. */
-  async getPreferences(user: RequestUser): Promise<{ deadlineEmailRemindersEnabled: boolean }> {
+  async getPreferences(
+    user: RequestUser,
+  ): Promise<{ deadlineEmailRemindersEnabled: boolean; chatDigestEmailEnabled: boolean }> {
     const row = await this.prisma.user.findFirst({
       where: { id: user.userId, tenantId: user.tenantId },
-      select: { deadlineEmailRemindersEnabled: true },
+      select: { deadlineEmailRemindersEnabled: true, chatDigestEmailEnabled: true },
     });
-    return { deadlineEmailRemindersEnabled: row?.deadlineEmailRemindersEnabled ?? true };
+    return {
+      deadlineEmailRemindersEnabled: row?.deadlineEmailRemindersEnabled ?? true,
+      chatDigestEmailEnabled: row?.chatDigestEmailEnabled ?? false,
+    };
   }
 
-  /** Actualiza la preferencia de correo de recordatorios del propio usuario (acotada a su fila). */
+  /**
+   * Actualiza las preferencias de correo del propio usuario (patch parcial, acotado a su fila). Solo toca
+   * los campos presentes en el DTO; devuelve el estado resultante completo.
+   */
   async updatePreferences(
     user: RequestUser,
-    enabled: boolean,
-  ): Promise<{ deadlineEmailRemindersEnabled: boolean }> {
-    await this.prisma.user.updateMany({
-      where: { id: user.userId, tenantId: user.tenantId },
-      data: { deadlineEmailRemindersEnabled: enabled },
-    });
-    return { deadlineEmailRemindersEnabled: enabled };
+    prefs: { deadlineEmailRemindersEnabled?: boolean; chatDigestEmailEnabled?: boolean },
+  ): Promise<{ deadlineEmailRemindersEnabled: boolean; chatDigestEmailEnabled: boolean }> {
+    const data: {
+      deadlineEmailRemindersEnabled?: boolean;
+      chatDigestEmailEnabled?: boolean;
+    } = {};
+    if (prefs.deadlineEmailRemindersEnabled !== undefined) {
+      data.deadlineEmailRemindersEnabled = prefs.deadlineEmailRemindersEnabled;
+    }
+    if (prefs.chatDigestEmailEnabled !== undefined) {
+      data.chatDigestEmailEnabled = prefs.chatDigestEmailEnabled;
+    }
+    if (Object.keys(data).length > 0) {
+      await this.prisma.user.updateMany({
+        where: { id: user.userId, tenantId: user.tenantId },
+        data,
+      });
+    }
+    return this.getPreferences(user);
   }
 }

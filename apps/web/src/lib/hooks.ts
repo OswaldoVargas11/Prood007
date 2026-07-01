@@ -667,7 +667,10 @@ export function useMfaDisable() {
 }
 
 // ── Preferencias de notificación del propio usuario (self-service) ─────────────
-type NotificationPrefs = { deadlineEmailRemindersEnabled: boolean };
+type NotificationPrefs = {
+  deadlineEmailRemindersEnabled: boolean;
+  chatDigestEmailEnabled: boolean;
+};
 export function useNotificationPreferences() {
   return useQuery({
     queryKey: ['notification-preferences'],
@@ -677,7 +680,8 @@ export function useNotificationPreferences() {
 export function useUpdateNotificationPreferences() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: NotificationPrefs) =>
+    // Patch parcial: el cliente envía solo la preferencia que cambia.
+    mutationFn: (body: Partial<NotificationPrefs>) =>
       api.patch<NotificationPrefs>('/notifications/preferences', body),
     onSuccess: (data) => qc.setQueryData(['notification-preferences'], data),
     meta: { successToast: toastMsg.settingsSaved },

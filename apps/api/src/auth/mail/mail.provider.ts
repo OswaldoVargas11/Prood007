@@ -210,6 +210,38 @@ export function deadlineReminderMessage(
 }
 
 /**
+ * Plantilla del RESUMEN de mensajes de chat sin leer (NEXT 1.1). Agrupa por conversación y enlaza al chat.
+ * Se envía además del aviso in-app (badge del dock), para enterarse fuera de la app. Fail-soft en el caller.
+ * `lines` viene ya formateado por la lógica pura (`chatDigestLines`); son texto plano → se escapan aquí.
+ */
+export function chatDigestMessage(
+  to: string,
+  opts: { fullName?: string | null; subject: string; totalCount: number; lines: string[]; link: string },
+): MailMessage {
+  const greeting = opts.fullName ? `Hola ${escapeHtml(opts.fullName)},` : 'Hola,';
+  const intro =
+    opts.totalCount === 1
+      ? 'Tienes un mensaje sin leer en el chat del despacho:'
+      : `Tienes ${opts.totalCount} mensajes sin leer en el chat del despacho:`;
+  const listHtml =
+    `<ul style="margin:0 0 16px;padding-left:20px;font-size:15px;line-height:1.6;color:#3f3f46;">` +
+    opts.lines.map((l) => `<li>${escapeHtml(l)}</li>`).join('') +
+    `</ul>`;
+  const text =
+    `${opts.fullName ? `Hola ${opts.fullName},` : 'Hola,'}\n\n` +
+    `${intro}\n` +
+    opts.lines.map((l) => `- ${l}`).join('\n') +
+    `\n\nAbre el chat en Lawzora:\n${opts.link}`;
+  const html = renderEmail({
+    heading: 'Mensajes sin leer del equipo',
+    paragraphs: [greeting, intro, listHtml],
+    button: { label: 'Abrir el chat', url: opts.link },
+    note: 'Recibes este resumen porque lo activaste en tus preferencias de notificación. Puedes desactivarlo cuando quieras.',
+  });
+  return { to, subject: opts.subject, html, text };
+}
+
+/**
  * Implementación por defecto: NO envía correo. Registra la intención para trazabilidad en dev/CI.
  * Para activar email real, regístrese `SmtpMailProvider` bajo el token MAIL_PROVIDER (ver auth.module).
  */

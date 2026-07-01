@@ -1696,7 +1696,9 @@
     "title": "Notificaciones",
     "desc": "Elige cómo quieres recibir los avisos.",
     "deadlineEmail": "Recordatorios de plazos por correo",
-    "deadlineEmailHint": "Recibe un correo cuando un plazo o tarea tuya se acerca, además del aviso dentro de la app."
+    "deadlineEmailHint": "Recibe un correo cuando un plazo o tarea tuya se acerca, además del aviso dentro de la app.",
+    "chatDigest": "Resumen de chat por correo",
+    "chatDigestHint": "Recibe un correo con los mensajes del equipo que tengas sin leer. Solo si lo activas."
   },
   "security": {
     "title": "Mi cuenta",
