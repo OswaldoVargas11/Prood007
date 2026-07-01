@@ -7,18 +7,24 @@
 `agents/sandbox` es un **fast-forward limpio** sobre `main`:
 
 ```
-git rev-list --count main..agents/sandbox   →  31   (sandbox por delante)
+git rev-list --count main..agents/sandbox   →  33   (sandbox por delante)
 git rev-list --count agents/sandbox..main    →   0   (main NO tiene nada que falte en sandbox)
+git merge-base --is-ancestor main agents/sandbox → OK (fast-forward limpio)
 ```
 
 → **No hay ramas dispersas que reconciliar ni conflictos esperables.** Toda la obra de la noche
-está consolidada en `agents/sandbox`. Revisar y hacer push/PR de **esa única rama** (HEAD `4da3c92`).
+está consolidada en `agents/sandbox`. Revisar y hacer push/PR de **esa única rama** (HEAD `fcb0b6a`).
+
+> **Delta desde la primera versión de este runbook** (era 31 commits / HEAD `4da3c92`): se añadieron
+> dos commits **solo de docs/tooling, sin tocar rutas de código** — `106d109` (este runbook) y
+> `fcb0b6a` (auditoría fiscal/legal LAW-46 + `tools/i18n-check.mjs`, +179/−0, 2 archivos nuevos). La
+> QA 33/33 sobre `4da3c92` sigue siendo válida para todo el código de la tanda.
 
 > Las tarjetas del tablero "seams fiscales — no puedo pushear" (`38c45125`) y "pentest — no puedo
 > pushear" (`9a026059`) sugieren ramas separadas; **no lo son**: ese trabajo ya está dentro de
 > `agents/sandbox` (ver inventario). El bloqueo real era sólo "agentes no pushean", no divergencia.
 
-## Inventario de `agents/sandbox` (31 commits sobre main)
+## Inventario de `agents/sandbox` (33 commits sobre main)
 
 | Área | Commit(s) | Entregable |
 |---|---|---|
@@ -35,6 +41,8 @@ está consolidada en `agents/sandbox`. Revisar y hacer push/PR de **esa única r
 | Observabilidad | `25aa6f9` / `df3b9e2` | Trigger append-only en AuditLog + regresión (LAW-7/LAW-15) |
 | Crecimiento — Precios | `f1641cb`/`e87f936`, `b1fe2f1`/`1c7a8b8` | Página pública `/es/precios` + ruta pública en middleware (LAW-8/34) |
 | DevOps | `2cda6bd` | Worktree aislado por agente (LAW-10) |
+| Fiscal/Legal — Auditoría | `fcb0b6a` | Auditoría de superficie fiscal/legal + `i18n-check.mjs` anti-MISSING_MESSAGE (LAW-46), solo docs/tooling |
+| Orquestación — Handoff | `106d109` | Este runbook de merge matutino (docs) |
 
 ## QA (verificado por Carla, issue `cd0b3d0f`)
 
