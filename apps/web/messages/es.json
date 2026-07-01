@@ -259,7 +259,7 @@
     "connector": {
       "active": "Conector LexNET activo.",
       "inactive": "Conector LexNET inactivo — modo manual.",
-      "inactiveHint": "La integración automática con LexNET requiere acreditación oficial; mientras tanto registra las notificaciones a mano y el plazo se calcula igual. Ver LEXNET_SETUP.md."
+      "inactiveHint": "La integración automática con LexNET requiere acreditación oficial; mientras tanto registra las notificaciones a mano y el plazo se calcula igual. Ver docs/setup/LEXNET_SETUP.md."
     },
     "register": "Registrar notificación",
     "subject": "Asunto del acto",

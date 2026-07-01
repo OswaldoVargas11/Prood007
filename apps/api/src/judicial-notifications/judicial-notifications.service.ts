@@ -88,7 +88,7 @@ export class JudicialNotificationsService {
     return lexnetConfig();
   }
 
-  /** Ingesta automática desde LexNET. GATED: sin acreditación/endpoint, no-op (ver LEXNET_SETUP.md). */
+  /** Ingesta automática desde LexNET. GATED: sin acreditación/endpoint, no-op (ver docs/setup/LEXNET_SETUP.md). */
   sync() {
     if (!lexnetEnabled()) return { enabled: false, imported: 0 };
     // Conector real pendiente de acreditación oficial ante el CGPJ; punto de extensión documentado.

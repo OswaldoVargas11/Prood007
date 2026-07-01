@@ -16,7 +16,7 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 # Sentry de cliente (opcional): si se pasa el DSN como build-arg, se hornea y se activa la captura de
-# errores en el navegador; si no, el SDK ni siquiera entra en el bundle (coste cero). Ver SENTRY_SETUP.md.
+# errores en el navegador; si no, el SDK ni siquiera entra en el bundle (coste cero). Ver docs/setup/SENTRY_SETUP.md.
 ARG NEXT_PUBLIC_SENTRY_DSN
 ENV NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN
 ARG NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE

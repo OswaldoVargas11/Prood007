@@ -442,15 +442,15 @@ sequenceDiagram
     end
 ```
 
-Detalle y setup en [GOOGLE_OAUTH_SETUP.md](../../GOOGLE_OAUTH_SETUP.md) /
-[MICROSOFT_OAUTH_SETUP.md](../../MICROSOFT_OAUTH_SETUP.md).
+Detalle y setup en [GOOGLE_OAUTH_SETUP.md](../setup/GOOGLE_OAUTH_SETUP.md) /
+[MICROSOFT_OAUTH_SETUP.md](../setup/MICROSOFT_OAUTH_SETUP.md).
 
 ---
 
 ## 10 · Suscripción SaaS del despacho
 
-Cobro **por plaza** (FIRM_ADMIN + LAWYER activos), ciclo `MONTHLY`/`ANNUAL` (2 meses gratis), trial 14
-días, cupo _founder_. El acceso se gatea por interceptor; los endpoints de suscripción llevan
+Cobro **por plaza** (FIRM*ADMIN + LAWYER activos), ciclo `MONTHLY`/`ANNUAL` (2 meses gratis), trial 14
+días, cupo \_founder*. El acceso se gatea por interceptor; los endpoints de suscripción llevan
 `@AllowExpired()` para poder reactivar.
 
 ```mermaid

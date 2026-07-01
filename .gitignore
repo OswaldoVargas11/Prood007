@@ -27,6 +27,8 @@ npm-debug.log*
 
 # Claude Code local settings
 .claude/settings.local.json
+# Worktrees locales de agentes/sesiones (efímeros, con node_modules propios)
+.claude/worktrees/
 
 # Editor / OS
 .DS_Store
@@ -66,7 +68,7 @@ apps/web/e2e/.auth/
 qa-screenshots/
 
 # Scripts de prueba locales (pueden contener credenciales de entorno)
-scripts/test-*.mjs
+apps/api/scripts/test-*.mjs
 
 # Stripe setup-as-code: salida generada con los Price IDs (pegar en STRIPE_PRICE_MAP)
 scripts/stripe-prices.*.json

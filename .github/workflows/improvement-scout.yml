@@ -42,7 +42,7 @@ jobs:
             (SaaS legal multi-tenant, multi-jurisdicción ES/RD; monorepo pnpm con
             apps/api en NestJS + Prisma, apps/web en Next.js, paquetes compartidos
             packages/domain y packages/compliance). Revisa el código reciente, los
-            TODO/FIXME, DECISIONS.md, PLAN.md y los issues abiertos. Identifica
+            TODO/FIXME, DECISIONS.md, docs/PROJECT-STATUS.md y los issues abiertos. Identifica
             candidatos de mejora de UX y de backend.
 
             TU ENTREGABLE ES CREAR UN ISSUE en GitHub (no describirlo en tu

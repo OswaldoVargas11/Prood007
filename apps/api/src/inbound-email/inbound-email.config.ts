@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 /**
  * Email-por-BCC al expediente — GATED. El despacho pone en copia oculta (BCC) una dirección única por
  * expediente; un worker (p. ej. Cloudflare Email Routing) reenvía el correo parseado a `POST /inbound-email`.
- * Sin `INBOUND_EMAIL_ENABLED=true` + `INBOUND_EMAIL_SECRET`, el endpoint queda inerte. Ver INBOUND_EMAIL_SETUP.md.
+ * Sin `INBOUND_EMAIL_ENABLED=true` + `INBOUND_EMAIL_SECRET`, el endpoint queda inerte. Ver docs/setup/INBOUND_EMAIL_SETUP.md.
  *
  * Doble candado: (1) cabecera `x-inbound-secret` autentica al worker; (2) el token por expediente
  * (HMAC del matterId) autentica el vínculo, de modo que una dirección no se puede falsificar ni adivinar.
