@@ -818,6 +818,47 @@ export interface AiConversationDetail {
   messages: { role: 'user' | 'assistant'; content: string; meta: unknown }[];
 }
 
+/** Una herramienta del catálogo del agente disponible para componer un flujo (workflows builder). */
+export interface WorkflowCatalogTool {
+  name: string;
+  description: string;
+  /** true = la herramienta MUTA estado → al ejecutarse en un flujo requiere confirmación (HITL). */
+  isWrite: boolean;
+}
+
+/** Un paso declarativo de un flujo: invoca una tool del catálogo por nombre + input. */
+export interface WorkflowStep {
+  tool: string;
+  input: Record<string, unknown>;
+}
+
+/** Un flujo agéntico multi-paso del despacho (Zora workflows builder). */
+export interface AiWorkflow {
+  id: string;
+  name: string;
+  description: string | null;
+  steps: WorkflowStep[];
+  updatedAt: string;
+}
+
+/** Resultado de ejecutar un paso de un flujo (traza del run). */
+export interface WorkflowStepResult {
+  tool: string;
+  input: Record<string, unknown>;
+  output: string;
+  isError: boolean;
+  status: 'completed' | 'failed' | 'requires_confirmation';
+}
+
+/** Resumen de la ejecución de un flujo (POST /ai/workflows/:id/run). */
+export interface WorkflowRunResult {
+  runId: string;
+  workflowId: string;
+  status: 'completed' | 'failed' | 'requires_confirmation';
+  stepResults: WorkflowStepResult[];
+  pendingWrites: PendingWrite[];
+}
+
 export interface SemanticHit {
   kind: string;
   refId: string;
