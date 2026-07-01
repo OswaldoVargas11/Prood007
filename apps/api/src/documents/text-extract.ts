@@ -100,6 +100,16 @@ async function extractDocx(buffer: Buffer): Promise<string> {
   return docxXmlToText(xml);
 }
 
+/**
+ * ¿Este tipo MIME es de los que `extractText` sabe convertir a texto? Permite filtrar de antemano (p. ej.
+ * en el reindexado en background) los documentos que NUNCA producirían texto —PDF/imágenes/.doc binario—,
+ * evitando descargarlos del almacenamiento una y otra vez. Debe seguir a `extractText`: si cambian los
+ * formatos soportados ahí, actualízalo aquí.
+ */
+export function isExtractableMime(mimeType: string): boolean {
+  return mimeType === DOCX_MIME || mimeType.startsWith('text/') || mimeType === 'application/json';
+}
+
 /** Extrae texto según el tipo MIME. Para formatos no soportados devuelve extractable=false. */
 export async function extractText(mimeType: string, buffer: Buffer): Promise<ExtractResult> {
   if (mimeType === DOCX_MIME) {

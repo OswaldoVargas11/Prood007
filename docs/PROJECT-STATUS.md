@@ -31,7 +31,7 @@
 
 ### Prioridad alta
 1. **Notificaciones del chat por correo/push (NEXT 1.1)** — la única de esa tanda sin hacer. Reutiliza `MatterReadState` + Brevo + PWA; enganche = cron sobre no-leídos. Impacto Alto · Esfuerzo Medio.
-2. **Búsqueda dentro del contenido de documentos (NEXT 2.1)** — extender RAG al texto extraído (`extractText` ya existe). Impacto Alto · Esfuerzo Alto. *(Requiere `VOYAGE_API_KEY`.)*
+2. **Búsqueda dentro del contenido de documentos (NEXT 2.1)** — ✅ ENTREGADO (gateado) en `agents/sandbox` (LAW-76). El indexado del contenido al subir ya existía (PR #180); lo que faltaba —y se añade ahora— es el **backfill nocturno del corpus ya subido** (`staleDocumentIds` + `reindexDocumentContentForTenant` en el cron) para que los documentos SUBIDOS ANTES de activar la clave entren en la búsqueda por contenido, + tests deterministas de chunking/ranking. Búsqueda vía `search_firm_knowledge` (RLS por tenant). *(La corrida viva requiere `VOYAGE_API_KEY`; sin clave todo es no-op gateado.)*
 
 ### Prioridad media (foso / paridad)
 3. **RAG jurídico sobre fuentes públicas** (CENDOJ/BOE ES + Poder Judicial RD) — refuerza el diferencial ES+RD. Esfuerzo Medio-alto.
