@@ -56,7 +56,7 @@ for (const file of walk(path.join(WEB, 'src'))) {
   declRe.lastIndex = 0;
   while ((m = declRe.exec(src))) decls.push({ var: m[1], ns: m[2] ?? '', offset: m.index });
   if (!decls.length) continue;
-  const vars = [...new Set(decls.map((d) => d.var))].map((v) => v.replace(/\$/g, '\\$'));
+  const vars = [...new Set(decls.map((d) => d.var))].map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const useRe = new RegExp(`\\b(${vars.join('|')})\\s*(?:\\.(?:rich|markup))?\\(\\s*['"]([^'"]+)['"]`, 'g');
   let u;
   while ((u = useRe.exec(src))) {
