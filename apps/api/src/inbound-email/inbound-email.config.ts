@@ -47,8 +47,14 @@ export function matterBccAddress(matterId: string): string {
 
 /** Extrae {matterId, token} de la dirección destinataria (admite `Nombre <addr>`). */
 export function parseMatterAddress(to: string): { matterId: string; token: string } | null {
-  const m = /<?([^<>\s]+@[^<>\s]+)>?/.exec(to || '');
-  const addr = m?.[1] ?? '';
+  // Anti-ReDoS (LAW-72): la regex previa `[^<>\s]+@[^<>\s]+` tenía dos cuantificadores `+` adyacentes
+  // separados por `@` → retroceso O(n²) sobre un `to` sin `@` (cabecera controlable por el atacante).
+  // Extracción LINEAL: 1) si viene `Nombre <addr>`, toma lo de dentro de los ángulos (una sola clase
+  // negada, sin cuantificadores solapados); 2) elige el primer token con `@`.
+  const raw = (to || '').trim();
+  const angle = /<([^<>]*)>/.exec(raw);
+  const candidate = angle ? (angle[1] ?? '').trim() : raw;
+  const addr = candidate.split(/\s+/).find((t) => t.includes('@')) ?? '';
   const local = addr.split('@')[0] ?? '';
   const plus = local.split('+')[1]; // <matterId>.<token>
   if (!plus) return null;

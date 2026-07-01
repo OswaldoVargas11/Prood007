@@ -28,14 +28,53 @@ function decodeEntities(value: string): string {
 /**
  * Convierte el XML de un .docx en texto: respeta saltos de párrafo (`</w:p>`), saltos de línea
  * (`<w:br/>`) y tabuladores (`<w:tab/>`), y descarta el resto de etiquetas.
+ *
+ * Escáner LINEAL, no basado en `<[^>]+>` (LAW-72, CodeQL js/bad-tag-filter +
+ * js/incomplete-multi-char-sanitization): un filtro de etiquetas por regex se puede evadir —un `>` dentro
+ * de un valor de atributo entrecomillado o un comentario `<!-- … > … -->` corta la etiqueta antes de
+ * tiempo y deja restos en una sola pasada—. Este recorrido avanza SIEMPRE hacia delante: respeta las
+ * comillas de atributo y los comentarios, así que no puede quedar un fragmento de etiqueta ni reformarse
+ * una nueva. Sólo opera sobre document.xml ya acotado por la guarda anti zip-bomb.
  */
 function docxXmlToText(xml: string): string {
-  const withBreaks = xml
-    .replace(/<w:tab\b[^>]*\/>/g, '\t')
-    .replace(/<w:br\b[^>]*\/>/g, '\n')
-    .replace(/<\/w:p>/g, '\n');
-  const stripped = withBreaks.replace(/<[^>]+>/g, '');
-  return decodeEntities(stripped)
+  let out = '';
+  let i = 0;
+  const n = xml.length;
+  while (i < n) {
+    const lt = xml.indexOf('<', i);
+    if (lt < 0) {
+      out += xml.slice(i);
+      break;
+    }
+    out += xml.slice(i, lt);
+    // Comentario XML: se cierra sólo con `-->` (un `>` intermedio no lo termina).
+    if (xml.startsWith('<!--', lt)) {
+      const end = xml.indexOf('-->', lt + 4);
+      i = end < 0 ? n : end + 3;
+      continue;
+    }
+    // Busca el `>` de cierre real, ignorando los que van dentro de comillas de atributo.
+    let j = lt + 1;
+    let quote = '';
+    for (; j < n; j++) {
+      const c = xml[j];
+      if (quote) {
+        if (c === quote) quote = '';
+      } else if (c === '"' || c === "'") {
+        quote = c;
+      } else if (c === '>') {
+        break;
+      }
+    }
+    // Mapea las etiquetas con semántica de espacio; el resto se descarta. Los tests `^…` corren sobre un
+    // ÚNICO token de etiqueta (longitud acotada, sin cuantificadores solapados) → no son filtros de tag.
+    const tag = xml.slice(lt, j + 1);
+    if (/^<w:tab[\s/>]/.test(tag)) out += '\t';
+    else if (/^<w:br[\s/>]/.test(tag)) out += '\n';
+    else if (tag === '</w:p>') out += '\n';
+    i = j + 1;
+  }
+  return decodeEntities(out)
     .replace(/\r\n?/g, '\n')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
