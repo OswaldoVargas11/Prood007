@@ -818,6 +818,47 @@ export interface AiConversationDetail {
   messages: { role: 'user' | 'assistant'; content: string; meta: unknown }[];
 }
 
+/** Una herramienta del catálogo del agente disponible para componer un flujo (workflows builder). */
+export interface WorkflowCatalogTool {
+  name: string;
+  description: string;
+  /** true = la herramienta MUTA estado → al ejecutarse en un flujo requiere confirmación (HITL). */
+  isWrite: boolean;
+}
+
+/** Un paso declarativo de un flujo: invoca una tool del catálogo por nombre + input. */
+export interface WorkflowStep {
+  tool: string;
+  input: Record<string, unknown>;
+}
+
+/** Un flujo agéntico multi-paso del despacho (Zora workflows builder). */
+export interface AiWorkflow {
+  id: string;
+  name: string;
+  description: string | null;
+  steps: WorkflowStep[];
+  updatedAt: string;
+}
+
+/** Resultado de ejecutar un paso de un flujo (traza del run). */
+export interface WorkflowStepResult {
+  tool: string;
+  input: Record<string, unknown>;
+  output: string;
+  isError: boolean;
+  status: 'completed' | 'failed' | 'requires_confirmation';
+}
+
+/** Resumen de la ejecución de un flujo (POST /ai/workflows/:id/run). */
+export interface WorkflowRunResult {
+  runId: string;
+  workflowId: string;
+  status: 'completed' | 'failed' | 'requires_confirmation';
+  stepResults: WorkflowStepResult[];
+  pendingWrites: PendingWrite[];
+}
+
 export interface SemanticHit {
   kind: string;
   refId: string;
@@ -1353,6 +1394,26 @@ export interface ClosingChecklistItem {
   releasedAt: string | null;
 }
 
+/** Fases de gating del cierre (condiciones a la firma / al cierre). */
+export type GatingPhase = 'AT_SIGNING' | 'AT_CLOSING';
+
+/** Readiness de una fase: estado de las condiciones previas (CPs) que la gatean. */
+export interface PhaseReadiness {
+  phase: GatingPhase;
+  total: number;
+  satisfied: number;
+  waived: number;
+  pending: number;
+  pendingTitles: string[];
+  pct: number;
+  ready: boolean;
+}
+
+/** Readiness de gating por fase (`readiness` en el detalle del checklist y `…/readiness` por expediente). */
+export interface ChecklistReadiness {
+  byPhase: PhaseReadiness[];
+}
+
 /** Checklist con sus partidas (`GET /closing/:id`). */
 export interface ClosingChecklistDetail {
   id: string;
@@ -1362,6 +1423,8 @@ export interface ClosingChecklistDetail {
   signingDate: string | null;
   longstopDate: string | null;
   items: ClosingChecklistItem[];
+  /** Readiness de gating (CPs por fase) computada server-side (T-2). */
+  readiness: ChecklistReadiness;
 }
 
 /** Resumen de un checklist en la lista de un expediente (`GET /closing/by-matter/:matterId`). */

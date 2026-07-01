@@ -1031,6 +1031,11 @@ model DealMilestone {
   completedAt DateTime?
   notes       String?
   sortOrder   Int                 @default(0)
+  // Idempotencia del avisador de plazos (T-3): última fecha objetivo y ventana ya avisadas. Permite
+  // no duplicar el recordatorio in-app del mismo plazo y reavisar al estrechar la ventana o al cambiar
+  // la fecha. Mismo patrón que Task.lastRemindedForDueDate / lastReminderWindow.
+  lastRemindedForTargetDate DateTime?
+  lastReminderWindow        Int?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 

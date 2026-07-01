@@ -11,6 +11,7 @@ import { CreateItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { CLOSING_TEMPLATES, findClosingTemplate } from './closing-templates';
 import { buildClosingBinderIndex, type BinderGroup, type BinderItem } from './closing-binder';
+import { computeReadiness, type ReadinessItemInput } from './closing-readiness.logic';
 
 const ITEM_SELECT = {
   id: true,
@@ -187,7 +188,24 @@ export class ClosingService {
         CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category) ||
         a.sortOrder - b.sortOrder,
     );
-    return { ...checklist, items };
+    // Readiness de gating (CPs por fase) computado server-side a partir de las partidas ya cargadas —
+    // sin consulta extra, para que la UI lo muestre en el overview existente (T-2).
+    const readiness = computeReadiness(items as ReadinessItemInput[]);
+    return { ...checklist, items, readiness };
+  }
+
+  /**
+   * Readiness agregada de TODA la operación (unión de las CPs de todos sus checklists), por fase de gating.
+   * Es la señal que usa el aviso "marcar firma/cierre con CPs pendientes" — el hito vive a nivel de
+   * expediente, no de un checklist concreto.
+   */
+  async matterReadiness(user: RequestUser, matterId: string) {
+    await this.assertMatterInTenant(user, matterId);
+    const items = await this.prisma.closingChecklistItem.findMany({
+      where: { tenantId: user.tenantId, checklist: { matterId } },
+      select: { category: true, phase: true, status: true, title: true },
+    });
+    return computeReadiness(items as ReadinessItemInput[]);
   }
 
   async create(user: RequestUser, dto: CreateChecklistDto) {

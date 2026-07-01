@@ -23,8 +23,10 @@ import {
   useFundsFlow,
   useFundsFlowActions,
   useMatterDocuments,
+  useMatterReadiness,
 } from '@/lib/hooks';
 import { formatDate } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import type {
   DealFundsFlowLine,
   DealMilestone,
@@ -102,7 +104,7 @@ export function DealCockpitTab({ matterId }: { matterId: string }) {
     <div className="space-y-4">
       <PartiesCard parties={data.parties} actions={actions} />
       <FundsFlowCard matterId={matterId} parties={data.parties} />
-      <MilestonesCard milestones={data.milestones} actions={actions} />
+      <MilestonesCard matterId={matterId} milestones={data.milestones} actions={actions} />
       <DisclosuresCard
         disclosures={data.disclosureSchedules}
         actions={actions}
@@ -1066,16 +1068,46 @@ function milestoneStatusVariant(s: DealMilestoneStatus): 'default' | 'secondary'
   return 'outline';
 }
 
+/** Días naturales hasta la fecha objetivo (negativo si ya venció). A medianoche UTC, igual que el avisador del API. */
+function milestoneDaysUntil(targetDate: string): number {
+  const d = new Date(targetDate);
+  const target = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  const n = new Date();
+  const today = Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate());
+  return Math.floor((target - today) / 86_400_000);
+}
+
+type MilestoneUrgency = 'overdue' | 'dueSoon' | null;
+
+/** Resalte de plazo (solo hitos activos): vencido o próximo a vencer (≤7 días). DONE no urge. MISSED = vencido. */
+function milestoneUrgency(m: DealMilestone): MilestoneUrgency {
+  if (m.status === 'DONE') return null;
+  if (m.status === 'MISSED') return 'overdue';
+  const days = milestoneDaysUntil(m.targetDate);
+  if (days < 0) return 'overdue';
+  if (days <= 7) return 'dueSoon';
+  return null;
+}
+
+// Hito → fase de gating cuyas condiciones previas deben estar satisfechas antes de marcarlo DONE.
+const MILESTONE_GATING_PHASE: Partial<Record<DealMilestoneKind, 'AT_SIGNING' | 'AT_CLOSING'>> = {
+  SIGNING: 'AT_SIGNING',
+  CLOSING: 'AT_CLOSING',
+};
+
 function MilestonesCard({
+  matterId,
   milestones,
   actions,
 }: {
+  matterId: string;
   milestones: DealMilestone[];
   actions: Actions;
 }) {
   const t = useTranslations('deal');
   const tStatus = useTranslations('deal.milestoneStatus');
   const locale = useLocale();
+  const { data: readiness } = useMatterReadiness(matterId);
   const [editing, setEditing] = useState<DealMilestone | null>(null);
   const [adding, setAdding] = useState(false);
 
@@ -1086,6 +1118,25 @@ function MilestonesCard({
       ),
     [milestones],
   );
+
+  // Aviso (no bloqueo duro) al marcar un hito de firma/cierre como DONE con CPs pendientes: el usuario
+  // confirma explícitamente. Por defecto, si no hay datos de readiness o no quedan pendientes, no molesta.
+  const changeStatus = (m: DealMilestone, status: DealMilestoneStatus) => {
+    if (status === 'DONE') {
+      const phase = MILESTONE_GATING_PHASE[m.kind];
+      const pr = phase ? readiness?.byPhase.find((p) => p.phase === phase) : undefined;
+      if (pr && pr.pending > 0) {
+        const ok = window.confirm(
+          t('milestones.pendingConditionsWarning', {
+            count: pr.pending,
+            titles: pr.pendingTitles.join(', '),
+          }),
+        );
+        if (!ok) return;
+      }
+    }
+    actions.updateMilestone.mutate({ id: m.id, status });
+  };
 
   return (
     <Card>
@@ -1105,19 +1156,23 @@ function MilestonesCard({
           <p className="text-xs text-muted-foreground">{t('milestones.empty')}</p>
         ) : (
           <div className="space-y-2">
-            {sorted.map((m) => (
+            {sorted.map((m) => {
+              const urgency = milestoneUrgency(m);
+              const days = milestoneDaysUntil(m.targetDate);
+              return (
               <div
                 key={m.id}
-                className="flex items-start gap-3 rounded-lg border bg-[var(--surface-1)] p-3"
+                className={cn(
+                  'flex items-start gap-3 rounded-lg border bg-[var(--surface-1)] p-3',
+                  urgency === 'overdue' &&
+                    'border-[var(--danger)] bg-[var(--danger-soft)] ring-1 ring-[var(--danger)]/30',
+                  urgency === 'dueSoon' &&
+                    'border-[var(--warning)] bg-[var(--warning-soft)] ring-1 ring-[var(--warning)]/30',
+                )}
               >
                 <select
                   value={m.status}
-                  onChange={(e) =>
-                    actions.updateMilestone.mutate({
-                      id: m.id,
-                      status: e.target.value as DealMilestoneStatus,
-                    })
-                  }
+                  onChange={(e) => changeStatus(m, e.target.value as DealMilestoneStatus)}
                   className="h-8 shrink-0 rounded-md border bg-[var(--surface-1)] px-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {MILESTONE_STATUSES.map((s) => (
@@ -1137,6 +1192,22 @@ function MilestonesCard({
                     )}
                     <span className="text-sm font-medium">{m.title}</span>
                     <Badge variant={milestoneStatusVariant(m.status)}>{tStatus(m.status)}</Badge>
+                    {urgency === 'overdue' && (
+                      <Badge className="bg-[var(--danger)] text-white hover:bg-[var(--danger)]">
+                        <TriangleAlert className="size-3" />
+                        {days < 0
+                          ? t('milestones.urgency.overdueDays', { count: -days })
+                          : t('milestones.urgency.overdue')}
+                      </Badge>
+                    )}
+                    {urgency === 'dueSoon' && (
+                      <Badge className="bg-[var(--warning)] text-[var(--surface-0)] hover:bg-[var(--warning)]">
+                        <TriangleAlert className="size-3" />
+                        {days === 0
+                          ? t('milestones.urgency.dueToday')
+                          : t('milestones.urgency.dueInDays', { count: days })}
+                      </Badge>
+                    )}
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground">
                     {formatDate(m.targetDate, locale)}
@@ -1163,7 +1234,8 @@ function MilestonesCard({
                   </Button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>

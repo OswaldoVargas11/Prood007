@@ -41,7 +41,7 @@
     "diff": {
       "badge": "El diferenciador",
       "title": "Verifactu y e-CF, de serie en cada factura",
-      "body": "La facturación electrónica es obligatoria — Verifactu en España y e-CF en R. Dominicana. Lawzora la emite con su registro fiscal encadenado y su QR/eNCF de cotejo, listo para AEAT y DGII. Sin un segundo programa, sin integraciones a medias y sin sustos cuando llega la inspección.",
+      "body": "La facturación electrónica es obligatoria — Verifactu en España y e-CF en R. Dominicana. Lawzora la emite con su registro fiscal encadenado y su QR/eNCF de cotejo; la transmisión a AEAT y DGII se activa en el onboarding fiscal. Sin un segundo programa, sin integraciones a medias y sin sustos cuando llega la inspección.",
       "invoiceUrl": "Factura FAC-2026-0042 · Verifactu",
       "lineFees": "Honorarios profesionales",
       "lineTax": "IVA (21%) − IRPF (15%)",
@@ -966,7 +966,14 @@
       "kind": "Tipo",
       "targetDate": "Fecha objetivo",
       "status": "Estado",
-      "notes": "Notas"
+      "notes": "Notas",
+      "pendingConditionsWarning": "Quedan {count} condición(es) previa(s) sin satisfacer para esta fase: {titles}. ¿Marcar el hito como hecho de todas formas?",
+      "urgency": {
+        "overdue": "Vencido",
+        "overdueDays": "Vencido hace {count} día(s)",
+        "dueToday": "Vence hoy",
+        "dueInDays": "Vence en {count} día(s)"
+      }
     },
     "milestoneKind": {
       "SIGNING": "Firma",
@@ -1029,6 +1036,63 @@
       "REGISTRO_TITULOS_RD": "Registro de Títulos (RD)",
       "CAMARA_COMERCIO_RD": "Cámara de Comercio (RD)",
       "OTHER": "Otro"
+    },
+    "fundsFlow": {
+      "title": "Flujo de fondos y escrow",
+      "hint": "Estado de flujo de fondos del cierre: quién paga, a quién, en qué cuenta y bajo qué condición. Es un registro/documento de la operación, no mueve dinero real.",
+      "exportPdf": "Closing statement (PDF)",
+      "addLine": "Añadir línea",
+      "editLine": "Editar línea",
+      "deleteLine": "Eliminar línea",
+      "emptyLines": "Aún no hay líneas de flujo de fondos. Añade pagos, depósitos en escrow, honorarios o ajustes.",
+      "externalParty": "Parte externa",
+      "paid": "Sale",
+      "received": "Entra",
+      "balanced": "Cuadra",
+      "imbalance": "Descuadre: {amount}",
+      "byParty": "Totales por parte",
+      "account": "Cuenta",
+      "condition": "Condición",
+      "amount": "Importe",
+      "currency": "Moneda",
+      "kindLabel": "Tipo",
+      "statusLabel": "Estado",
+      "payer": "Pagador",
+      "payee": "Beneficiario",
+      "kind": {
+        "PAYMENT": "Pago",
+        "ESCROW_DEPOSIT": "Depósito escrow",
+        "ESCROW_RELEASE": "Liberación escrow",
+        "FEE": "Honorarios/gastos",
+        "ADJUSTMENT": "Ajuste"
+      },
+      "status": {
+        "PLANNED": "Previsto",
+        "SETTLED": "Liquidado"
+      },
+      "escrowStatus": {
+        "HELD": "Retenido",
+        "PARTIALLY_RELEASED": "Parcialmente liberado",
+        "RELEASED": "Liberado"
+      },
+      "escrow": {
+        "title": "Depósitos en garantía (escrow)",
+        "add": "Añadir depósito",
+        "empty": "Aún no hay depósitos en garantía. Añade un holdback con su importe y agente.",
+        "addTitle": "Añadir depósito en garantía",
+        "editTitle": "Editar depósito en garantía",
+        "label": "Concepto",
+        "amount": "Importe retenido",
+        "agent": "Agente de depósito",
+        "trigger": "Disparador de liberación",
+        "released": "Liberado",
+        "remaining": "Remanente",
+        "release": "Liberar",
+        "releaseTitle": "Liberar depósito",
+        "releaseAmount": "Importe a liberar",
+        "reason": "Motivo",
+        "confirmRelease": "Confirmar liberación"
+      }
     }
   },
   "engagement": {
@@ -1062,6 +1126,7 @@
     "nameLabel": "Nombre",
     "namePlaceholder": "p. ej. Due diligence — Proyecto Alfa",
     "create": "Crear",
+    "save": "Guardar",
     "cancel": "Cancelar",
     "close": "Cerrar",
     "delete": "Eliminar",
@@ -1198,6 +1263,16 @@
       "AT_SIGNING": "A la firma",
       "AT_CLOSING": "Al cierre",
       "POST_CLOSING": "Post-cierre"
+    },
+    "readiness": {
+      "phase": {
+        "AT_SIGNING": "Listo para firmar",
+        "AT_CLOSING": "Listo para cerrar"
+      },
+      "ready": "Listo",
+      "noConditions": "Sin condiciones",
+      "pendingCount": "{count} pendiente{count, plural, one {} other {s}}",
+      "summary": "{satisfied}/{total} condiciones previas satisfechas · {pct}%"
     }
   },
   "documents": {
@@ -1206,6 +1281,7 @@
     "groupedSubtitle": "Agrupados por documento, con versiones y estado de revisión.",
     "dropzone": "Arrastra archivos aquí o haz clic para seleccionar · PDF, DOCX · máx 25 MB",
     "dropHere": "Suelta el archivo para subirlo",
+    "dragHint": "Arrastra a una carpeta para mover",
     "previewError": "No se pudo cargar la vista previa.",
     "previewUnsupported": "Este formato no se puede previsualizar; descárgalo para verlo.",
     "uploadedBy": "Subido por",
@@ -1550,6 +1626,7 @@
     "noPeople": "No hay compañeros en el despacho.",
     "noMatches": "Nadie coincide con la búsqueda.",
     "directoryError": "No se pudo cargar el directorio.",
+    "retry": "Reintentar",
     "react": "Reaccionar",
     "empty": "Sin mensajes todavía. Saluda al equipo.",
     "placeholder": "Escribe un mensaje…",
@@ -2337,7 +2414,48 @@
       "confirmTitle": "El asistente quiere realizar esta acción. ¿La confirmas?",
       "confirmReply": "Sí, confírmalo y procede.",
       "confirm": "Confirmar",
-      "cancel": "Cancelar"
+      "cancel": "Cancelar",
+      "workflows": "Flujos"
+    },
+    "workflows": {
+      "listTitle": "Flujos del despacho",
+      "new": "Nuevo flujo",
+      "emptyTitle": "Aún no hay flujos",
+      "emptyHint": "Crea un flujo para encadenar varias herramientas de Zora y lanzarlo con un clic.",
+      "stepCount": "{n, plural, =0 {Sin pasos} one {# paso} other {# pasos}}",
+      "run": "Ejecutar",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "deleteConfirm": "¿Eliminar este flujo?",
+      "newTitle": "Nuevo flujo",
+      "editTitle": "Editar flujo",
+      "name": "Nombre",
+      "namePlaceholder": "p. ej. Repaso semanal de plazos",
+      "description": "Descripción (opcional)",
+      "descriptionPlaceholder": "Para qué sirve este flujo",
+      "stepsLabel": "Pasos",
+      "pickTool": "Elige una herramienta…",
+      "writeBadge": "Escritura",
+      "removeStep": "Quitar paso",
+      "addStep": "Añadir paso",
+      "inputPlaceholder": "{ } — parámetros del paso en JSON (opcional)",
+      "inputHint": "El input de cada paso es opcional (JSON). Muchas herramientas no necesitan parámetros; déjalo vacío. Las herramientas marcadas «Escritura» pedirán confirmación al ejecutarse.",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "errNoName": "Ponle un nombre al flujo.",
+      "errNoSteps": "Añade al menos un paso.",
+      "errNoTool": "El paso {n} no tiene herramienta seleccionada.",
+      "errInput": "El input del paso {n} no es un objeto JSON válido.",
+      "statusCompleted": "Completado",
+      "statusFailed": "Falló",
+      "statusPending": "Requiere confirmación",
+      "stepOk": "OK",
+      "stepError": "Error",
+      "stepPending": "Pendiente",
+      "close": "Cerrar",
+      "pendingTitle": "Este flujo quiere realizar escrituras. Revísalas y confirma para ejecutarlas.",
+      "confirmRun": "Confirmar y ejecutar escrituras",
+      "error": "No se pudo completar la operación. Inténtalo de nuevo."
     }
   },
   "entitlements": {

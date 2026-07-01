@@ -70,3 +70,7 @@ scripts/test-*.mjs
 
 # Stripe setup-as-code: salida generada con los Price IDs (pegar en STRIPE_PRICE_MAP)
 scripts/stripe-prices.*.json
+
+# Artefactos locales del pentest vivo (LAW-31): tokens/ids de entorno de prueba, NO versionar
+.pentest-actors.json
+.pentest-fixtures.json

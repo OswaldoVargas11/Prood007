@@ -19,6 +19,7 @@ import {
   Square,
   Trash2,
   UserSearch,
+  Workflow,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -36,6 +37,7 @@ import type {
 import { Button } from '@/components/ui/button';
 import { ChatMarkdown } from './chat-markdown';
 import { ToolResultCard, type ToolCardData } from './tool-result-card';
+import { AiWorkflowsView } from './ai-workflows-view';
 
 type ChatMsg = {
   role: 'user' | 'assistant';
@@ -174,6 +176,7 @@ export function AiAgentDock({
   const [streamingText, setStreamingText] = useState('');
   const [streamingCards, setStreamingCards] = useState<ToolCardData[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [workflowsOpen, setWorkflowsOpen] = useState(false);
   const [conversations, setConversations] = useState<AiConversationSummary[] | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -384,6 +387,21 @@ export function AiAgentDock({
             <Button
               size="icon"
               variant="ghost"
+              aria-label={t('workflows')}
+              className={workflowsOpen ? 'text-[var(--brand)]' : undefined}
+              onClick={() => {
+                const next = !workflowsOpen;
+                setWorkflowsOpen(next);
+                if (next) setHistoryOpen(false);
+              }}
+            >
+              <Workflow className="size-4" />
+            </Button>
+          )}
+          {!streaming && !workflowsOpen && (
+            <Button
+              size="icon"
+              variant="ghost"
               aria-label={t('history')}
               onClick={() => {
                 const next = !historyOpen;
@@ -394,7 +412,7 @@ export function AiAgentDock({
               <History className="size-4" />
             </Button>
           )}
-          {messages.length > 0 && !streaming && (
+          {messages.length > 0 && !streaming && !workflowsOpen && (
             <Button size="icon" variant="ghost" aria-label={t('newChat')} onClick={startNewChat}>
               <RotateCcw className="size-4" />
             </Button>
@@ -410,7 +428,9 @@ export function AiAgentDock({
         </div>
       </div>
 
-      {historyOpen ? (
+      {workflowsOpen ? (
+        <AiWorkflowsView />
+      ) : historyOpen ? (
         <div className="flex-1 overflow-y-auto p-2">
           <p className="px-1 py-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             {t('historyTitle')}

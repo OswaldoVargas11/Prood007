@@ -32,6 +32,12 @@ export class ClosingController {
     return this.service.listByMatter(user, matterId);
   }
 
+  // Readiness agregada de la operación (CPs por fase) para el aviso de gating al firmar/cerrar.
+  @Get('by-matter/:matterId/readiness')
+  matterReadiness(@CurrentUser() user: RequestUser, @Param('matterId') matterId: string) {
+    return this.service.matterReadiness(user, matterId);
+  }
+
   @Post()
   create(@CurrentUser() user: RequestUser, @Body() dto: CreateChecklistDto) {
     return this.service.create(user, dto);

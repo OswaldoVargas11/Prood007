@@ -6,6 +6,7 @@ import { RequiresFeature } from '../auth/decorators/requires-feature.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
 import { DealService } from './deal.service';
+import { DealMilestoneRemindersService } from './milestone-reminders.service';
 import {
   CreateDisclosureDto,
   CreateEscrowHoldingDto,
@@ -28,7 +29,16 @@ import {
 @RequiresFeature('closing')
 @Controller('deal')
 export class DealController {
-  constructor(private readonly service: DealService) {}
+  constructor(
+    private readonly service: DealService,
+    private readonly milestoneReminders: DealMilestoneRemindersService,
+  ) {}
+
+  // Disparo manual del avisador de hitos del despacho (segmento literal; antes que `:matterId/...`).
+  @Post('milestones/run-reminders')
+  runMilestoneReminders(@CurrentUser() user: RequestUser) {
+    return this.milestoneReminders.runForTenant(user);
+  }
 
   // Rutas por id de recurso (segmento literal) antes que las paramétricas por expediente.
   @Patch('parties/:id')
