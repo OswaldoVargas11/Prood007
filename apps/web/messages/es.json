@@ -41,7 +41,7 @@
     "diff": {
       "badge": "El diferenciador",
       "title": "Verifactu y e-CF, de serie en cada factura",
-      "body": "La facturación electrónica es obligatoria — Verifactu en España y e-CF en R. Dominicana. Lawzora la emite con su registro fiscal encadenado y su QR/eNCF de cotejo, listo para AEAT y DGII. Sin un segundo programa, sin integraciones a medias y sin sustos cuando llega la inspección.",
+      "body": "La facturación electrónica es obligatoria — Verifactu en España y e-CF en R. Dominicana. Lawzora la emite con su registro fiscal encadenado y su QR/eNCF de cotejo; la transmisión a AEAT y DGII se activa en el onboarding fiscal. Sin un segundo programa, sin integraciones a medias y sin sustos cuando llega la inspección.",
       "invoiceUrl": "Factura FAC-2026-0042 · Verifactu",
       "lineFees": "Honorarios profesionales",
       "lineTax": "IVA (21%) − IRPF (15%)",

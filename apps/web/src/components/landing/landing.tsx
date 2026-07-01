@@ -1545,7 +1545,7 @@ const TILES = [
     cls: 't-sm',
     label: 'Cumplimiento fiscal',
     title: 'Verifactu y e-CF nativos',
-    desc: 'Registro fiscal encadenado y verificable, listo para AEAT y DGII.',
+    desc: 'Registro fiscal encadenado y conforme; la transmisión se activa en el onboarding fiscal.',
     UI: FiscalMiniUI,
   },
   {
@@ -1632,7 +1632,7 @@ function FiscalDiff() {
             <Reveal as="p" className="sec-lead" delay={100}>
               La facturación electrónica es <b>obligatoria</b> — Verifactu en España y e-CF en R.
               Dominicana. Lawzora la emite con su <b>registro fiscal encadenado</b> y su QR de
-              cotejo, lista para {r.org}. Sin un segundo programa.
+              cotejo; la transmisión a {r.org} se activa en tu onboarding fiscal, sin un segundo programa.
             </Reveal>
             <Reveal className="jur-toggle" delay={140} role="tablist" aria-label="Régimen fiscal">
               <button
@@ -1669,7 +1669,7 @@ function FiscalDiff() {
                   <Icon name="QrCode" size={13} />
                 </span>
                 <span>
-                  <b>QR de cotejo</b> para validar la factura directamente en la sede de {r.org}.
+                  <b>QR de cotejo</b> en cada factura, ligado a su huella encadenada.
                 </span>
               </li>
               <li>

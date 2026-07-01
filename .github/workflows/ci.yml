@@ -40,6 +40,8 @@ jobs:
         run: pnpm -r lint
       - name: Typecheck
         run: pnpm -r typecheck
+      - name: i18n keys (anti MISSING_MESSAGE)
+        run: pnpm i18n:check
 
   # ── 3) UNIT + COVERAGE ──────────────────────────────────────────────────────
   # GATE OBLIGATORIO: cobertura fiscal (compliance ≥90%) + cliente API/auth del web.
