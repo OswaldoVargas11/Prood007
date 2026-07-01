@@ -27,8 +27,8 @@ legalflow/
     compliance/ # interfaz ComplianceProvider + providers es/ y do/
     config/     # tsconfig, eslint, prettier compartidos
   docker-compose.yml
-  PLAN.md       # plan de tareas (épicas) — seguible
   DECISIONS.md  # registro de decisiones de diseño
+  docs/         # setup/ (guías de integraciones), architecture/, strategy/, archive/ (histórico)
 ```
 
 ## Documentación técnica de arquitectura
@@ -62,4 +62,5 @@ pnpm web:dev                    # Web en http://localhost:3000
 NestJS · Prisma + PostgreSQL · Next.js · Tailwind + shadcn/ui · JWT + RBAC · Socket.IO ·
 S3/MinIO · next-intl (es-ES / es-DO) · Jest.
 
-Consulta `PLAN.md` para el estado del MVP por épicas.
+Consulta `docs/PROJECT-STATUS.md` para el estado actual; el plan histórico del MVP está en
+`docs/archive/PLAN.md`.

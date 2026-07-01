@@ -42,7 +42,7 @@ export interface SignOptions {
  * NOTA DE CERTIFICACIÓN: el núcleo XAdES-BES (estructura + huellas + firma) es correcto y verificable. El
  * PERFIL EXACTO que ratifica la DGII (p. ej. `SigningCertificateV2`, política de firma, forma RFC2253 del
  * `IssuerName`) se cierra ejecutando el set de pruebas de CerteCF con el certificado real (ver
- * DGII_SETUP.md). El seam es estable: solo cambia el cuerpo de esta función.
+ * docs/setup/DGII_SETUP.md). El seam es estable: solo cambia el cuerpo de esta función.
  */
 export function signEnvelopedXml(
   xml: string,

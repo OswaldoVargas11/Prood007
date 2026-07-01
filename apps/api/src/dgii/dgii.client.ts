@@ -18,7 +18,7 @@ export interface DgiiStatusResult {
  *   4) firmar e-CF → 5) POST recepción → TrackId → 6) GET consulta de estado (acuse).
  *
  * Los nombres de campo del multipart y la forma de las respuestas siguen el patrón público de la DGII;
- * confírmalos contra el kit de certificación vigente (ver DGII_SETUP.md). El flujo y el seam no cambian.
+ * confírmalos contra el kit de certificación vigente (ver docs/setup/DGII_SETUP.md). El flujo y el seam no cambian.
  */
 export class DgiiClient {
   constructor(private readonly config: DgiiConfig) {}

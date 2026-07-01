@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lawzora · Pitch para despachos</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0B1020;
+  --bg2:#0E1428;
+  --ink:#EAF0FF;
+  --muted:#9AA6C4;
+  --gold1:#C9A24B;
+  --gold2:#EBCB7E;
+  --blue:#5B8DEF;
+  --teal:#34D6B6;
+  --red:#E5715C;
+  --card:rgba(255,255,255,0.04);
+  --border:rgba(255,255,255,0.10);
+  --font-h:'Space Grotesk','Segoe UI',sans-serif;
+  --font-b:'Inter','Segoe UI',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-b);overflow:hidden}
+.slide-deck{position:relative;width:100vw;height:100vh;overflow:hidden}
+@media(min-width:769px){.slide-deck{max-width:calc(100vh*16/9);max-height:calc(100vw*9/16);margin:auto;position:absolute;inset:0}}
+.slide{position:absolute;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:6vh 6vw;opacity:0;visibility:hidden;transition:opacity .45s ease;
+  background:radial-gradient(1200px 600px at 80% -10%, rgba(91,141,239,0.10), transparent 60%),radial-gradient(900px 500px at 0% 110%, rgba(201,162,75,0.10), transparent 55%),var(--bg);overflow:hidden}
+.slide.active{opacity:1;visibility:visible}
+.slide-content{width:100%;max-width:1100px;max-height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:22px}
+.kicker{font-family:var(--font-h);letter-spacing:.32em;text-transform:uppercase;font-size:clamp(10px,1.1vw,13px);color:var(--gold2);font-weight:600}
+h1,h2,h3{font-family:var(--font-h);line-height:1.08;font-weight:700}
+.title{font-size:clamp(34px,6.2vw,76px);background:linear-gradient(135deg,var(--gold2),var(--gold1));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.h2{font-size:clamp(26px,4.4vw,52px);color:var(--ink)}
+.lead{font-size:clamp(16px,2.1vw,24px);color:var(--muted);max-width:880px;line-height:1.5}
+.big{font-size:clamp(40px,8vw,104px);font-family:var(--font-h);font-weight:700;background:linear-gradient(135deg,var(--gold2),var(--gold1));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+.accent{color:var(--gold2)}
+.blue{color:var(--blue)}
+.teal{color:var(--teal)}
+.left{text-align:left;align-items:flex-start}
+.row{display:flex;gap:20px;flex-wrap:wrap;justify-content:center;width:100%}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;width:100%}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:22px;width:100%;align-items:center}
+.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;width:100%}
+@media(max-width:768px){.grid3,.grid5{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}}
+@media(max-width:480px){.grid3,.grid5{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px;text-align:left;display:flex;flex-direction:column;gap:8px}
+.card .ic{font-size:26px}
+.card h3{font-size:clamp(16px,1.7vw,20px);color:var(--ink)}
+.card p{font-size:clamp(12px,1.3vw,15px);color:var(--muted);line-height:1.45}
+.card.gold{border-color:rgba(235,203,126,.45);background:linear-gradient(180deg,rgba(235,203,126,.08),rgba(255,255,255,.02))}
+.tag{display:inline-block;font-family:var(--font-h);font-size:12px;font-weight:600;color:var(--gold2);border:1px solid rgba(235,203,126,.4);border-radius:999px;padding:5px 12px;letter-spacing:.04em}
+table{width:100%;border-collapse:collapse;font-size:clamp(12px,1.45vw,17px)}
+th,td{text-align:left;padding:14px 16px;border-bottom:1px solid var(--border)}
+th{font-family:var(--font-h);color:var(--gold2);font-weight:600;font-size:clamp(12px,1.4vw,16px)}
+td.win{color:var(--teal);font-weight:600}
+td.lose{color:var(--red)}
+.pill{font-size:13px;color:var(--muted);border:1px solid var(--border);border-radius:999px;padding:8px 16px;background:var(--card)}
+.metric .n{font-family:var(--font-h);font-size:clamp(30px,4.6vw,56px);font-weight:700;color:var(--ink)}
+.metric .l{font-size:clamp(11px,1.2vw,14px);color:var(--muted);text-transform:uppercase;letter-spacing:.12em}
+.quote{font-family:var(--font-h);font-size:clamp(22px,3.4vw,40px);line-height:1.25;max-width:980px}
+.foot{position:absolute;bottom:24px;left:32px;font-family:var(--font-h);font-size:12px;letter-spacing:.2em;color:rgba(255,255,255,.35);text-transform:uppercase}
+.note{font-size:clamp(11px,1.1vw,13px);color:rgba(255,255,255,.4);font-style:italic}
+.progress-bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--gold1),var(--gold2));transition:width .3s;z-index:1000}
+.nav-controls{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:18px;z-index:1000}
+.nav-btn{background:rgba(255,255,255,.08);border:1px solid var(--border);color:#fff;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:18px}
+.nav-btn:hover{background:rgba(235,203,126,.2)}
+.slide-counter{color:rgba(255,255,255,.55);font-size:13px;font-family:var(--font-h)}
+.animate-stagger>*{opacity:0;animation:fadeUp .55s ease-out forwards}
+.animate-stagger>*:nth-child(1){animation-delay:.08s}
+.animate-stagger>*:nth-child(2){animation-delay:.18s}
+.animate-stagger>*:nth-child(3){animation-delay:.28s}
+.animate-stagger>*:nth-child(4){animation-delay:.38s}
+.animate-stagger>*:nth-child(5){animation-delay:.48s}
+.active .animate-fade{animation:fadeUp .6s ease-out forwards}
+@keyframes fadeUp{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:translateY(0)}}
+.logo{font-family:var(--font-h);font-weight:700;letter-spacing:.02em}
+.dotrow{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.flow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:center}
+.flow .step{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;font-family:var(--font-h);font-size:clamp(12px,1.3vw,15px)}
+.flow .arw{color:var(--gold2);font-size:18px}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progressBar"></div>
+<div class="slide-deck">
+
+<!-- 1 · PORTADA -->
+<div class="slide active">
+  <div class="slide-content">
+    <div class="tag animate-fade">España · República Dominicana</div>
+    <h1 class="title animate-fade">Lawzora</h1>
+    <p class="lead animate-fade">La plataforma que gestiona todo el despacho —de captar al cobro—<br>con un agente de IA que hace el trabajo administrativo.</p>
+    <div class="dotrow animate-fade" style="margin-top:10px">
+      <span class="pill">Gestión integral</span>
+      <span class="pill">Fiscal nativo por país</span>
+      <span class="pill">IA que ejecuta</span>
+    </div>
+  </div>
+  <div class="foot">Pitch para despachos · 2026</div>
+</div>
+
+<!-- 2 · INSIGHT -->
+<div class="slide">
+  <div class="slide-content">
+    <div class="kicker animate-fade">El cambio que ya no tiene marcha atrás</div>
+    <h2 class="h2 animate-fade">Dirigir un despacho cambió en <span class="accent">dos frentes a la vez</span></h2>
+    <div class="grid2" style="margin-top:14px">
+      <div class="card gold animate-fade">
+        <div class="ic">🧾</div>
+        <h3>El fisco se volvió electrónico y obligatorio</h3>
+        <p>Verifactu en España deja de ser opcional. El e-CF de la DGII avanza por tramos en RD. Facturar "como siempre" deja de ser legal.</p>
+      </div>
+      <div class="card gold animate-fade">
+        <div class="ic">🤖</div>
+        <h3>El cliente ya vive en la era de la IA</h3>
+        <p>Espera respuesta el mismo día y un portal donde ver su asunto. No entiende por qué tardas una semana en un escrito que se redacta en segundos.</p>
+      </div>
+    </div>
+    <p class="lead animate-fade" style="margin-top:18px">Gana el despacho que <span class="accent">automatiza su operación y la hace conforme a su país</span> — no el que más sabe de derecho. Eso se da por hecho.</p>
+  </div>
+</div>
+
+<!-- 3 · ALTERNATIVAS / EL HUECO -->
+<div class="slide">
+  <div class="slide-content">
+    <div class="kicker animate-fade">El mapa honesto del mercado</div>
+    <h2 class="h2 animate-fade">Lo que hay hoy… y dónde se rompe</h2>
+    <table class="animate-fade" style="margin-top:8px">
+      <tr><th>Opción</th><th>Qué tiene</th><th>Dónde se rompe</th></tr>
+      <tr><td>"Frankenstein"<br>Excel + Word + facturador</td><td>Barato, conocido</td><td class="lose">Fragmentado, sin trazabilidad; el fisco electrónico lo revienta</td></tr>
+      <tr><td>Software extranjero<br>(generalista)</td><td>Potente, pulido</td><td class="lose">No entiende la fiscalidad ES/RD, caro, otro mercado</td></tr>
+      <tr><td>Software local<br>legacy</td><td>Conoce el fisco</td><td class="lose">Anticuado, sin IA, sin transaccional</td></tr>
+    </table>
+    <p class="lead animate-fade" style="margin-top:20px">O <span class="accent">conoce tu fisco pero es viejo</span>, o es <span class="accent">moderno pero no conoce tu fisco</span>.<br>Nadie te da las dos. Y ninguno te da una IA que de verdad trabaje.</p>
+  </div>
+</div>
+
+<!-- 4 · MUNDO PERFECTO -->
+<div class="slide">
+  <div class="slide-content">
+    <div class="kicker animate-fade">La vara de medir</div>
+    <h2 class="h2 animate-fade">Cómo sería la herramienta <span class="accent">ideal</span> hoy</h2>
+    <div class="grid5 animate-stagger" style="margin-top:14px">
+      <div class="card"><div class="ic">🌍</div><h3>1. Fiscal local de nacimiento</h3><p>ES, RD o ambos si trabajas dual.</p></div>
+      <div class="card"><div class="ic">🔄</div><h3>2. Ciclo completo</h3><p>Captar → gestionar → facturar → cobrar, sin saltar de app.</p></div>
+      <div class="card"><div class="ic">⚡</div><h3>3. IA que opera</h3><p>Que cree el expediente y el escrito, no que charle.</p></div>
+      <div class="card"><div class="ic">🔒</div><h3>4. Seguridad de bufete</h3><p>Aislamiento, cifrado, auditoría. Manejas secretos.</p></div>
+      <div class="card"><div class="ic">⚖️</div><h3>5. Procesal y transaccional</h3><p>Un litigio o un M&amp;A con su data room.</p></div>
+    </div>
+    <p class="note animate-fade" style="margin-top:20px">Mídenos con esta vara. Y mide a cualquier otro con ella.</p>
+  </div>
+</div>
+
+<!-- 5 · PRESENTAR LAWZORA -->
+<div class="slide">
+  <div class="slide-content">
+    <div class="kicker animate-fade">Te presento Lawzora</div>
+    <p class="quote animate-fade">La plataforma de gestión integral del despacho, <span class="accent">nativa para España y República Dominicana</span>, con un agente de IA que <span class="accent">ejecuta</span> el trabajo administrativo —<br>del primer contacto con el cliente a la factura conforme a tu país.</p>
+  </div>
+</div>
+
+<!-- 6 · TEMA 1 BI-JURISDICCIONAL -->
+<div class="slide">
+  <div class="slide-content left">
+    <div class="kicker animate-fade">Ventaja 1 de 5</div>
+    <h2 class="h2 animate-fade">Nativo <span class="accent">bi-jurisdiccional</span> — ES + RD</h2>
+    <p class="lead animate-fade">El único que sirve a un despacho español, a uno dominicano <span class="accent">y al que trabaja en ambos países</span> con un mismo sistema.</p>
+    <div class="grid3 animate-stagger" style="margin-top:10px">
+      <div class="card"><h3>Impuestos por país</h3><p>IVA/IRPF en ES · ITBIS en RD, calculados solos.</p></div>
+      <div class="card"><h3>Multi-moneda</h3><p>EUR / USD / DOP, elegible por factura, sin mezclar.</p></div>
+      <div class="card"><h3>Verifactu / e-CF nativo</h3><p>Formato fiscal preparado y elegible por factura. <span class="note">Transmisión al organismo: roadmap inmediato.</span></p></div>
+    </div>
+  </div>
+</div>
+
+<!-- 7 · TEMA 2 ZORA -->
+<div class="slide">
+  <div class="slide-content left">
+    <div class="kicker animate-fade">Ventaja 2 de 5</div>
+    <h2 class="h2 animate-fade"><span class="accent">Zora</span>: IA que ejecuta, no un chatbot</h2>
+    <p class="lead animate-fade">Le pides en lenguaje natural; ella opera sobre los datos reales del despacho — y <span class="accent">confirma contigo antes de cada cambio</span>.</p>
+    <div class="grid3 animate-stagger" style="margin-top:10px">
+      <div class="card"><div class="ic">🛠️</div><h3>+60 herramientas</h3><p>Crea expedientes y clientes, redacta documentos, calcula plazos, prepara closings.</p></div>
+      <div class="card"><div class="ic">✋</div><h3>Confirmación humana</h3><p>Gate HITL antes de cualquier escritura. El abogado decide.</p></div>
+      <div class="card"><div class="ic">📚</div><h3>Conoce tu despacho</h3><p>RAG citable, resumen del día e investigación jurídica.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- 8 · TEMA 3 CICLO COMPLETO -->
+<div class="slide">
+  <div class="slide-content">
+    <div class="kicker animate-fade">Ventaja 3 de 5</div>
+    <h2 class="h2 animate-fade">El ciclo completo en <span class="accent">una sola plataforma</span></h2>
+    <div class="flow animate-fade" style="margin-top:18px">
+      <span class="step">Captar (leads + intake)</span><span class="arw">→</span>
+      <span class="step">Cliente + KYC/AML</span><span class="arw">→</span>
+      <span class="step">Expediente</span><span class="arw">→</span>
+      <span class="step">Tiempo y plazos</span>
+    </div>
+    <div class="flow animate-fade" style="margin-top:12px">
+      <span class="step">Documentos + firma</span><span class="arw">→</span>
+      <span class="step">Ledger</span><span class="arw">→</span>
+      <span class="step">Factura</span><span class="arw">→</span>
+      <span class="step">Cobro + portal</span>
+    </div>
+    <p class="lead animate-fade" style="margin-top:22px">Se acabó saltar entre cinco apps y copiar datos a mano.</p>
+  </div>
+</div>
+
+<!-- 9 · TEMA 4 TRANSACCIONAL -->
+<div class="slide">
+  <div class="slide-content left">
+    <div class="kicker animate-fade">Ventaja 4 de 5</div>
+    <h2 class="h2 animate-fade">Profundidad <span class="accent">transaccional</span></h2>
+    <p class="lead animate-fade">Lo que las herramientas de gestión genéricas no tienen — y lo que más factura tu despacho.</p>
+    <div class="grid2 animate-stagger" style="margin-top:10px">
+      <div class="card"><div class="ic">🤝</div><h3>Deal cockpit</h3><p>Partes, hitos, longstop, disclosure schedules y filings por jurisdicción.</p></div>
+      <div class="card"><div class="ic">📁</div><h3>Data room + closing binder</h3><p>VDR con accesos y Q&amp;A; generación del binder de cierre.</p></div>
+      <div class="card"><div class="ic">🏛️</div><h3>Secretaría societaria</h3><p>Actas, registro de socios, transmisiones, obligaciones.</p></div>
+      <div class="card"><div class="ic">📈</div><h3>Sube el ticket</h3><p>Entras en el trabajo de mayor valor del despacho.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- 10 · TEMA 5 SEGURIDAD -->
+<div class="slide">
+  <div class="slide-content left">
+    <div class="kicker animate-fade">Ventaja 5 de 5</div>
+    <h2 class="h2 animate-fade">Seguridad de <span class="accent">nivel bufete</span></h2>
+    <p class="lead animate-fade">Manejas secreto profesional. La plataforma está construida para protegerlo.</p>
+    <div class="grid3 animate-stagger" style="margin-top:10px">
+      <div class="card"><div class="ic">🧱</div><h3>Aislamiento por despacho</h3><p>Postgres RLS fail-closed: los datos de cada despacho, separados a nivel de base de datos.</p></div>
+      <div class="card"><div class="ic">🔐</div><h3>Cifrado + MFA</h3><p>AES-256 en reposo, TLS en tránsito, doble factor y control por roles.</p></div>
+      <div class="card"><div class="ic">📜</div><h3>Auditoría inmutable</h3><p>Registro append-only; RGPD/Ley 172-13 y pentests documentados.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- 11 · PRUEBA / MÉTRICAS -->
+<div class="slide">
+  <div class="slide-content">
+    <div class="kicker animate-fade">No es un MVP. Es una plataforma.</div>
+    <h2 class="h2 animate-fade">La prueba</h2>
+    <div class="row animate-stagger" style="margin-top:18px;gap:40px">
+      <div class="metric"><div class="n">53</div><div class="l">Módulos en producción</div></div>
+      <div class="metric"><div class="n">+60</div><div class="l">Herramientas de IA</div></div>
+      <div class="metric"><div class="n">2</div><div class="l">Jurisdicciones nativas</div></div>
+      <div class="metric"><div class="n">15</div><div class="l">Días de prueba</div></div>
+    </div>
+    <p class="lead animate-fade" style="margin-top:24px">En la demo te enseño a <span class="accent">Zora creando un expediente y redactando un escrito en 30 segundos</span>, sobre un despacho real ya poblado.</p>
+  </div>
+</div>
+
+<!-- 12 · ROI -->
+<div class="slide">
+  <div class="slide-content">
+    <div class="kicker animate-fade">La pregunta no es cuánto cuesta</div>
+    <h2 class="h2 animate-fade">Cuánto te cuesta <span class="accent">no</span> tenerlo</h2>
+    <div class="grid2" style="margin-top:10px">
+      <div class="animate-fade" style="width:100%;height:clamp(220px,38vh,340px)"><canvas id="roiChart"></canvas></div>
+      <div class="left animate-fade" style="gap:14px;display:flex;flex-direction:column">
+        <p class="lead">Despacho de <span class="accent">5 abogados</span>, recuperando <span class="accent">1 hora/semana</span> de administración cada uno, a 120 €/h:</p>
+        <div class="metric"><div class="n teal">≈ 2.600 €/mes</div><div class="l">de capacidad recuperada</div></div>
+        <p class="lead">frente a una suscripción de <span class="accent">~39 € por plaza</span>. Y una sola sanción fiscal evitada paga años de licencia.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 13 · POR QUÉ AHORA -->
+<div class="slide">
+  <div class="slide-content">
+    <div class="kicker animate-fade">Por qué ahora</div>
+    <p class="quote animate-fade">El fisco electrónico ya es obligatorio y el cliente ya espera IA.<br>El despacho que dé el paso este año <span class="accent">capta y opera</span> mientras los demás siguen peleándose con el Excel.</p>
+  </div>
+</div>
+
+<!-- 14 · CTA -->
+<div class="slide">
+  <div class="slide-content">
+    <div class="tag animate-fade">Plan Fundador · cupo limitado</div>
+    <h2 class="title animate-fade" style="font-size:clamp(30px,5.4vw,64px)">Empecemos</h2>
+    <p class="lead animate-fade">Demo de 20 minutos con tu caso real + 15 días de prueba para tu equipo.<br>Precio Fundador <span class="accent">bloqueado de por vida</span> para los primeros despachos.</p>
+    <div class="dotrow animate-fade" style="margin-top:14px">
+      <span class="pill">📅 ¿El martes o el jueves?</span>
+      <span class="pill">✉️ hola@lawzora.com</span>
+      <span class="pill">🌐 lawzora.com</span>
+    </div>
+  </div>
+  <div class="foot">Lawzora · Menos administración. Más derecho.</div>
+</div>
+
+</div><!-- /.slide-deck -->
+
+<div class="nav-controls">
+  <button class="nav-btn" onclick="prevSlide()">←</button>
+  <span class="slide-counter"><span id="current">1</span> / <span id="total">14</span></span>
+  <button class="nav-btn" onclick="nextSlide()">→</button>
+</div>
+
+<script>
+let current=1;
+const slides=document.querySelectorAll('.slide');
+const total=slides.length;
+document.getElementById('total').textContent=total;
+let roiDrawn=false;
+function showSlide(n){
+  if(n<1)n=1; if(n>total)n=total; current=n;
+  slides.forEach((s,i)=>s.classList.toggle('active',i===n-1));
+  document.getElementById('current').textContent=n;
+  document.getElementById('progressBar').style.width=(n/total*100)+'%';
+  if(n===12&&!roiDrawn){drawRoi();roiDrawn=true;}
+}
+function nextSlide(){showSlide(current+1)}
+function prevSlide(){showSlide(current-1)}
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();nextSlide()}
+  if(e.key==='ArrowLeft'){e.preventDefault();prevSlide()}
+});
+document.addEventListener('click',e=>{if(!e.target.closest('.nav-controls'))nextSlide()});
+function drawRoi(){
+  new Chart(document.getElementById('roiChart'),{
+    type:'bar',
+    data:{labels:['Suscripción Lawzora','Capacidad recuperada'],
+      datasets:[{data:[195,2600],backgroundColor:['rgba(91,141,239,0.55)','rgba(52,214,182,0.7)'],borderColor:['#5B8DEF','#34D6B6'],borderWidth:2,borderRadius:10,barThickness:90}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' €/mes'}}},
+      scales:{x:{grid:{display:false},ticks:{color:'#9AA6C4',font:{size:13}}},
+        y:{grid:{color:'rgba(255,255,255,0.06)'},ticks:{color:'#9AA6C4',callback:v=>v+' €'}}}}
+  });
+}
+showSlide(1);
+</script>
+</body>
+</html>

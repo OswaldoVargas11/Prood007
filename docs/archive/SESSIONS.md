@@ -11,6 +11,7 @@ Pendiente: UI funcional, CI/hooks, hardening de seguridad, pulido de E8/E9.
 ---
 
 ## Sesión 1 — Hardening de backend + cimientos de frontend (no dependen del diseño)
+
 Objetivo: dejar el backend listo para producción-MVP y el frontend preparado para "vestir" con el
 diseño cuando llegue.
 
@@ -27,6 +28,7 @@ diseño cuando llegue.
 5. **Entregable al usuario**: `DESIGN_PROMPT.md` para lanzar Claude Design.
 
 ## Sesión 2 — UI núcleo (con el diseño de Claude Design ya disponible)
+
 Objetivo: app de despacho usable para staff.
 
 1. App shell: layout, navegación, selector de idioma, cabecera de usuario/tenant.
@@ -38,6 +40,7 @@ Objetivo: app de despacho usable para staff.
 7. Wiring completo a la API + i18n + estados de carga/error.
 
 ## Sesión 3 — Facturación, portal y tiempo real + cierre
+
 Objetivo: completar el MVP visible y dejarlo listo para revisión/merge.
 
 1. Ledger + facturación: vista de ledger por expediente, emisión de factura (Verifactu/e-CF),
@@ -50,6 +53,7 @@ Objetivo: completar el MVP visible y dejarlo listo para revisión/merge.
 ---
 
 ## Reglas de operación entre sesiones
+
 - Registrar cada bloque en `AI_WORKLOG.md` (protocolo compartido con Codex).
 - Mantener `PLAN.md` (checklist por épicas) y `DECISIONS.md` (ADR) al día.
 - Commits pequeños (Conventional Commits) y push a `feat/mvp-fase1` (PR #1) tras cada incremento probado.

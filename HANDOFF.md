@@ -27,7 +27,7 @@ hardcodear país en la UI.
   Conventional Commits, **subject en minúscula**. Hooks husky activos (prettier + commitlint) →
   reformatean al commitear, es normal.
 - **Coordinación:** otra IA (Codex) también trabaja la rama. Añadir entrada por bloque en
-  **`AI_WORKLOG.md`**. Mantener `PLAN.md` y `DECISIONS.md` al día.
+  **`docs/archive/AI_WORKLOG.md`**. Mantener `docs/archive/PLAN.md` y `DECISIONS.md` al día.
 - **Regla de calidad:** cada incremento se prueba (tsc/lint/build + e2e/E2E real) y se commitea con CI
   en verde. Nada de datos mock en pantallas: todo cableado a la API real.
 
@@ -173,8 +173,8 @@ api: `pnpm --filter @legalflow/api lint && pnpm exec jest --config test/jest-e2e
 
 ## Documentos clave
 
-`PLAN.md` (épicas E0–E9 + **Frontend F0–F7** con estado), `DECISIONS.md` (ADR; **D-013** RLS, **D-014**
-auth BFF, **D-015** gate de rol), `AI_WORKLOG.md` (bitácora), `design/*` (prototipo + handoff de
+`docs/archive/PLAN.md` (épicas E0–E9 + **Frontend F0–F7** con estado), `DECISIONS.md` (ADR; **D-013** RLS, **D-014**
+auth BFF, **D-015** gate de rol), `docs/archive/AI_WORKLOG.md` (bitácora), `design/*` (prototipo + handoff de
 diseño), `apps/api/scripts/seed-demo.mjs` (seed).
 
 **Arquitectura técnica completa** (derivada del código, con diagramas Mermaid): `docs/architecture/`
@@ -187,4 +187,4 @@ diseño), `apps/api/scripts/seed-demo.mjs` (seed).
    seed; abrir `http://localhost:3000/es-ES/login`.
 2. Continuar **Tanda A (1→5)** una pantalla por commit (probada, CI verde), leyendo cada pantalla en
    `design/Lexora.dc.html` por sus líneas. Luego **Tanda B (6→9)** creando los endpoints nuevos.
-3. Registrar cada bloque en `AI_WORKLOG.md` y marcar en `PLAN.md`.
+3. Registrar cada bloque en `docs/archive/AI_WORKLOG.md` y marcar en `docs/archive/PLAN.md`.

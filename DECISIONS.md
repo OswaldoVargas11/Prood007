@@ -391,7 +391,7 @@ Decisiones:
   acceso/portabilidad y el derecho de supresión, **bien hechos**.
 - **Acceso / portabilidad (PR-X, fusionado en #28):** `GET /clients/:id/gdpr-export` (FIRM_ADMIN, acotado al
   tenant por RLS) devuelve los datos del titular en JSON estructurado; no expone claves internas de storage;
-  deja traza en AuditLog. RAT (art. 30) documentado en `RAT.md`.
+  deja traza en AuditLog. RAT (art. 30) documentado en `docs/legal/RAT.md`.
 - **Supresión = ANONIMIZACIÓN, NO hard-delete (clave):** el derecho de supresión RGPD/172-13 **cede ante la
   conservación legal**: para un despacho, conservar el expediente suele ganar (deber de custodia,
   obligaciones fiscales) y un borrado real chocaría además con el **AuditLog inmutable**. Por eso
@@ -409,7 +409,7 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
   RGPD defendible: la supresión cede ante la conservación legal.
 - **Retención configurable + residencia (migración):** `Tenant.dataRegion` (UE para ES; RD a definir) y
   `Tenant.retentionMonths`, editables por FIRM_ADMIN en Ajustes. Son **metadato/política**: la retención
-  **no dispara auto-purga** (conservar prevalece sobre borrar). Residencia documentada en `RAT.md`/RUNBOOK.
+  **no dispara auto-purga** (conservar prevalece sobre borrar). Residencia documentada en `docs/legal/RAT.md`/RUNBOOK.
 - **Migración (`20260615130000_gdpr_anonymize_retention`):** columnas nullable (seguro sobre BD con datos);
   los GRANT de tabla ya cubren columnas nuevas; las políticas RLS de Client/Tenant ya existen (row-level).
   → toca `prisma/` (CODEOWNERS) ⇒ **PR que espera OK del usuario**, no auto-merge.
@@ -505,7 +505,7 @@ anonimizado]`, identificador fiscal → `ANON-<id>`, email/teléfono/dirección 
 - **Jurisdicción-aware:** los defaults de reglas y el tono/idioma de los avisos salen del tenant
   (`jurisdiction`/`locale`, es-ES vs es-DO); ningún país hardcodeado, igual que el resto del núcleo.
 - **Desglose en PRs:** D1 (modelo+migración+RLS) → D2 (motor+in-app+endpoint manual) → D3 (cron) →
-  D4 (UI despacho) → D5 (UI portal). Ver PLAN.md (Ítem 1) y [[fase1-cobro-decisiones]] (memoria).
+  D4 (UI despacho) → D5 (UI portal). Ver docs/archive/PLAN.md (Ítem 1) y [[fase1-cobro-decisiones]] (memoria).
 - **Sensibilidad / merge:** D1–D3 tocan migración/RLS/dinero → **PR-y-espera**. D4/D5 son solo UI de
   lectura → auto-mergeables en verde.
 - **PR-D1:** tablas `DunningRule` + `DunningReminder` (RLS fail-closed, patrón D-013/D-020),

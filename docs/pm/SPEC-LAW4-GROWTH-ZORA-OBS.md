@@ -1,4 +1,5 @@
 # SPEC: Crecimiento · Calidad IA Zora · Observabilidad
+
 > LAW-4 — Documento PM (Lucia). Fecha: 2026-06-30. Para aprobación de Aurora.
 
 ---
@@ -6,22 +7,23 @@
 ## 1. Crecimiento y onboarding de despachos (goal 849cd4d8)
 
 ### 1.1 Objetivo
+
 Maximizar la conversión de visitante → despacho activado (primer expediente creado), y acortar el tiempo hasta el primer valor percibido en los mercados ES y RD.
 
 ### 1.2 Estado actual (observado en repo)
 
-| Componente | Estado | Notas |
-|---|---|---|
-| Formulario de alta | ✅ Operativo | `apps/web/src/app/[locale]/onboarding/page.tsx` — 1 sola página, 2 jurisdicciones (ES/RD), campos opcionales firmSize/phone |
-| Trial 15 días sin tarjeta | ✅ Operativo | Copia inline "15 días sin tarjeta, todo incluido" |
-| Demo tenant en prod | ✅ Operativo | `ensure-demo-tenant.mjs` + `seed-demo-showcase.mjs`; `demo@demo.lawzora` |
-| Planes SaaS | ✅ 3 tiers × 3 ciclos + Fundador (cupo 18) en Stripe LIVE | — |
-| Material de venta | ✅ `GUION_DEMO_VENTAS.txt` existe | Sin versión digital interactiva ni RD-específica |
-| Página pública de precios | ❌ No encontrada | Solo mención inline en el formulario de alta |
-| Funnel / analytics de conversión | ❌ No encontrado | No hay tracking de pasos alta → activación |
-| Onboarding guiado post-alta | ❌ No encontrado | Tras crear cuenta → dashboard sin guía de primeros pasos |
-| Secuencia de email post-alta | ❌ No encontrada | Brevo configurado pero sin nurturing sequence |
-| Material de venta RD específico | ❌ No encontrado | El guion cubre ES; RD tiene diferencias fiscales (e-CF, ITBIS) |
+| Componente                       | Estado                                                    | Notas                                                                                                                       |
+| -------------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Formulario de alta               | ✅ Operativo                                              | `apps/web/src/app/[locale]/onboarding/page.tsx` — 1 sola página, 2 jurisdicciones (ES/RD), campos opcionales firmSize/phone |
+| Trial 15 días sin tarjeta        | ✅ Operativo                                              | Copia inline "15 días sin tarjeta, todo incluido"                                                                           |
+| Demo tenant en prod              | ✅ Operativo                                              | `ensure-demo-tenant.mjs` + `seed-demo-showcase.mjs`; `demo@demo.lawzora`                                                    |
+| Planes SaaS                      | ✅ 3 tiers × 3 ciclos + Fundador (cupo 18) en Stripe LIVE | —                                                                                                                           |
+| Material de venta                | ✅ `docs/strategy/GUION_DEMO_VENTAS.txt` existe           | Sin versión digital interactiva ni RD-específica                                                                            |
+| Página pública de precios        | ❌ No encontrada                                          | Solo mención inline en el formulario de alta                                                                                |
+| Funnel / analytics de conversión | ❌ No encontrado                                          | No hay tracking de pasos alta → activación                                                                                  |
+| Onboarding guiado post-alta      | ❌ No encontrado                                          | Tras crear cuenta → dashboard sin guía de primeros pasos                                                                    |
+| Secuencia de email post-alta     | ❌ No encontrada                                          | Brevo configurado pero sin nurturing sequence                                                                               |
+| Material de venta RD específico  | ❌ No encontrado                                          | El guion cubre ES; RD tiene diferencias fiscales (e-CF, ITBIS)                                                              |
 
 ### 1.3 Gaps priorizados
 
@@ -43,6 +45,7 @@ RD difiere en e-CF/DGII, ITBIS y jurisdicción DO. El guion ES no menciona estos
 ### 1.4 Especificaciones por ítem
 
 #### G1-A: Página pública de precios
+
 - **Ruta:** `/es/precios`, `/do/precios` (locale-aware, ya existe el sistema de rutas)
 - **Contenido:** tabla de 3 tiers (Starter, Pro, Fundador) × ciclos anual/mensual, comparativa de features, FAQ de 5 puntos, CTA → `/es/alta`
 - **Criterios de aceptación:**
@@ -53,6 +56,7 @@ RD difiere en e-CF/DGII, ITBIS y jurisdicción DO. El guion ES no menciona estos
   - [ ] El CTA lleva al formulario de alta con `?plan=X` preseleccionado (opcional para Fase 1)
 
 #### G1-B: Onboarding guiado post-alta
+
 - **Mecanismo:** checklist persistente en dashboard (se cierra al completar o descartar explícitamente)
 - **Pasos sugeridos (7):**
   1. Configura tu despacho (logo, dirección fiscal)
@@ -69,6 +73,7 @@ RD difiere en e-CF/DGII, ITBIS y jurisdicción DO. El guion ES no menciona estos
   - [ ] En mobile es visible y usable
 
 #### G1-C: Funnel de conversión analítico
+
 - **Eventos mínimos a instrumentar (server-side):**
   - `signup.started` (carga del form)
   - `signup.submitted` (POST /api/auth/register intento)
@@ -83,6 +88,7 @@ RD difiere en e-CF/DGII, ITBIS y jurisdicción DO. El guion ES no menciona estos
   - [ ] Los eventos son anonymized (sin PII en el payload)
 
 #### G1-D: Secuencia de nurturing por email (15 días)
+
 - **Herramienta:** Brevo (ya integrado y autenticado en prod)
 - **Secuencia propuesta:**
   - D+1: "Cómo abrir tu primer expediente" (link al onboarding guiado)
@@ -97,6 +103,7 @@ RD difiere en e-CF/DGII, ITBIS y jurisdicción DO. El guion ES no menciona estos
   - [ ] Los correos están en ES y en DO (mismo idioma, diferente referencia fiscal si aplica)
 
 #### G1-E: Material específico RD
+
 - **Formato:** PDF + versión web de 1 página (puede ser markdown renderizado)
 - **Contenido diferencial a cubrir:**
   - e-CF / DGII: cómo funciona la integración, qué hace Lawzora automáticamente
@@ -111,38 +118,40 @@ RD difiere en e-CF/DGII, ITBIS y jurisdicción DO. El guion ES no menciona estos
 ## 2. Calidad del agente IA Zora (goal 920de062)
 
 ### 2.1 Objetivo
+
 Llevar la paridad del agente de 8/12 ítems a ≥11/12 vs la barra de Harvey/Clio Duo/CoCounsel, y establecer un proceso continuo de evaluación de calidad.
 
 ### 2.2 Estado actual (observado en repo)
 
-| Componente | Estado | Notas |
-|---|---|---|
-| Tools (lectura) | ✅ 8 core + 91 extendidas = **~102 tools totales** | `ai-agent.tools.ts` + catálogo completo |
-| Tools (escritura HITL) | ✅ 3 write tools con gate de confirmación | create_task, draft_and_save_document, create_template |
-| Multi-turno conversacional | ✅ Implementado | AiConversation/AiChatMessage, historial acotado 20 msgs |
-| Streaming de progreso + Stop | ✅ Implementado | NDJSON a `/ai/agent/stream`, tool-trace events + done |
-| RAG semántico | ✅ Implementado | `search_firm_knowledge` con VOYAGE_API_KEY (Float[]+coseno) |
-| Generative UI (tarjetas) | ✅ Diseñado (catálogo en docs/ai) | UI de tarjetas por herramienta definida |
-| Token-by-token streaming final | ❌ No implementado | Considerado cosmético en roadmap |
-| Workflow builder no-code | ❌ No encontrado | Alta complejidad (3 subsistemas), estimación: varias tandas |
-| Agente dentro de Word/Outlook | ❌ No integrado | Add-ins existen; auth SSO de Office es la barrera |
-| Evaluación sistemática (LLM-as-judge) | ❌ No encontrado | `AGENT-EVAL-SCENARIOS.md` existe pero sin harness automatizado |
-| Paridad actual vs Harvey/Clio | 8/12 | 4 ítems pendientes según auditoría jun-27 |
+| Componente                            | Estado                                             | Notas                                                          |
+| ------------------------------------- | -------------------------------------------------- | -------------------------------------------------------------- |
+| Tools (lectura)                       | ✅ 8 core + 91 extendidas = **~102 tools totales** | `ai-agent.tools.ts` + catálogo completo                        |
+| Tools (escritura HITL)                | ✅ 3 write tools con gate de confirmación          | create_task, draft_and_save_document, create_template          |
+| Multi-turno conversacional            | ✅ Implementado                                    | AiConversation/AiChatMessage, historial acotado 20 msgs        |
+| Streaming de progreso + Stop          | ✅ Implementado                                    | NDJSON a `/ai/agent/stream`, tool-trace events + done          |
+| RAG semántico                         | ✅ Implementado                                    | `search_firm_knowledge` con VOYAGE_API_KEY (Float[]+coseno)    |
+| Generative UI (tarjetas)              | ✅ Diseñado (catálogo en docs/ai)                  | UI de tarjetas por herramienta definida                        |
+| Token-by-token streaming final        | ❌ No implementado                                 | Considerado cosmético en roadmap                               |
+| Workflow builder no-code              | ❌ No encontrado                                   | Alta complejidad (3 subsistemas), estimación: varias tandas    |
+| Agente dentro de Word/Outlook         | ❌ No integrado                                    | Add-ins existen; auth SSO de Office es la barrera              |
+| Evaluación sistemática (LLM-as-judge) | ❌ No encontrado                                   | `AGENT-EVAL-SCENARIOS.md` existe pero sin harness automatizado |
+| Paridad actual vs Harvey/Clio         | 8/12                                               | 4 ítems pendientes según auditoría jun-27                      |
 
 ### 2.3 Los 4 gaps de paridad pendientes (inferidos de la auditoría 8/12)
 
 Basado en AGENT-REMAINING-ROADMAP.md y el catálogo de tools, los gaps de paridad más probables son:
 
-| ID | Gap | Evidencia |
-|---|---|---|
-| Z-1 | Token-by-token streaming del texto final | Roadmap: cosmético, posponer tras 1 y 2 |
-| Z-2 | Workflow builder no-code | Roadmap: 3 subsistemas, alta complejidad |
-| Z-3 | Agente dentro de Word/Outlook (SSO) | Roadmap: Fase A (token) → Fase B (SSO Office) |
-| Z-4 | Harness de evaluación automatizado | AGENT-EVAL-SCENARIOS.md existe sin ejecución automática |
+| ID  | Gap                                      | Evidencia                                               |
+| --- | ---------------------------------------- | ------------------------------------------------------- |
+| Z-1 | Token-by-token streaming del texto final | Roadmap: cosmético, posponer tras 1 y 2                 |
+| Z-2 | Workflow builder no-code                 | Roadmap: 3 subsistemas, alta complejidad                |
+| Z-3 | Agente dentro de Word/Outlook (SSO)      | Roadmap: Fase A (token) → Fase B (SSO Office)           |
+| Z-4 | Harness de evaluación automatizado       | AGENT-EVAL-SCENARIOS.md existe sin ejecución automática |
 
 ### 2.4 Especificaciones por ítem
 
 #### Z-1: Token-by-token streaming de texto final
+
 - **Contexto:** El canal NDJSON ya existe para tool-traces. El texto final llega completo ("done" event). Extender para enviar tokens del texto final progresivamente.
 - **Restricciones:** Debe respetar el HITL (no streamear como final si hay pendingWrites) y las citas RAG (resolver al final, reconciliar después).
 - **Criterios de aceptación:**
@@ -153,6 +162,7 @@ Basado en AGENT-REMAINING-ROADMAP.md y el catálogo de tools, los gaps de parida
   - [ ] Regresión: las herramientas HITL siguen funcionando correctamente
 
 #### Z-2: Skills preconstruidos (fase previa al workflow builder)
+
 - **Contexto:** El roadmap recomienda no construir el editor visual primero. Entregar primero "skills" preconstruidos: secuencias parametrizadas expuestas como plantillas con formulario de entradas.
 - **Candidatos para Fase 1 (4 skills):**
   1. "Apertura de expediente completa" (conflict check → alta cliente → apertura expediente → carta encargo)
@@ -166,6 +176,7 @@ Basado en AGENT-REMAINING-ROADMAP.md y el catálogo de tools, los gaps de parida
   - [ ] Los skills son auditables (aparecen en el log de auditoría del agente)
 
 #### Z-3: Evaluación automatizada de calidad del agente
+
 - **Contexto:** `AGENT-EVAL-SCENARIOS.md` existe con escenarios de prueba pero no hay harness que los ejecute automáticamente.
 - **Propuesta:** Test harness LLM-as-judge que ejecuta un conjunto de escenarios golden contra el agente y valida la respuesta por criterios definidos.
 - **Criterios de aceptación:**
@@ -176,6 +187,7 @@ Basado en AGENT-REMAINING-ROADMAP.md y el catálogo de tools, los gaps de parida
   - [ ] El baseline actual (8/12) queda registrado como punto de partida
 
 #### Z-4: RAG citable — mejora de presentación de fuentes
+
 - **Contexto:** `search_firm_knowledge` ya devuelve fragmentos con fuente. La UI del chat debe mostrar las citas de forma clicable y verificable.
 - **Criterios de aceptación:**
   - [ ] Las respuestas con RAG muestran las fuentes como chips/referencias numeradas
@@ -188,35 +200,37 @@ Basado en AGENT-REMAINING-ROADMAP.md y el catálogo de tools, los gaps de parida
 ## 3. Observabilidad en producción (goal f2c9cbf2, parte no-infra)
 
 ### 3.1 Objetivo
+
 Tener visibilidad operativa completa: errores capturados, KPIs de negocio monitorizables, dunning verificable, y audit log con integridad garantizada. Coordinar con Nora/DevOps para la parte de infra (Prometheus, Grafana, backups de BD).
 
 ### 3.2 Estado actual (observado en repo)
 
-| Componente | Estado | Notas |
-|---|---|---|
-| Sentry API (errores) | ✅ Activo | `@sentry/nestjs`, DSN configurado en prod, GDPR-compliant |
-| Pino logging | ✅ Activo | JSON estructurado, redacción de headers Auth/Cookie, `LOG_LEVEL` configurable |
-| Dunning cron | ✅ Activo | Diario 6AM, in-app + email; no SMS |
-| Sentry web | ⚠️ Parcial | Instrumentado pero requiere 2º DSN/proyecto separado del API |
-| Audit log (AuditLog tabla) | ⚠️ Incompleto | 7 gaps de D10-001 a D10-007 (mutable, sin WORM, sin IP/user-agent) |
-| Métricas de aplicación | ❌ No encontrado | Sin Prometheus, sin StatsD, sin endpoint `/metrics` |
-| KPIs de negocio en tiempo real | ❌ No encontrado | Dashboard de admin sin datos de "signup rate", "active tenants", etc. |
-| Alertas configuradas | ❌ Sin configurar | Solo alertas manuales de Sentry (sin umbrales ni playbooks) |
+| Componente                     | Estado            | Notas                                                                         |
+| ------------------------------ | ----------------- | ----------------------------------------------------------------------------- |
+| Sentry API (errores)           | ✅ Activo         | `@sentry/nestjs`, DSN configurado en prod, GDPR-compliant                     |
+| Pino logging                   | ✅ Activo         | JSON estructurado, redacción de headers Auth/Cookie, `LOG_LEVEL` configurable |
+| Dunning cron                   | ✅ Activo         | Diario 6AM, in-app + email; no SMS                                            |
+| Sentry web                     | ⚠️ Parcial        | Instrumentado pero requiere 2º DSN/proyecto separado del API                  |
+| Audit log (AuditLog tabla)     | ⚠️ Incompleto     | 7 gaps de D10-001 a D10-007 (mutable, sin WORM, sin IP/user-agent)            |
+| Métricas de aplicación         | ❌ No encontrado  | Sin Prometheus, sin StatsD, sin endpoint `/metrics`                           |
+| KPIs de negocio en tiempo real | ❌ No encontrado  | Dashboard de admin sin datos de "signup rate", "active tenants", etc.         |
+| Alertas configuradas           | ❌ Sin configurar | Solo alertas manuales de Sentry (sin umbrales ni playbooks)                   |
 
 ### 3.3 Gaps priorizados
 
-| ID | Gap | Severidad | Coordinación |
-|---|---|---|---|
-| O-1 | Sentry web con DSN propio | Media | Tomas (CTO) |
-| O-2 | AuditLog append-only (D10-001..003) | Alta | Tomas (CTO) |
-| O-3 | Métricas de aplicación + Prometheus | Media | Nora (DevOps) |
-| O-4 | Dashboard de KPIs de negocio | Media | Tomas + Marco (Design) |
-| O-5 | Alertas con playbooks (Sentry / PagerDuty) | Media | Nora (DevOps) |
-| O-6 | SMS en dunning | Baja | Tomas (CTO) |
+| ID  | Gap                                        | Severidad | Coordinación           |
+| --- | ------------------------------------------ | --------- | ---------------------- |
+| O-1 | Sentry web con DSN propio                  | Media     | Tomas (CTO)            |
+| O-2 | AuditLog append-only (D10-001..003)        | Alta      | Tomas (CTO)            |
+| O-3 | Métricas de aplicación + Prometheus        | Media     | Nora (DevOps)          |
+| O-4 | Dashboard de KPIs de negocio               | Media     | Tomas + Marco (Design) |
+| O-5 | Alertas con playbooks (Sentry / PagerDuty) | Media     | Nora (DevOps)          |
+| O-6 | SMS en dunning                             | Baja      | Tomas (CTO)            |
 
 ### 3.4 Especificaciones por ítem
 
 #### O-1: Sentry web con proyecto separado
+
 - **Contexto:** La app web (`apps/web`) está instrumentada pero comparte el mismo Sentry DSN del API, o no tiene DSN propio configurado. Los errores de Server Components y client-side no se capturan en un proyecto separado.
 - **Acción:** Crear un 2º proyecto en Sentry (lawzora-web), obtener `NEXT_PUBLIC_SENTRY_DSN` y `SENTRY_AUTH_TOKEN` para el build.
 - **Criterios de aceptación:**
@@ -227,6 +241,7 @@ Tener visibilidad operativa completa: errores capturados, KPIs de negocio monito
   - [ ] El deploy de web pasa `NEXT_PUBLIC_SENTRY_DSN` como build arg
 
 #### O-2: AuditLog con integridad garantizada (D10-001, 002, 003)
+
 - **Contexto (de SECURITY-AUDIT-2026-06-24.md):**
   - D10-001: La tabla `AuditLog` es modificable/borrable por el rol de app (RLS FOR ALL, onDelete: Cascade)
   - D10-002: Acciones del super-admin de plataforma no auditadas
@@ -245,6 +260,7 @@ Tener visibilidad operativa completa: errores capturados, KPIs de negocio monito
   - [ ] Migración de Prisma sin romper esquemas existentes (mantener FKs)
 
 #### O-3: Métricas de aplicación (coordinar con Nora/DevOps)
+
 - **Propuesta (parte app-layer, no infra):**
   - Añadir `@nestjs/terminus` métricas básicas + endpoint `/metrics` en formato Prometheus
   - Métricas mínimas a exponer:
@@ -261,6 +277,7 @@ Tener visibilidad operativa completa: errores capturados, KPIs de negocio monito
   - [ ] Hay al menos 1 dashboard en Grafana con las métricas de negocio
 
 #### O-4: Dashboard de KPIs de negocio (plataforma admin)
+
 - **Propuesta:** Panel de super-admin (o informe Sentry/Metabase) con:
   - Nuevos tenants por semana/mes
   - Tasa de activación (registro → primer expediente, objetivo: ≥60% en 7 días)
@@ -275,6 +292,7 @@ Tener visibilidad operativa completa: errores capturados, KPIs de negocio monito
   - [ ] MRR viene de Stripe (no de la BD local) para evitar divergencia
 
 #### O-5: Alertas operativas con playbooks
+
 - **Propuesta:**
   - Definir umbrales de alerta en Sentry:
     - Error rate > 1% en 5 min → PagerDuty/Slack
@@ -296,33 +314,33 @@ Tener visibilidad operativa completa: errores capturados, KPIs de negocio monito
 
 ### Goal 1: Crecimiento
 
-| Ticket | Título | Owner sugerido | Prioridad |
-|---|---|---|---|
-| LAW-CRE-1 | Página pública de precios (/es/precios + /do/precios) | Design/Marco + CTO/Tomas | P1 |
-| LAW-CRE-2 | Onboarding guiado post-alta (checklist 7 pasos en dashboard) | CTO/Tomas | P1 |
-| LAW-CRE-3 | Funnel de conversión: instrumentación de 6 eventos server-side | CTO/Tomas | P2 |
-| LAW-CRE-4 | Secuencia de nurturing email 15 días (Brevo) | CTO/Tomas | P2 |
-| LAW-CRE-5 | Material de venta específico RD (e-CF, ITBIS, Ley 172-13) | PM/Lucia | P3 |
+| Ticket    | Título                                                         | Owner sugerido           | Prioridad |
+| --------- | -------------------------------------------------------------- | ------------------------ | --------- |
+| LAW-CRE-1 | Página pública de precios (/es/precios + /do/precios)          | Design/Marco + CTO/Tomas | P1        |
+| LAW-CRE-2 | Onboarding guiado post-alta (checklist 7 pasos en dashboard)   | CTO/Tomas                | P1        |
+| LAW-CRE-3 | Funnel de conversión: instrumentación de 6 eventos server-side | CTO/Tomas                | P2        |
+| LAW-CRE-4 | Secuencia de nurturing email 15 días (Brevo)                   | CTO/Tomas                | P2        |
+| LAW-CRE-5 | Material de venta específico RD (e-CF, ITBIS, Ley 172-13)      | PM/Lucia                 | P3        |
 
 ### Goal 2: Calidad IA Zora
 
-| Ticket | Título | Owner sugerido | Prioridad |
-|---|---|---|---|
-| LAW-ZOR-1 | Streaming token-a-token del texto final (extender canal NDJSON) | CTO/Tomas | P2 |
-| LAW-ZOR-2 | Skills preconstruidos fase 1: 4 flujos multi-paso desde UI chat | CTO/Tomas | P1 |
-| LAW-ZOR-3 | Harness de evaluación automatizada (≥20 escenarios, LLM-as-judge) | CTO/Tomas | P1 |
-| LAW-ZOR-4 | RAG citable: fuentes como chips clicables en UI del chat | Design/Marco + CTO/Tomas | P2 |
+| Ticket    | Título                                                            | Owner sugerido           | Prioridad |
+| --------- | ----------------------------------------------------------------- | ------------------------ | --------- |
+| LAW-ZOR-1 | Streaming token-a-token del texto final (extender canal NDJSON)   | CTO/Tomas                | P2        |
+| LAW-ZOR-2 | Skills preconstruidos fase 1: 4 flujos multi-paso desde UI chat   | CTO/Tomas                | P1        |
+| LAW-ZOR-3 | Harness de evaluación automatizada (≥20 escenarios, LLM-as-judge) | CTO/Tomas                | P1        |
+| LAW-ZOR-4 | RAG citable: fuentes como chips clicables en UI del chat          | Design/Marco + CTO/Tomas | P2        |
 
 ### Goal 3: Observabilidad
 
-| Ticket | Título | Owner sugerido | Prioridad |
-|---|---|---|---|
-| LAW-OBS-1 | Sentry web: 2º proyecto con NEXT_PUBLIC_SENTRY_DSN en prod | CTO/Tomas | P1 |
-| LAW-OBS-2 | AuditLog append-only: REVOKE + trigger + descargas + super-admin | CTO/Tomas | P1 |
-| LAW-OBS-3 | Endpoint /metrics Prometheus + 5 métricas mínimas | CTO/Tomas + DevOps/Nora | P2 |
-| LAW-OBS-4 | Dashboard KPIs de negocio (platform admin, MRR desde Stripe) | CTO/Tomas + Design/Marco | P2 |
-| LAW-OBS-5 | Alertas operativas: 4 reglas + playbooks en runbooks/ | DevOps/Nora | P2 |
+| Ticket    | Título                                                           | Owner sugerido           | Prioridad |
+| --------- | ---------------------------------------------------------------- | ------------------------ | --------- |
+| LAW-OBS-1 | Sentry web: 2º proyecto con NEXT_PUBLIC_SENTRY_DSN en prod       | CTO/Tomas                | P1        |
+| LAW-OBS-2 | AuditLog append-only: REVOKE + trigger + descargas + super-admin | CTO/Tomas                | P1        |
+| LAW-OBS-3 | Endpoint /metrics Prometheus + 5 métricas mínimas                | CTO/Tomas + DevOps/Nora  | P2        |
+| LAW-OBS-4 | Dashboard KPIs de negocio (platform admin, MRR desde Stripe)     | CTO/Tomas + Design/Marco | P2        |
+| LAW-OBS-5 | Alertas operativas: 4 reglas + playbooks en runbooks/            | DevOps/Nora              | P2        |
 
 ---
 
-*Documento generado por Lucia (PM) — LAW-4. Para revisión y aprobación de Aurora antes de crear sub-tickets.*
+_Documento generado por Lucia (PM) — LAW-4. Para revisión y aprobación de Aurora antes de crear sub-tickets._

@@ -233,7 +233,7 @@ _(El detalle completo de los hallazgos 🟡/⚪ y privacidad está en los inform
 
 ## 8. Gaps regulatorios (resumen — bloquean venta aunque no sean «bugs»)
 
-- **RGPD/Ley 172-13:** D6-P1 (DPA/subencargados), D6-P2 (transferencia de categoría especial a IA EE. UU.), D6-P3 (`dataRegion` muerto, ES↔RD comingled), D6-P4 (acceso/portabilidad no implementados), D6-P5 (retención no aplicada). El RAT (`RAT.md`) **sobreafirma** cumplimiento vs. el código real.
+- **RGPD/Ley 172-13:** D6-P1 (DPA/subencargados), D6-P2 (transferencia de categoría especial a IA EE. UU.), D6-P3 (`dataRegion` muerto, ES↔RD comingled), D6-P4 (acceso/portabilidad no implementados), D6-P5 (retención no aplicada). El RAT (`docs/legal/RAT.md`) **sobreafirma** cumplimiento vs. el código real.
 - **Verifactu/RRSIF (ES):** inalterabilidad (D8-001), correlativo sin saltos (D8-002), encadenamiento real (D8-003), registro de eventos (D8-004), **firma con certificado cualificado** y endpoints de producción (hoy stub/preproducción).
 - **e-CF DGII (RD, Ley 32-23):** eNCF de rango autorizado, huella sobre XML firmado, XAdES-BES (D8-005).
 - **eIDAS:** integridad/no repudio del documento firmado no verificada (D4-001/D6-003).
