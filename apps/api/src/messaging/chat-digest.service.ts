@@ -98,6 +98,15 @@ export class ChatDigestService {
           summary.skipped++;
           continue;
         }
+        // Sella la marca ANTES de enviar. Si el sellado falla (fallo de BD transitorio) LANZA aquí, cae al
+        // catch externo como `skipped` y el correo NO llega a salir → el próximo barrido reintenta el mismo
+        // lote limpio, sin duplicar. Así, un fallo de la marca nunca deja un correo emitido con la marca sin
+        // avanzar (que reenviaría el lote). El envío es fail-soft e independiente: un fallo de correo no
+        // revierte la marca ya avanzada (peor caso = un resumen perdido, jamás un duplicado ni un bucle).
+        await this.prisma.user.updateMany({
+          where: { id: user.id, tenantId },
+          data: { lastChatDigestAt: now },
+        });
         try {
           await this.mail.sendMail(
             chatDigestMessage(user.email, {
@@ -111,11 +120,6 @@ export class ChatDigestService {
         } catch (err) {
           this.logger.error('Fallo al enviar el resumen de chat por correo', err as Error);
         }
-        // Sella la marca aunque el correo fuera fail-soft: evita reintentos en bucle sobre el mismo lote.
-        await this.prisma.user.updateMany({
-          where: { id: user.id, tenantId },
-          data: { lastChatDigestAt: now },
-        });
         summary.sent++;
       } catch (err) {
         this.logger.error(`Fallo al evaluar el resumen de chat del usuario ${user.id}`, err as Error);
