@@ -12,6 +12,7 @@ import {
   AskDto,
   DraftEmailDto,
   DraftFromTemplateDto,
+  DryRunWorkflowDto,
   RunWorkflowDto,
   SaveTurnsDto,
   SemanticSearchDto,
@@ -209,6 +210,29 @@ export class AiController {
   @Get('workflows/catalog')
   workflowCatalog(@CurrentUser() user: RequestUser) {
     return this.workflows.catalog(user);
+  }
+
+  /** Biblioteca de plantillas instalables (galería). Ruta estática ANTES de `workflows/:id`. */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Get('workflows/templates')
+  workflowTemplates(@CurrentUser() user: RequestUser) {
+    return this.workflows.templates(user);
+  }
+
+  /** Instala una plantilla en el despacho (copia editable). No llama al modelo. */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Post('workflows/templates/:key/install')
+  installWorkflowTemplate(@CurrentUser() user: RequestUser, @Param('key') key: string) {
+    return this.workflows.installTemplate(user, key);
+  }
+
+  /** Prueba en seco: ejecuta las lecturas de una definición de pasos y se detiene ante la 1ª escritura. */
+  @RequiresFeature('ai')
+  @Post('workflows/dry-run')
+  dryRunWorkflow(@CurrentUser() user: RequestUser, @Body() dto: DryRunWorkflowDto) {
+    return this.workflows.dryRun(user, dto.steps);
   }
 
   /** Lista los flujos del despacho. */

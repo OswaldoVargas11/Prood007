@@ -1,9 +1,15 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import { PrismaService } from '../prisma/prisma.service';
 import { apiError } from '../common/api-messages';
 import { AiAgentService } from './ai-agent.service';
 import { AGENT_TOOLS } from './ai-agent.tools';
+import { WORKFLOW_TEMPLATES } from './ai-workflow.templates';
 import type { PendingWrite } from './ai-agent.service';
 import type { RequestUser } from '../auth/auth.types';
 
@@ -57,7 +63,9 @@ export class AiWorkflowService {
   }
 
   /** Valida y normaliza los pasos: cada uno debe referenciar una tool conocida del catálogo. */
-  private normalizeSteps(steps: { tool: string; input?: Record<string, unknown> }[]): WorkflowStep[] {
+  private normalizeSteps(
+    steps: { tool: string; input?: Record<string, unknown> }[],
+  ): WorkflowStep[] {
     return steps.map((s) => {
       if (!KNOWN_TOOLS.has(s.tool)) {
         throw new BadRequestException(
@@ -72,6 +80,35 @@ export class AiWorkflowService {
   catalog(user: RequestUser) {
     this.assertStaff(user);
     return this.agent.toolCatalog();
+  }
+
+  /** Biblioteca de plantillas instalables (global, no por tenant). Solo staff con IA. */
+  templates(user: RequestUser) {
+    this.assertStaff(user);
+    return WORKFLOW_TEMPLATES;
+  }
+
+  /**
+   * INSTALA una plantilla: copia sus pasos a un `AiWorkflow` del despacho (queda editable después). Revalida
+   * que cada paso referencie una tool del catálogo (una plantilla podría quedar obsoleta si el catálogo
+   * cambia). Devuelve el id del nuevo flujo.
+   */
+  async installTemplate(user: RequestUser, key: string) {
+    this.assertStaff(user);
+    const tpl = WORKFLOW_TEMPLATES.find((t) => t.key === key);
+    if (!tpl) throw new NotFoundException(apiError('ai.workflowTemplateNotFound'));
+    const steps = this.normalizeSteps(tpl.steps);
+    const wf = await this.prisma.aiWorkflow.create({
+      data: {
+        tenantId: user.tenantId,
+        createdByUserId: user.userId,
+        name: tpl.name,
+        description: tpl.description,
+        steps: steps as unknown as object,
+      },
+      select: { id: true, name: true },
+    });
+    return { id: wf.id, name: wf.name };
   }
 
   /** Lista los flujos del despacho por actividad reciente. */
@@ -112,7 +149,11 @@ export class AiWorkflowService {
   /** Crea un flujo. Valida que cada paso referencie una tool del catálogo. */
   async create(
     user: RequestUser,
-    dto: { name: string; description?: string; steps: { tool: string; input?: Record<string, unknown> }[] },
+    dto: {
+      name: string;
+      description?: string;
+      steps: { tool: string; input?: Record<string, unknown> }[];
+    },
   ) {
     this.assertStaff(user);
     const steps = this.normalizeSteps(dto.steps);
@@ -133,7 +174,11 @@ export class AiWorkflowService {
   async update(
     user: RequestUser,
     id: string,
-    dto: { name: string; description?: string; steps: { tool: string; input?: Record<string, unknown> }[] },
+    dto: {
+      name: string;
+      description?: string;
+      steps: { tool: string; input?: Record<string, unknown> }[];
+    },
   ) {
     this.assertStaff(user);
     const existing = await this.prisma.aiWorkflow.findFirst({
@@ -144,7 +189,11 @@ export class AiWorkflowService {
     const steps = this.normalizeSteps(dto.steps);
     await this.prisma.aiWorkflow.update({
       where: { id },
-      data: { name: dto.name, description: dto.description ?? null, steps: steps as unknown as object },
+      data: {
+        name: dto.name,
+        description: dto.description ?? null,
+        steps: steps as unknown as object,
+      },
     });
     return { id };
   }
@@ -237,5 +286,56 @@ export class AiWorkflowService {
       stepResults,
       pendingWrites,
     };
+  }
+
+  /**
+   * DRY-RUN (prueba en seco) de una definición de pasos SIN persistir: ejecuta SOLO los pasos de LECTURA en
+   * orden y se DETIENE ante el primer paso de ESCRITURA, que NO se ejecuta (se marca 'requires_confirmation').
+   * Sirve para validar el cableado del flujo y previsualizar lo que devuelven las lecturas antes de guardarlo.
+   *
+   * A diferencia de `run`, un error en una lectura NO aborta la prueba (los marcadores `<...>` sin rellenar
+   * pueden hacer que una lectura no encuentre datos): así el dry-run siempre llega a la primera escritura y
+   * demuestra dónde está el gate HITL. NO modifica nada: las escrituras nunca se invocan.
+   */
+  async dryRun(user: RequestUser, rawSteps: { tool: string; input?: Record<string, unknown> }[]) {
+    this.assertStaff(user);
+    const steps = this.normalizeSteps(rawSteps);
+
+    const stepResults: WorkflowStepResult[] = [];
+    const pendingWrites: PendingWrite[] = [];
+    let status: RunStatus = 'completed';
+
+    for (const step of steps) {
+      // Gate HITL en seco: al alcanzar una escritura, se DETIENE sin ejecutarla (cero efectos secundarios).
+      if (this.agent.isWriteTool(step.tool)) {
+        stepResults.push({
+          tool: step.tool,
+          input: step.input,
+          output: 'Escritura — la prueba en seco se detiene aquí (no se ejecuta).',
+          isError: false,
+          status: 'requires_confirmation',
+        });
+        pendingWrites.push({ action: step.tool, summary: `Escritura pendiente: ${step.tool}` });
+        status = 'requires_confirmation';
+        break;
+      }
+
+      const { outcome } = await this.agent.executeTool(
+        user,
+        { name: step.tool, input: step.input },
+        false,
+      );
+      const isError = Boolean(outcome.isError);
+      // Una lectura fallida (p. ej. marcador sin rellenar) se anota pero NO detiene la prueba.
+      stepResults.push({
+        tool: step.tool,
+        input: step.input,
+        output: outcome.content,
+        isError,
+        status: isError ? 'failed' : 'completed',
+      });
+    }
+
+    return { status, stepResults, pendingWrites };
   }
 }

@@ -13,6 +13,7 @@ import {
   searchFeatureGuide,
   type AiEngine,
   type AiMessage,
+  type AiToolDefinition,
   type AiToolExecutor,
   type AiToolInvocation,
   type AiToolOutcome,
@@ -127,6 +128,10 @@ const WRITE_TOOLS = new Set([
   'update_registry_obligation',
   'run_playbook_review',
 ]);
+/** ¿El nombre de herramienta MUTA estado? Standalone para reusarlo sin instanciar el servicio (tests). */
+export function isWriteToolName(name: string): boolean {
+  return WRITE_TOOLS.has(name);
+}
 const ACTIVE_MATTER_STATUSES = [MatterStatus.OPEN, MatterStatus.IN_PROGRESS];
 /** Tope de mensajes de historial que se reenvían al modelo (control de coste/contexto). */
 const MAX_HISTORY_MESSAGES = 20;
@@ -225,15 +230,24 @@ export class AiAgentService {
 
   /** ¿Esta herramienta MUTA estado (requiere confirmación HITL salvo allowWrites)? */
   isWriteTool(name: string): boolean {
-    return WRITE_TOOLS.has(name);
+    return isWriteToolName(name);
   }
 
-  /** Catálogo de herramientas para el builder de workflows (nombre + descripción + si es de escritura). */
-  toolCatalog(): { name: string; description: string; isWrite: boolean }[] {
+  /**
+   * Catálogo de herramientas para el builder de workflows (nombre + descripción + si es de escritura +
+   * el `inputSchema` para que el builder valide los inputs de cada paso de forma inline).
+   */
+  toolCatalog(): {
+    name: string;
+    description: string;
+    isWrite: boolean;
+    inputSchema: AiToolDefinition['inputSchema'];
+  }[] {
     return AGENT_TOOLS.map((t) => ({
       name: t.name,
       description: t.description,
       isWrite: WRITE_TOOLS.has(t.name),
+      inputSchema: t.inputSchema,
     }));
   }
 

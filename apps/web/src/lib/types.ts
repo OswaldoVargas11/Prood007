@@ -818,12 +818,40 @@ export interface AiConversationDetail {
   messages: { role: 'user' | 'assistant'; content: string; meta: unknown }[];
 }
 
+/** Esquema de input de una tool (subconjunto JSON-Schema que expone el catálogo). */
+export interface WorkflowToolSchema {
+  type?: string;
+  properties?: Record<string, { type?: string; description?: string; enum?: string[] }>;
+  required?: string[];
+}
+
 /** Una herramienta del catálogo del agente disponible para componer un flujo (workflows builder). */
 export interface WorkflowCatalogTool {
   name: string;
   description: string;
   /** true = la herramienta MUTA estado → al ejecutarse en un flujo requiere confirmación (HITL). */
   isWrite: boolean;
+  /** Esquema de parámetros (para validar el input de cada paso de forma inline en el builder). */
+  inputSchema?: WorkflowToolSchema;
+}
+
+/** Una plantilla de flujo instalable de la biblioteca (global, no por tenant). */
+export interface WorkflowTemplate {
+  key: string;
+  name: string;
+  description: string;
+  useCase: string;
+  category: string;
+  jurisdiction: 'es' | 'do' | null;
+  confirms: string;
+  steps: WorkflowStep[];
+}
+
+/** Resultado de una prueba en seco (dry-run) de una definición de pasos. */
+export interface WorkflowDryRunResult {
+  status: 'completed' | 'failed' | 'requires_confirmation';
+  stepResults: WorkflowStepResult[];
+  pendingWrites: PendingWrite[];
 }
 
 /** Un paso declarativo de un flujo: invoca una tool del catálogo por nombre + input. */

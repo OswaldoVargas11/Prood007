@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AiWorkflowService } from './ai-workflow.service';
 import { AGENT_TOOLS } from './ai-agent.tools';
 import type { AiAgentService, PendingWrite } from './ai-agent.service';
@@ -24,7 +24,11 @@ function makeAgent(opts: {
   const agent = {
     isWriteTool: (name: string) => writeTools.has(name),
     toolCatalog: () =>
-      AGENT_TOOLS.map((t) => ({ name: t.name, description: t.description, isWrite: writeTools.has(t.name) })),
+      AGENT_TOOLS.map((t) => ({
+        name: t.name,
+        description: t.description,
+        isWrite: writeTools.has(t.name),
+      })),
     executeTool: jest.fn(
       async (
         _u: RequestUser,
@@ -35,7 +39,9 @@ function makeAgent(opts: {
         // Gate HITL: una escritura sin confirmación NO se ejecuta; se propone (pendingWrites).
         if (writeTools.has(inv.name) && !allowWrites) {
           return {
-            outcome: { content: JSON.stringify({ status: 'requires_confirmation', action: inv.name }) },
+            outcome: {
+              content: JSON.stringify({ status: 'requires_confirmation', action: inv.name }),
+            },
             pendingWrites: [{ action: inv.name, summary: `Crear ${inv.name}` }],
           };
         }
@@ -84,7 +90,11 @@ describe('AiWorkflowService (motor multi-paso)', () => {
     expect(res.stepResults).toHaveLength(2);
     // Encadena en ORDEN: primer paso search_matters, segundo list_open_tasks.
     expect(calls.map((c) => c.name)).toEqual(['search_matters', 'list_open_tasks']);
-    expect(res.stepResults[0]).toMatchObject({ tool: 'search_matters', output: 'EXP-1', status: 'completed' });
+    expect(res.stepResults[0]).toMatchObject({
+      tool: 'search_matters',
+      output: 'EXP-1',
+      status: 'completed',
+    });
     expect(res.stepResults[1]).toMatchObject({ tool: 'list_open_tasks', status: 'completed' });
     // Persiste el run con la traza.
     expect((created[0] as { status: string }).status).toBe('completed');
@@ -151,5 +161,90 @@ describe('AiWorkflowService (motor multi-paso)', () => {
     await expect(
       svc.create(user, { name: 'Malo', steps: [{ tool: 'no_existe', input: {} }] }),
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('instala una plantilla → crea un AiWorkflow válido con sus pasos', async () => {
+    const { agent } = makeAgent({});
+    const created: { name: string; steps: unknown }[] = [];
+    const prisma = {
+      aiWorkflow: {
+        create: jest.fn(async ({ data }: { data: { name: string; steps: unknown } }) => {
+          created.push(data);
+          return { id: 'wf-new', name: data.name };
+        }),
+      },
+    };
+    const svc = new AiWorkflowService(prisma as never, agent);
+
+    // La primera plantilla del catálogo (onboarding) debe instalarse sin problemas.
+    const res = await svc.installTemplate(user, 'onboarding-cliente-completo');
+
+    expect(res).toEqual({ id: 'wf-new', name: 'Onboarding de cliente completo' });
+    expect(created).toHaveLength(1);
+    // Los pasos se copian y quedan referenciando tools del catálogo (normalizeSteps no lanzó).
+    expect((created[0]?.steps as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it('lanza NotFound al instalar una plantilla inexistente', async () => {
+    const { agent } = makeAgent({});
+    const svc = new AiWorkflowService({} as never, agent);
+    await expect(svc.installTemplate(user, 'no-existe')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('dry-run: ejecuta las lecturas y se DETIENE ante la primera escritura (sin ejecutarla)', async () => {
+    const { agent, calls } = makeAgent({ writeTools: new Set(['create_task']) });
+    const svc = new AiWorkflowService({} as never, agent);
+
+    const res = await svc.dryRun(user, [
+      { tool: 'search_matters', input: { query: 'Acme' } },
+      { tool: 'firm_overview', input: {} },
+      { tool: 'create_task', input: { title: 'X' } },
+      { tool: 'list_open_tasks', input: {} },
+    ]);
+
+    expect(res.status).toBe('requires_confirmation');
+    // Solo se EJECUTARON las lecturas; la escritura NUNCA se invocó (el paso posterior tampoco).
+    expect(calls.map((c) => c.name)).toEqual(['search_matters', 'firm_overview']);
+    expect(res.stepResults).toHaveLength(3);
+    expect(res.stepResults[2]).toMatchObject({
+      tool: 'create_task',
+      status: 'requires_confirmation',
+    });
+    expect(res.pendingWrites).toEqual([
+      { action: 'create_task', summary: 'Escritura pendiente: create_task' },
+    ]);
+  });
+
+  it('dry-run: una lectura con error NO aborta la prueba (sigue hasta la escritura)', async () => {
+    const { agent, calls } = makeAgent({
+      writeTools: new Set(['create_task']),
+      errors: new Set(['get_matter']),
+    });
+    const svc = new AiWorkflowService({} as never, agent);
+
+    const res = await svc.dryRun(user, [
+      { tool: 'get_matter', input: { reference: '<sin rellenar>' } },
+      { tool: 'firm_overview', input: {} },
+      { tool: 'create_task', input: { title: 'X' } },
+    ]);
+
+    // La lectura fallida se anota (failed) pero la prueba continúa y llega a la escritura.
+    expect(calls.map((c) => c.name)).toEqual(['get_matter', 'firm_overview']);
+    expect(res.stepResults[0]).toMatchObject({ tool: 'get_matter', status: 'failed' });
+    expect(res.status).toBe('requires_confirmation');
+  });
+
+  it('dry-run: un flujo de solo lectura completa sin detenerse', async () => {
+    const { agent, calls } = makeAgent({});
+    const svc = new AiWorkflowService({} as never, agent);
+
+    const res = await svc.dryRun(user, [
+      { tool: 'firm_overview', input: {} },
+      { tool: 'list_open_tasks', input: {} },
+    ]);
+
+    expect(res.status).toBe('completed');
+    expect(res.pendingWrites).toHaveLength(0);
+    expect(calls.map((c) => c.name)).toEqual(['firm_overview', 'list_open_tasks']);
   });
 });

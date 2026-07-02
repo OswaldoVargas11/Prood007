@@ -142,6 +142,16 @@ export class RunWorkflowDto {
   allowWrites?: boolean;
 }
 
+/** Prueba en seco (dry-run) de una definición de pasos: ejecuta lecturas y se detiene ante la 1ª escritura. */
+export class DryRunWorkflowDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => WorkflowStepDto)
+  steps!: WorkflowStepDto[];
+}
+
 /** Una columna de una revisión tabular: pregunta/atributo en lenguaje natural. */
 export class TabularColumnDto {
   @IsString()

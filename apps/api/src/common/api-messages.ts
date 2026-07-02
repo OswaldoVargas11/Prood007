@@ -764,6 +764,10 @@ export const API_MESSAGES = {
     'es-ES': 'El flujo usa una herramienta que no existe en el catálogo: {tool}.',
     'es-DO': 'El flujo usa una herramienta que no existe en el catálogo: {tool}.',
   },
+  'ai.workflowTemplateNotFound': {
+    'es-ES': 'No se encontró la plantilla de flujo.',
+    'es-DO': 'No se encontró la plantilla de flujo.',
+  },
   'ai.tabularReviewNotFound': {
     'es-ES': 'No se encontró la revisión tabular.',
     'es-DO': 'No se encontró la revisión tabular.',
