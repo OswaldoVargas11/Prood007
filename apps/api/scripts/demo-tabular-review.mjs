@@ -94,8 +94,9 @@ async function main() {
       cambioControl: i !== 9,
       penalizacion: i !== 10,
     });
-    const doc = await uploadDoc(matter.id, `demo-tabular-${stamp}-contrato-${String(i).padStart(2, '0')}.txt`, body);
-    documentIds.push(doc.id);
+    const uploaded = await uploadDoc(matter.id, `demo-tabular-${stamp}-contrato-${String(i).padStart(2, '0')}.txt`, body);
+    // POST /documents devuelve { document, version }.
+    documentIds.push(uploaded.document.id);
   }
   console.log(`   ${documentIds.length} documentos subidos`);
 
