@@ -85,6 +85,8 @@ export class SignaturesService {
         // uno (p. ej. adaptador STUBBED, que no transmite ni recibe webhooks), generamos un sentinel
         // local único que no puede casar con un externalId real del proveedor.
         externalId: result.externalId || `local-${randomBytes(12).toString('hex')}`,
+        // Id del documento dentro del sobre: los webhooks reales de Signaturit correlacionan por él.
+        providerDocumentId: result.externalDocumentId ?? null,
         status,
         signerName: dto.signerName,
         signerEmail: dto.signerEmail,
@@ -213,14 +215,38 @@ export class SignaturesService {
     if (!this.provider.verifyWebhook(body, signature, secret)) {
       throw new BadRequestException(apiError('signatures.webhookInvalid'));
     }
+    return this.processWebhookBody(body);
+  }
+
+  /**
+   * Variante para el webhook REAL de Signaturit, cuya autenticación (Basic embebido en la events_url)
+   * ya la validó el controller — Signaturit no firma sus webhooks con HMAC. Mismo procesamiento.
+   */
+  async handleVerifiedWebhook(rawBody: Buffer | undefined) {
+    return this.processWebhookBody(rawBody ? rawBody.toString('utf8') : '');
+  }
+
+  private async processWebhookBody(body: string) {
     const event = this.provider.parseWebhook(body);
     if (!event) throw new BadRequestException(apiError('signatures.webhookInvalid'));
-    // L-9: defensa en profundidad — un externalId vacío jamás debe usarse para resolver el tenant.
-    if (!event.externalId) throw new BadRequestException(apiError('signatures.webhookInvalid'));
+    // L-9: defensa en profundidad — identificadores vacíos jamás deben usarse para resolver el tenant.
+    // Formato legado: id del sobre (externalId). Formato real de Signaturit: id del documento
+    // (providerDocumentId) — sus eventos NO traen el id del sobre.
+    const byEnvelope = event.externalId || undefined;
+    const byDocument = event.externalDocumentId || undefined;
+    if (!byEnvelope && !byDocument) {
+      throw new BadRequestException(apiError('signatures.webhookInvalid'));
+    }
+    const match = {
+      OR: [
+        ...(byEnvelope ? [{ externalId: byEnvelope }] : []),
+        ...(byDocument ? [{ providerDocumentId: byDocument }] : []),
+      ],
+    };
 
-    // El tenant se deriva de la fila local por `externalId`, nunca del payload (ver D4-001 arriba).
+    // El tenant se deriva de la fila local que casa, nunca del payload (ver D4-001 arriba).
     const owner = await this.system.signatureRequest.findFirst({
-      where: { externalId: event.externalId },
+      where: match,
       select: { tenantId: true },
     });
     if (!owner) throw new BadRequestException(apiError('signatures.webhookInvalid'));
@@ -231,7 +257,7 @@ export class SignaturesService {
       // puede regresar SIGNED→DECLINED ni resucitar un PENDING; y un evento idéntico (reintento del
       // proveedor) no re-aplica nada (no re-sella completedAt, no re-descarga, no re-notifica).
       const before = await this.prisma.signatureRequest.findMany({
-        where: { tenantId, externalId: event.externalId },
+        where: { tenantId, ...match },
       });
       const eligible = before.filter((s) => !TERMINAL.has(s.status) && s.status !== event.status);
       if (eligible.length === 0) return;
@@ -241,10 +267,13 @@ export class SignaturesService {
       // responde 5xx → el proveedor reintenta el webhook y la fila (aún no SIGNED) se reprocesa. Marcar
       // SIGNED primero perdería el documento para siempre (el reintento no haría nada). En modo STUBBED
       // no hay proveedor del que descargar: la transición ocurre sin documento, como siempre.
+      // El id del SOBRE para descargar: del evento legado o de la fila local (los eventos reales de
+      // Signaturit no lo traen).
+      const envelopeId = byEnvelope ?? eligible[0]?.externalId;
       const live = this.provider.isConfigured();
       const signedDoc =
-        event.status === 'SIGNED' && live
-          ? await this.provider.downloadSignedDocument(event.externalId)
+        event.status === 'SIGNED' && live && envelopeId
+          ? await this.provider.downloadSignedDocument(envelopeId)
           : null;
       if (event.status === 'SIGNED' && live && !signedDoc) {
         throw new ServiceUnavailableException(apiError('signatures.signedDocUnavailable'));

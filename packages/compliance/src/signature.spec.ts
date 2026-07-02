@@ -79,15 +79,41 @@ describe('SignatureProvider (adaptador de firma Signaturit, stub sin transmisió
       global.fetch = originalFetch;
     });
 
-    it('requestSignature transmite y devuelve PENDING con el externalId del proveedor', async () => {
+    it('requestSignature transmite y devuelve PENDING con los ids del sobre Y del documento', async () => {
       global.fetch = jest.fn().mockResolvedValue({
         ok: true,
-        json: async () => ({ id: 'sig_abc', documents: [{ events: {} }] }),
+        // Forma real verificada contra el sandbox: el sobre trae documents[] con su propio id.
+        json: async () => ({ id: 'sig_abc', documents: [{ id: 'doc_1', status: 'in_queue' }] }),
       }) as unknown as typeof fetch;
 
       const res = await new SignaturitSignatureProvider().requestSignature(input('ver1'));
       expect(res.status).toBe('PENDING');
       expect(res.externalId).toBe('sig_abc');
+      // Crítico para el webhook real: los eventos de Signaturit solo traen document.id.
+      expect(res.externalDocumentId).toBe('doc_1');
+      // La API real NO devuelve URL de firma (Signaturit avisa al firmante por su propio correo).
+      expect(res.signUrl).toBeUndefined();
+    });
+
+    it('requestSignature registra events_url cuando SIGNATURIT_EVENTS_URL está definida', async () => {
+      const originalEvents = process.env.SIGNATURIT_EVENTS_URL;
+      process.env.SIGNATURIT_EVENTS_URL =
+        'https://whk:secreto@api.example.test/api/signatures/webhook/signaturit.json';
+      try {
+        const fetchMock = jest.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ id: 'sig_evt', documents: [{ id: 'doc_evt' }] }),
+        });
+        global.fetch = fetchMock as unknown as typeof fetch;
+        await new SignaturitSignatureProvider().requestSignature(input('ver_evt'));
+        const form = fetchMock.mock.calls[0][1].body as FormData;
+        expect(form.get('events_url')).toBe(
+          'https://whk:secreto@api.example.test/api/signatures/webhook/signaturit.json',
+        );
+      } finally {
+        if (originalEvents === undefined) delete process.env.SIGNATURIT_EVENTS_URL;
+        else process.env.SIGNATURIT_EVENTS_URL = originalEvents;
+      }
     });
 
     it('downloadSignedDocument descarga el binario firmado tras resolver el id del documento', async () => {
@@ -114,29 +140,15 @@ describe('SignatureProvider (adaptador de firma Signaturit, stub sin transmisió
     });
 
     it('downloadSignedDocument devuelve null si el sobre no trae documentos o la red lanza', async () => {
-      global.fetch = jest
-        .fn()
-        .mockResolvedValue({
-          ok: true,
-          json: async () => ({ documents: [] }),
-        }) as unknown as typeof fetch;
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ documents: [] }),
+      }) as unknown as typeof fetch;
       expect(await new SignaturitSignatureProvider().downloadSignedDocument('sig_abc')).toBeNull();
       global.fetch = jest
         .fn()
         .mockRejectedValue(new Error('ECONNRESET')) as unknown as typeof fetch;
       expect(await new SignaturitSignatureProvider().downloadSignedDocument('sig_abc')).toBeNull();
-    });
-
-    it('requestSignature recoge el signUrl del firmante cuando el proveedor lo devuelve', async () => {
-      global.fetch = jest.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          id: 'sig_url',
-          documents: [{ events: { require_signature_url: 'https://sig.example/f/1' } }],
-        }),
-      }) as unknown as typeof fetch;
-      const res = await new SignaturitSignatureProvider().requestSignature(input('ver2'));
-      expect(res.signUrl).toBe('https://sig.example/f/1');
     });
 
     it('requestSignature LANZA ante HTTP no-ok o fallo de red (nada de PENDING fantasma con id local)', async () => {
@@ -154,7 +166,7 @@ describe('SignatureProvider (adaptador de firma Signaturit, stub sin transmisió
       ).rejects.toThrow(/No se pudo enviar/);
     });
 
-    it('getStatus mapea los estados remotos de Signaturit al enum interno', async () => {
+    it('getStatus lee el estado de documents[0].status (forma real: la raíz del sobre no trae status)', async () => {
       const provider = new SignaturitSignatureProvider();
       const cases: Array<[string, string]> = [
         ['completed', 'SIGNED'],
@@ -164,16 +176,26 @@ describe('SignatureProvider (adaptador de firma Signaturit, stub sin transmisió
         ['canceled', 'CANCELED'],
         ['cancelled', 'CANCELED'],
         ['in_queue', 'PENDING'],
+        ['ready', 'PENDING'],
+        ['signing', 'PENDING'],
+        ['error', 'PENDING'],
       ];
       for (const [remote, expected] of cases) {
         global.fetch = jest.fn().mockResolvedValue({
           ok: true,
-          json: async () => ({ status: remote }),
+          json: async () => ({ id: 'sig_abc', documents: [{ id: 'doc_1', status: remote }] }),
         }) as unknown as typeof fetch;
         const res = await provider.getStatus('sig_abc');
         expect(res.status).toBe(expected);
         expect(res.externalId).toBe('sig_abc');
+        expect(res.externalDocumentId).toBe('doc_1');
       }
+      // Fallback de robustez: si algún día el estado viniera en la raíz, también se mapea.
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ status: 'completed' }),
+      }) as unknown as typeof fetch;
+      expect((await provider.getStatus('sig_abc')).status).toBe('SIGNED');
     });
 
     it('getStatus ante fallo de red/HTTP degrada a PENDING con detalle (el cron reintentará)', async () => {
@@ -224,7 +246,51 @@ describe('SignatureProvider (adaptador de firma Signaturit, stub sin transmisió
     });
   });
 
-  describe('parseWebhook (normalización del payload)', () => {
+  describe('parseWebhook (formato REAL de Signaturit: {type, created_at, document})', () => {
+    const provider = new SignaturitSignatureProvider();
+
+    it('document_completed → SIGNED correlacionado por document.id (el evento no trae id del sobre)', () => {
+      const evt = provider.parseWebhook(
+        JSON.stringify({
+          created_at: '2026-07-02T17:21:46+0000',
+          type: 'document_completed',
+          document: {
+            id: 'doc_29109781',
+            status: 'completed',
+            email: 'ana@cliente.test',
+            name: 'Ana',
+            file: { name: 'contrato.pdf', pages: 3, size: 1234 },
+          },
+        }),
+      );
+      expect(evt).toEqual({
+        externalDocumentId: 'doc_29109781',
+        status: 'SIGNED',
+        detail: 'document_completed',
+      });
+    });
+
+    it('mapea los tipos terminales y deja los informativos en PENDING (no-op aguas arriba)', () => {
+      const parse = (type: string) =>
+        provider.parseWebhook(JSON.stringify({ type, document: { id: 'doc_1' } }))?.status;
+      expect(parse('document_declined')).toBe('DECLINED');
+      expect(parse('document_expired')).toBe('EXPIRED');
+      expect(parse('document_canceled')).toBe('CANCELED');
+      // document_signed NO es la firma efectiva: el PDF sellado llega con document_completed.
+      expect(parse('document_signed')).toBe('PENDING');
+      expect(parse('email_delivered')).toBe('PENDING');
+      expect(parse('document_opened')).toBe('PENDING');
+      expect(parse('audit_trail_completed')).toBe('PENDING');
+    });
+
+    it('evento real sin document.id → null (inválido)', () => {
+      expect(
+        provider.parseWebhook(JSON.stringify({ type: 'document_completed', document: {} })),
+      ).toBeNull();
+    });
+  });
+
+  describe('parseWebhook (formato legado/interno)', () => {
     const provider = new SignaturitSignatureProvider();
 
     it('normaliza un evento válido (status case-insensitive)', () => {
