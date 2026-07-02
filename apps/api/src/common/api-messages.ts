@@ -764,6 +764,20 @@ export const API_MESSAGES = {
     'es-ES': 'El flujo usa una herramienta que no existe en el catálogo: {tool}.',
     'es-DO': 'El flujo usa una herramienta que no existe en el catálogo: {tool}.',
   },
+  'ai.tabularReviewNotFound': {
+    'es-ES': 'No se encontró la revisión tabular.',
+    'es-DO': 'No se encontró la revisión tabular.',
+  },
+  'ai.tabularNoDocuments': {
+    'es-ES':
+      'No hay documentos válidos para la revisión (elige una carpeta o una selección con documentos).',
+    'es-DO':
+      'No hay documentos válidos para la revisión (elige una carpeta o una selección con documentos).',
+  },
+  'ai.tabularColumnLimit': {
+    'es-ES': 'La revisión ya tiene el máximo de columnas (12).',
+    'es-DO': 'La revisión ya tiene el máximo de columnas (12).',
+  },
 
   // ── Aceptación legal (clickwrap) ──────────────────────────────────────────
   'legal.invalidDocument': {

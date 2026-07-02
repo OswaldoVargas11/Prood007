@@ -20,8 +20,10 @@ import { AiChatService } from './ai-chat.service';
 import { AiAgentService } from './ai-agent.service';
 import { AiWorkflowService } from './ai-workflow.service';
 import { AiQuotaService } from './ai-quota.service';
+import { AiTabularService } from './ai-tabular.service';
 import { AiIndexCron } from './ai-index.cron';
 import { AiController } from './ai.controller';
+import { AiTabularController } from './ai-tabular.controller';
 import { TasksModule } from '../tasks/tasks.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { TemplatesModule } from '../templates/templates.module';
@@ -75,7 +77,7 @@ import { DashboardModule } from '../dashboard/dashboard.module';
     DocumentPackagesModule,
     FoldersModule,
   ],
-  controllers: [AiController],
+  controllers: [AiController, AiTabularController],
   providers: [
     {
       provide: AI_ENGINE,
@@ -134,6 +136,7 @@ import { DashboardModule } from '../dashboard/dashboard.module';
     AiAgentService,
     AiWorkflowService,
     AiQuotaService,
+    AiTabularService,
     AiIndexCron,
   ],
   exports: [
