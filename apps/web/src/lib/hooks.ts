@@ -114,6 +114,11 @@ import type {
   SemanticHit,
   TabularReviewDetail,
   TabularReviewSummary,
+  PlaybookDetail,
+  PlaybookReviewDetail,
+  PlaybookReviewSummary,
+  PlaybookRule,
+  PlaybookSummary,
 } from './types';
 
 export function useDashboardSummary() {
@@ -2268,6 +2273,126 @@ export async function downloadTabularExport(
   filename: string,
 ): Promise<void> {
   const blob = await api.download(`/ai/tabular-reviews/${reviewId}/export?format=${format}`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Playbooks de revisión de contratos (posiciones del despacho) ─────────────
+
+export function usePlaybooks() {
+  return useQuery({
+    queryKey: ['playbooks'],
+    queryFn: () => api.get<PlaybookSummary[]>('/ai/playbooks'),
+  });
+}
+
+export function usePlaybook(id: string) {
+  return useQuery({
+    queryKey: ['playbook', id],
+    queryFn: () => api.get<PlaybookDetail>(`/ai/playbooks/${id}`),
+    enabled: Boolean(id),
+  });
+}
+
+export interface PlaybookRuleInput {
+  topic: string;
+  preferredText?: string;
+  clauseId?: string;
+  acceptableText?: string;
+  dealBreakers?: string;
+  severity?: PlaybookRule['severity'];
+}
+
+export function useCreatePlaybook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; description?: string; rules: PlaybookRuleInput[] }) =>
+      api.post<PlaybookDetail>('/ai/playbooks', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['playbooks'] }),
+  });
+}
+
+export function useUpdatePlaybook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: string;
+      name?: string;
+      description?: string;
+      rules?: PlaybookRuleInput[];
+    }) => api.patch<PlaybookDetail>(`/ai/playbooks/${id}`, body),
+    onSuccess: (_d, vars) => {
+      void qc.invalidateQueries({ queryKey: ['playbooks'] });
+      void qc.invalidateQueries({ queryKey: ['playbook', vars.id] });
+    },
+  });
+}
+
+export function useDeletePlaybook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.del<{ success: boolean }>(`/ai/playbooks/${id}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['playbooks'] }),
+  });
+}
+
+/** Instala el playbook semilla de la jurisdicción del despacho (plantilla de ejemplo editable). */
+export function useInstallPlaybookSeed() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<PlaybookDetail>('/ai/playbooks/seed'),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['playbooks'] }),
+  });
+}
+
+export function usePlaybookReviews(matterId?: string) {
+  return useQuery({
+    queryKey: ['playbook-reviews', matterId ?? 'all'],
+    queryFn: () =>
+      api.get<PlaybookReviewSummary[]>(
+        `/ai/playbooks/reviews${matterId ? `?matterId=${matterId}` : ''}`,
+      ),
+  });
+}
+
+/** Detalle con hallazgos; sondea mientras queden PENDING (la revisión corre en background). */
+export function usePlaybookReview(id: string) {
+  return useQuery({
+    queryKey: ['playbook-review', id],
+    queryFn: () => api.get<PlaybookReviewDetail>(`/ai/playbooks/reviews/${id}`),
+    enabled: Boolean(id),
+    refetchInterval: (query) =>
+      query.state.data?.findings.some((f) => f.status === 'PENDING') ? 3_000 : false,
+  });
+}
+
+export function useCreatePlaybookReview() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { playbookId: string; documentId: string }) =>
+      api.post<PlaybookReviewDetail>('/ai/playbooks/reviews', body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['playbook-reviews'] }),
+  });
+}
+
+export function useRetryPlaybookFindings(reviewId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<{ retried: number }>(`/ai/playbooks/reviews/${reviewId}/retry`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['playbook-review', reviewId] }),
+  });
+}
+
+/** Descarga el informe PDF de una revisión de playbook. */
+export async function downloadPlaybookReviewPdf(reviewId: string, filename: string): Promise<void> {
+  const blob = await api.download(`/ai/playbooks/reviews/${reviewId}/pdf`);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

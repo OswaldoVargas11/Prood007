@@ -130,6 +130,27 @@ export const FEATURE_GUIDE: FeatureGuideEntry[] = [
     keywords: ['plantilla', 'modelo', 'escrito', 'template'],
   },
   {
+    id: 'playbooks',
+    title: 'Playbooks de revisión de contratos',
+    group: 'Documentación',
+    menu: 'Playbooks',
+    route: '/playbooks',
+    what: 'Posiciones del despacho por tema para revisar contratos entrantes contra ellas (informe con citas, exportable a PDF).',
+    steps: [
+      'Ve a «Playbooks» y crea uno (o instala el de ejemplo) con tus posiciones por tema.',
+      'Pulsa «Revisar contrato», elige expediente y documento; el informe marca cumple/desviación/ausente citando el pasaje.',
+    ],
+    keywords: [
+      'playbook',
+      'revisión',
+      'revision',
+      'contrato entrante',
+      'posición',
+      'deal-breaker',
+      'desviación',
+    ],
+  },
+  {
     id: 'presentations',
     title: 'Presentaciones y checklists',
     group: 'Documentación',

@@ -41,6 +41,7 @@ import { SettingsService } from '../settings/settings.service';
 import { DocumentPackagesService } from '../document-packages/document-packages.service';
 import { FoldersService } from '../folders/folders.service';
 import { AiSearchService } from './ai-search.service';
+import { AiPlaybookService } from './ai-playbook.service';
 import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS, selectAgentTools } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
 import type { RequestUser } from '../auth/auth.types';
@@ -124,6 +125,7 @@ const WRITE_TOOLS = new Set([
   'add_share_transfer',
   'add_registry_obligation',
   'update_registry_obligation',
+  'run_playbook_review',
 ]);
 const ACTIVE_MATTER_STATUSES = [MatterStatus.OPEN, MatterStatus.IN_PROGRESS];
 /** Tope de mensajes de historial que se reenvían al modelo (control de coste/contexto). */
@@ -164,6 +166,7 @@ export class AiAgentService {
     private readonly documentPackages: DocumentPackagesService,
     private readonly folders: FoldersService,
     private readonly search: AiSearchService,
+    private readonly playbookReviews: AiPlaybookService,
     @Inject(AI_ENGINE) private readonly engine: AiEngine,
   ) {}
 
@@ -560,6 +563,8 @@ export class AiAgentService {
           return { content: await this.addRegistryObligation(user, inv.input) };
         case 'update_registry_obligation':
           return { content: await this.updateRegistryObligation(user, inv.input) };
+        case 'run_playbook_review':
+          return { content: await this.runPlaybookReview(user, inv.input) };
         default:
           return { content: `Herramienta desconocida: ${inv.name}`, isError: true };
       }
@@ -5771,6 +5776,104 @@ export class AiAgentService {
       });
     }
   }
+
+  /**
+   * Revisa un contrato del expediente contra un playbook del despacho. Ejecuta la pasada COMPLETA de
+   * forma síncrona (variante `runReviewAndWait`; el informe queda igualmente persistido y exportable a
+   * PDF desde Playbooks) y devuelve el informe por regla con citas verificadas, para que el modelo
+   * resuma las desviaciones citando los pasajes. Las citas ya vienen VERIFICADAS contra el texto real
+   * (locateQuote en servidor): el modelo no debe parafrasearlas como si fueran otra cosa.
+   */
+  private async runPlaybookReview(
+    user: RequestUser,
+    input: Record<string, unknown>,
+  ): Promise<string> {
+    const matterReference = str(input, 'matterReference');
+    const documentName = str(input, 'documentName');
+    const playbookName = str(input, 'playbookName');
+    if (!matterReference) return json({ error: 'Falta la referencia del expediente.' });
+    if (!documentName) return json({ error: 'Falta el nombre del documento a revisar.' });
+
+    const matter = await this.prisma.matter.findFirst({
+      where: { tenantId: user.tenantId, reference: matterReference },
+      select: { id: true, reference: true },
+    });
+    if (!matter) {
+      return json({ error: `No existe expediente con referencia ${matterReference}.` });
+    }
+
+    const document = await this.prisma.document.findFirst({
+      where: {
+        tenantId: user.tenantId,
+        matterId: matter.id,
+        name: { contains: documentName, mode: 'insensitive' },
+      },
+      select: { id: true, name: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (!document) {
+      return json({
+        error: `No hay ningún documento que coincida con "${documentName}" en ${matter.reference}.`,
+      });
+    }
+
+    const candidates = await this.prisma.playbook.findMany({
+      where: {
+        tenantId: user.tenantId,
+        ...(playbookName ? { name: { contains: playbookName, mode: 'insensitive' } } : {}),
+      },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+      take: 5,
+    });
+    if (candidates.length === 0) {
+      return json({
+        error: playbookName
+          ? `No hay ningún playbook que coincida con "${playbookName}".`
+          : 'El despacho aún no tiene playbooks de revisión (créalos en Playbooks).',
+      });
+    }
+    if (candidates.length > 1) {
+      return json({
+        error: 'Hay varios playbooks posibles; pide al usuario que concrete cuál.',
+        playbooks: candidates.map((p) => p.name),
+      });
+    }
+
+    const review = await this.playbookReviews.runReviewAndWait(user, {
+      playbookId: candidates[0]!.id,
+      documentId: document.id,
+    });
+    const done = review.findings.filter((f) => f.status === 'DONE');
+    return json({
+      reviewId: review.id,
+      playbook: review.playbookName,
+      document: review.documentName,
+      matterReference: matter.reference,
+      summary: {
+        compliant: done.filter((f) => f.outcome === 'COMPLIANT').length,
+        deviations: done.filter((f) => f.outcome === 'DEVIATION').length,
+        dealBreakers: done.filter((f) => f.dealBreaker).length,
+        missing: done.filter((f) => f.outcome === 'MISSING').length,
+        unresolved: review.findings.length - done.length,
+      },
+      findings: review.findings.map((f) => ({
+        topic: f.topic,
+        severity: f.severity,
+        status: f.status,
+        outcome: f.outcome,
+        dealBreaker: f.dealBreaker,
+        analysis: f.analysis,
+        quote: f.snippet,
+        suggestedText: f.outcome && f.outcome !== 'COMPLIANT' ? (f.preferredText ?? null) : null,
+        confidence: f.confidence,
+        error: f.error,
+      })),
+      note:
+        'Informe guardado: consultable y exportable a PDF en IA › Playbooks. Resume las desviaciones ' +
+        '(deal-breakers primero) citando textualmente "quote" y ofrece la redacción sugerida.',
+    });
+  }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────────────────────────
@@ -5906,5 +6009,10 @@ function describeWrite(inv: AiToolInvocation): string {
   }
   if (inv.name === 'update_registry_obligation')
     return `Actualizar la obligación registral${str(inv.input, 'title') ? ` "${str(inv.input, 'title')}"` : ''} a estado "${str(inv.input, 'status') ?? ''}"`;
+  if (inv.name === 'run_playbook_review') {
+    const docName = str(inv.input, 'documentName') ?? '(documento)';
+    const pb = str(inv.input, 'playbookName');
+    return `Revisar el contrato "${docName}" de ${str(inv.input, 'matterReference') ?? 'el expediente'} contra ${pb ? `el playbook "${pb}"` : 'el playbook del despacho'} (consume IA y guarda el informe)`;
+  }
   return inv.name;
 }

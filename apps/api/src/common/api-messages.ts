@@ -778,6 +778,26 @@ export const API_MESSAGES = {
     'es-ES': 'La revisión ya tiene el máximo de columnas (12).',
     'es-DO': 'La revisión ya tiene el máximo de columnas (12).',
   },
+  'ai.playbookNotFound': {
+    'es-ES': 'No se encontró el playbook.',
+    'es-DO': 'No se encontró el playbook.',
+  },
+  'ai.playbookNoRules': {
+    'es-ES': 'El playbook no tiene reglas: añade al menos una posición antes de revisar.',
+    'es-DO': 'El playbook no tiene reglas: añade al menos una posición antes de revisar.',
+  },
+  'ai.playbookReviewNotFound': {
+    'es-ES': 'No se encontró la revisión de playbook.',
+    'es-DO': 'No se encontró la revisión de playbook.',
+  },
+  'ai.playbookDocumentNotFound': {
+    'es-ES': 'No se encontró el documento del expediente a revisar.',
+    'es-DO': 'No se encontró el documento del expediente a revisar.',
+  },
+  'ai.playbookSeedExists': {
+    'es-ES': 'El playbook de ejemplo ya está instalado en el despacho.',
+    'es-DO': 'El playbook de ejemplo ya está instalado en el despacho.',
+  },
 
   // ── Aceptación legal (clickwrap) ──────────────────────────────────────────
   'legal.invalidDocument': {

@@ -487,6 +487,10 @@ model Tenant {
   aiWorkflowRuns       AiWorkflowRun[]
   tabularReviews       TabularReview[]
   tabularReviewCells   TabularReviewCell[]
+  playbooks            Playbook[]
+  playbookRules        PlaybookRule[]
+  playbookReviews      PlaybookReview[]
+  playbookFindings     PlaybookReviewFinding[]
   webhookEndpoints     WebhookEndpoint[]
   legalAcceptances     LegalAcceptance[]
   subprocessorSubs     SubprocessorSubscription[]
@@ -759,6 +763,7 @@ model Matter {
   checklists            MatterChecklist[]
   readStates            MatterReadState[]
   tabularReviews        TabularReview[]
+  playbookReviews       PlaybookReview[]
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -1695,7 +1700,8 @@ model Clause {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  playbookRules PlaybookRule[]
 
   @@index([tenantId])
 }
@@ -2710,6 +2716,154 @@ model LegalAcceptance {
 
   @@index([tenantId, documentType, version])
   @@index([tenantId, userId])
+}
+
+/// Severidad de una regla de playbook: cuánto pesa una desviación en esa posición del despacho.
+enum PlaybookSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+/// Estado de procesamiento de un hallazgo (mismo ciclo que TabularCellStatus: PENDING → DONE/FAILED,
+/// FAILED relanzable).
+enum PlaybookFindingStatus {
+  PENDING
+  DONE
+  FAILED
+}
+
+/// Veredicto del motor para una regla sobre el contrato: COMPLIANT (la posición del despacho se cumple),
+/// DEVIATION (el contrato trata el tema pero se aparta de la posición) o MISSING (el contrato NO trata el
+/// tema — se reporta como ausente, nunca se rellena).
+enum PlaybookFindingOutcome {
+  COMPLIANT
+  DEVIATION
+  MISSING
+}
+
+/// PLAYBOOK de revisión de contratos (estilo Spellbook/Ironclad): las posiciones del despacho sobre los
+/// temas de un tipo de contrato (limitación de responsabilidad, ley aplicable…), para revisar contratos
+/// ENTRANTES contra ellas. Compartido por el staff del despacho. RLS por tenant.
+model Playbook {
+  id           String        @id @default(cuid())
+  tenantId     String
+  name         String
+  description  String?
+  /// Jurisdicción a la que aplica; null = ambas (ES y RD).
+  jurisdiction Jurisdiction?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  tenant  Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rules   PlaybookRule[]
+  reviews PlaybookReview[]
+
+  @@index([tenantId])
+}
+
+/// Una REGLA del playbook: un tema + la posición del despacho. `preferredText` es la redacción preferida
+/// (o, si `clauseId` está, se toma el cuerpo de esa Clause de la biblioteca al lanzar la revisión);
+/// `acceptableText` describe posiciones alternativas aceptables y `dealBreakers` las inaceptables.
+model PlaybookRule {
+  id             String           @id @default(cuid())
+  tenantId       String
+  playbookId     String
+  /// Tema de la regla (p. ej. "Limitación de responsabilidad").
+  topic          String
+  /// Redacción preferida del despacho (ignorada si `clauseId` está presente).
+  preferredText  String?
+  /// Cláusula de la biblioteca cuya redacción es la posición preferida (prioridad sobre `preferredText`).
+  clauseId       String?
+  /// Posiciones alternativas ACEPTABLES (descripción en lenguaje natural).
+  acceptableText String?
+  /// Posiciones INACEPTABLES (deal-breakers) que deben marcarse aunque la desviación parezca menor.
+  dealBreakers   String?
+  severity       PlaybookSeverity @default(MEDIUM)
+  /// Orden de presentación dentro del playbook.
+  order          Int              @default(0)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  playbook Playbook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+  clause   Clause?  @relation(fields: [clauseId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, playbookId])
+}
+
+/// Una REVISIÓN de un documento del expediente contra un playbook. Cabecera del informe; los hallazgos
+/// por regla viven en PlaybookReviewFinding con un SNAPSHOT de cada regla, de modo que el informe es
+/// autocontenido e inmutable aunque el playbook se edite o borre después (`playbookId` queda a null).
+/// `documentName` denormalizado para listar sin joins (patrón TabularReview.documents).
+model PlaybookReview {
+  id              String   @id @default(cuid())
+  tenantId        String
+  playbookId      String?
+  matterId        String
+  /// Document.id del expediente (sin FK: el informe sobrevive al documento; nombre denormalizado).
+  documentId      String
+  /// Usuario que la lanzó (trazabilidad; no restringe la visibilidad).
+  createdByUserId String
+  playbookName    String
+  documentName    String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant   Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  playbook Playbook?               @relation(fields: [playbookId], references: [id], onDelete: SetNull)
+  matter   Matter                  @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  findings PlaybookReviewFinding[]
+
+  @@index([tenantId, matterId, updatedAt])
+}
+
+/// Un HALLAZGO regla×documento de una revisión de playbook, con la CITA obligatoria: `snippet` es el
+/// fragmento LITERAL del texto extraído del que sale el veredicto y `charStart/charEnd` sus offsets
+/// (VERIFICADOS en servidor con locateQuote — nunca se persiste un veredicto sobre texto sin ancla
+/// comprobada). `outcome=MISSING` = el contrato no trata el tema: sin cita y confianza baja por diseño
+/// (guardrail anti-invención). Los campos de la regla (topic…dealBreakers) son un SNAPSHOT al lanzar la
+/// revisión; `preferredText` ya resuelto (si la regla apuntaba a una Clause, aquí va su cuerpo) y es la
+/// redacción alternativa que se sugiere ante desviación/ausencia.
+model PlaybookReviewFinding {
+  id       String @id @default(cuid())
+  tenantId String
+  reviewId String
+  /// PlaybookRule.id de origen (solo trazabilidad; el snapshot de abajo es lo vinculante).
+  ruleId   String?
+
+  // Snapshot de la regla (informe autocontenido).
+  topic          String
+  severity       PlaybookSeverity
+  preferredText  String?
+  acceptableText String?
+  dealBreakers   String?
+  order          Int              @default(0)
+
+  status      PlaybookFindingStatus   @default(PENDING)
+  outcome     PlaybookFindingOutcome?
+  /// La desviación encaja en un deal-breaker de la regla (solo posible con outcome=DEVIATION).
+  dealBreaker Boolean                 @default(false)
+  /// Análisis razonado del motor, en el idioma del tenant.
+  analysis    String?
+  /// 'alta' | 'media' | 'baja'.
+  confidence  String?
+  snippet     String?
+  charStart   Int?
+  charEnd     Int?
+  /// Ventana de texto alrededor de la cita (para resaltarla en la UI sin re-extraer el fichero).
+  context     String?
+  /// Código de error del último intento fallido (p. ej. 'citationNotFound', 'quotaExceeded').
+  error       String?
+  /// Modelo que produjo el veredicto (trazabilidad).
+  model       String?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  tenant Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  review PlaybookReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, reviewId])
 }
 
 /// Suscripción de un despacho a los avisos de cambios de subprocesadores (art. 28.2 RGPD: notificación previa

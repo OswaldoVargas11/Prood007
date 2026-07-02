@@ -205,3 +205,97 @@ export class SemanticSearchDto {
   @Max(25)
   limit?: number;
 }
+
+/** Una regla de playbook: tema + posición del despacho (preferida/aceptables/deal-breakers). */
+export class PlaybookRuleDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(200)
+  topic!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20000)
+  preferredText?: string;
+
+  /** Cláusula de la biblioteca cuya redacción es la posición preferida (prioridad sobre preferredText). */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  clauseId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  acceptableText?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  dealBreakers?: string;
+
+  @IsOptional()
+  @IsIn(['LOW', 'MEDIUM', 'HIGH'])
+  severity?: 'LOW' | 'MEDIUM' | 'HIGH';
+}
+
+/** Crear un playbook de revisión con su juego de reglas. */
+export class CreatePlaybookDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(160)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @IsOptional()
+  @IsIn(['es', 'do'])
+  jurisdiction?: 'es' | 'do';
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(25)
+  @ValidateNested({ each: true })
+  @Type(() => PlaybookRuleDto)
+  rules!: PlaybookRuleDto[];
+}
+
+/** Actualizar un playbook; si llegan `rules`, REEMPLAZAN el juego completo. */
+export class UpdatePlaybookDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(160)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @IsOptional()
+  @IsIn(['es', 'do'])
+  jurisdiction?: 'es' | 'do';
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(25)
+  @ValidateNested({ each: true })
+  @Type(() => PlaybookRuleDto)
+  rules?: PlaybookRuleDto[];
+}
+
+/** Lanzar la revisión de un documento del expediente contra un playbook. */
+export class CreatePlaybookReviewDto {
+  @IsString()
+  @MinLength(1)
+  playbookId!: string;
+
+  @IsString()
+  @MinLength(1)
+  documentId!: string;
+}
