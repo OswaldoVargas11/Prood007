@@ -236,15 +236,17 @@ export class SignaturesService {
       const eligible = before.filter((s) => !TERMINAL.has(s.status) && s.status !== event.status);
       if (eligible.length === 0) return;
 
-      // SIGNED: el PDF firmado es el artefacto probatorio central. Se descarga ANTES de consumir el
-      // cambio de estado: si la descarga o el guardado fallan, lanzamos → el controller responde 5xx →
-      // el proveedor reintenta el webhook y la fila (aún no SIGNED) se reprocesa. Marcar SIGNED primero
-      // perdería el documento para siempre (el reintento vería el estado ya aplicado y no haría nada).
+      // SIGNED: el PDF firmado es el artefacto probatorio central. Con proveedor VIVO se descarga ANTES
+      // de consumir el cambio de estado: si la descarga o el guardado fallan, lanzamos → el controller
+      // responde 5xx → el proveedor reintenta el webhook y la fila (aún no SIGNED) se reprocesa. Marcar
+      // SIGNED primero perdería el documento para siempre (el reintento no haría nada). En modo STUBBED
+      // no hay proveedor del que descargar: la transición ocurre sin documento, como siempre.
+      const live = this.provider.isConfigured();
       const signedDoc =
-        event.status === 'SIGNED'
+        event.status === 'SIGNED' && live
           ? await this.provider.downloadSignedDocument(event.externalId)
           : null;
-      if (event.status === 'SIGNED' && !signedDoc) {
+      if (event.status === 'SIGNED' && live && !signedDoc) {
         throw new ServiceUnavailableException(apiError('signatures.signedDocUnavailable'));
       }
 
@@ -297,7 +299,9 @@ export class SignaturesService {
             version.id,
             { documentId: s.documentId, signatureId: s.id, contentHash: version.contentHash },
           );
-          // Avisa al solicitante cuando el documento queda firmado.
+        }
+        // Avisa al solicitante cuando el documento queda firmado (también en modo STUBBED, sin PDF).
+        if (event.status === 'SIGNED') {
           await this.notifications.create({
             tenantId: s.tenantId,
             userId: s.requestedById,

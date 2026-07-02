@@ -63,6 +63,11 @@ export class SignaturitSignatureProvider implements SignatureProvider {
     return process.env.SIGNATURIT_API_KEY?.trim() || undefined;
   }
 
+  /** Con API key el adaptador transmite de verdad; sin ella opera en modo STUBBED. */
+  isConfigured(): boolean {
+    return Boolean(this.apiKey());
+  }
+
   private baseUrl(): string {
     return (process.env.SIGNATURIT_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, '');
   }

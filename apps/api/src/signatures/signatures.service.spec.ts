@@ -30,6 +30,9 @@ function build(opts?: { signatureRows?: unknown[] }) {
 
   const provider = {
     provider: 'SIGNATURIT',
+    // Por defecto el mock simula el proveedor VIVO (con credenciales): los tests de descarga del PDF
+    // firmado son sobre ese modo. El e2e cubre el modo STUBBED (isConfigured=false → sin descarga).
+    isConfigured: jest.fn().mockReturnValue(true),
     verifyWebhook: jest.fn(),
     parseWebhook: jest.fn(),
     downloadSignedDocument: jest.fn(),
@@ -147,6 +150,38 @@ describe('SignaturesService.handleWebhook', () => {
     expect(documents.addSignedVersion).not.toHaveBeenCalled();
     expect(notifications.create).not.toHaveBeenCalled();
     expect(audit.log).not.toHaveBeenCalled();
+  });
+
+  it('modo STUBBED (sin credenciales): SIGNED transiciona y notifica SIN intentar descargar', async () => {
+    const row = {
+      id: 'sr_1',
+      tenantId: 't1',
+      documentId: 'doc_1',
+      versionId: 'ver_1',
+      requestedById: 'user_1',
+      signerName: 'Ana Cliente',
+      status: 'PENDING',
+    };
+    const { service, provider, system, documents, notifications, prisma } = build({
+      signatureRows: [row],
+    });
+    provider.isConfigured.mockReturnValue(false);
+    provider.verifyWebhook.mockReturnValue(true);
+    provider.parseWebhook.mockReturnValue({
+      externalId: 'sig_1',
+      tenantId: 't1',
+      status: 'SIGNED',
+    });
+    system.signatureRequest.findFirst.mockResolvedValue({ tenantId: 't1' });
+
+    const res = await service.handleWebhook(Buffer.from('{}'), 'sig');
+
+    expect(res).toEqual({ received: true });
+    expect(prisma.signatureRequest.updateMany).toHaveBeenCalledTimes(1);
+    expect(provider.downloadSignedDocument).not.toHaveBeenCalled();
+    expect(documents.addSignedVersion).not.toHaveBeenCalled();
+    // La notificación al solicitante sale igualmente (la firma ocurrió, aunque no haya PDF que anexar).
+    expect(notifications.create).toHaveBeenCalledTimes(1);
   });
 
   it('webhook desordenado: DECLINED después de SIGNED NO regresa el estado terminal', async () => {

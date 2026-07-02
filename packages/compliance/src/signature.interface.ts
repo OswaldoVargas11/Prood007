@@ -122,10 +122,16 @@ export interface SignatureProvider {
 
   /**
    * Descarga el documento firmado (con evidencias) tras un evento `SIGNED`. `null` si el adaptador no
-   * transmite (STUBBED) o el proveedor no tiene el documento disponible; el caller debe tolerarlo
-   * (la transición de estado ya ocurrió igualmente).
+   * transmite (STUBBED) o el proveedor no tiene el documento disponible.
    */
   downloadSignedDocument(externalId: string): Promise<SignedDocumentResult | null>;
+
+  /**
+   * `true` si el adaptador tiene credenciales y transmite de verdad. Permite al caller distinguir
+   * "no hay proveedor del que descargar" (stub: seguir sin documento) de "el proveedor vivo falló la
+   * descarga" (reintentar: el PDF firmado con evidencias no puede perderse).
+   */
+  isConfigured(): boolean;
 }
 
 /** Token de inyección (Nest) para resolver el proveedor de firma configurado. */
