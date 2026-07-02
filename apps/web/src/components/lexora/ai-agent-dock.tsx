@@ -15,6 +15,7 @@ import {
   PenLine,
   Plus,
   RotateCcw,
+  ShieldAlert,
   Sparkles,
   Square,
   Trash2,
@@ -32,11 +33,14 @@ import type {
   AgentStep,
   AiConversationDetail,
   AiConversationSummary,
+  Citation,
+  CitationCheck,
   PendingWrite,
 } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { ChatMarkdown } from './chat-markdown';
 import { ToolResultCard, type ToolCardData } from './tool-result-card';
+import { CitationPanel } from './citation-panel';
 import { AiWorkflowsView } from './ai-workflows-view';
 
 type ChatMsg = {
@@ -44,6 +48,8 @@ type ChatMsg = {
   content: string;
   steps?: AgentStep[];
   toolCards?: ToolCardData[];
+  citations?: Citation[];
+  citationCheck?: CitationCheck;
 };
 type StreamEvent = {
   type: string;
@@ -177,6 +183,7 @@ export function AiAgentDock({
   const [streamingCards, setStreamingCards] = useState<ToolCardData[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [workflowsOpen, setWorkflowsOpen] = useState(false);
+  const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
   const [conversations, setConversations] = useState<AiConversationSummary[] | null>(null);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -214,8 +221,13 @@ export function AiAgentDock({
   /** Persiste el turno recién completado (best-effort: un fallo de guardado no rompe el chat). */
   async function persistTurn(userContent: string, assistant: ChatMsg) {
     const meta =
-      assistant.toolCards || assistant.steps
-        ? { toolCards: assistant.toolCards, steps: assistant.steps }
+      assistant.toolCards || assistant.steps || assistant.citations || assistant.citationCheck
+        ? {
+            toolCards: assistant.toolCards,
+            steps: assistant.steps,
+            citations: assistant.citations,
+            citationCheck: assistant.citationCheck,
+          }
         : undefined;
     const turns = [
       { role: 'user' as const, content: userContent },
@@ -256,8 +268,17 @@ export function AiAgentDock({
         const meta = (m.meta ?? null) as {
           toolCards?: ToolCardData[];
           steps?: AgentStep[];
+          citations?: Citation[];
+          citationCheck?: CitationCheck;
         } | null;
-        return { role: m.role, content: m.content, toolCards: meta?.toolCards, steps: meta?.steps };
+        return {
+          role: m.role,
+          content: m.content,
+          toolCards: meta?.toolCards,
+          steps: meta?.steps,
+          citations: meta?.citations,
+          citationCheck: meta?.citationCheck,
+        };
       });
       setMessages(restored);
       setConversationId(id);
@@ -331,6 +352,8 @@ export function AiAgentDock({
                 model: ev.model ?? null,
                 stopReason: ev.stopReason ?? 'stop',
                 pendingWrites: ev.pendingWrites ?? [],
+                citations: ev.citations ?? [],
+                citationCheck: ev.citationCheck,
               };
             }
           },
@@ -343,6 +366,8 @@ export function AiAgentDock({
         content: done.output,
         steps: done.steps,
         toolCards: cards.length ? cards : undefined,
+        citations: done.citations?.length ? done.citations : undefined,
+        citationCheck: done.citationCheck,
       };
       setMessages((prev) => [...prev, assistantMsg]);
       if (done.pendingWrites.length > 0) setPending(done.pendingWrites);
@@ -514,9 +539,24 @@ export function AiAgentDock({
                     {m.toolCards?.map((c, j) => (
                       <ToolResultCard key={j} data={c} />
                     ))}
+                    {m.citationCheck && !m.citationCheck.verified && (
+                      <div
+                        className="flex items-start gap-1.5 rounded-lg border border-amber-400/40 bg-amber-50 px-2 py-1 text-[11.5px] text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+                        title={m.citationCheck.flagged.join(' · ')}
+                      >
+                        <ShieldAlert className="mt-0.5 size-3.5 shrink-0" />
+                        <span>
+                          Sin verificar: alguna afirmación puede no estar respaldada por una cita.
+                        </span>
+                      </div>
+                    )}
                     {m.content && (
                       <div className="text-[13.5px] leading-relaxed">
-                        <ChatMarkdown content={m.content} />
+                        <ChatMarkdown
+                          content={m.content}
+                          citations={m.citations}
+                          onCite={setActiveCitation}
+                        />
                       </div>
                     )}
                   </div>
@@ -619,6 +659,10 @@ export function AiAgentDock({
             {t('disclaimer')}
           </p>
         </>
+      )}
+
+      {activeCitation && (
+        <CitationPanel citation={activeCitation} onClose={() => setActiveCitation(null)} />
       )}
     </div>
   );

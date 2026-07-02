@@ -795,6 +795,22 @@ export interface PendingWrite {
   summary: string;
 }
 
+/** Una cita verificable del agente: marcador [n] ligado a una fuente resoluble (respetando permisos). */
+export interface Citation {
+  n: number;
+  kind: 'matter' | 'document' | 'client';
+  refId: string;
+  label: string;
+  quote?: string;
+  tool: string;
+}
+
+/** Verificación post-respuesta de las citas (gated AI_CITATION_CHECK). */
+export interface CitationCheck {
+  verified: boolean;
+  flagged: string[];
+}
+
 /** Respuesta del asistente agéntico (POST /ai/agent). */
 export interface AgentResponse {
   output: string;
@@ -802,7 +818,36 @@ export interface AgentResponse {
   model: string | null;
   stopReason: string;
   pendingWrites: PendingWrite[];
+  citations: Citation[];
+  citationCheck?: CitationCheck;
 }
+
+/** Fuente resuelta de una cita (GET /ai/citations/resolve). Discriminada por `kind`. */
+export type ResolvedCitation =
+  | {
+      kind: 'document';
+      id: string;
+      label: string;
+      matter: string | null;
+      snippet: string | null;
+      context: string | null;
+      highlight: { start: number; end: number } | null;
+    }
+  | {
+      kind: 'matter';
+      reference: string;
+      label: string;
+      title: string;
+      status: string;
+      type: string;
+      opposingParty: string | null;
+      court: string | null;
+      caseNumber: string | null;
+      proceduralPhase: string | null;
+      client: string | null;
+      lawyer: string | null;
+    }
+  | { kind: 'client'; label: string; name: string; taxId: string | null; matterCount: number };
 
 /** Resumen de una conversación guardada con Zora (historial del dock). */
 export interface AiConversationSummary {

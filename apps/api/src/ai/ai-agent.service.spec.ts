@@ -367,6 +367,29 @@ describe('AiAgentService', () => {
     });
   });
 
+  it('protocolo de citas: el turno adjunta citas RESOLUBLES al meta (envoltorio común)', async () => {
+    const { service, search } = makeDeps([
+      { name: 'search_firm_knowledge', input: { query: 'no competencia' } },
+    ]);
+    search.search.mockResolvedValue([
+      {
+        kind: 'document',
+        refId: 'doc-1',
+        refLabel: 'Contrato · EXP-1',
+        excerpt: 'cláusula de no competencia',
+        score: 0.9,
+      },
+    ]);
+    const res = await service.run(user, 'busca en documentos');
+    expect(res.citations).toHaveLength(1);
+    expect(res.citations[0]).toMatchObject({
+      n: 1,
+      kind: 'document',
+      refId: 'doc-1',
+      quote: 'cláusula de no competencia',
+    });
+  });
+
   it('search_firm_knowledge avisa sin romper si los embeddings no están disponibles', async () => {
     const { service, engine, search } = makeDeps([]);
     search.search.mockRejectedValue(new Error('ai.searchDisabled'));

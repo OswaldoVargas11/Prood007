@@ -31,8 +31,8 @@ const URL_RE = /https?:\/\//i;
  * (3) si debe negarse, el agente NO propuso ninguna escritura (pendingWrites vacío).
  * El juez LLM cubre lo cualitativo (fidelidad, alucinación, lenguaje de negativa).
  *
- * @param {{tools?:string[], cite?:boolean, refuse?:boolean}} scenario
- * @param {{output:string, steps:{tool:string,isError:boolean}[], pendingWrites:{action:string}[]}} resp
+ * @param {{tools?:string[], cite?:boolean, citeMeta?:boolean, refuse?:boolean}} scenario
+ * @param {{output:string, steps:{tool:string,isError:boolean}[], pendingWrites:{action:string}[], citations?:{n:number,kind:string,refId:string}[]}} resp
  * @returns {{pass:boolean, checks:{name:string, pass:boolean, detail:string}[]}}
  */
 export function checkDeterministic(scenario, resp) {
@@ -60,6 +60,26 @@ export function checkDeterministic(scenario, resp) {
       name: 'cite',
       pass: cited,
       detail: cited ? 'cita fuente/legal_research' : 'sin fuente citable ni legal_research',
+    });
+  }
+
+  // (2b) Citas VERIFICABLES estructuradas: la respuesta debe traer un mapa de citas resoluble (cada cita
+  //      con tipo + id), no solo una URL suelta en el texto. Es lo que hace "abrible" cada afirmación.
+  if (scenario.citeMeta) {
+    const cites = resp.citations ?? [];
+    const structured =
+      cites.length > 0 && cites.every((c) => c && typeof c.kind === 'string' && typeof c.refId === 'string' && c.refId);
+    // Además, si el modelo puso marcadores [n], deben apuntar a una cita existente (no inventados).
+    const markers = (resp.output ?? '').match(/\[(\d+)\]/g) ?? [];
+    const markersValid = markers.every((m) => cites.some((c) => c.n === Number(m.slice(1, -1))));
+    checks.push({
+      name: 'citeMeta',
+      pass: structured && markersValid,
+      detail: !structured
+        ? 'sin citas estructuradas resolubles (meta de citas vacío)'
+        : !markersValid
+          ? 'hay marcadores [n] que no resuelven a ninguna cita'
+          : `${cites.length} cita(s) estructurada(s) resoluble(s)`,
     });
   }
 
