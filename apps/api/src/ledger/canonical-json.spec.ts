@@ -1,4 +1,4 @@
-import { canonicalJson } from './ledger.service';
+import { canonicalJson } from './fiscal-chain';
 
 /**
  * L-5: la huella de la cadena fiscal debe ser reproducible tras el round-trip de jsonb (que reordena

@@ -24,6 +24,7 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { ListInvoicesQueryDto } from './dto/list-invoices.dto';
 import { PreviewInvoiceDto } from './dto/preview-invoice.dto';
 import { ProposeCostDto } from './dto/propose-cost.dto';
+import { RectifyInvoiceDto } from './dto/rectify-invoice.dto';
 import { ResolveApprovalDto } from './dto/resolve-approval.dto';
 import { apiError } from '../common/api-messages';
 import { buildInvoicePdf, invoiceRowToPdfData } from './invoice-pdf';
@@ -37,28 +38,9 @@ import {
   startOfTodayUtc,
 } from './overdue.util';
 import type { RequestUser } from '../auth/auth.types';
-
-// Huella de génesis de la cadena fiscal (RRSIF/e-CF): la primera factura/evento de un tenant encadena con
-// 64 ceros, NO con cadena vacía. Convención única y documentada, alineada con los golden de conformance, de
-// modo que la huella reproducible por un auditor coincida con la de producción.
-const GENESIS_HASH = '0'.repeat(64);
-
-/**
- * Serialización CANÓNICA (claves ordenadas recursivamente) para la huella de la cadena fiscal (L-5).
- *
- * El payload se guarda en una columna `jsonb`, que NO preserva el orden de claves ni el espaciado. Si la
- * huella se computa con `JSON.stringify(payload)` al escribir pero se recomputa sobre el `payload` releído
- * de jsonb al verificar, podían no coincidir byte a byte → falso "cadena rota". Ordenando las claves en
- * ambos lados la huella es reproducible independientemente del round-trip de jsonb.
- */
-export function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  const entries = Object.keys(value as Record<string, unknown>)
-    .sort()
-    .map((k) => `${JSON.stringify(k)}:${canonicalJson((value as Record<string, unknown>)[k])}`);
-  return `{${entries.join(',')}}`;
-}
+// Primitivas de la cadena fiscal inmutable (génesis, serialización canónica y append encadenado),
+// compartidas con la transmisión e-CF (módulo dgii) para que el encadenado tenga UNA sola implementación.
+import { GENESIS_HASH, appendFiscalEvent, canonicalJson } from './fiscal-chain';
 
 /**
  * Ledger jurídico transparente + facturación.
@@ -572,6 +554,7 @@ export class LedgerService {
   /**
    * Añade un evento al registro fiscal inmutable encadenándolo con la huella del evento anterior del tenant
    * (génesis = 64 ceros). Determinista por orden (createdAt, id). El rol de app solo tiene INSERT/SELECT.
+   * Implementación compartida en `fiscal-chain.ts` (la usa también la transmisión e-CF a la DGII).
    */
   private async appendFiscalEvent(
     tx: Prisma.TransactionClient,
@@ -580,24 +563,7 @@ export class LedgerService {
     type: string,
     payload: Record<string, unknown>,
   ): Promise<void> {
-    const prev = await tx.fiscalEvent.findFirst({
-      where: { tenantId },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      select: { recordHash: true },
-    });
-    const previousEventHash = prev?.recordHash ?? GENESIS_HASH;
-    const canonical = [type, invoiceId ?? '', canonicalJson(payload), previousEventHash].join('|');
-    const recordHash = createHash('sha256').update(canonical).digest('hex');
-    await tx.fiscalEvent.create({
-      data: {
-        tenantId,
-        invoiceId,
-        type,
-        payload: payload as object,
-        recordHash,
-        previousEventHash,
-      },
-    });
+    await appendFiscalEvent(tx, tenantId, invoiceId, type, payload);
   }
 
   /**
@@ -647,6 +613,87 @@ export class LedgerService {
     });
     if (!invoice) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
     return invoice;
+  }
+
+  /**
+   * Emite una FACTURA RECTIFICATIVA que reversa por completo una factura emitida (espejo en negativo de
+   * sus líneas, misma retención), como registro nuevo encadenado (Verifactu R1/S · e-CF nota de crédito
+   * tipo 34). La factura original queda INMUTABLE. Mismo núcleo que la devolución de anticipos
+   * (`emitInvoiceInTx` + `rectification`); aquí sin cuenta de retainer. Caso de uso principal: corregir
+   * un e-CF RECHAZADO por la DGII (el motivo queda en `ecfStatusDetail`); tras emitir, la rectificativa
+   * se transmite a la DGII igual que cualquier emisión (best-effort + cron de reintento).
+   */
+  async rectifyInvoice(user: RequestUser, id: string, dto: RectifyInvoiceDto) {
+    const original = await this.prisma.invoice.findFirst({
+      where: { id, tenantId: user.tenantId },
+      include: { lines: true, rectifiedBy: { select: { id: true } } },
+    });
+    if (!original) throw new NotFoundException(apiError('ledger.invoiceNotFound'));
+    if (original.documentType === InvoiceDocumentType.RECTIFICATIVA) {
+      throw new BadRequestException(apiError('ledger.cannotRectifyRectification'));
+    }
+    // Solo facturas EMITIDAS fiscalmente (con registro encadenado) y no anuladas.
+    if (!original.recordHash || original.status === InvoiceStatus.CANCELLED) {
+      throw new BadRequestException(apiError('ledger.rectifyNotIssued'));
+    }
+    if (original.rectifiedBy.length > 0) {
+      throw new BadRequestException(apiError('ledger.alreadyRectified'));
+    }
+    const matter = await this.getMatterOrThrow(user, original.matterId);
+    if (!matter.tenant.taxId) throw new BadRequestException(apiError('ledger.firmNoTaxId'));
+    if (!matter.client.taxId) throw new BadRequestException(apiError('clients.taxIdInvalid'));
+
+    const issueDate = new Date().toISOString().slice(0, 10);
+    // Reversa completa: espejo en negativo de cada línea (base y, vía withholdingTaxCode, la retención).
+    const reversalLines = original.lines.map((l) => ({
+      description: `Rectificación ${original.number}: ${l.description}`,
+      quantity: l.quantity.toString(),
+      unitPrice: (-Number(l.unitPrice)).toFixed(2),
+      taxCode: l.taxCode,
+    }));
+
+    const { invoice, record } = await tenantTransaction(this.prisma, (tx) =>
+      this.emitInvoiceInTx(tx, user, {
+        matter: {
+          id: matter.id,
+          clientId: matter.clientId,
+          tenant: {
+            name: matter.tenant.name,
+            taxId: matter.tenant.taxId,
+            currency: original.currency,
+          },
+          client: { name: matter.client.name, taxId: matter.client.taxId },
+        },
+        lines: reversalLines,
+        withholdingTaxCode: original.withholdingTaxCode ?? undefined,
+        currency: original.currency,
+        invoiceFormat: original.invoiceFormat as Jurisdiction,
+        rectification: {
+          rectifiedInvoiceId: original.id,
+          rectifiedNumber: original.number,
+          rectifiedIssueDate: original.issueDate.toISOString().slice(0, 10),
+          reason: dto.reason,
+          mode: RectificationMode.SUSTITUCION,
+        },
+        issueDate,
+        dueDate: new Date(issueDate),
+      }),
+    );
+
+    await this.audit.log(user, 'invoice.rectified', 'Invoice', invoice.id, {
+      number: invoice.number,
+      rectifies: original.number,
+      total: record.totals.total,
+      format: record.format,
+    });
+    // e-CF (RD): la nota de crédito también se transmite (fuera de la tx, best-effort; ver createInvoice).
+    if (record.format === 'ECF') {
+      const result = await this.ecfTransmission
+        .transmit(user.tenantId, invoice.id)
+        .catch(() => null);
+      if (result) invoice.ecfStatus = result.status;
+    }
+    return { invoice, compliance: record };
   }
 
   /**

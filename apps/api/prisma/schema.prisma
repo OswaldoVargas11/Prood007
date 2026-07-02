@@ -1605,6 +1605,9 @@ model Invoice {
   ecfTrackId      String?
   ecfStatusDetail String?
   ecfSubmittedAt  DateTime?
+  // Intentos automáticos (cron de reintento/polling) desde el último cambio de fase. Se resetea al
+  // conseguir TrackId (fase de envío → fase de acuse) y al llegar a un estado final.
+  ecfAttempts     Int       @default(0)
 
   // Tipo de documento: NORMAL | RECTIFICATIVA (D-027 (c)). Una rectificativa referencia la factura que
   // corrige (`rectifiesInvoiceId`), su causa y su método (sustitución/diferencias). Las facturas de
@@ -1636,6 +1639,8 @@ model Invoice {
   @@index([tenantId, clientId])
   @@index([tenantId, status])
   @@index([tenantId, dueDate])
+  // Barrido global del cron de reintento e-CF (busca PENDING entre todos los tenants).
+  @@index([ecfStatus])
 }
 
 /// Estado de la transmisión del e-CF a la DGII (RD).

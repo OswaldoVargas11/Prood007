@@ -1584,7 +1584,15 @@
         "PENDING": "Pendiente de acuse",
         "ACCEPTED": "Aceptado",
         "REJECTED": "Rechazado"
-      }
+      },
+      "rejectedTitle": "e-CF rechazado por la DGII",
+      "rejectedHint": "La factura emitida es inmutable: corrige emitiendo una nota de crédito (rectificativa, tipo 34) y, si procede, una factura nueva. También puedes reintentar la transmisión.",
+      "rectify": "Emitir rectificativa",
+      "rectifyTitle": "Emitir rectificativa",
+      "rectifyBody": "Se emitirá una rectificativa que reversa por completo la factura {number} (e-CF nota de crédito tipo 34) y se transmitirá a la DGII. La factura original no se modifica.",
+      "rectifyReasonPlaceholder": "Causa de la rectificación (p. ej. e-CF rechazado por la DGII: datos del receptor)",
+      "rectifyCancel": "Cancelar",
+      "rectifyConfirm": "Emitir"
     },
     "backDashboard": "Volver al panel",
     "invoiceStatus": {

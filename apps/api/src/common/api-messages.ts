@@ -482,6 +482,30 @@ export const API_MESSAGES = {
     'es-ES': 'Rango de eNCF inválido (revisa inicio/fin).',
     'es-DO': 'Rango de eNCF inválido (revisa inicio/fin).',
   },
+  'dgii.certRunEnvInvalid': {
+    'es-ES':
+      'El simulacro de certificación requiere DGII_ENV=test o cert (nunca contra producción).',
+    'es-DO':
+      'El simulacro de certificación requiere DGII_ENV=test o cert (nunca contra producción).',
+  },
+  'dgii.certRunNoCert': {
+    'es-ES':
+      'El despacho no tiene certificado .p12 cargado; súbelo en Ajustes antes del simulacro.',
+    'es-DO':
+      'El despacho no tiene certificado .p12 cargado; súbelo en Ajustes antes del simulacro.',
+  },
+  'ledger.cannotRectifyRectification': {
+    'es-ES': 'No se puede rectificar una factura rectificativa.',
+    'es-DO': 'No se puede rectificar una nota de crédito.',
+  },
+  'ledger.rectifyNotIssued': {
+    'es-ES': 'Solo se pueden rectificar facturas emitidas fiscalmente y no anuladas.',
+    'es-DO': 'Solo se pueden rectificar facturas emitidas fiscalmente y no anuladas.',
+  },
+  'ledger.alreadyRectified': {
+    'es-ES': 'Esta factura ya tiene una rectificativa emitida.',
+    'es-DO': 'Esta factura ya tiene una nota de crédito emitida.',
+  },
   'ledger.entryNotFound': {
     'es-ES': 'Apunte no encontrado.',
     'es-DO': 'Apunte no encontrado.',
