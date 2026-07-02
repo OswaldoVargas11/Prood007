@@ -397,7 +397,7 @@ export class AiAgentService {
       await this.quota
         .recordUsage(user, res.usage?.inputTokens ?? 0, res.usage?.outputTokens ?? 0, res.model)
         .catch(() => undefined);
-      return parseCitationCheck(res.text);
+      return parseCitationCheck(res.text) ?? undefined;
     } catch {
       return undefined;
     }

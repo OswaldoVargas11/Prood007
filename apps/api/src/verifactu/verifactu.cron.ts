@@ -31,6 +31,8 @@ export interface VerifactuSweepSummary {
 @Injectable()
 export class VerifactuCron {
   private readonly logger = new Logger(VerifactuCron.name);
+  /** Un barrido a la vez por instancia: un sweep lento (red AEAT) no debe solaparse con el tick siguiente. */
+  private sweeping = false;
 
   constructor(
     private readonly system: SystemPrismaService,
@@ -41,7 +43,14 @@ export class VerifactuCron {
   @Cron('*/10 * * * *', { name: 'verifactu-retry' })
   async runEvery10Min(): Promise<void> {
     if (!this.config.enabled) return;
-    const summary = await this.sweep();
+    if (this.sweeping) return; // el barrido anterior sigue vivo (los duplicados los reconcilia mapAcuse).
+    this.sweeping = true;
+    let summary: VerifactuSweepSummary;
+    try {
+      summary = await this.sweep();
+    } finally {
+      this.sweeping = false;
+    }
     if (summary.pending > 0) {
       this.logger.log(
         `Remisión Verifactu: ${summary.pending} pendientes → ${summary.accepted} aceptados, ` +
@@ -53,7 +62,15 @@ export class VerifactuCron {
   /** Barre y remite los registros pendientes. Un fallo en una factura no detiene el barrido. */
   async sweep(): Promise<VerifactuSweepSummary> {
     const pending = await this.system.invoice.findMany({
-      where: { verifactuStatus: VerifactuStatus.PENDING, verifactuAttempts: { lt: MAX_ATTEMPTS } },
+      where: {
+        verifactuStatus: VerifactuStatus.PENDING,
+        verifactuAttempts: { lt: MAX_ATTEMPTS },
+        // Solo despachos CON certificado: sin él `transmit` no puede remitir (TLS mutuo) y no cuenta
+        // intento, así que un despacho sin certificado repetiría eternamente y, por antigüedad, podría
+        // acaparar el batch entero bloqueando a los demás (head-of-line). Sus registros quedan PENDING
+        // dormidos y entran al barrido automáticamente en cuanto suba el .p12.
+        tenant: { verifactuCertKey: { not: null } },
+      },
       select: { id: true, tenantId: true },
       orderBy: { createdAt: 'asc' },
       take: BATCH_SIZE,

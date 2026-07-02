@@ -206,12 +206,16 @@ export interface CitationCheck {
   flagged: string[];
 }
 
-/** Parsea (con tolerancia) la salida del verificador. Ante duda, no marca nada (verified=true). */
-export function parseCitationCheck(text: string): CitationCheck {
+/**
+ * Parsea (con tolerancia) la salida del verificador. Salida NO parseable → `null` (estado desconocido):
+ * un modelo ligero degradado no debe manifestarse como "verificado" positivo — sin JSON válido no hubo
+ * verificación, y el llamador lo trata igual que un fallo del motor (sin marca).
+ */
+export function parseCitationCheck(text: string): CitationCheck | null {
   try {
     const start = text.indexOf('{');
     const end = text.lastIndexOf('}');
-    if (start < 0 || end <= start) return { verified: true, flagged: [] };
+    if (start < 0 || end <= start) return null;
     const obj = JSON.parse(text.slice(start, end + 1)) as {
       verified?: unknown;
       flagged?: unknown;
@@ -224,6 +228,6 @@ export function parseCitationCheck(text: string): CitationCheck {
     const verified = typeof obj.verified === 'boolean' ? obj.verified : flagged.length === 0;
     return { verified, flagged };
   } catch {
-    return { verified: true, flagged: [] };
+    return null;
   }
 }

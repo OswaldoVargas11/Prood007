@@ -476,7 +476,12 @@ export class LedgerService {
     // app. Best-effort: un fallo generando el registro AEAT no rompe la emisión (queda el detalle).
     let verifactu: { xml: string; huella: string; signedBy: string | null } | null = null;
     let verifactuDetail: string | null = null;
-    if (record.format === 'VERIFACTU') {
+    if (record.format === 'VERIFACTU' && !p.matter.client.taxId) {
+      // Sin NIF del destinatario no podemos generar un F1 válido (y la simplificada F2 / IDOtro para
+      // extranjeros aún no está modelada): mejor un detalle claro que un TypeError → NOT_APPLICABLE mudo.
+      verifactuDetail =
+        'Cliente sin NIF: registro Verifactu no generado (destinatario con IDOtro o factura simplificada F2 pendientes de soporte).';
+    } else if (record.format === 'VERIFACTU') {
       try {
         verifactu = await this.verifactuRegistro.buildAndSign(tx, user.tenantId, {
           nifEmisor: p.matter.tenant.taxId as string,
@@ -486,8 +491,12 @@ export class LedgerService {
           destinatario: { nombreRazon: p.matter.client.name, nif: p.matter.client.taxId },
           rectificacion: p.rectification
             ? {
-                tipoRectificativa:
-                  p.rectification.mode === RectificationMode.SUSTITUCION ? 'S' : 'I',
+                // SIEMPRE 'I' (por diferencias): nuestras rectificativas se emiten como espejo en
+                // negativo de la original, es decir, el registro lleva la DIFERENCIA — eso es 'I' para
+                // la AEAT sea cual sea el modo interno. 'S' (sustitución) exigiría el bloque
+                // ImporteRectificacion (BaseRectificada/CuotaRectificada) y los importes FINALES
+                // corregidos, que no modelamos; emitir 'S' sin ese bloque es rechazo garantizado.
+                tipoRectificativa: 'I' as const,
                 rectifiedNumber: p.rectification.rectifiedNumber,
                 rectifiedIssueDate: p.rectification.rectifiedIssueDate,
                 reason: p.rectification.reason,

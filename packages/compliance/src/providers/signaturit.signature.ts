@@ -120,12 +120,11 @@ export class SignaturitSignatureProvider implements SignatureProvider {
         timestamp: new Date().toISOString(),
       };
     } catch (err) {
-      return {
-        status: 'PENDING',
-        detail: `No se pudo confirmar el envío a Signaturit: ${(err as Error).message}`,
-        externalId,
-        timestamp: new Date().toISOString(),
-      };
+      // Fallo de transporte: NO devolver PENDING con el id determinista local — si Signaturit sí llegó
+      // a crear el sobre (p. ej. timeout tras enviar), su id real jamás casaría con el guardado y
+      // ningún webhook encontraría la fila. Mejor fallar la solicitud (el usuario reintenta y
+      // `requestBatch` ya tolera fallos por versión) que persistir una solicitud fantasma.
+      throw new Error(`No se pudo enviar la solicitud a Signaturit: ${(err as Error).message}`);
     }
   }
 

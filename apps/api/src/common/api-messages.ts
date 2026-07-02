@@ -433,6 +433,10 @@ export const API_MESSAGES = {
     'es-ES': 'Webhook de firma inválido (firma no verificada).',
     'es-DO': 'Webhook de firma inválido (firma no verificada).',
   },
+  'signatures.signedDocUnavailable': {
+    'es-ES': 'No se pudo obtener el documento firmado del proveedor; se reintentará.',
+    'es-DO': 'No se pudo obtener el documento firmado del proveedor; se reintentará.',
+  },
 
   // ── Plantillas de documento ───────────────────────────────────────────────
   'templates.notFound': {

@@ -221,17 +221,19 @@ describe('EcfTransmissionService.markRetryExhausted', () => {
     );
   });
 
-  it('fase de ACUSE agotada → sigue PENDING (no es un rechazo) con nota de consulta manual', async () => {
-    const { service, tx, prisma } = makeService({
+  it('fase de ACUSE agotada → sigue PENDING (no es un rechazo) con nota manual Y evento encadenado', async () => {
+    const { service, tx } = makeService({
       invoice: { ecfStatus: EcfStatus.PENDING, ecfTrackId: 'TRK-1', ecfAttempts: 8 },
     });
     await service.markRetryExhausted('t1', 'inv1');
-    expect(prisma.invoice.updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ ecfStatus: EcfStatus.PENDING, ecfAttempts: 9 }),
-      }),
+    // El contador queda por ENCIMA del tope: el barrido del cron (filtro lte tope) ya no la recarga.
+    const data = tx.invoice.updateMany.mock.calls[0][0].data;
+    expect(data.ecfStatus).toBe(EcfStatus.PENDING);
+    expect(data.ecfAttempts).toBe(9);
+    // El agotamiento del acuse es un hecho fiscal: queda en la cadena (a diferencia del polling).
+    expect(tx.fiscalEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ type: 'ecf.retry_exhausted' }) }),
     );
-    expect(tx.fiscalEvent.create).not.toHaveBeenCalled();
   });
 
   it('si la factura ya salió de PENDING no toca nada', async () => {

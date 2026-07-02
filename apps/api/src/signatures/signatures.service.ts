@@ -1,5 +1,12 @@
 import { randomBytes } from 'node:crypto';
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import {
   SignatureProviderFactory,
   type SignatureProvider,
@@ -81,7 +88,9 @@ export class SignaturesService {
         status,
         signerName: dto.signerName,
         signerEmail: dto.signerEmail,
-        signUrl: result.signUrl ?? null,
+        // En modo STUBBED el adaptador fabrica un signUrl con la FORMA del real pero que no existe:
+        // persistirlo haría que la UI lo muestre y que el correo de abajo mande al cliente a un 404.
+        signUrl: result.status === 'STUBBED' ? null : (result.signUrl ?? null),
         detail: result.detail ?? null,
         requestedById: user.userId,
       },
@@ -218,52 +227,76 @@ export class SignaturesService {
     const tenantId = owner.tenantId;
 
     await runWithTenant(tenantId, async () => {
-      // Idempotencia: si el proveedor reenvía el mismo evento (reintento de webhook), las filas que YA
-      // están en este estado no deben volver a descargarse/auditarse/notificarse.
+      // MÁQUINA DE ESTADOS: los estados terminales son INMUTABLES — un webhook tardío o desordenado no
+      // puede regresar SIGNED→DECLINED ni resucitar un PENDING; y un evento idéntico (reintento del
+      // proveedor) no re-aplica nada (no re-sella completedAt, no re-descarga, no re-notifica).
       const before = await this.prisma.signatureRequest.findMany({
         where: { tenantId, externalId: event.externalId },
       });
-      const newlyChanged = before.filter((s) => s.status !== event.status);
+      const eligible = before.filter((s) => !TERMINAL.has(s.status) && s.status !== event.status);
+      if (eligible.length === 0) return;
 
-      await this.prisma.signatureRequest.updateMany({
-        where: { tenantId, externalId: event.externalId },
-        data: {
-          status: event.status,
-          detail: event.detail ?? null,
-          ...(TERMINAL.has(event.status) ? { completedAt: new Date() } : {}),
-        },
-      });
+      // SIGNED: el PDF firmado es el artefacto probatorio central. Se descarga ANTES de consumir el
+      // cambio de estado: si la descarga o el guardado fallan, lanzamos → el controller responde 5xx →
+      // el proveedor reintenta el webhook y la fila (aún no SIGNED) se reprocesa. Marcar SIGNED primero
+      // perdería el documento para siempre (el reintento vería el estado ya aplicado y no haría nada).
+      const signedDoc =
+        event.status === 'SIGNED'
+          ? await this.provider.downloadSignedDocument(event.externalId)
+          : null;
+      if (event.status === 'SIGNED' && !signedDoc) {
+        throw new ServiceUnavailableException(apiError('signatures.signedDocUnavailable'));
+      }
 
-      if (event.status === 'SIGNED' && newlyChanged.length > 0) {
-        const signedDoc = await this.provider.downloadSignedDocument(event.externalId);
-        for (const s of newlyChanged) {
-          if (signedDoc) {
-            try {
-              const version = await this.documents.addSignedVersion(
-                tenantId,
-                s.documentId,
-                s.requestedById,
-                {
-                  originalname: `${s.signerName}-firmado.pdf`,
-                  mimetype: signedDoc.mimeType,
-                  size: signedDoc.buffer.length,
-                  buffer: signedDoc.buffer,
-                },
-              );
-              await this.audit.log(
-                { tenantId, userId: s.requestedById },
-                'signature.document_signed',
-                'DocumentVersion',
-                version.id,
-                { documentId: s.documentId, signatureId: s.id, contentHash: version.contentHash },
-              );
-            } catch (err) {
-              this.logger.error(
-                'Fallo al guardar el documento firmado como nueva versión',
-                err as Error,
-              );
-            }
+      for (const s of eligible) {
+        // Claim por fila con guarda de estado en BD: dos entregas concurrentes del mismo evento pasan
+        // ambas el filtro en memoria, pero solo una gana el update condicional — la otra ve 0 filas y
+        // no duplica versión firmada ni notificación.
+        const claimed = await this.prisma.signatureRequest.updateMany({
+          where: { id: s.id, tenantId, status: { notIn: [...TERMINAL] } },
+          data: {
+            status: event.status,
+            detail: event.detail ?? null,
+            ...(TERMINAL.has(event.status) ? { completedAt: new Date() } : {}),
+          },
+        });
+        if (claimed.count === 0) continue;
+
+        if (event.status === 'SIGNED' && signedDoc) {
+          let version;
+          try {
+            version = await this.documents.addSignedVersion(
+              tenantId,
+              s.documentId,
+              s.requestedById,
+              {
+                originalname: `${s.signerName}-firmado.pdf`,
+                mimetype: signedDoc.mimeType,
+                size: signedDoc.buffer.length,
+                buffer: signedDoc.buffer,
+              },
+            );
+          } catch (err) {
+            // Guardado fallido tras reclamar: revertimos el claim (la fila vuelve a su estado previo)
+            // y relanzamos → 5xx → el proveedor reintenta y la fila se reprocesa. Sin revert, la fila
+            // quedaría SIGNED sin versión firmada y el reintento no haría nada (documento perdido).
+            await this.prisma.signatureRequest.updateMany({
+              where: { id: s.id, tenantId },
+              data: { status: s.status, detail: s.detail, completedAt: s.completedAt },
+            });
+            this.logger.error(
+              'Fallo al guardar el documento firmado; claim revertido',
+              err as Error,
+            );
+            throw new ServiceUnavailableException(apiError('signatures.signedDocUnavailable'));
           }
+          await this.audit.log(
+            { tenantId, userId: s.requestedById },
+            'signature.document_signed',
+            'DocumentVersion',
+            version.id,
+            { documentId: s.documentId, signatureId: s.id, contentHash: version.contentHash },
+          );
           // Avisa al solicitante cuando el documento queda firmado.
           await this.notifications.create({
             tenantId: s.tenantId,

@@ -140,11 +140,63 @@ describe('SignaturesService.handleWebhook', () => {
     const res = await service.handleWebhook(Buffer.from('{}'), 'sig');
 
     expect(res).toEqual({ received: true });
-    // El estado se re-escribe (idempotente, no rompe) pero no hay efectos secundarios duplicados.
-    expect(prisma.signatureRequest.updateMany).toHaveBeenCalledTimes(1);
+    // Estado terminal = inmutable: el duplicado no re-escribe nada (ni re-sella completedAt) y no hay
+    // efectos secundarios (descarga/versión/notificación/auditoría).
+    expect(prisma.signatureRequest.updateMany).not.toHaveBeenCalled();
     expect(provider.downloadSignedDocument).not.toHaveBeenCalled();
     expect(documents.addSignedVersion).not.toHaveBeenCalled();
     expect(notifications.create).not.toHaveBeenCalled();
     expect(audit.log).not.toHaveBeenCalled();
+  });
+
+  it('webhook desordenado: DECLINED después de SIGNED NO regresa el estado terminal', async () => {
+    const row = {
+      id: 'sr_1',
+      tenantId: 't1',
+      documentId: 'doc_1',
+      versionId: 'ver_1',
+      requestedById: 'user_1',
+      signerName: 'Ana Cliente',
+      status: 'SIGNED',
+    };
+    const { service, provider, system, prisma } = build({ signatureRows: [row] });
+    provider.verifyWebhook.mockReturnValue(true);
+    provider.parseWebhook.mockReturnValue({
+      externalId: 'sig_1',
+      tenantId: 't1',
+      status: 'DECLINED',
+    });
+    system.signatureRequest.findFirst.mockResolvedValue({ tenantId: 't1' });
+
+    const res = await service.handleWebhook(Buffer.from('{}'), 'sig');
+
+    expect(res).toEqual({ received: true });
+    expect(prisma.signatureRequest.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('SIGNED con descarga fallida → 503 (el proveedor reintenta) y el estado NO se consume', async () => {
+    const row = {
+      id: 'sr_1',
+      tenantId: 't1',
+      documentId: 'doc_1',
+      versionId: 'ver_1',
+      requestedById: 'user_1',
+      signerName: 'Ana Cliente',
+      status: 'PENDING',
+    };
+    const { service, provider, system, documents, prisma } = build({ signatureRows: [row] });
+    provider.verifyWebhook.mockReturnValue(true);
+    provider.parseWebhook.mockReturnValue({
+      externalId: 'sig_1',
+      tenantId: 't1',
+      status: 'SIGNED',
+    });
+    provider.downloadSignedDocument.mockResolvedValue(null); // timeout/5xx del proveedor
+    system.signatureRequest.findFirst.mockResolvedValue({ tenantId: 't1' });
+
+    await expect(service.handleWebhook(Buffer.from('{}'), 'sig')).rejects.toThrow();
+    // La fila sigue PENDING: el reintento del webhook reprocesará y podrá guardar el PDF firmado.
+    expect(prisma.signatureRequest.updateMany).not.toHaveBeenCalled();
+    expect(documents.addSignedVersion).not.toHaveBeenCalled();
   });
 });

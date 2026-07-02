@@ -564,7 +564,12 @@ export class AiPlaybookService {
         maxTokens: 1000,
         model: this.modelOverride,
       });
-      await this.quota.recordUsage(user, res.usage?.inputTokens ?? 0, res.usage?.outputTokens ?? 0);
+      await this.quota.recordUsage(
+        user,
+        res.usage?.inputTokens ?? 0,
+        res.usage?.outputTokens ?? 0,
+        res.model,
+      );
       const model = res.model ?? this.engine.model();
 
       const verdict = parsePlaybookVerdict(res.text);

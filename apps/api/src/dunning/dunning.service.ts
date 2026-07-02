@@ -152,17 +152,25 @@ export class DunningService {
    */
   async updateRules(user: RequestUser, dto: UpdateDunningRulesDto) {
     const defaults = defaultDunningRules(user.jurisdiction);
-    for (const entry of dto.rules) {
-      const base = defaults.find((d) => d.severity === entry.severity);
-      if (!base) continue;
+    // Se materializa SIEMPRE el calendario completo: en cuanto existe alguna regla activa,
+    // `effectiveRules` deja de mirar los defaults, así que un update parcial (solo una etapa) amputaría
+    // en silencio las demás. Las etapas no enviadas conservan su canal configurado o el default.
+    const existing = await this.prisma.dunningRule.findMany({
+      where: { tenantId: user.tenantId },
+    });
+    for (const base of defaults) {
+      const entry = dto.rules.find((d) => d.severity === base.severity);
+      const current = existing.find((r) => r.offsetDays === base.offsetDays);
+      const channel =
+        entry?.channel ?? (current?.channel as DunningChannel | undefined) ?? base.channel;
       await this.prisma.dunningRule.upsert({
         where: { tenantId_offsetDays: { tenantId: user.tenantId, offsetDays: base.offsetDays } },
-        update: { severity: entry.severity, channel: entry.channel, active: true },
+        update: { severity: base.severity, channel, active: true },
         create: {
           tenantId: user.tenantId,
           offsetDays: base.offsetDays,
-          severity: entry.severity,
-          channel: entry.channel,
+          severity: base.severity,
+          channel,
           active: true,
         },
       });
@@ -231,13 +239,25 @@ export class DunningService {
     // aviso, así el despacho se entera igualmente aunque el cliente no reciba el correo.
     let dispatcher = this.channels.get(rule.channel);
     let deliveredChannel = rule.channel;
-    let degraded = false;
+    let degradedReason: string | null = null;
     if ((!dispatcher || !dispatcher.isEnabled()) && rule.channel !== DunningChannel.IN_APP) {
       const fallback = this.channels.get(DunningChannel.IN_APP);
       if (fallback?.isEnabled()) {
         dispatcher = fallback;
         deliveredChannel = DunningChannel.IN_APP;
-        degraded = true;
+        degradedReason = 'channel_unavailable';
+      }
+    }
+    // Cliente sin email: el canal EMAIL no tiene a quién entregar — degrada a IN_APP con motivo, en vez
+    // de dejar que el canal retorne en silencio y la etapa se marque SENT sin que nadie fuera avisado.
+    if (deliveredChannel === DunningChannel.EMAIL && !client.email) {
+      const fallback = this.channels.get(DunningChannel.IN_APP);
+      if (fallback?.isEnabled()) {
+        dispatcher = fallback;
+        deliveredChannel = DunningChannel.IN_APP;
+        degradedReason = 'client_without_email';
+      } else {
+        dispatcher = undefined;
       }
     }
     if (!dispatcher || !dispatcher.isEnabled()) {
@@ -246,27 +266,25 @@ export class DunningService {
         where: { id: reminder.id },
         data: {
           status: DunningReminderStatus.SKIPPED,
-          metadata: { reason: 'channel_unavailable' },
+          metadata: {
+            reason:
+              rule.channel === DunningChannel.EMAIL && !client.email
+                ? 'client_without_email'
+                : 'channel_unavailable',
+          },
         },
       });
       return 'skipped';
     }
 
-    try {
-      await dispatcher.deliver({
-        tenantId,
-        invoice,
-        client,
-        severity: rule.severity,
-        offsetDays: rule.offsetDays,
-      });
+    const markSent = async () => {
       await this.prisma.dunningReminder.update({
         where: { id: reminder.id },
         data: {
           status: DunningReminderStatus.SENT,
           sentAt: new Date(),
-          ...(degraded
-            ? { metadata: { degradedTo: deliveredChannel, reason: 'channel_unavailable' } }
+          ...(degradedReason
+            ? { metadata: { degradedTo: deliveredChannel, reason: degradedReason } }
             : {}),
         },
       });
@@ -284,12 +302,40 @@ export class DunningService {
           deliveredChannel,
         },
       );
+    };
+
+    const input: DunningDeliveryInput = {
+      tenantId,
+      invoice,
+      client,
+      severity: rule.severity,
+      offsetDays: rule.offsetDays,
+    };
+    try {
+      await dispatcher.deliver(input);
+      await markSent();
       return 'delivered';
     } catch (err) {
       this.logger.error(
         `Fallo al entregar recordatorio ${reminder.id} (canal ${rule.channel})`,
         err as Error,
       );
+      // El envío falló (p. ej. SMTP rechaza): último intento por IN_APP antes de dar la etapa por
+      // perdida — el ancla de unicidad hace que una etapa FAILED no se vuelva a intentar jamás.
+      if (deliveredChannel !== DunningChannel.IN_APP) {
+        const fallback = this.channels.get(DunningChannel.IN_APP);
+        if (fallback?.isEnabled()) {
+          try {
+            await fallback.deliver(input);
+            deliveredChannel = DunningChannel.IN_APP;
+            degradedReason = 'delivery_failed';
+            await markSent();
+            return 'delivered';
+          } catch {
+            // cae al FAILED de abajo
+          }
+        }
+      }
       await this.prisma.dunningReminder.update({
         where: { id: reminder.id },
         data: { status: DunningReminderStatus.FAILED, metadata: { error: (err as Error).message } },
