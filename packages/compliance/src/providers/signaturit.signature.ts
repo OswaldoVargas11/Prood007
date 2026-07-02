@@ -29,7 +29,11 @@ const WEBHOOK_STATUSES: readonly SignatureStatus[] = [
   'CANCELED',
 ];
 
-/** Mapea el estado devuelto por la API de Signaturit a nuestro enum interno. */
+/**
+ * Mapea el estado de un DOCUMENTO de Signaturit (in_queue/ready/signing/completed/declined/expired/
+ * canceled/error, verificado contra la API real) a nuestro enum. `error` queda PENDING (transitorio,
+ * consultable); `signed` se acepta por robustez aunque el estado documentado es `completed`.
+ */
 function mapRemoteStatus(remote: string | undefined): SignatureStatus {
   switch ((remote ?? '').toLowerCase()) {
     case 'completed':
@@ -46,6 +50,19 @@ function mapRemoteStatus(remote: string | undefined): SignatureStatus {
       return 'PENDING';
   }
 }
+
+/**
+ * Mapea el TIPO de evento del webhook real de Signaturit a nuestro estado. Los eventos informativos
+ * (correo entregado, documento abierto, evidencias añadidas…) mapean a PENDING: el servicio los
+ * no-opea porque la fila ya está en ese estado. `document_completed` — no `document_signed` — es el
+ * evento de firma efectiva: es cuando el PDF sellado queda disponible para descargar (doc oficial).
+ */
+const SIGNATURIT_EVENT_STATUS: Record<string, SignatureStatus> = {
+  document_completed: 'SIGNED',
+  document_declined: 'DECLINED',
+  document_expired: 'EXPIRED',
+  document_canceled: 'CANCELED',
+};
 
 const DEFAULT_BASE_URL = 'https://api.sandbox.signaturit.com';
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -100,6 +117,11 @@ export class SignaturitSignatureProvider implements SignatureProvider {
       new Blob([input.documentBuffer], { type: input.documentMimeType }),
       input.documentName,
     );
+    // Callback de eventos en tiempo real. Signaturit NO firma sus webhooks: la autenticación va en la
+    // propia URL (basic auth `https://usuario:secreto@host/...`, mecanismo documentado) y el sufijo
+    // `.json` pide el payload en JSON. Sin la env, no se registra callback (queda el polling).
+    const eventsUrl = process.env.SIGNATURIT_EVENTS_URL?.trim();
+    if (eventsUrl) form.append('events_url', eventsUrl);
 
     try {
       const res = await fetch(`${this.baseUrl()}/v3/signatures.json`, {
@@ -113,15 +135,19 @@ export class SignaturitSignatureProvider implements SignatureProvider {
         throw new Error(`Signaturit: HTTP ${res.status} ${JSON.stringify(raw)}`);
       }
       const id = typeof raw.id === 'string' ? raw.id : externalId;
-      const documents = Array.isArray(raw.documents) ? raw.documents : [];
-      const signUrl =
-        (documents[0] as { events?: { require_signature_url?: string } } | undefined)?.events
-          ?.require_signature_url ?? undefined;
+      // Forma real verificada contra el sandbox: {id, documents: [{id, status, email, name, file}]}.
+      // El id del documento es imprescindible: los eventos del webhook solo traen `document.id`.
+      const documents = Array.isArray(raw.documents) ? (raw.documents as { id?: unknown }[]) : [];
+      const externalDocumentId =
+        typeof documents[0]?.id === 'string' ? (documents[0].id as string) : undefined;
       return {
         status: 'PENDING',
-        detail: 'Solicitud de firma enviada a Signaturit.',
+        // Signaturit envía él mismo el correo de invitación al firmante (delivery_type email): no hay
+        // URL de firma en la respuesta y NO debemos mandar un correo propio.
+        detail:
+          'Solicitud de firma enviada a Signaturit (el proveedor avisa al firmante por correo).',
         externalId: id,
-        signUrl,
+        externalDocumentId,
         timestamp: new Date().toISOString(),
       };
     } catch (err) {
@@ -148,11 +174,21 @@ export class SignaturitSignatureProvider implements SignatureProvider {
         headers: { Authorization: `Bearer ${apiKey}` },
         signal: this.signal(),
       });
-      const raw = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+      const raw = (await res.json().catch(() => ({}))) as {
+        status?: unknown;
+        documents?: { id?: unknown; status?: unknown }[];
+      };
       if (!res.ok) throw new Error(`Signaturit: HTTP ${res.status}`);
+      // Forma real verificada contra el sandbox: el estado vive en documents[0].status (la raíz del
+      // sobre NO trae `status`); se deja el fallback a raw.status por robustez.
+      const doc = Array.isArray(raw.documents) ? raw.documents[0] : undefined;
+      const remote =
+        (typeof doc?.status === 'string' ? doc.status : undefined) ??
+        (typeof raw.status === 'string' ? raw.status : undefined);
       return {
-        status: mapRemoteStatus(raw.status as string | undefined),
+        status: mapRemoteStatus(remote),
         externalId,
+        externalDocumentId: typeof doc?.id === 'string' ? doc.id : undefined,
         timestamp: new Date().toISOString(),
       };
     } catch (err) {
@@ -250,6 +286,20 @@ export class SignaturitSignatureProvider implements SignatureProvider {
     }
     if (typeof payload !== 'object' || payload === null) return null;
     const p = payload as Record<string, unknown>;
+
+    // FORMATO REAL de Signaturit (verificado contra su doc oficial): {type, created_at, document}.
+    // El evento NO trae el id del sobre — la correlación es por document.id. Los tipos informativos
+    // (email_*, document_opened, evidencias, audit_trail…) mapean a PENDING y el servicio los no-opea.
+    if (typeof p.type === 'string' && typeof p.document === 'object' && p.document !== null) {
+      const doc = p.document as { id?: unknown; status?: unknown };
+      const externalDocumentId = typeof doc.id === 'string' ? doc.id : undefined;
+      if (!externalDocumentId) return null;
+      const status = SIGNATURIT_EVENT_STATUS[p.type] ?? 'PENDING';
+      return { externalDocumentId, status, detail: p.type };
+    }
+
+    // FORMATO LEGADO/interno ({externalId, tenantId, status}): tests y herramientas propias. El
+    // tenantId se exige presente pero se IGNORA (el tenant se resuelve por la fila local, D4-001).
     const externalId = typeof p.externalId === 'string' ? p.externalId : undefined;
     const tenantId = typeof p.tenantId === 'string' ? p.tenantId : undefined;
     const status = typeof p.status === 'string' ? p.status.toUpperCase() : undefined;

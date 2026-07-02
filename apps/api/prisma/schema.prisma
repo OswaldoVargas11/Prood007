@@ -921,6 +921,9 @@ model SignatureRequest {
   matterId      String
   provider      String    @default("signaturit")
   externalId    String
+  /// Id del DOCUMENTO dentro del sobre del proveedor: los webhooks reales de Signaturit solo traen
+  /// `document.id` (no el id del sobre), así que la correlación del evento se hace por esta columna.
+  providerDocumentId String?
   status        String    @default("PENDING")
   signerName    String
   signerEmail   String
@@ -938,6 +941,7 @@ model SignatureRequest {
   @@index([tenantId])
   @@index([tenantId, documentId])
   @@index([tenantId, matterId])
+  @@index([providerDocumentId])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

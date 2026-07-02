@@ -152,6 +152,48 @@ describe('SignaturesService.handleWebhook', () => {
     expect(audit.log).not.toHaveBeenCalled();
   });
 
+  it('evento REAL de Signaturit (solo document.id): correlaciona por providerDocumentId y descarga con el id del sobre de la fila', async () => {
+    const row = {
+      id: 'sr_1',
+      tenantId: 't1',
+      documentId: 'doc_interno_1',
+      versionId: 'ver_1',
+      requestedById: 'user_1',
+      signerName: 'Ana Cliente',
+      status: 'PENDING',
+      externalId: 'sig_envelope_9', // el id del sobre vive en la fila, no en el evento real
+      providerDocumentId: 'doc_prov_5',
+    };
+    const { service, provider, system, documents, prisma } = build({ signatureRows: [row] });
+    provider.verifyWebhook.mockReturnValue(true);
+    // Formato real: sin externalId de sobre; solo el id del documento del proveedor.
+    provider.parseWebhook.mockReturnValue({
+      externalDocumentId: 'doc_prov_5',
+      status: 'SIGNED',
+      detail: 'document_completed',
+    });
+    provider.downloadSignedDocument.mockResolvedValue({
+      buffer: Buffer.from('%PDF firmado'),
+      mimeType: 'application/pdf',
+    });
+    documents.addSignedVersion.mockResolvedValue({ id: 'dv_2', contentHash: 'hash' });
+    system.signatureRequest.findFirst.mockResolvedValue({ tenantId: 't1' });
+
+    const res = await service.handleWebhook(Buffer.from('{}'), 'sig');
+
+    expect(res).toEqual({ received: true });
+    // La búsqueda de la fila dueña incluye la correlación por providerDocumentId.
+    expect(system.signatureRequest.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ OR: [{ providerDocumentId: 'doc_prov_5' }] }),
+      }),
+    );
+    // La descarga usa el id del SOBRE guardado en la fila (el evento no lo trae).
+    expect(provider.downloadSignedDocument).toHaveBeenCalledWith('sig_envelope_9');
+    expect(documents.addSignedVersion).toHaveBeenCalled();
+    expect(prisma.signatureRequest.updateMany).toHaveBeenCalled();
+  });
+
   it('modo STUBBED (sin credenciales): SIGNED transiciona y notifica SIN intentar descargar', async () => {
     const row = {
       id: 'sr_1',

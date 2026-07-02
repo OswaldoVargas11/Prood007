@@ -69,22 +69,32 @@ export interface SignatureResult {
   detail?: string;
   /** Identificador asignado por el proveedor a la solicitud (idempotencia + consulta posterior). */
   externalId?: string;
+  /**
+   * Id del DOCUMENTO dentro del sobre del proveedor. Crítico para el webhook real de Signaturit:
+   * sus eventos NO traen el id del sobre, solo `document.id`, así que la correlación con la fila
+   * local se hace por este campo.
+   */
+  externalDocumentId?: string;
   /** URL de firma para el destinatario (en el stub, un enlace determinista de Signaturit). */
   signUrl?: string;
   /** Marca de tiempo del intento (ISO 8601). */
   timestamp?: string;
 }
 
-/** Evento normalizado del webhook del proveedor (tras verificar la firma HMAC del callback). */
+/**
+ * Evento normalizado del webhook del proveedor. Dos formatos de origen:
+ *  - REAL de Signaturit (`{type, created_at, document}`): identifica por `document.id` →
+ *    `externalDocumentId`; NO trae el id del sobre ni tenant.
+ *  - LEGADO/interno (`{externalId, tenantId, status}`): usado por tests y herramientas internas.
+ * En ambos casos el tenant se resuelve SIEMPRE desde la fila local (nunca del payload).
+ */
 export interface SignatureWebhookEvent {
-  /** Identificador del proveedor de la solicitud afectada. */
-  externalId: string;
-  /**
-   * Tenant al que pertenece la solicitud. La ruta del webhook es PÚBLICA (la llama el proveedor, no
-   * un usuario autenticado): el tenant NO sale de un usuario sino del evento FIRMADO, igual que el
-   * webhook de cobros. Se adjunta como metadato en la solicitud original y la plataforma lo devuelve.
-   */
-  tenantId: string;
+  /** Id del sobre del proveedor, si el payload lo trae (formato legado). */
+  externalId?: string;
+  /** Id del documento del proveedor (formato real de Signaturit: `document.id`). */
+  externalDocumentId?: string;
+  /** Presente solo en el formato legado; se valida su presencia pero se IGNORA su valor. */
+  tenantId?: string;
   /** Nuevo estado de la solicitud (SIGNED/DECLINED/EXPIRED/CANCELED/PENDING). */
   status: SignatureStatus;
   detail?: string;
