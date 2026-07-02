@@ -3,6 +3,7 @@ import { SignatureProviderFactory } from './signature.factory';
 import {
   SignaturitSignatureProvider,
   deterministicSignatureId,
+  sanitizeSignatureSubject,
 } from './providers/signaturit.signature';
 import type { SignatureRequestInput } from './signature.interface';
 
@@ -31,6 +32,29 @@ describe('SignatureProvider (adaptador de firma Signaturit, stub sin transmisió
     expect(() => SignatureProviderFactory.get('docusign' as unknown as 'signaturit')).toThrow(
       /SignatureProvider/,
     );
+  });
+
+  describe('sanitizeSignatureSubject (Signaturit rechaza URLs en el asunto — calibrado vs sandbox)', () => {
+    it('neutraliza dominios y extensiones (punto seguido de LETRA)', () => {
+      expect(sanitizeSignatureSubject('prueba-firma.pdf')).toBe('prueba-firma pdf');
+      expect(sanitizeSignatureSubject('NDA para cliente.com')).toBe('NDA para cliente com');
+    });
+    it('elimina URLs con esquema y www', () => {
+      expect(sanitizeSignatureSubject('Acuerdo https://cliente.example/deal')).toBe('Acuerdo');
+      expect(sanitizeSignatureSubject('Ver www.empresa.es antes de firmar')).toBe(
+        'Ver antes de firmar',
+      );
+    });
+    it('conserva versiones y fechas (punto seguido de DÍGITO: Signaturit sí las acepta)', () => {
+      expect(sanitizeSignatureSubject('Contrato v2.0 (revisado)')).toBe('Contrato v2.0 (revisado)');
+      expect(sanitizeSignatureSubject('Factura 2026.07 del despacho')).toBe(
+        'Factura 2026.07 del despacho',
+      );
+    });
+    it('un nombre que queda vacío tras sanear cae a un asunto genérico (Signaturit exige no vacío)', () => {
+      expect(sanitizeSignatureSubject('www.solo-url.com')).toBe('Documento para firma electrónica');
+      expect(sanitizeSignatureSubject('')).toBe('Documento para firma electrónica');
+    });
   });
 
   it('requestSignature no transmite (STUBBED) pero devuelve la forma completa', async () => {

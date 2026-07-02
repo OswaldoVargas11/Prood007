@@ -20,6 +20,25 @@ export function deterministicSignatureId(reference: string): string {
   return `SIGNATURIT-${compact || 'NA'}`;
 }
 
+/**
+ * Sanea el ASUNTO del correo de firma: Signaturit rechaza (HTTP 400 "URLs are not allowed in the
+ * subject") cualquier token con aspecto de URL. Calibrado contra el sandbox real: marca "punto seguido
+ * de LETRA" (cliente.com, contrato.pdf, www.x.es, http://…) pero acepta "punto seguido de dígito"
+ * (v2.0, 2026.07). Como el nombre del documento del despacho puede llevar cualquiera de esas formas
+ * (p. ej. un fichero .pdf), se neutraliza el punto conflictivo (→ espacio) y se eliminan las URLs con
+ * esquema/www, conservando el resto del nombre legible. Exportada para test.
+ */
+export function sanitizeSignatureSubject(name: string): string {
+  const cleaned = (name ?? '')
+    .replace(/\b(?:https?|ftp):\/\/\S+/gi, ' ') // URLs con esquema: fuera enteras
+    .replace(/\bwww\.\S+/gi, ' ') // www.algo: fuera entero
+    .replace(/\.(?=[a-zA-Z])/g, ' ') // dominio/extensión desnudos: neutraliza el punto
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  // Signaturit exige asunto no vacío; ante un nombre que quede vacío/mínimo, un genérico seguro.
+  return cleaned.length >= 2 ? cleaned.slice(0, 200) : 'Documento para firma electrónica';
+}
+
 /** Estados que el proveedor puede comunicar por webhook (transiciones terminales + recordatorio). */
 const WEBHOOK_STATUSES: readonly SignatureStatus[] = [
   'PENDING',
@@ -111,7 +130,9 @@ export class SignaturitSignatureProvider implements SignatureProvider {
     const form = new FormData();
     form.append('recipients[0][email]', input.signerEmail);
     form.append('recipients[0][name]', input.signerName);
-    form.append('subject', input.documentName);
+    // El asunto se sanea: Signaturit rechaza URLs en el subject y el nombre del documento puede
+    // contenerlas (dominios, .pdf…). El nombre del FICHERO adjunto va sin tocar (ahí sí se permiten).
+    form.append('subject', sanitizeSignatureSubject(input.documentName));
     form.append(
       'files[0]',
       new Blob([input.documentBuffer], { type: input.documentMimeType }),
