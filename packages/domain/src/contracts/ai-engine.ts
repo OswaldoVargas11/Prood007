@@ -34,6 +34,11 @@ export interface AiCompletionRequest {
   attachments?: AiAttachment[];
   /** Tope de tokens de salida; el motor aplica además su propio máximo de seguridad. */
   maxTokens?: number;
+  /**
+   * Modelo a usar SOLO en esta llamada (p. ej. uno más barato para extracciones masivas). Si el motor no
+   * lo soporta debe ignorarlo de forma segura y usar su modelo configurado.
+   */
+  model?: string;
 }
 
 export interface AiUsage {

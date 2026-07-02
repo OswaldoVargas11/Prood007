@@ -96,11 +96,18 @@ export default function MatterDocumentsPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
             <p className="mt-1 text-[13.5px] text-muted-foreground">{t('groupedSubtitle')}</p>
           </div>
-          {canSign && (data?.length ?? 0) > 0 && (
-            <Button size="sm" variant="outline" onClick={() => setBatchSignOpen(true)}>
-              {t('batchSign')}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {(data?.length ?? 0) > 0 && (
+              <Button size="sm" variant="outline" asChild>
+                <Link href={`/matters/${id}/tabular-reviews`}>{t('tabularReviews')}</Link>
+              </Button>
+            )}
+            {canSign && (data?.length ?? 0) > 0 && (
+              <Button size="sm" variant="outline" onClick={() => setBatchSignOpen(true)}>
+                {t('batchSign')}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 

@@ -485,6 +485,8 @@ model Tenant {
   aiChatMessages       AiChatMessage[]
   aiWorkflows          AiWorkflow[]
   aiWorkflowRuns       AiWorkflowRun[]
+  tabularReviews       TabularReview[]
+  tabularReviewCells   TabularReviewCell[]
   webhookEndpoints     WebhookEndpoint[]
   legalAcceptances     LegalAcceptance[]
   subprocessorSubs     SubprocessorSubscription[]
@@ -756,6 +758,7 @@ model Matter {
   folders               Folder[]
   checklists            MatterChecklist[]
   readStates            MatterReadState[]
+  tabularReviews        TabularReview[]
 
   @@unique([tenantId, reference])
   @@index([tenantId])
@@ -2538,6 +2541,81 @@ model AiWorkflowRun {
   workflow AiWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, workflowId, createdAt])
+}
+
+/// Estado de extracción de una celda de revisión tabular.
+enum TabularCellStatus {
+  PENDING
+  DONE
+  FAILED
+}
+
+/// Revisión TABULAR de documentos (estilo Legora): el usuario elige un conjunto de documentos (una carpeta
+/// de data room o una selección del expediente) y define COLUMNAS en lenguaje natural ("fecha de
+/// vencimiento", "ley aplicable"…); el motor extrae documento×columna con Claude y CITA obligatoria al
+/// fragmento fuente. `columns` es un array JSON ordenado `[{ id, label }]` y `documents` las filas
+/// `[{ id, source: 'document'|'dataroom', name }]` (id = Document.id o DataRoomDocument.id según
+/// `source`; `name` denormalizado para listar sin joins). Compartida por el staff del despacho (patrón
+/// AiWorkflow). RLS por tenant.
+model TabularReview {
+  id              String   @id @default(cuid())
+  tenantId        String
+  matterId        String
+  /// Usuario que la creó (trazabilidad; no restringe la visibilidad).
+  createdByUserId String
+  title           String
+  /// Array JSON ordenado de columnas: `[{ id: string, label: string }]`.
+  columns         Json
+  /// Array JSON ordenado de filas: `[{ id: string, source: 'document'|'dataroom', name: string }]`.
+  documents       Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  matter Matter              @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  cells  TabularReviewCell[]
+
+  @@index([tenantId, matterId, updatedAt])
+}
+
+/// Una CELDA documento×columna de una revisión tabular, con su estado y la CITA obligatoria: `snippet` es
+/// el fragmento LITERAL del texto extraído del documento del que salió el dato y `charStart/charEnd` sus
+/// offsets sobre ese texto (VERIFICADOS en servidor localizando la cita — nunca se persisten offsets del
+/// modelo sin comprobar). `notFound` = el documento no contiene la respuesta ("no consta"): sin cita y con
+/// confianza baja por diseño (guardrail anti-invención). `context` guarda la ventana de texto alrededor de
+/// la cita para que la UI la resalte sin re-extraer el fichero.
+model TabularReviewCell {
+  id         String            @id @default(cuid())
+  tenantId   String
+  reviewId   String
+  /// Document.id o DataRoomDocument.id (según el `source` de la fila en TabularReview.documents).
+  documentId String
+  /// Id de la columna dentro de TabularReview.columns.
+  columnId   String
+  status     TabularCellStatus @default(PENDING)
+  /// Valor extraído (null si PENDING/FAILED o si `notFound`).
+  value      String?
+  notFound   Boolean           @default(false)
+  /// 'alta' | 'media' | 'baja'.
+  confidence String?
+  snippet    String?
+  charStart  Int?
+  charEnd    Int?
+  /// Página del fragmento (solo formatos paginados; la extracción de texto actual no la produce).
+  page       Int?
+  context    String?
+  /// Código de error de la última extracción fallida (p. ej. 'notExtractable', 'quotaExceeded').
+  error      String?
+  /// Modelo que produjo la extracción (trazabilidad).
+  model      String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  tenant Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  review TabularReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, documentId, columnId])
+  @@index([tenantId, reviewId])
 }
 
 /// Idempotencia del webhook de suscripción de la PLATAFORMA (M-2). `id` = `event.id` de Stripe; el primer

@@ -84,7 +84,7 @@ export class AnthropicEngine implements AiEngine {
     });
 
     const res = await this.client.messages.create({
-      model: this.modelId,
+      model: req.model ?? this.modelId,
       max_tokens: maxTokens,
       ...(req.system
         ? { system: [{ type: 'text', text: req.system, cache_control: { type: 'ephemeral' } }] }

@@ -142,6 +142,55 @@ export class RunWorkflowDto {
   allowWrites?: boolean;
 }
 
+/** Una columna de una revisión tabular: pregunta/atributo en lenguaje natural. */
+export class TabularColumnDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(200)
+  label!: string;
+}
+
+/**
+ * Crear una revisión tabular: título + columnas + conjunto de documentos. El conjunto se define por UNA
+ * de estas vías: `documentIds` (selección de documentos del expediente; requiere `matterId`),
+ * `dataRoomFolderId` (una carpeta de data room) o `dataRoomId` (el data room completo).
+ */
+export class CreateTabularReviewDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(160)
+  title!: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  matterId?: string;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(12)
+  @ValidateNested({ each: true })
+  @Type(() => TabularColumnDto)
+  columns!: TabularColumnDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  documentIds?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  dataRoomFolderId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  dataRoomId?: string;
+}
+
 /** Búsqueda semántica. */
 export class SemanticSearchDto {
   @IsString()

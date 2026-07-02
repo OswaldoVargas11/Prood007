@@ -112,6 +112,8 @@ import type {
   AiResponse,
   AiEmailDraft,
   SemanticHit,
+  TabularReviewDetail,
+  TabularReviewSummary,
 } from './types';
 
 export function useDashboardSummary() {
@@ -2195,6 +2197,83 @@ export function useIndexMatter() {
   return useMutation({
     mutationFn: (matterId: string) => api.post<{ chunks: number }>(`/ai/index/matters/${matterId}`),
   });
+}
+
+// ── Revisión tabular (documentos × columnas con extracciones citables) ────────
+
+export function useTabularReviews(matterId: string) {
+  return useQuery({
+    queryKey: ['tabular-reviews', matterId],
+    queryFn: () => api.get<TabularReviewSummary[]>(`/ai/tabular-reviews?matterId=${matterId}`),
+    enabled: Boolean(matterId),
+  });
+}
+
+/** Detalle con celdas; sondea mientras queden celdas PENDING (la extracción corre en background). */
+export function useTabularReview(id: string) {
+  return useQuery({
+    queryKey: ['tabular-review', id],
+    queryFn: () => api.get<TabularReviewDetail>(`/ai/tabular-reviews/${id}`),
+    enabled: Boolean(id),
+    refetchInterval: (query) =>
+      query.state.data?.cells.some((c) => c.status === 'PENDING') ? 3_000 : false,
+  });
+}
+
+export function useCreateTabularReview(matterId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: {
+      title: string;
+      columns: Array<{ label: string }>;
+      documentIds?: string[];
+      dataRoomId?: string;
+      dataRoomFolderId?: string;
+      matterId?: string;
+    }) => api.post<TabularReviewDetail>('/ai/tabular-reviews', { matterId, ...body }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['tabular-reviews', matterId] }),
+  });
+}
+
+export function useAddTabularColumn(reviewId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (label: string) =>
+      api.post<TabularReviewDetail>(`/ai/tabular-reviews/${reviewId}/columns`, { label }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['tabular-review', reviewId] }),
+  });
+}
+
+export function useRemoveTabularColumn(reviewId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (columnId: string) =>
+      api.del<TabularReviewDetail>(`/ai/tabular-reviews/${reviewId}/columns/${columnId}`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['tabular-review', reviewId] }),
+  });
+}
+
+export function useRetryTabularCells(reviewId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<{ retried: number }>(`/ai/tabular-reviews/${reviewId}/retry`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['tabular-review', reviewId] }),
+  });
+}
+
+/** Descarga el export CSV/XLSX de una revisión tabular. */
+export async function downloadTabularExport(
+  reviewId: string,
+  format: 'csv' | 'xlsx',
+  filename: string,
+): Promise<void> {
+  const blob = await api.download(`/ai/tabular-reviews/${reviewId}/export?format=${format}`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── Facturación electrónica RD (e-CF · DGII) ──────────────────────────────────

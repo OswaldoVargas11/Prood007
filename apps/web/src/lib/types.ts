@@ -867,6 +867,64 @@ export interface SemanticHit {
   score: number;
 }
 
+// ── Revisión tabular (documentos × columnas con extracciones citables) ───────
+
+export interface TabularColumn {
+  id: string;
+  label: string;
+}
+
+export interface TabularRowDoc {
+  id: string;
+  source: 'document' | 'dataroom';
+  name: string;
+}
+
+export type TabularCellStatus = 'PENDING' | 'DONE' | 'FAILED';
+
+export interface TabularCell {
+  id: string;
+  documentId: string;
+  columnId: string;
+  status: TabularCellStatus;
+  value: string | null;
+  /** El documento no contiene la respuesta ("no consta"). */
+  notFound: boolean;
+  confidence: 'alta' | 'media' | 'baja' | null;
+  /** Cita: fragmento literal del texto extraído + offsets verificados. */
+  snippet: string | null;
+  charStart: number | null;
+  charEnd: number | null;
+  page: number | null;
+  /** Ventana de texto alrededor de la cita (para resaltarla en el panel). */
+  context: string | null;
+  error: string | null;
+  model: string | null;
+  updatedAt: string;
+}
+
+export interface TabularReviewSummary {
+  id: string;
+  matterId: string;
+  title: string;
+  columns: TabularColumn[];
+  documentCount: number;
+  progress: { pending: number; done: number; failed: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TabularReviewDetail {
+  id: string;
+  matterId: string;
+  title: string;
+  columns: TabularColumn[];
+  documents: TabularRowDoc[];
+  cells: TabularCell[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SubscriptionInfo {
   status: SubscriptionStatusValue;
   trialEndsAt: string | null;
