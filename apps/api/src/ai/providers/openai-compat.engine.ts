@@ -93,7 +93,11 @@ export class OpenAiCompatEngine implements AiEngine {
       }
     });
 
-    const res = await this.chat({ messages, max_tokens: maxTokens });
+    const res = await this.chat({
+      messages,
+      max_tokens: maxTokens,
+      ...(req.model ? { model: req.model } : {}),
+    });
     return {
       text: (res.message.content ?? '').trim(),
       model: res.model,
