@@ -112,6 +112,94 @@ describe('SignatureProvider (adaptador de firma Signaturit, stub sin transmisió
       const doc = await new SignaturitSignatureProvider().downloadSignedDocument('sig_abc');
       expect(doc).toBeNull();
     });
+
+    it('downloadSignedDocument devuelve null si el sobre no trae documentos o la red lanza', async () => {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue({
+          ok: true,
+          json: async () => ({ documents: [] }),
+        }) as unknown as typeof fetch;
+      expect(await new SignaturitSignatureProvider().downloadSignedDocument('sig_abc')).toBeNull();
+      global.fetch = jest
+        .fn()
+        .mockRejectedValue(new Error('ECONNRESET')) as unknown as typeof fetch;
+      expect(await new SignaturitSignatureProvider().downloadSignedDocument('sig_abc')).toBeNull();
+    });
+
+    it('requestSignature recoge el signUrl del firmante cuando el proveedor lo devuelve', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          id: 'sig_url',
+          documents: [{ events: { require_signature_url: 'https://sig.example/f/1' } }],
+        }),
+      }) as unknown as typeof fetch;
+      const res = await new SignaturitSignatureProvider().requestSignature(input('ver2'));
+      expect(res.signUrl).toBe('https://sig.example/f/1');
+    });
+
+    it('requestSignature LANZA ante HTTP no-ok o fallo de red (nada de PENDING fantasma con id local)', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => ({ error: 'boom' }),
+      }) as unknown as typeof fetch;
+      await expect(
+        new SignaturitSignatureProvider().requestSignature(input('ver3')),
+      ).rejects.toThrow(/Signaturit/);
+      global.fetch = jest.fn().mockRejectedValue(new Error('timeout')) as unknown as typeof fetch;
+      await expect(
+        new SignaturitSignatureProvider().requestSignature(input('ver3')),
+      ).rejects.toThrow(/No se pudo enviar/);
+    });
+
+    it('getStatus mapea los estados remotos de Signaturit al enum interno', async () => {
+      const provider = new SignaturitSignatureProvider();
+      const cases: Array<[string, string]> = [
+        ['completed', 'SIGNED'],
+        ['signed', 'SIGNED'],
+        ['declined', 'DECLINED'],
+        ['expired', 'EXPIRED'],
+        ['canceled', 'CANCELED'],
+        ['cancelled', 'CANCELED'],
+        ['in_queue', 'PENDING'],
+      ];
+      for (const [remote, expected] of cases) {
+        global.fetch = jest.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({ status: remote }),
+        }) as unknown as typeof fetch;
+        const res = await provider.getStatus('sig_abc');
+        expect(res.status).toBe(expected);
+        expect(res.externalId).toBe('sig_abc');
+      }
+    });
+
+    it('getStatus ante fallo de red/HTTP degrada a PENDING con detalle (el cron reintentará)', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 502,
+        json: async () => ({}),
+      }) as unknown as typeof fetch;
+      const res = await new SignaturitSignatureProvider().getStatus('sig_abc');
+      expect(res.status).toBe('PENDING');
+      expect(res.detail).toMatch(/No se pudo consultar/);
+    });
+
+    it('cancel transmite el PATCH y, si falla, queda cancelada localmente con detalle', async () => {
+      global.fetch = jest.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch;
+      const ok = await new SignaturitSignatureProvider().cancel('sig_abc');
+      expect(ok.status).toBe('CANCELED');
+      expect(ok.detail).toMatch(/cancelada en Signaturit/);
+
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue({ ok: false, status: 409 }) as unknown as typeof fetch;
+      const failed = await new SignaturitSignatureProvider().cancel('sig_abc');
+      expect(failed.status).toBe('CANCELED');
+      expect(failed.detail).toMatch(/Cancelada localmente/);
+    });
   });
 
   describe('verifyWebhook (HMAC-SHA256 del cuerpo crudo)', () => {
