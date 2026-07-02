@@ -1,4 +1,4 @@
-import type { WorkflowStep } from '@/lib/types';
+import type { WorkflowCatalogTool, WorkflowStep } from '@/lib/types';
 
 /**
  * Helpers puros del builder de flujos (Zora workflows builder, LAW-67). Aislados de React para poder
@@ -60,4 +60,29 @@ export function buildSteps(draft: DraftStep[]): BuildResult {
 export function stepInputToText(input: Record<string, unknown>): string {
   if (!input || Object.keys(input).length === 0) return '';
   return JSON.stringify(input, null, 2);
+}
+
+/** Un problema detectado en un paso al validarlo contra el catálogo (feedback inline en el builder). */
+export type StepIssue =
+  | { kind: 'no_tool' }
+  | { kind: 'unknown_tool' }
+  | { kind: 'not_json' }
+  | { kind: 'not_object' }
+  | { kind: 'missing_required'; fields: string[] };
+
+/**
+ * VALIDA un paso en edición contra el catálogo: que referencie una tool EXISTENTE y que su input JSON
+ * incluya los campos `required` del esquema de la tool. Devuelve el PRIMER problema encontrado (para
+ * señalarlo inline junto al paso) o `null` si el paso es válido. Validación previa: no ejecuta nada.
+ */
+export function validateStep(step: DraftStep, catalog: WorkflowCatalogTool[]): StepIssue | null {
+  if (!step.tool) return { kind: 'no_tool' };
+  const tool = catalog.find((c) => c.name === step.tool);
+  if (!tool) return { kind: 'unknown_tool' };
+  const parsed = parseStepInput(step.inputText);
+  if (!parsed.ok) return { kind: parsed.error };
+  const required = tool.inputSchema?.required ?? [];
+  const missing = required.filter((r) => !(r in parsed.value));
+  if (missing.length > 0) return { kind: 'missing_required', fields: missing };
+  return null;
 }

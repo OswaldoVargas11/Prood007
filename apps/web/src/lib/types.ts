@@ -795,6 +795,22 @@ export interface PendingWrite {
   summary: string;
 }
 
+/** Una cita verificable del agente: marcador [n] ligado a una fuente resoluble (respetando permisos). */
+export interface Citation {
+  n: number;
+  kind: 'matter' | 'document' | 'client';
+  refId: string;
+  label: string;
+  quote?: string;
+  tool: string;
+}
+
+/** Verificación post-respuesta de las citas (gated AI_CITATION_CHECK). */
+export interface CitationCheck {
+  verified: boolean;
+  flagged: string[];
+}
+
 /** Respuesta del asistente agéntico (POST /ai/agent). */
 export interface AgentResponse {
   output: string;
@@ -802,7 +818,36 @@ export interface AgentResponse {
   model: string | null;
   stopReason: string;
   pendingWrites: PendingWrite[];
+  citations: Citation[];
+  citationCheck?: CitationCheck;
 }
+
+/** Fuente resuelta de una cita (GET /ai/citations/resolve). Discriminada por `kind`. */
+export type ResolvedCitation =
+  | {
+      kind: 'document';
+      id: string;
+      label: string;
+      matter: string | null;
+      snippet: string | null;
+      context: string | null;
+      highlight: { start: number; end: number } | null;
+    }
+  | {
+      kind: 'matter';
+      reference: string;
+      label: string;
+      title: string;
+      status: string;
+      type: string;
+      opposingParty: string | null;
+      court: string | null;
+      caseNumber: string | null;
+      proceduralPhase: string | null;
+      client: string | null;
+      lawyer: string | null;
+    }
+  | { kind: 'client'; label: string; name: string; taxId: string | null; matterCount: number };
 
 /** Resumen de una conversación guardada con Zora (historial del dock). */
 export interface AiConversationSummary {
@@ -818,12 +863,40 @@ export interface AiConversationDetail {
   messages: { role: 'user' | 'assistant'; content: string; meta: unknown }[];
 }
 
+/** Esquema de input de una tool (subconjunto JSON-Schema que expone el catálogo). */
+export interface WorkflowToolSchema {
+  type?: string;
+  properties?: Record<string, { type?: string; description?: string; enum?: string[] }>;
+  required?: string[];
+}
+
 /** Una herramienta del catálogo del agente disponible para componer un flujo (workflows builder). */
 export interface WorkflowCatalogTool {
   name: string;
   description: string;
   /** true = la herramienta MUTA estado → al ejecutarse en un flujo requiere confirmación (HITL). */
   isWrite: boolean;
+  /** Esquema de parámetros (para validar el input de cada paso de forma inline en el builder). */
+  inputSchema?: WorkflowToolSchema;
+}
+
+/** Una plantilla de flujo instalable de la biblioteca (global, no por tenant). */
+export interface WorkflowTemplate {
+  key: string;
+  name: string;
+  description: string;
+  useCase: string;
+  category: string;
+  jurisdiction: 'es' | 'do' | null;
+  confirms: string;
+  steps: WorkflowStep[];
+}
+
+/** Resultado de una prueba en seco (dry-run) de una definición de pasos. */
+export interface WorkflowDryRunResult {
+  status: 'completed' | 'failed' | 'requires_confirmation';
+  stepResults: WorkflowStepResult[];
+  pendingWrites: PendingWrite[];
 }
 
 /** Un paso declarativo de un flujo: invoca una tool del catálogo por nombre + input. */

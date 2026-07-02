@@ -13,6 +13,7 @@ import {
   searchFeatureGuide,
   type AiEngine,
   type AiMessage,
+  type AiToolDefinition,
   type AiToolExecutor,
   type AiToolInvocation,
   type AiToolOutcome,
@@ -44,6 +45,14 @@ import { AiSearchService } from './ai-search.service';
 import { AiPlaybookService } from './ai-playbook.service';
 import { AGENT_SYSTEM_PROMPT, AGENT_TOOLS, selectAgentTools } from './ai-agent.tools';
 import { legalSourceLinks, type LegalJurisdiction } from './legal-sources';
+import {
+  annotateWithCitations,
+  buildCitationCheckUser,
+  parseCitationCheck,
+  CITATION_CHECK_SYSTEM,
+  type Citation,
+  type CitationCheck,
+} from './ai-citations';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Una acción de ESCRITURA propuesta por el agente y pendiente de confirmación del letrado (HITL). */
@@ -62,6 +71,10 @@ export interface AiAgentResponse {
   stopReason: string;
   /** Acciones de escritura que el agente quiso hacer pero quedaron a la espera de confirmación. */
   pendingWrites: PendingWrite[];
+  /** Citas VERIFICABLES del turno: mapa [n] → fuente resoluble (expediente/documento/cliente). */
+  citations: Citation[];
+  /** Verificación post-respuesta de las citas (opcional, gated AI_CITATION_CHECK). */
+  citationCheck?: CitationCheck;
 }
 
 /** Evento del turno en STREAMING: progreso por herramienta ('tool') o respuesta final ('done'). */
@@ -127,6 +140,10 @@ const WRITE_TOOLS = new Set([
   'update_registry_obligation',
   'run_playbook_review',
 ]);
+/** ¿El nombre de herramienta MUTA estado? Standalone para reusarlo sin instanciar el servicio (tests). */
+export function isWriteToolName(name: string): boolean {
+  return WRITE_TOOLS.has(name);
+}
 const ACTIVE_MATTER_STATUSES = [MatterStatus.OPEN, MatterStatus.IN_PROGRESS];
 /** Tope de mensajes de historial que se reenvían al modelo (control de coste/contexto). */
 const MAX_HISTORY_MESSAGES = 20;
@@ -225,15 +242,24 @@ export class AiAgentService {
 
   /** ¿Esta herramienta MUTA estado (requiere confirmación HITL salvo allowWrites)? */
   isWriteTool(name: string): boolean {
-    return WRITE_TOOLS.has(name);
+    return isWriteToolName(name);
   }
 
-  /** Catálogo de herramientas para el builder de workflows (nombre + descripción + si es de escritura). */
-  toolCatalog(): { name: string; description: string; isWrite: boolean }[] {
+  /**
+   * Catálogo de herramientas para el builder de workflows (nombre + descripción + si es de escritura +
+   * el `inputSchema` para que el builder valide los inputs de cada paso de forma inline).
+   */
+  toolCatalog(): {
+    name: string;
+    description: string;
+    isWrite: boolean;
+    inputSchema: AiToolDefinition['inputSchema'];
+  }[] {
     return AGENT_TOOLS.map((t) => ({
       name: t.name,
       description: t.description,
       isWrite: WRITE_TOOLS.has(t.name),
+      inputSchema: t.inputSchema,
     }));
   }
 
@@ -269,12 +295,17 @@ export class AiAgentService {
     // HITL: salvo confirmación explícita del cliente, las herramientas de escritura NO se ejecutan; se
     // proponen y se recogen aquí para que la UI pida confirmación antes de actuar.
     const pendingWrites: PendingWrite[] = [];
+    // Registro de CITAS del turno: cada resultado de herramienta se enriquece con marcadores [n] en el
+    // ENVOLTORIO común (no tool a tool), y las fuentes se acumulan para el meta del mensaje.
+    const citations: Citation[] = [];
     const exec: AiToolExecutor = async (invocation) => {
       if (isAborted?.()) {
         return { content: 'Operación cancelada por el usuario.', isError: true };
       }
       onTool?.(invocation.name);
-      const outcome = await this.execute(user, invocation, allowWrites, pendingWrites);
+      const raw = await this.execute(user, invocation, allowWrites, pendingWrites);
+      // Protocolo de citas: extrae referencias del resultado y anota los marcadores que verá el modelo.
+      const outcome = annotateWithCitations(invocation.name, raw, citations);
       // Emite el RESULTADO de la herramienta para que la UI lo pinte como tarjeta (Generative UI).
       onToolResult?.(invocation.name, outcome.content, Boolean(outcome.isError));
       return outcome;
@@ -309,6 +340,7 @@ export class AiAgentService {
         model: this.engine.model(),
         stopReason: 'error',
         pendingWrites,
+        citations,
       };
     }
 
@@ -326,13 +358,47 @@ export class AiAgentService {
       })
       .catch(() => undefined);
 
+    // Verificador post-respuesta (opcional): segunda pasada barata que marca afirmaciones sin cita o
+    // cuya cita no las soporta. Gated por AI_CITATION_CHECK; NUNCA bloquea ni rompe el turno.
+    const citationCheck = await this.maybeCheckCitations(user, result.text, citations);
+
     return {
       output: result.text,
       steps: result.steps.map((s) => ({ tool: s.tool, isError: s.isError })),
       model: result.model ?? this.engine.model(),
       stopReason: result.stopReason,
       pendingWrites,
+      citations,
+      citationCheck,
     };
+  }
+
+  /**
+   * Verificación post-respuesta de las citas (opcional, `AI_CITATION_CHECK=true`). Reutiliza el motor con
+   * un modelo BARATO (`AI_CITATION_CHECK_MODEL`, por defecto Haiku) para señalar afirmaciones factuales sin
+   * respaldo. No bloquea la respuesta y es best-effort: cualquier fallo devuelve `undefined` (sin badge).
+   */
+  private async maybeCheckCitations(
+    user: RequestUser,
+    answer: string,
+    citations: Citation[],
+  ): Promise<CitationCheck | undefined> {
+    if (process.env.AI_CITATION_CHECK !== 'true') return undefined;
+    if (!this.engine.isEnabled() || !answer.trim()) return undefined;
+    try {
+      const res = await this.engine.complete({
+        system: CITATION_CHECK_SYSTEM,
+        messages: [{ role: 'user', content: buildCitationCheckUser(answer, citations) }],
+        maxTokens: 400,
+        model: process.env.AI_CITATION_CHECK_MODEL || 'claude-haiku-4-5-20251001',
+      });
+      await this.quota
+        .recordUsage(user, res.usage?.inputTokens ?? 0, res.usage?.outputTokens ?? 0)
+        .catch(() => undefined);
+      return parseCitationCheck(res.text);
+    } catch {
+      return undefined;
+    }
   }
 
   // ── Executor de herramientas (tenant-scoped; lectura + escritura acotada) ──────────────────────────
@@ -725,6 +791,9 @@ export class AiAgentService {
       return json({
         count: hits.length,
         hits: hits.map((h) => ({
+          // refId + kind hacen la cita RESOLUBLE (el envoltorio de citas los usa para el marcador [n]).
+          kind: h.kind,
+          refId: h.refId,
           ref: h.refLabel,
           excerpt: h.excerpt.slice(0, 400),
           score: Math.round(h.score * 100) / 100,

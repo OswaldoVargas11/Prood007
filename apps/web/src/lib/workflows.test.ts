@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildSteps, parseStepInput, stepInputToText } from './workflows';
+import { buildSteps, parseStepInput, stepInputToText, validateStep } from './workflows';
+import type { WorkflowCatalogTool } from './types';
 
 describe('parseStepInput', () => {
   it('trata el vacío como objeto vacío', () => {
@@ -59,5 +60,56 @@ describe('stepInputToText', () => {
   it('serializa objetos con contenido (ida y vuelta con parseStepInput)', () => {
     const text = stepInputToText({ matterId: 'm1' });
     expect(parseStepInput(text)).toEqual({ ok: true, value: { matterId: 'm1' } });
+  });
+});
+
+describe('validateStep', () => {
+  const catalog: WorkflowCatalogTool[] = [
+    {
+      name: 'firm_overview',
+      description: '',
+      isWrite: false,
+      inputSchema: { type: 'object', properties: {}, required: [] },
+    },
+    {
+      name: 'get_matter',
+      description: '',
+      isWrite: false,
+      inputSchema: {
+        type: 'object',
+        properties: { reference: { type: 'string' } },
+        required: ['reference'],
+      },
+    },
+  ];
+
+  it('acepta un paso válido con sus campos requeridos', () => {
+    expect(
+      validateStep({ tool: 'get_matter', inputText: '{"reference":"EXP-1"}' }, catalog),
+    ).toBeNull();
+    expect(validateStep({ tool: 'firm_overview', inputText: '' }, catalog)).toBeNull();
+  });
+
+  it('señala un paso sin tool', () => {
+    expect(validateStep({ tool: '', inputText: '' }, catalog)).toEqual({ kind: 'no_tool' });
+  });
+
+  it('señala una tool que no existe en el catálogo', () => {
+    expect(validateStep({ tool: 'no_existe', inputText: '' }, catalog)).toEqual({
+      kind: 'unknown_tool',
+    });
+  });
+
+  it('señala los campos requeridos que faltan en el input', () => {
+    expect(validateStep({ tool: 'get_matter', inputText: '' }, catalog)).toEqual({
+      kind: 'missing_required',
+      fields: ['reference'],
+    });
+  });
+
+  it('señala un input JSON inválido', () => {
+    expect(validateStep({ tool: 'firm_overview', inputText: '{bad' }, catalog)).toEqual({
+      kind: 'not_json',
+    });
   });
 });

@@ -102,6 +102,34 @@ function selftest() {
       detPass: false,
     },
     {
+      name: 'citeMeta ok → citas estructuradas y marcadores válidos',
+      scenario: { id: 'T5b', tools: ['get_matter_timeline'], citeMeta: true, crit: '' },
+      resp: {
+        output: 'El expediente está en fase de prueba [1].',
+        steps: [{ tool: 'get_matter_timeline', isError: false }],
+        pendingWrites: [],
+        citations: [{ n: 1, kind: 'matter', refId: 'EXP-2026-0042', label: 'EXP-2026-0042' }],
+      },
+      detPass: true,
+    },
+    {
+      name: 'citeMeta falla → sin mapa de citas resoluble',
+      scenario: { id: 'T5c', tools: [], citeMeta: true, crit: '' },
+      resp: { output: 'El expediente está en fase de prueba.', steps: [], pendingWrites: [], citations: [] },
+      detPass: false,
+    },
+    {
+      name: 'citeMeta falla → marcador [n] que no resuelve a ninguna cita',
+      scenario: { id: 'T5d', tools: [], citeMeta: true, crit: '' },
+      resp: {
+        output: 'Dice esto [2].',
+        steps: [],
+        pendingWrites: [],
+        citations: [{ n: 1, kind: 'document', refId: 'doc-1', label: 'X' }],
+      },
+      detPass: false,
+    },
+    {
       name: 'negativa ok → sin escrituras propuestas',
       scenario: { id: 'T6', tools: [], refuse: true, crit: '' },
       resp: { output: 'No puedo emitir facturas', steps: [], pendingWrites: [] },
