@@ -22,7 +22,7 @@ import { extractText } from './text-extract';
 import { computeRedline } from './document-redline';
 import type { RequestUser } from '../auth/auth.types';
 
-interface UploadedFile {
+export interface UploadedFile {
   originalname: string;
   mimetype: string;
   size: number;
@@ -344,6 +344,43 @@ export class DocumentsService {
     const version = await this.persistVersion(user, document.id, 1, file);
     await this.audit.log(user, 'document.ai_drafted', 'Document', document.id, { title });
     return { document, version };
+  }
+
+  /**
+   * Añade una nueva versión a un documento existente SIN contexto de usuario (webhook de firma
+   * electrónica: el evento SIGNED del proveedor no tiene un `RequestUser`). Debe llamarse dentro de
+   * `runWithTenant(tenantId, ...)` para que las políticas RLS se apliquen. Mismo pipeline cifrado que
+   * una subida normal (hash SHA-256, versionado, revisión PENDING); `uploaderId` es quien solicitó la
+   * firma (el letrado del expediente), no el firmante externo.
+   */
+  async addSignedVersion(
+    tenantId: string,
+    documentId: string,
+    uploaderId: string,
+    file: UploadedFile,
+  ) {
+    const last = await this.prisma.documentVersion.findFirst({
+      where: { documentId, tenantId },
+      orderBy: { version: 'desc' },
+      select: { version: true },
+    });
+    const next = (last?.version ?? 0) + 1;
+    const key = this.storageKey(tenantId, documentId, next);
+    await this.storage.put(key, file.buffer, file.mimetype);
+    const contentHash = createHash('sha256').update(file.buffer).digest('hex');
+    return this.prisma.documentVersion.create({
+      data: {
+        tenantId,
+        documentId,
+        version: next,
+        storageKey: key,
+        mimeType: file.mimetype,
+        sizeBytes: file.size,
+        contentHash,
+        reviewStatus: DocumentReviewStatus.PENDING,
+        uploadedById: uploaderId,
+      },
+    });
   }
 
   /** Añade una nueva versión a un documento existente. */

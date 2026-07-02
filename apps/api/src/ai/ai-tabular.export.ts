@@ -14,10 +14,15 @@ export interface TabularExportTable {
   rows: string[][];
 }
 
-/** Escapa un campo CSV (RFC 4180): comillas dobladas y campo entrecomillado si hace falta. */
+/**
+ * Escapa un campo CSV (RFC 4180): comillas dobladas y campo entrecomillado si hace falta. Además
+ * neutraliza fórmulas (prefijo ' si empieza por =, +, -, @): el valor viene de extracciones sobre
+ * documentos de terceros y Excel ejecutaría `=HYPERLINK(...)` al abrir el export (CSV injection).
+ */
 function csvField(value: string): string {
-  if (/[",\n\r;]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
-  return value;
+  const v = /^[=+\-@]/.test(value) ? `'${value}` : value;
+  if (/[",\n\r;]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+  return v;
 }
 
 /** CSV con BOM UTF-8 (para que Excel detecte la codificación) y separador coma. */

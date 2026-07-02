@@ -2,12 +2,16 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { Loader2, PenLine, X } from 'lucide-react';
+import { Loader2, PenLine, RotateCw, X } from 'lucide-react';
 import { useCancelSignature, useDocumentSignatures, useRequestSignature } from '@/lib/hooks';
 import { ApiError } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { isSignaturePending, signatureStatusVariant } from '@/lib/signature-status';
+import {
+  isSignaturePending,
+  isSignatureResendable,
+  signatureStatusVariant,
+} from '@/lib/signature-status';
 
 const inputCls =
   'flex h-9 w-full rounded-md border bg-[var(--surface-1)] px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring';
@@ -46,6 +50,13 @@ export function SignaturePanel({
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t('error'));
     }
+  }
+
+  function resend(signerName: string, signerEmail: string) {
+    setOpen(true);
+    setName(signerName);
+    setEmail(signerEmail);
+    setError(null);
   }
 
   return (
@@ -129,6 +140,16 @@ export function SignaturePanel({
                     className="text-[var(--text-subtle)] transition-colors hover:text-[var(--danger)]"
                   >
                     <X className="size-3.5" />
+                  </button>
+                )}
+                {isSignatureResendable(s.status) && (
+                  <button
+                    type="button"
+                    title={t('resend')}
+                    onClick={() => resend(s.signerName, s.signerEmail)}
+                    className="text-[var(--text-subtle)] transition-colors hover:text-[var(--brand)]"
+                  >
+                    <RotateCw className="size-3.5" />
                   </button>
                 )}
               </div>

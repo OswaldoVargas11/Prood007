@@ -1,4 +1,4 @@
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { ComponentPropsWithoutRef } from 'react';
 import type { Citation } from '@/lib/types';
@@ -32,6 +32,9 @@ export function ChatMarkdown({
     <div className="space-y-2 text-sm leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        // El sanitizador por defecto solo permite http/https/irc/ircs/mailto/xmpp: sin esto, `cite:n`
+        // llega al renderer como href="" y el chip de cita queda muerto (enlace vacío, panel sin abrir).
+        urlTransform={(url) => (url.startsWith('cite:') ? url : defaultUrlTransform(url))}
         components={{
           h1: (p) => <h1 className="mb-1 mt-3 text-[15px] font-semibold" {...p} />,
           h2: (p) => <h2 className="mb-1 mt-3 text-[14px] font-semibold" {...p} />,

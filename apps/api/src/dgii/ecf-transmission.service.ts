@@ -110,6 +110,15 @@ export class EcfTransmissionService {
     if (invoice.ecfStatus === EcfStatus.PENDING && invoice.ecfTrackId) {
       return this.refresh(tenantId, invoiceId);
     }
+    // Un rechazo con TrackId es un acuse REAL de la DGII sobre este eNCF: retransmitir el mismo XML
+    // solo repetiría el rechazo. El camino correcto es la rectificativa (nota de crédito).
+    if (invoice.ecfStatus === EcfStatus.REJECTED && invoice.ecfTrackId) {
+      return {
+        status: EcfStatus.REJECTED,
+        detail: 'e-CF rechazado por la DGII; emite una rectificativa en lugar de retransmitir.',
+        trackId: invoice.ecfTrackId,
+      };
+    }
 
     const ecfXml = extractEcfXml(invoice.complianceRecord);
     if (!ecfXml) {
@@ -131,6 +140,30 @@ export class EcfTransmissionService {
       // Comportamiento actual sin DGII_ENV: STUBBED, sin evento (no hubo intento de transmisión).
       await this.persist(tenantId, invoiceId, { status: EcfStatus.STUBBED, detail });
       return { status: EcfStatus.STUBBED, detail };
+    }
+
+    // RESERVA ATÓMICA (CAS) ANTES DEL POST: dos actores concurrentes (cron solapado, cron + botón
+    // "Transmitir", varias máquinas) leerían ambos "sin TrackId" y duplicarían el envío a la DGII.
+    // Reclamar la factura con guardas de estado hace que solo uno envíe; el perdedor ve 0 filas y se
+    // retira. Contar el intento ANTES del POST también evita la retransmisión en caliente si el envío
+    // triunfa pero la persistencia del TrackId falla: el cron respeta el backoff del intento ya contado
+    // (el caso residual lo deduplica la DGII por eNCF).
+    const claimed = await this.prisma.invoice.updateMany({
+      where: {
+        id: invoiceId,
+        tenantId,
+        ecfStatus: invoice.ecfStatus,
+        ecfTrackId: null,
+        ecfAttempts: invoice.ecfAttempts,
+      },
+      data: { ecfAttempts: invoice.ecfAttempts + 1, ecfSubmittedAt: new Date() },
+    });
+    if (claimed.count === 0) {
+      return {
+        status: invoice.ecfStatus,
+        detail: 'Transmisión ya en curso o resuelta por otro proceso.',
+        trackId: invoice.ecfTrackId,
+      };
     }
 
     const result = await this.submission.submit(ecfXml, cert);
@@ -246,12 +279,29 @@ export class EcfTransmissionService {
     });
     if (!invoice || invoice.ecfStatus !== EcfStatus.PENDING) return;
     if (invoice.ecfTrackId) {
-      await this.persist(tenantId, invoiceId, {
-        status: EcfStatus.PENDING,
-        detail: `Acuse sin resolver tras ${invoice.ecfAttempts} consultas automáticas; usa "Consultar acuse" o verifica el TrackId en la Oficina Virtual de la DGII.`,
-        trackId: invoice.ecfTrackId,
-        attempts: invoice.ecfAttempts + 1,
-      });
+      const ackDetail = `Acuse sin resolver tras ${invoice.ecfAttempts} consultas automáticas; usa "Consultar acuse" o verifica el TrackId en la Oficina Virtual de la DGII.`;
+      // El agotamiento de la fase de acuse es un hecho fiscal relevante: queda en la cadena (a
+      // diferencia del polling en trámite, que no encadena para no meter ruido).
+      await this.persist(
+        tenantId,
+        invoiceId,
+        {
+          status: EcfStatus.PENDING,
+          detail: ackDetail,
+          trackId: invoice.ecfTrackId,
+          attempts: invoice.ecfAttempts + 1,
+        },
+        {
+          type: 'ecf.retry_exhausted',
+          payload: {
+            number: invoice.number,
+            attempts: invoice.ecfAttempts,
+            phase: 'acuse',
+            trackId: invoice.ecfTrackId,
+            detail: ackDetail,
+          },
+        },
+      );
       return;
     }
     const detail = `No se pudo transmitir a la DGII tras ${invoice.ecfAttempts} intentos automáticos. Reintenta manualmente o emite una rectificativa.`;

@@ -32,6 +32,8 @@ export interface EcfRetrySweepSummary {
 @Injectable()
 export class EcfRetryCron {
   private readonly logger = new Logger(EcfRetryCron.name);
+  /** Un barrido a la vez por instancia: un sweep lento (red) no debe solaparse con el tick siguiente. */
+  private sweeping = false;
 
   constructor(
     private readonly system: SystemPrismaService,
@@ -42,7 +44,14 @@ export class EcfRetryCron {
   @Cron('*/10 * * * *', { name: 'ecf-retry' })
   async runPeriodic(): Promise<void> {
     if (!this.config.enabled) return; // transmisión apagada: nada que reintentar.
-    const s = await this.sweep();
+    if (this.sweeping) return; // el barrido anterior sigue vivo (entre máquinas protege el CAS de transmit).
+    this.sweeping = true;
+    let s: EcfRetrySweepSummary;
+    try {
+      s = await this.sweep();
+    } finally {
+      this.sweeping = false;
+    }
     if (s.candidates > 0) {
       this.logger.log(
         `e-CF: ${s.candidates} pendientes — ${s.retried} retransmitidas, ${s.polled} acuses consultados, ` +
@@ -55,7 +64,19 @@ export class EcfRetryCron {
   /** Un fallo en una factura no detiene el barrido (se registra y se continúa). */
   async sweep(now: Date = new Date()): Promise<EcfRetrySweepSummary> {
     const pending = await this.system.invoice.findMany({
-      where: { ecfStatus: EcfStatus.PENDING, complianceFormat: 'ECF' },
+      where: {
+        complianceFormat: 'ECF',
+        // Las agotadas (contador por encima del tope tras markRetryExhausted) salen del barrido:
+        // quedan para gestión manual, sin recargarse eternamente en cada tick.
+        ecfAttempts: { lte: ECF_MAX_AUTO_ATTEMPTS },
+        OR: [
+          { ecfStatus: EcfStatus.PENDING },
+          // Backlog STUBBED: facturas emitidas con la transmisión apagada o sin certificado. Entran al
+          // barrido solo cuando su despacho ya tiene certificado cargado (con DGII_ENV activo, ver
+          // runPeriodic) — así el encendido de prod transmite el histórico sin acción manual.
+          { ecfStatus: EcfStatus.STUBBED, tenant: { certificateKey: { not: null } } },
+        ],
+      },
       select: {
         id: true,
         tenantId: true,
@@ -64,6 +85,7 @@ export class EcfRetryCron {
         ecfTrackId: true,
       },
       orderBy: { createdAt: 'asc' },
+      take: 500, // techo de seguridad por barrido; lo no cubierto entra en el siguiente tick.
     });
     const summary: EcfRetrySweepSummary = {
       candidates: pending.length,

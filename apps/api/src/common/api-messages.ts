@@ -433,6 +433,10 @@ export const API_MESSAGES = {
     'es-ES': 'Webhook de firma inválido (firma no verificada).',
     'es-DO': 'Webhook de firma inválido (firma no verificada).',
   },
+  'signatures.signedDocUnavailable': {
+    'es-ES': 'No se pudo obtener el documento firmado del proveedor; se reintentará.',
+    'es-DO': 'No se pudo obtener el documento firmado del proveedor; se reintentará.',
+  },
 
   // ── Plantillas de documento ───────────────────────────────────────────────
   'templates.notFound': {
@@ -477,6 +481,12 @@ export const API_MESSAGES = {
   'dgii.encfRangeExhausted': {
     'es-ES': 'Se han agotado los eNCF del rango autorizado.',
     'es-DO': 'Se han agotado los eNCF del rango autorizado. Solicita un rango nuevo en la DGII.',
+  },
+  'ledger.ecfCertRequired': {
+    'es-ES':
+      'No se puede emitir el e-CF: falta el certificado digital del despacho. Súbelo en Ajustes antes de emitir con la DGII activada.',
+    'es-DO':
+      'No se puede emitir el e-CF: falta el certificado digital del despacho. Súbelo en Ajustes antes de emitir con la DGII activada.',
   },
   'dgii.encfRangeInvalid': {
     'es-ES': 'Rango de eNCF inválido (revisa inicio/fin).',

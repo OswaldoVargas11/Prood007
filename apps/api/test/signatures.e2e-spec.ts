@@ -131,7 +131,8 @@ describe('Signatures / firma electrónica (e2e)', () => {
     expect(res.body.status).toBe('PENDING');
     expect(res.body.provider).toBe('signaturit');
     expect(res.body.externalId).toMatch(/^SIGNATURIT-/);
-    expect(res.body.signUrl).toContain('app.signaturit.com/sign/');
+    // En modo STUBBED el signUrl fabricado NO se persiste (evita enviar al cliente un enlace 404).
+    expect(res.body.signUrl).toBeNull();
     signatureId = res.body.id;
     externalId = res.body.externalId;
   });

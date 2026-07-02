@@ -107,6 +107,15 @@ export default function BillingOverviewPage() {
     <div className="mx-auto max-w-[1100px] space-y-4">
       <PageHeader title={t('title')} subtitle={t('subtitle')} />
 
+      <div>
+        <Link
+          href="/billing/fiscal"
+          className="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-[12.5px] font-medium shadow-sm transition-colors hover:bg-accent/60"
+        >
+          <ReceiptText className="size-4 text-[var(--brand)]" /> {t('fiscalLink')}
+        </Link>
+      </div>
+
       {loading && <Skeleton className="h-64 w-full rounded-xl" />}
       {isError && (
         <p role="alert" className="text-sm text-[var(--danger)]">

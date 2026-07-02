@@ -1267,6 +1267,54 @@ export interface TaxSummary {
   jurisdictions: TaxSummaryJurisdiction[];
 }
 
+/** Informe fiscal por periodo (de `GET /reports/fiscal`) — precursor del 303 (ES) / declaraciones DGII. */
+export interface FiscalTaxTypeRow {
+  code: string;
+  labelKey: string;
+  ratePercent: string;
+  base: number;
+  tax: number;
+  invoices: number;
+}
+export interface FiscalWithholdingRow {
+  code: string;
+  labelKey: string;
+  ratePercent: string;
+  base: number;
+  amount: number;
+  invoices: number;
+}
+export interface FiscalSeriesRow {
+  series: string;
+  invoices: number;
+  base: number;
+  tax: number;
+  withholding: number;
+  total: number;
+}
+export interface FiscalReportBlock {
+  format: string;
+  recordFormat: string;
+  currency: string;
+  outputTax: FiscalTaxTypeRow[];
+  withholding: FiscalWithholdingRow[];
+  bySeries: FiscalSeriesRow[];
+  totals: { base: number; tax: number; withholding: number; total: number; invoices: number };
+}
+export interface FiscalReportPeriod {
+  year: number;
+  month: number | null;
+  quarter: number | null;
+  label: string;
+  start: string;
+  end: string;
+}
+export interface FiscalReport {
+  period: FiscalReportPeriod;
+  blocks: FiscalReportBlock[];
+  note: string;
+}
+
 /** Evento de la línea de tiempo del expediente (de `GET /matters/:id/timeline`). */
 export interface TimelineEvent {
   type: 'document' | 'task' | 'deadline' | 'ledger' | 'email' | 'message';

@@ -46,6 +46,16 @@ export interface SignatureRequestInput {
   signerName: string;
   /** Email del firmante (destino del envío). */
   signerEmail: string;
+  /** Bytes del documento a firmar. El adaptador STUBBED los ignora (no transmite). */
+  documentBuffer: Buffer;
+  /** MIME type del documento (para el envío multipart al proveedor). */
+  documentMimeType: string;
+}
+
+/** Documento firmado descargado del proveedor (bytes + tipo) tras un evento `SIGNED`. */
+export interface SignedDocumentResult {
+  buffer: Buffer;
+  mimeType: string;
 }
 
 /**
@@ -109,6 +119,19 @@ export interface SignatureProvider {
 
   /** Normaliza el cuerpo del webhook del proveedor a un evento interno; `null` si es inválido. */
   parseWebhook(rawBody: string): SignatureWebhookEvent | null;
+
+  /**
+   * Descarga el documento firmado (con evidencias) tras un evento `SIGNED`. `null` si el adaptador no
+   * transmite (STUBBED) o el proveedor no tiene el documento disponible.
+   */
+  downloadSignedDocument(externalId: string): Promise<SignedDocumentResult | null>;
+
+  /**
+   * `true` si el adaptador tiene credenciales y transmite de verdad. Permite al caller distinguir
+   * "no hay proveedor del que descargar" (stub: seguir sin documento) de "el proveedor vivo falló la
+   * descarga" (reintentar: el PDF firmado con evidencias no puede perderse).
+   */
+  isConfigured(): boolean;
 }
 
 /** Token de inyección (Nest) para resolver el proveedor de firma configurado. */

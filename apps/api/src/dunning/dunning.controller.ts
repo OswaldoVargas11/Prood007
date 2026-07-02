@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query } from '@nestjs/common';
 import { Role } from '@legalflow/domain';
 import { DunningService } from './dunning.service';
 import { ListRemindersQueryDto } from './dto/list-reminders.dto';
+import { UpdateDunningRulesDto } from './dto/update-dunning-rules.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/auth.types';
@@ -25,5 +26,18 @@ export class DunningController {
   @Get('reminders')
   reminders(@CurrentUser() user: RequestUser, @Query() query: ListRemindersQueryDto) {
     return this.dunning.listReminders(user, query.invoiceId);
+  }
+
+  /** Calendario de dunning efectivo del despacho (configurado o el de por defecto). */
+  @Get('rules')
+  rules(@CurrentUser() user: RequestUser) {
+    return this.dunning.getRules(user);
+  }
+
+  /** Elige el canal de cada etapa (IN_APP por defecto; EMAIL opt-in). Solo el admin del despacho. */
+  @Put('rules')
+  @Roles(Role.FIRM_ADMIN)
+  updateRules(@CurrentUser() user: RequestUser, @Body() dto: UpdateDunningRulesDto) {
+    return this.dunning.updateRules(user, dto);
   }
 }

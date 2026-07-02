@@ -117,8 +117,8 @@ describe('parseCitationCheck', () => {
       flagged: ['dice X sin cita'],
     });
   });
-  it('ante salida no-JSON, no marca nada (verified=true)', () => {
-    expect(parseCitationCheck('no devolví json')).toEqual({ verified: true, flagged: [] });
+  it('ante salida no-JSON, estado desconocido (null), nunca un aprobado silencioso', () => {
+    expect(parseCitationCheck('no devolví json')).toBeNull();
   });
 });
 

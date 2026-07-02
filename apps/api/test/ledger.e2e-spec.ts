@@ -132,6 +132,14 @@ describe('Ledger & invoicing (e2e)', () => {
     expect(Number(res.body.invoice.total)).toBe(1060); // 1000 + 210 − 150
     expect(res.body.invoice.complianceFormat).toBe('VERIFACTU');
     expect(res.body.compliance.recordHash).toMatch(/^[a-f0-9]{64}$/);
+    // Registro AEAT generado en la emisión: XML del RegistroAlta + huella AEAT (cadena PROPIA, separada
+    // de recordHash). SIN certificado del despacho el registro queda SIN firma y, sin VERIFACTU_ENV,
+    // STUBBED (nada se transmite): el comportamiento de la emisión no cambia.
+    expect(res.body.invoice.verifactuXml).toContain('<sum1:RegistroAlta');
+    expect(res.body.invoice.verifactuXml).not.toContain('<ds:Signature');
+    expect(res.body.invoice.verifactuHuella).toMatch(/^[0-9A-F]{64}$/);
+    expect(res.body.invoice.verifactuSignedBy).toBeNull();
+    expect(res.body.invoice.verifactuStatus).toBe('STUBBED');
     firstInvoiceHash = res.body.compliance.recordHash;
   });
 
@@ -196,6 +204,17 @@ describe('Ledger & invoicing (e2e)', () => {
       .expect(201);
     expect(res.body.invoice.previousRecordHash).toBe(firstInvoiceHash);
     expect(res.body.compliance.recordHash).not.toBe(firstInvoiceHash);
+    // El registro AEAT también encadena, con SU cadena: referencia el registro anterior del despacho.
+    expect(res.body.invoice.verifactuXml).toContain('<sum1:RegistroAnterior>');
+  });
+
+  it('la cadena de eventos fiscal sigue verificando tras emitir con registro Verifactu', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/ledger/fiscal-chain/verify')
+      .set(auth(token))
+      .expect(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.checked).toBeGreaterThan(0);
   });
 
   it('emitir factura sin identificador fiscal del despacho falla (400)', async () => {
