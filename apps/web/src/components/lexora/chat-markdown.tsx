@@ -1,14 +1,33 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { ComponentPropsWithoutRef } from 'react';
+import type { Citation } from '@/lib/types';
 
 /**
  * Renderiza el Markdown que devuelve el agente de IA (encabezados, negritas, listas, tablas, código,
  * separadores) en burbujas de chat compactas. Estilado a mano con tokens del tema (claro/oscuro) en vez
  * del plugin `prose`, que deja demasiado aire para una burbuja pequeña. Solo para mensajes del asistente
  * (los del usuario son texto plano). GFM habilita tablas, tachado y checkboxes.
+ *
+ * CITAS: si se pasan `citations`, los marcadores `[n]` cuya cita existe se convierten en enlaces internos
+ * `cite:n` (antes del parseo Markdown) y se pintan como chips clicables que abren la fuente (`onCite`).
  */
-export function ChatMarkdown({ content }: { content: string }) {
+export function ChatMarkdown({
+  content,
+  citations,
+  onCite,
+}: {
+  content: string;
+  citations?: Citation[];
+  onCite?: (c: Citation) => void;
+}) {
+  const hasCites = Boolean(citations?.length);
+  // Transforma [n] → [n](cite:n) SOLO cuando existe esa cita, para que Markdown lo trate como enlace.
+  const source = hasCites
+    ? content.replace(/\[(\d+)\]/g, (m, d: string) =>
+        citations!.some((c) => c.n === Number(d)) ? `[${d}](cite:${d})` : m,
+      )
+    : content;
   return (
     <div className="space-y-2 text-sm leading-relaxed [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
       <ReactMarkdown
@@ -23,15 +42,34 @@ export function ChatMarkdown({ content }: { content: string }) {
           li: (p) => <li className="leading-snug" {...p} />,
           strong: (p) => <strong className="font-semibold" {...p} />,
           hr: () => <hr className="my-2 border-[var(--border)]" />,
-          a: ({ href, ...p }: ComponentPropsWithoutRef<'a'>) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium text-[var(--brand)] underline underline-offset-2"
-              {...p}
-            />
-          ),
+          a: ({ href, children, ...p }: ComponentPropsWithoutRef<'a'>) => {
+            // Cita interna: chip clicable que abre la fuente en el panel lateral (respetando permisos).
+            if (href?.startsWith('cite:')) {
+              const n = Number(href.slice(5));
+              const c = citations?.find((x) => x.n === n);
+              return (
+                <button
+                  type="button"
+                  onClick={() => c && onCite?.(c)}
+                  className="mx-0.5 inline-flex items-center rounded bg-[var(--brand-soft)] px-1 align-super text-[10px] font-semibold leading-tight text-[var(--brand)] hover:underline"
+                  aria-label={c ? `Ver fuente: ${c.label}` : `Cita ${n}`}
+                >
+                  {n}
+                </button>
+              );
+            }
+            return (
+              <a
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-[var(--brand)] underline underline-offset-2"
+                {...p}
+              >
+                {children}
+              </a>
+            );
+          },
           blockquote: (p) => (
             <blockquote
               className="my-2 border-l-2 border-[var(--border)] pl-2 italic opacity-90"
@@ -76,7 +114,7 @@ export function ChatMarkdown({ content }: { content: string }) {
           td: (p) => <td className="border border-[var(--border)] px-2 py-1" {...p} />,
         }}
       >
-        {content}
+        {source}
       </ReactMarkdown>
     </div>
   );

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Res } from '@nestjs/common';
 import { SkipThrottle, Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import { Role } from '@legalflow/domain';
@@ -6,7 +6,9 @@ import { AiService } from './ai.service';
 import { AiSearchService } from './ai-search.service';
 import { AiChatService } from './ai-chat.service';
 import { AiAgentService, type AgentStreamEvent } from './ai-agent.service';
+import { AiCitationService } from './ai-citation.service';
 import { AiWorkflowService } from './ai-workflow.service';
+import type { CitationKind } from './ai-citations';
 import {
   AgentDto,
   AskDto,
@@ -41,6 +43,7 @@ export class AiController {
     private readonly agent: AiAgentService,
     private readonly chat: AiChatService,
     private readonly workflows: AiWorkflowService,
+    private readonly citations: AiCitationService,
   ) {}
 
   /** ¿Está la IA disponible y con qué modelo? (para gating de la UI). No llama al modelo → sin throttle estricto. */
@@ -147,10 +150,28 @@ export class AiController {
         model: null,
         stopReason: 'error',
         pendingWrites: [],
+        citations: [],
       });
     } finally {
       if (!res.writableEnded) res.end();
     }
+  }
+
+  /**
+   * Resuelve una CITA del agente ([n]) a su fuente, respetando los permisos del usuario (documentos vía
+   * DocumentsService.getOne — 404 si no le pertenece; expedientes/clientes acotados por tenant). La usa el
+   * panel lateral del dock al pinchar un marcador. No llama al modelo → sin throttle estricto de IA.
+   */
+  @SkipThrottle()
+  @RequiresFeature('ai')
+  @Get('citations/resolve')
+  resolveCitation(
+    @CurrentUser() user: RequestUser,
+    @Query('kind') kind: CitationKind,
+    @Query('refId') refId: string,
+    @Query('quote') quote?: string,
+  ) {
+    return this.citations.resolve(user, kind, refId, quote);
   }
 
   // ── Persistencia del chat de Zora ─────────────────────────────────────────
