@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual } from 'node:crypto';
 import {
   BadRequestException,
   Controller,
@@ -50,8 +50,11 @@ export class SignaturesWebhookController {
   }
 
   /**
-   * Valida `Authorization: Basic base64(usuario:contraseña)` contra SIGNATURE_WEBHOOK_SECRET
-   * (contraseña; el usuario se ignora), en tiempo constante vía hash. Fail-closed sin secreto.
+   * Valida `Authorization: Basic base64(usuario:token)` contra SIGNATURE_WEBHOOK_SECRET. El
+   * credencial NO es una contraseña de usuario sino un token compartido GENERADO (alta entropía)
+   * embebido en la events_url; el usuario se ignora. Comparación en tiempo constante
+   * (`timingSafeEqual`); la comprobación previa de longitud solo revela la longitud del token, que
+   * con un secreto aleatorio largo no aporta nada al atacante. Fail-closed sin secreto configurado.
    */
   private basicAuthValid(authorization?: string): boolean {
     const secret = process.env.SIGNATURE_WEBHOOK_SECRET;
@@ -62,10 +65,10 @@ export class SignaturesWebhookController {
     } catch {
       return false;
     }
-    const password = decoded.includes(':') ? decoded.slice(decoded.indexOf(':') + 1) : '';
-    // Hash previo: iguala longitudes para poder comparar en tiempo constante sin filtrar la longitud.
-    const a = createHash('sha256').update(password, 'utf8').digest();
-    const b = createHash('sha256').update(secret, 'utf8').digest();
+    const providedToken = decoded.includes(':') ? decoded.slice(decoded.indexOf(':') + 1) : '';
+    const a = Buffer.from(providedToken, 'utf8');
+    const b = Buffer.from(secret, 'utf8');
+    if (a.length !== b.length) return false;
     return timingSafeEqual(a, b);
   }
 }
