@@ -24,3 +24,8 @@ export function signatureStatusVariant(
 export function isSignaturePending(status: SignatureStatus): boolean {
   return status === 'PENDING' || status === 'STUBBED';
 }
+
+/** Una solicitud terminal sin firma (rechazada/caducada/cancelada) admite reenvío al mismo firmante. */
+export function isSignatureResendable(status: SignatureStatus): boolean {
+  return status === 'DECLINED' || status === 'EXPIRED' || status === 'CANCELED';
+}

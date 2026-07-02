@@ -15,6 +15,7 @@ import {
   DunningDeliveryInput,
 } from './channels/dunning-channel';
 import { defaultDunningRules } from './dunning.policy';
+import type { UpdateDunningRulesDto } from './dto/update-dunning-rules.dto';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Regla efectiva del calendario, con el id de la `DunningRule` que la originó (null si es default). */
@@ -135,6 +136,43 @@ export class DunningService {
     });
   }
 
+  /**
+   * Calendario efectivo del despacho para mostrarlo en Ajustes: las reglas configuradas o, si no hay
+   * ninguna, el calendario por defecto (todo IN_APP) tal cual lo aplicaría el motor.
+   */
+  async getRules(user: RequestUser) {
+    const rules = await this.effectiveRules(user.tenantId, user.jurisdiction);
+    return { custom: rules.some((r) => r.ruleId !== null), rules };
+  }
+
+  /**
+   * El despacho elige el canal de cada etapa (IN_APP por defecto; EMAIL opt-in). El `offsetDays` de
+   * cada etapa es fijo (calendario único ES/RD, ver `dunning.policy`); solo se puede cambiar el canal.
+   * SMS queda reservado y se rechaza en el DTO.
+   */
+  async updateRules(user: RequestUser, dto: UpdateDunningRulesDto) {
+    const defaults = defaultDunningRules(user.jurisdiction);
+    for (const entry of dto.rules) {
+      const base = defaults.find((d) => d.severity === entry.severity);
+      if (!base) continue;
+      await this.prisma.dunningRule.upsert({
+        where: { tenantId_offsetDays: { tenantId: user.tenantId, offsetDays: base.offsetDays } },
+        update: { severity: entry.severity, channel: entry.channel, active: true },
+        create: {
+          tenantId: user.tenantId,
+          offsetDays: base.offsetDays,
+          severity: entry.severity,
+          channel: entry.channel,
+          active: true,
+        },
+      });
+    }
+    await this.audit.log(user, 'dunning.rules_updated', 'Tenant', user.tenantId, {
+      rules: dto.rules,
+    });
+    return this.getRules(user);
+  }
+
   /** Reglas configuradas por el despacho; si no hay ninguna activa, el calendario por defecto. */
   private async effectiveRules(
     tenantId: string,
@@ -189,9 +227,21 @@ export class DunningService {
       throw err;
     }
 
-    const dispatcher = this.channels.get(rule.channel);
+    // Canal solicitado no operativo (p. ej. EMAIL sin SMTP_HOST): degrada a IN_APP en vez de perder el
+    // aviso, así el despacho se entera igualmente aunque el cliente no reciba el correo.
+    let dispatcher = this.channels.get(rule.channel);
+    let deliveredChannel = rule.channel;
+    let degraded = false;
+    if ((!dispatcher || !dispatcher.isEnabled()) && rule.channel !== DunningChannel.IN_APP) {
+      const fallback = this.channels.get(DunningChannel.IN_APP);
+      if (fallback?.isEnabled()) {
+        dispatcher = fallback;
+        deliveredChannel = DunningChannel.IN_APP;
+        degraded = true;
+      }
+    }
     if (!dispatcher || !dispatcher.isEnabled()) {
-      // Canal aún no disponible (EMAIL/SMS en Fase 2): se deja registrado como SKIPPED, no se pierde.
+      // Ni el canal pedido ni el de respaldo están operativos: se deja registrado como SKIPPED.
       await this.prisma.dunningReminder.update({
         where: { id: reminder.id },
         data: {
@@ -212,7 +262,13 @@ export class DunningService {
       });
       await this.prisma.dunningReminder.update({
         where: { id: reminder.id },
-        data: { status: DunningReminderStatus.SENT, sentAt: new Date() },
+        data: {
+          status: DunningReminderStatus.SENT,
+          sentAt: new Date(),
+          ...(degraded
+            ? { metadata: { degradedTo: deliveredChannel, reason: 'channel_unavailable' } }
+            : {}),
+        },
       });
       await this.audit.log(
         actor ?? { tenantId },
@@ -225,6 +281,7 @@ export class DunningService {
           offsetDays: rule.offsetDays,
           severity: rule.severity,
           channel: rule.channel,
+          deliveredChannel,
         },
       );
       return 'delivered';

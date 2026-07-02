@@ -478,6 +478,12 @@ export const API_MESSAGES = {
     'es-ES': 'Se han agotado los eNCF del rango autorizado.',
     'es-DO': 'Se han agotado los eNCF del rango autorizado. Solicita un rango nuevo en la DGII.',
   },
+  'ledger.ecfCertRequired': {
+    'es-ES':
+      'No se puede emitir el e-CF: falta el certificado digital del despacho. Súbelo en Ajustes antes de emitir con la DGII activada.',
+    'es-DO':
+      'No se puede emitir el e-CF: falta el certificado digital del despacho. Súbelo en Ajustes antes de emitir con la DGII activada.',
+  },
   'dgii.encfRangeInvalid': {
     'es-ES': 'Rango de eNCF inválido (revisa inicio/fin).',
     'es-DO': 'Rango de eNCF inválido (revisa inicio/fin).',

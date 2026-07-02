@@ -14,6 +14,19 @@
       "runtimeArgs": ["--filter", "@legalflow/web", "dev"],
       "port": 3000,
       "autoPort": false
+    },
+    {
+      "name": "lawzora-web-agents",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "-C",
+        "C:\\Users\\OswaldoVargasRodrigu\\Prod007-agents",
+        "--filter",
+        "@legalflow/web",
+        "dev"
+      ],
+      "port": 3000,
+      "autoPort": false
     }
   ]
 }

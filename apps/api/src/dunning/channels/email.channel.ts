@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DunningChannel, DunningSeverity } from '@legalflow/domain';
 import {
   MAIL_PROVIDER,
@@ -18,18 +19,29 @@ const SEVERITY_SUBJECT: Record<DunningSeverity, string> = {
 /**
  * Canal EMAIL del dunning: envía el recordatorio de impago al CLIENTE por correo. Coexiste con el
  * canal IN_APP (no lo sustituye). Solo actúa si el cliente tiene email; si no, omite con gracia.
- * El envío real depende del `MailProvider` activo (SMTP si `SMTP_HOST`, Noop en dev/CI).
+ * El envío real depende del `MailProvider` activo (SMTP/Brevo si `SMTP_HOST`, Noop en dev/CI).
  */
 @Injectable()
 export class EmailChannel implements DunningChannelDispatcher {
   readonly channel = DunningChannel.EMAIL;
   private readonly logger = new Logger(EmailChannel.name);
 
-  constructor(@Inject(MAIL_PROVIDER) private readonly mail: MailProvider) {}
+  constructor(
+    @Inject(MAIL_PROVIDER) private readonly mail: MailProvider,
+    private readonly config: ConfigService,
+  ) {}
 
-  /** Habilitado como punto de integración; el envío concreto es fail-soft y omite si no hay email. */
+  private appBase(): string {
+    return this.config.get<string>('APP_PUBLIC_URL') ?? 'https://lawzora.com';
+  }
+
+  /**
+   * Sin `SMTP_HOST` el `MailProvider` activo es el stub Noop (no llega correo real al cliente), así
+   * que el canal se declara no operativo para que el motor degrade a IN_APP en vez de marcar el envío
+   * como hecho sin haber salido nada.
+   */
   isEnabled(): boolean {
-    return true;
+    return !!this.config.get<string>('SMTP_HOST');
   }
 
   async deliver(input: DunningDeliveryInput): Promise<void> {
@@ -44,10 +56,12 @@ export class EmailChannel implements DunningChannelDispatcher {
 
     const subject = `${SEVERITY_SUBJECT[input.severity]}: factura ${input.invoice.number}`;
     const amount = `${input.invoice.total} ${input.invoice.currency}`;
+    const portalLink = `${this.appBase()}/es/portal`;
     const text =
       `Estimado/a ${input.client.name}:\n\n` +
       `Le recordamos que la factura ${input.invoice.number} por ${amount} se encuentra vencida.\n` +
       `Le agradeceríamos regularizar el pago a la mayor brevedad.\n\n` +
+      `Vea la factura en su portal:\n${portalLink}\n\n` +
       `Si ya ha realizado el pago, por favor ignore este mensaje.`;
     // M-5 (CWE-79): el nombre del cliente puede venir del intake PÚBLICO (sin allowlist de caracteres),
     // así que se escapa antes de insertarlo en el HTML. El nº de factura y el importe son server-side.
@@ -63,6 +77,7 @@ export class EmailChannel implements DunningChannelDispatcher {
           `<strong>${safeAmount}</strong> se encuentra vencida.`,
         'Le agradeceríamos regularizar el pago a la mayor brevedad.',
       ],
+      button: { label: 'Ver factura en el portal', url: portalLink },
       note: 'Si ya ha realizado el pago, por favor ignore este mensaje.',
     });
 

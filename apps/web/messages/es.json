@@ -764,7 +764,35 @@
     "colClient": "Cliente",
     "colBilled": "Facturado",
     "colBalance": "Saldo",
-    "hint": "El detalle y la emisión de facturas se gestionan dentro de cada expediente (pestaña Costes)."
+    "hint": "El detalle y la emisión de facturas se gestionan dentro de cada expediente (pestaña Costes).",
+    "fiscalLink": "Informe fiscal por periodo"
+  },
+  "fiscalReport": {
+    "title": "Informe fiscal por periodo",
+    "subtitle": "Base imponible, impuesto repercutido por tipo, retención IRPF y desglose por serie. Precursor del modelo 303 (ES) y de las declaraciones DGII (RD).",
+    "back": "Volver a Facturación",
+    "selectYear": "Año",
+    "selectQuarter": "Trimestre",
+    "selectMonth": "Mes",
+    "fullYear": "Año completo",
+    "allMonths": "Todos los meses",
+    "exportPdf": "PDF",
+    "exportExcel": "Excel",
+    "loadError": "No se pudo cargar el informe fiscal.",
+    "empty": "Sin facturas emitidas en este periodo.",
+    "outputTitle": "Impuesto repercutido por tipo",
+    "withholdingTitle": "Retención IRPF practicada",
+    "seriesTitle": "Por serie de facturación",
+    "concept": "Concepto",
+    "invoices": "Facturas",
+    "base": "Base imponible",
+    "tax": "Cuota",
+    "withholding": "Retención",
+    "total": "Total",
+    "series": "Serie",
+    "totals": "Totales",
+    "model303": "Para el modelo 303 (ES)",
+    "note": "Datos agregados sobre las facturas emitidas; no es una presentación telemática oficial."
   },
   "savedViews": {
     "saveCurrent": "Guardar vista",
@@ -2003,6 +2031,17 @@
       "enabledOn": "Transmisión a la DGII activada ({env}).",
       "enabledOff": "Transmisión a la DGII apagada en el servidor (pendiente de activar)."
     },
+    "verifactu": {
+      "title": "Certificado Verifactu (AEAT)",
+      "desc": "Certificado .p12 del despacho (FNMT/representante) para firmar los registros de facturación Verifactu y remitirlos a la AEAT (ES).",
+      "password": "Contraseña del certificado",
+      "passwordRequired": "Escribe la contraseña del certificado antes de subirlo.",
+      "upload": "Subir certificado",
+      "replace": "Reemplazar",
+      "uploaded": "Certificado cargado",
+      "noneWarning": "Sin certificado, las facturas se emiten con su registro Verifactu encadenado pero SIN firma electrónica y no podrán remitirse a la AEAT. Verifactu será obligatorio en 2027: sube el certificado del despacho con antelación.",
+      "error": "No se pudo subir el certificado."
+    },
     "stripe": {
       "title": "Cobro online (Stripe)",
       "desc": "Conecta tu cuenta de Stripe para cobrar facturas con tarjeta. El dinero va a tu cuenta.",
@@ -2348,6 +2387,7 @@
     "send": "Enviar a firmar",
     "cancel": "Cancelar",
     "cancelRequest": "Cancelar solicitud",
+    "resend": "Reenviar",
     "loading": "Cargando firmas…",
     "empty": "Sin solicitudes de firma.",
     "error": "No se pudo solicitar la firma.",

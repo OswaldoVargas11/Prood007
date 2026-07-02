@@ -1617,6 +1617,23 @@ model Invoice {
   // conseguir TrackId (fase de envío → fase de acuse) y al llegar a un estado final.
   ecfAttempts     Int       @default(0)
 
+  // Registro de facturación Verifactu (AEAT, ES) generado EN LA EMISIÓN. `verifactuXml` = XML del
+  // RegistroAlta (firmado XAdES-BES si el despacho tenía certificado — `verifactuSignedBy` = CN del cert;
+  // null = sin firma). `verifactuHuella` = huella AEAT (algoritmo oficial Orden HAC/1177/2024), encadenada
+  // SOLO entre registros Verifactu y SEPARADA de `recordHash` (la cadena interna, cuyo formato no cambia).
+  // Estas tres columnas son INSERT-ONLY para el rol de app (inalterabilidad, como complianceRecord).
+  verifactuXml      String?
+  verifactuHuella   String?
+  verifactuSignedBy String?
+  // Ciclo de vida de la REMISIÓN a la AEAT (modalidad VERI*FACTU); columnas con UPDATE para el rol de app.
+  // CSV = código seguro de verificación del acuse de la AEAT. Attempts = reintentos del cron desde el
+  // último cambio de fase (mismo patrón que ecfAttempts).
+  verifactuStatus       VerifactuStatus @default(NOT_APPLICABLE)
+  verifactuStatusDetail String?
+  verifactuCsv          String?
+  verifactuSubmittedAt  DateTime?
+  verifactuAttempts     Int             @default(0)
+
   // Tipo de documento: NORMAL | RECTIFICATIVA (D-027 (c)). Una rectificativa referencia la factura que
   // corrige (`rectifiesInvoiceId`), su causa y su método (sustitución/diferencias). Las facturas de
   // anticipo quedan inmutables; la rectificativa es un registro nuevo encadenado.
@@ -1649,6 +1666,8 @@ model Invoice {
   @@index([tenantId, dueDate])
   // Barrido global del cron de reintento e-CF (busca PENDING entre todos los tenants).
   @@index([ecfStatus])
+  // Barrido global del cron de remisión Verifactu (busca PENDING entre todos los tenants).
+  @@index([verifactuStatus])
 }
 
 /// Estado de la transmisión del e-CF a la DGII (RD).
@@ -1658,6 +1677,16 @@ enum EcfStatus {
   PENDING // Enviado a la DGII, pendiente de acuse (o pendiente de transmitir).
   ACCEPTED // Aceptado por la DGII.
   REJECTED // Rechazado por la DGII (ver ecfStatusDetail).
+}
+
+/// Estado de la remisión del registro de facturación Verifactu a la AEAT (ES, modalidad VERI*FACTU).
+enum VerifactuStatus {
+  NOT_APPLICABLE // No aplica (e-CF/RD o factura anterior a la generación del registro AEAT).
+  STUBBED // Remisión apagada al emitir (sin VERIFACTU_ENV): no se remite (activarla no re-remite histórico).
+  PENDING // Registro generado, pendiente de remitir (o fallo transitorio de transporte: se reintenta).
+  ACCEPTED // Acuse AEAT: registro Correcto.
+  ACCEPTED_WITH_ERRORS // Acuse AEAT: AceptadoConErrores (registrado; revisar detalle).
+  REJECTED // Acuse AEAT: Incorrecto (ver verifactuStatusDetail; subsanación manual).
 }
 
 /// Vista guardada (preset de filtros) PRIVADA por usuario, por ámbito (facturas/tareas/expedientes).

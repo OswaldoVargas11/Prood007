@@ -96,6 +96,7 @@ import type {
   PortalInvoice,
   Profitability,
   TaxSummary,
+  FiscalReport,
   GlobalSearch,
   TimelineEvent,
   ProvisionKind,
@@ -618,6 +619,33 @@ export function useTaxSummary(year: number, quarter: number) {
     queryKey: ['reports', 'tax-summary', year, quarter],
     queryFn: () => api.get<TaxSummary>(`/reports/tax-summary?year=${year}&quarter=${quarter}`),
   });
+}
+
+/**
+ * Informe fiscal por periodo (año + mes | trimestre). `month` (1-12) manda sobre `quarter` (1-4);
+ * 0 en ambos = año completo. Precursor del modelo 303 (ES) y de las declaraciones DGII (RD).
+ */
+export function useFiscalReport(year: number, month: number, quarter: number) {
+  return useQuery({
+    queryKey: ['reports', 'fiscal', year, month, quarter],
+    queryFn: () =>
+      api.get<FiscalReport>(`/reports/fiscal?year=${year}&month=${month}&quarter=${quarter}`),
+  });
+}
+
+/** Descarga el informe fiscal del periodo (PDF o Excel) y dispara la descarga en el navegador. */
+export async function downloadFiscalReport(
+  kind: 'pdf' | 'xlsx',
+  params: { year: number; month: number; quarter: number },
+): Promise<void> {
+  const qs = `year=${params.year}&month=${params.month}&quarter=${params.quarter}`;
+  const blob = await api.download(`/reports/fiscal/${kind}?${qs}`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `informe-fiscal.${kind}`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 /** Búsqueda global del despacho (clientes/expedientes/documentos/facturas). */
@@ -2426,6 +2454,34 @@ export function useUploadDgiiCertificate() {
       return api.upload<{ commonName: string | null }>('/dgii/certificate', form);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['dgii-status'] }),
+  });
+}
+
+// ── Facturación electrónica ES (Verifactu · AEAT) ────────────────────────────
+
+export type VerifactuStatusResponse = {
+  uploaded: boolean;
+  name: string | null;
+  uploadedAt: string | null;
+};
+
+export function useVerifactuStatus() {
+  return useQuery({
+    queryKey: ['verifactu-status'],
+    queryFn: () => api.get<VerifactuStatusResponse>('/verifactu/status'),
+  });
+}
+
+export function useUploadVerifactuCertificate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ file, password }: { file: File; password: string }) => {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('password', password);
+      return api.upload<{ commonName: string | null }>('/verifactu/certificate', form);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['verifactu-status'] }),
   });
 }
 

@@ -216,7 +216,13 @@ export function deadlineReminderMessage(
  */
 export function chatDigestMessage(
   to: string,
-  opts: { fullName?: string | null; subject: string; totalCount: number; lines: string[]; link: string },
+  opts: {
+    fullName?: string | null;
+    subject: string;
+    totalCount: number;
+    lines: string[];
+    link: string;
+  },
 ): MailMessage {
   const greeting = opts.fullName ? `Hola ${escapeHtml(opts.fullName)},` : 'Hola,';
   const intro =
@@ -239,6 +245,36 @@ export function chatDigestMessage(
     note: 'Recibes este resumen porque lo activaste en tus preferencias de notificación. Puedes desactivarlo cuando quieras.',
   });
   return { to, subject: opts.subject, html, text };
+}
+
+/**
+ * Plantilla del correo de SOLICITUD DE FIRMA electrónica: se envía al firmante (a menudo el cliente)
+ * cuando el despacho pide firmar un documento. Lleva el enlace de firma del proveedor (`signUrl`); si
+ * el adaptador está STUBBED (sin transmisión real) el enlace es un placeholder y no debe usarse en
+ * producción, pero el correo se envía igual para no bloquear el flujo de notificación.
+ */
+export function signatureRequestMessage(
+  to: string,
+  opts: { signerName: string; documentName: string; firmName: string; signUrl: string },
+): MailMessage {
+  const name = escapeHtml(opts.signerName);
+  const document = escapeHtml(opts.documentName);
+  const firm = escapeHtml(opts.firmName);
+  const subject = `Solicitud de firma: ${opts.documentName}`;
+  const text =
+    `Hola ${opts.signerName},\n\n` +
+    `${opts.firmName} te ha enviado el documento "${opts.documentName}" para tu firma electrónica.\n\n` +
+    `Fírmalo aquí:\n${opts.signUrl}`;
+  const html = renderEmail({
+    heading: 'Solicitud de firma electrónica',
+    paragraphs: [
+      `Hola ${name},`,
+      `<strong>${firm}</strong> te ha enviado el documento <strong>${document}</strong> para tu firma electrónica.`,
+    ],
+    button: { label: 'Firmar documento', url: opts.signUrl },
+    note: 'Si no esperabas este correo, ignóralo.',
+  });
+  return { to, subject, html, text };
 }
 
 /**

@@ -1,6 +1,6 @@
 import { createHash } from 'crypto';
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { EcfStatus, Prisma, type Currency } from '@prisma/client';
+import { EcfStatus, Prisma, VerifactuStatus, type Currency } from '@prisma/client';
 import {
   ApprovalStatus,
   InvoiceDocumentType,
@@ -31,6 +31,11 @@ import { buildInvoicePdf, invoiceRowToPdfData } from './invoice-pdf';
 import { isInlineSafeMime, sniffSafeUploadType } from '../common/safe-download';
 import { PaymentsService } from '../payments/payments.service';
 import { EcfTransmissionService } from '../dgii/ecf-transmission.service';
+import { DgiiConfig } from '../dgii/dgii.config';
+import { assertCanEmitFormat } from './emission-guard';
+import { VerifactuConfig } from '../verifactu/verifactu.config';
+import { VerifactuRegistroService } from '../verifactu/verifactu-registro.service';
+import { VerifactuSubmissionService } from '../verifactu/verifactu-submission.service';
 import {
   DEFAULT_PAYMENT_TERM_DAYS,
   addDaysUtc,
@@ -70,6 +75,10 @@ export class LedgerService {
     private readonly notifications: NotificationsService,
     private readonly payments: PaymentsService,
     private readonly ecfTransmission: EcfTransmissionService,
+    private readonly dgiiConfig: DgiiConfig,
+    private readonly verifactuConfig: VerifactuConfig,
+    private readonly verifactuRegistro: VerifactuRegistroService,
+    private readonly verifactuSubmission: VerifactuSubmissionService,
     @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
   ) {}
 
@@ -314,6 +323,14 @@ export class LedgerService {
         .catch(() => null);
       if (result) invoice.ecfStatus = result.status;
     }
+    // Verifactu (ES): misma mecánica — remisión a la AEAT fuera de la transacción y best-effort (un
+    // fallo deja el registro PENDING y el cron lo reintenta). Solo si la emisión lo dejó a remitir.
+    if (record.format === 'VERIFACTU' && invoice.verifactuStatus === VerifactuStatus.PENDING) {
+      const result = await this.verifactuSubmission
+        .transmit(user.tenantId, invoice.id)
+        .catch(() => null);
+      if (result) invoice.verifactuStatus = result.status;
+    }
     return { invoice, compliance: record };
   }
 
@@ -382,9 +399,29 @@ export class LedgerService {
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(2, hashtext(${user.tenantId}))`;
     const tenantRow = await tx.tenant.findUniqueOrThrow({
       where: { id: user.tenantId },
-      select: { invoiceSeries: true },
+      select: { invoiceSeries: true, certificateKey: true },
     });
     const series = tenantRow.invoiceSeries || 'FAC';
+    // Verja de capacidad de emisión (Parte A): valida ANTES de numerar/emitir que el despacho PUEDE emitir
+    // en el formato pedido. RD (e-CF): un rango eNCF vencido/agotado corta siempre; con la transmisión a la
+    // DGII activada, exige además un rango vigente registrado + certificado del despacho. ES/Verifactu no
+    // tiene verja (régimen aplazado). Bajo el advisory lock, así que la lectura del rango no tiene carreras.
+    const ncfType = p.rectification ? '34' : '31';
+    const ecfRange =
+      invoiceFormat === Jurisdiction.DO
+        ? await tx.ecfSequence.findUnique({
+            where: { tenantId_ncfType: { tenantId: user.tenantId, ncfType } },
+            select: { expiresAt: true, next: true, rangeEnd: true },
+          })
+        : null;
+    assertCanEmitFormat({
+      invoiceFormat,
+      ncfType,
+      ecfRange,
+      hasEcfCertificate: Boolean(tenantRow.certificateKey),
+      dgiiEnabled: this.dgiiConfig.enabled,
+      now: Date.now(),
+    });
     // Numeración fiscal del país. Todo bajo el advisory lock de emisión por tenant (sin carreras):
     //  - RD (e-CF): el número ES el eNCF, tomado de un RANGO AUTORIZADO por la DGII del despacho
     //    (`EcfSequence`), no de una serie interna (D8-005). Tipo 34 = nota de crédito (rectificativa); 31 =
@@ -398,7 +435,7 @@ export class LedgerService {
       // rectificativas, 31 crédito fiscal por defecto). Si AÚN no lo ha registrado, caemos a la serie
       // interna (comportamiento previo): así el despacho sigue operando hasta dar de alta sus rangos en la
       // DGII, y un rango vencido/agotado sí corta la emisión con un error claro (ver allocateEncf).
-      number = await this.allocateEncf(tx, user.tenantId, p.rectification ? '34' : '31');
+      number = await this.allocateEncf(tx, user.tenantId, ncfType);
     }
     if (number === null) {
       const next = await this.nextSequence(tx, user.tenantId, `${series}:${fiscalYear}`);
@@ -433,6 +470,42 @@ export class LedgerService {
         : undefined,
       previousRecordHash: previous?.recordHash ?? GENESIS_HASH,
     });
+    // Registro de facturación AEAT (solo VERIFACTU): XML del RegistroAlta + huella AEAT (cadena PROPIA,
+    // separada de recordHash — el formato de la cadena interna no cambia) + firma XAdES-BES si el
+    // despacho tiene certificado. Nace en el INSERT porque esas columnas son inalterables para el rol de
+    // app. Best-effort: un fallo generando el registro AEAT no rompe la emisión (queda el detalle).
+    let verifactu: { xml: string; huella: string; signedBy: string | null } | null = null;
+    let verifactuDetail: string | null = null;
+    if (record.format === 'VERIFACTU') {
+      try {
+        verifactu = await this.verifactuRegistro.buildAndSign(tx, user.tenantId, {
+          nifEmisor: p.matter.tenant.taxId as string,
+          nombreRazonEmisor: p.matter.tenant.name,
+          numSerieFactura: number,
+          fechaExpedicion: p.issueDate,
+          destinatario: { nombreRazon: p.matter.client.name, nif: p.matter.client.taxId },
+          rectificacion: p.rectification
+            ? {
+                tipoRectificativa:
+                  p.rectification.mode === RectificationMode.SUSTITUCION ? 'S' : 'I',
+                rectifiedNumber: p.rectification.rectifiedNumber,
+                rectifiedIssueDate: p.rectification.rectifiedIssueDate,
+                reason: p.rectification.reason,
+              }
+            : undefined,
+          lines: p.lines,
+          rates: provider.getTaxRates().rates,
+          totals: record.totals,
+        });
+        if (!verifactu.signedBy) {
+          verifactuDetail =
+            'Registro generado SIN firma: el despacho no tiene certificado Verifactu (súbelo en Ajustes).';
+        }
+      } catch (err) {
+        verifactuDetail =
+          `No se pudo generar el registro Verifactu: ${(err as Error).message}`.slice(0, 1000);
+      }
+    }
     const invoice = await tx.invoice.create({
       data: {
         tenantId: user.tenantId,
@@ -456,6 +529,18 @@ export class LedgerService {
         // Estado inicial del e-CF: STUBBED para RD (lo transmite createInvoice tras emitir, si está
         // activado); NOT_APPLICABLE para ES/Verifactu. La transmisión real nunca va dentro de la tx.
         ecfStatus: record.format === 'ECF' ? EcfStatus.STUBBED : EcfStatus.NOT_APPLICABLE,
+        // Registro Verifactu (AEAT): inalterable desde el INSERT. PENDING = a remitir (inline tras la
+        // emisión o cron); STUBBED = remisión apagada al emitir (VERIFACTU_ENV sin definir; activarla
+        // después no re-remite el histórico). La remisión real nunca va dentro de la tx.
+        verifactuXml: verifactu?.xml ?? null,
+        verifactuHuella: verifactu?.huella ?? null,
+        verifactuSignedBy: verifactu?.signedBy ?? null,
+        verifactuStatus: verifactu
+          ? this.verifactuConfig.enabled
+            ? VerifactuStatus.PENDING
+            : VerifactuStatus.STUBBED
+          : VerifactuStatus.NOT_APPLICABLE,
+        verifactuStatusDetail: verifactuDetail,
         documentType: p.rectification
           ? InvoiceDocumentType.RECTIFICATIVA
           : InvoiceDocumentType.NORMAL,
@@ -692,6 +777,13 @@ export class LedgerService {
         .transmit(user.tenantId, invoice.id)
         .catch(() => null);
       if (result) invoice.ecfStatus = result.status;
+    }
+    // Verifactu (ES): la rectificativa (R1) también se remite a la AEAT (ver createInvoice).
+    if (record.format === 'VERIFACTU' && invoice.verifactuStatus === VerifactuStatus.PENDING) {
+      const result = await this.verifactuSubmission
+        .transmit(user.tenantId, invoice.id)
+        .catch(() => null);
+      if (result) invoice.verifactuStatus = result.status;
     }
     return { invoice, compliance: record };
   }

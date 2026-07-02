@@ -47,6 +47,8 @@ import {
   useUploadCertificate,
   useDgiiStatus,
   useUploadDgiiCertificate,
+  useVerifactuStatus,
+  useUploadVerifactuCertificate,
 } from '@/lib/hooks';
 import { formatDate } from '@/lib/format';
 import { ApiError } from '@/lib/api';
@@ -91,6 +93,7 @@ export default function SettingsPage() {
       <HolidaysCard />
       <SecurityCard />
       <CertificateCard />
+      <VerifactuCertificateCard />
       <DgiiCertificateCard />
       <GoogleCard />
       <MicrosoftCard />
@@ -1051,6 +1054,88 @@ function CertificateCard() {
       ) : (
         <p className="text-[12.5px] text-muted-foreground">{t('cert.none')}</p>
       )}
+    </Section>
+  );
+}
+
+/**
+ * Certificado Verifactu (.p12 + contraseña) para FIRMAR los registros de facturación y remitirlos a la
+ * AEAT. Solo despachos de jurisdicción ES. Sin certificado, la emisión sigue funcionando (registro
+ * encadenado SIN firma): el aviso lo deja claro para llegar a la obligación de 2027 con margen.
+ */
+function VerifactuCertificateCard() {
+  const t = useTranslations('settings');
+  const locale = useLocale();
+  const { data } = useSettings();
+  const status = useVerifactuStatus();
+  const upload = useUploadVerifactuCertificate();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  if (data?.tenant.jurisdiction !== 'es') return null;
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!password.trim()) {
+      setError(t('verifactu.passwordRequired'));
+      return;
+    }
+    setError(null);
+    try {
+      await upload.mutateAsync({ file, password });
+      setPassword('');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t('verifactu.error'));
+    }
+  }
+
+  const cert = status.data;
+  return (
+    <Section
+      icon={<FileBadge className="size-5 text-[var(--brand)]" />}
+      title={t('verifactu.title')}
+      desc={t('verifactu.desc')}
+    >
+      <div className="space-y-3">
+        {cert?.uploaded ? (
+          <div className="flex items-center gap-2 rounded-lg border bg-[var(--success-soft)] px-3 py-2.5 text-[13px]">
+            <FileBadge className="size-4 text-[var(--success)]" />
+            <span className="font-medium">{cert.name ?? t('verifactu.uploaded')}</span>
+            {cert.uploadedAt && (
+              <span className="ml-auto text-[11.5px] text-muted-foreground">
+                {formatDate(cert.uploadedAt, locale)}
+              </span>
+            )}
+          </div>
+        ) : (
+          <p className="rounded-lg border bg-[var(--warning-soft)] px-3 py-2.5 text-[12.5px]">
+            {t('verifactu.noneWarning')}
+          </p>
+        )}
+        {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder={t('verifactu.password')}
+            className="sm:max-w-xs"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => fileRef.current?.click()}
+            disabled={upload.isPending}
+          >
+            {upload.isPending ? <Loader2 className="animate-spin" /> : <Upload />}
+            {cert?.uploaded ? t('verifactu.replace') : t('verifactu.upload')}
+          </Button>
+        </div>
+        <input ref={fileRef} type="file" accept=".p12,.pfx" className="hidden" onChange={onFile} />
+      </div>
     </Section>
   );
 }

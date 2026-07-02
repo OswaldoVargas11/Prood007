@@ -69,6 +69,13 @@ export class SpainComplianceProvider implements ComplianceProvider {
           ratePercent: '10',
           withholding: false,
         },
+        // Tipo superreducido (4 %): p. ej. libros/prensa jurídica y ciertos suministros.
+        {
+          code: 'IVA_SUPERREDUCED',
+          labelKey: 'tax.es.ivaSuper',
+          ratePercent: '4',
+          withholding: false,
+        },
         // Retención IRPF profesional: 15 % régimen general, 7 % primeros años.
         { code: 'IRPF_GENERAL', labelKey: 'tax.es.irpf', ratePercent: '15', withholding: true },
         {

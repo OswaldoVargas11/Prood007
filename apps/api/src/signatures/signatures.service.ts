@@ -1,14 +1,21 @@
 import { randomBytes } from 'node:crypto';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   SignatureProviderFactory,
   type SignatureProvider,
   type SignatureProviderName,
 } from '@legalflow/compliance';
+import { STORAGE_PROVIDER, type StorageProvider } from '@legalflow/domain';
 import { PrismaService, SystemPrismaService } from '../prisma/prisma.service';
 import { runWithTenant } from '../prisma/tenant-context';
 import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import {
+  MAIL_PROVIDER,
+  signatureRequestMessage,
+  type MailProvider,
+} from '../auth/mail/mail.provider';
+import { DocumentsService } from '../documents/documents.service';
 import { apiError } from '../common/api-messages';
 import type { RequestUser } from '../auth/auth.types';
 import type { RequestSignatureDto } from './dto/request-signature.dto';
@@ -18,9 +25,12 @@ const TERMINAL = new Set(['SIGNED', 'DECLINED', 'EXPIRED', 'CANCELED']);
 
 @Injectable()
 export class SignaturesService {
+  private readonly logger = new Logger(SignaturesService.name);
+
   /**
-   * Proveedor de firma configurado (Signaturit por defecto). El adaptador está LISTO pero no
-   * transmite (devuelve `STUBBED`); ver `@legalflow/compliance` signature.interface.ts.
+   * Proveedor de firma configurado (Signaturit por defecto). Sin `SIGNATURIT_API_KEY` el adaptador no
+   * transmite (devuelve `STUBBED`); con ella, transmite de verdad. Ver `@legalflow/compliance`
+   * signature.interface.ts.
    */
   private readonly provider: SignatureProvider = SignatureProviderFactory.get(
     (process.env.SIGNATURE_PROVIDER as SignatureProviderName | undefined) ?? 'signaturit',
@@ -31,6 +41,9 @@ export class SignaturesService {
     private readonly system: SystemPrismaService,
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
+    private readonly documents: DocumentsService,
+    @Inject(STORAGE_PROVIDER) private readonly storage: StorageProvider,
+    @Inject(MAIL_PROVIDER) private readonly mail: MailProvider,
   ) {}
 
   /** Inicia una solicitud de firma sobre una versión de documento del tenant. */
@@ -40,12 +53,15 @@ export class SignaturesService {
       include: { document: { select: { id: true, name: true, matterId: true } } },
     });
     if (!version) throw new NotFoundException(apiError('documents.versionNotFound'));
+    const documentBuffer = await this.storage.get(version.storageKey);
 
     const result = await this.provider.requestSignature({
       reference: version.id,
       documentName: version.document.name,
       signerName: dto.signerName,
       signerEmail: dto.signerEmail,
+      documentBuffer,
+      documentMimeType: version.mimeType,
     });
     // STUBBED = adaptador no transmite; la solicitud queda creada como PENDING (a la espera de firma).
     const status = result.status === 'STUBBED' ? 'PENDING' : result.status;
@@ -75,6 +91,23 @@ export class SignaturesService {
       externalId: signature.externalId,
       provider: signature.provider,
     });
+
+    // Avisa al firmante por correo (fail-soft: un fallo de envío no debe romper la solicitud creada).
+    if (signature.signUrl) {
+      try {
+        const tenant = await this.prisma.tenant.findFirst({ where: { id: user.tenantId } });
+        await this.mail.sendMail(
+          signatureRequestMessage(dto.signerEmail, {
+            signerName: dto.signerName,
+            documentName: version.document.name,
+            firmName: tenant?.name ?? 'Lawzora',
+            signUrl: signature.signUrl,
+          }),
+        );
+      } catch (err) {
+        this.logger.error('Fallo al enviar la solicitud de firma por correo', err as Error);
+      }
+    }
     return signature;
   }
 
@@ -185,6 +218,13 @@ export class SignaturesService {
     const tenantId = owner.tenantId;
 
     await runWithTenant(tenantId, async () => {
+      // Idempotencia: si el proveedor reenvía el mismo evento (reintento de webhook), las filas que YA
+      // están en este estado no deben volver a descargarse/auditarse/notificarse.
+      const before = await this.prisma.signatureRequest.findMany({
+        where: { tenantId, externalId: event.externalId },
+      });
+      const newlyChanged = before.filter((s) => s.status !== event.status);
+
       await this.prisma.signatureRequest.updateMany({
         where: { tenantId, externalId: event.externalId },
         data: {
@@ -194,12 +234,37 @@ export class SignaturesService {
         },
       });
 
-      // Avisa al solicitante cuando el documento queda firmado.
-      if (event.status === 'SIGNED') {
-        const affected = await this.prisma.signatureRequest.findMany({
-          where: { tenantId, externalId: event.externalId },
-        });
-        for (const s of affected) {
+      if (event.status === 'SIGNED' && newlyChanged.length > 0) {
+        const signedDoc = await this.provider.downloadSignedDocument(event.externalId);
+        for (const s of newlyChanged) {
+          if (signedDoc) {
+            try {
+              const version = await this.documents.addSignedVersion(
+                tenantId,
+                s.documentId,
+                s.requestedById,
+                {
+                  originalname: `${s.signerName}-firmado.pdf`,
+                  mimetype: signedDoc.mimeType,
+                  size: signedDoc.buffer.length,
+                  buffer: signedDoc.buffer,
+                },
+              );
+              await this.audit.log(
+                { tenantId, userId: s.requestedById },
+                'signature.document_signed',
+                'DocumentVersion',
+                version.id,
+                { documentId: s.documentId, signatureId: s.id, contentHash: version.contentHash },
+              );
+            } catch (err) {
+              this.logger.error(
+                'Fallo al guardar el documento firmado como nueva versión',
+                err as Error,
+              );
+            }
+          }
+          // Avisa al solicitante cuando el documento queda firmado.
           await this.notifications.create({
             tenantId: s.tenantId,
             userId: s.requestedById,

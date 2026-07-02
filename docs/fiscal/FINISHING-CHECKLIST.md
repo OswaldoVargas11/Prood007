@@ -42,25 +42,45 @@ Ya implementado y desplegable:
   inmutable (`FiscalEvent`) e inalterabilidad en BD.
 - ✅ **Custodia del certificado de firma ES por despacho** (`verifactu-credential.service.ts`,
   `POST /verifactu/certificate`, FIRM_ADMIN) — FNMT/representante, SEPARADO del `.p12` de DGII.
-- ✅ **Firma del registro** — `VerifactuSignerService` firma el registro Verifactu (XAdES-BES) consumiendo
-  `VerifactuCredentialService.loadCert(tenantId)`; gated (devuelve `null` sin certificado). Verificable
-  (`verifactu-signer.service.spec.ts`).
+- ✅ **Firma del registro EN LA EMISIÓN** (LAW-82 cerrado) — `emitInvoiceInTx` genera el XML del
+  `RegistroAlta` AEAT (`registro-xml.ts`) y lo firma XAdES-BES vía `VerifactuRegistroService` +
+  `VerifactuSignerService` cuando el despacho tiene certificado; sin certificado, el registro queda
+  encadenado SIN firma (comportamiento previo intacto, con aviso en Ajustes). El XML, la huella AEAT y el
+  firmante se persisten en el INSERT (`Invoice.verifactuXml/verifactuHuella/verifactuSignedBy`,
+  inalterables para el rol de app).
+- ✅ **Huella AEAT propia** — `computeHuellaAeat` implementa el algoritmo oficial (Orden HAC/1177/2024:
+  `campo=valor&…` + SHA-256 hex mayúsculas), encadenada SOLO entre registros Verifactu. La cadena interna
+  (`recordHash`) NO cambia de formato: las facturas ya emitidas en prod siguen verificando.
+- ✅ **Remisión VERI\*FACTU** — `VerifactuSubmissionService` + `VerifactuClient` (SOAP `SistemaFacturacion`
+  con TLS mutuo, análogo a `ecf-transmission`), gated por `VERIFACTU_ENV` (test = banco de pruebas
+  `prewww1.aeat.es` · prod). Acuse (EstadoRegistro + CSV) persistido en la factura y en `FiscalEvent`
+  (append-only). Inline tras emitir + **cron de reintento idempotente** cada 10 min (`verifactu.cron.ts`,
+  solo PENDING, tope de intentos, duplicados reconciliados como aceptados).
 - ✅ **QR parametrizable** — el host base del QR se inyecta (`SpainComplianceProvider(qrBaseUrl)` +
   `VERIFACTU_QR_HOST`); default preproducción (no rompe los golden), producción sin tocar código.
 
-**Pendiente (rellenar en certificación con el cert real):**
+**Pendiente (rellenar en certificación con el cert real — nada de esto se simula):**
 
-1. **Perfil XAdES AEAT** — ratificar el perfil exacto (política de firma, `SigningCertificateV2`) contra el
-   banco de pruebas de la AEAT. El seam de firma ya está cerrado; solo se afina el cuerpo.
-2. **Host de producción del QR** — fijar `VERIFACTU_QR_HOST` al host de producción ratificado en el manual
-   de la AEAT (`AEAT_QR_HOST_PROD` es el candidato; confirmar antes de producción).
-3. **Modalidad de remisión:**
-   - **No-VERI\*FACTU** (firma + conserva + QR): hito mínimo válido para vender en ES. Solo requiere (1)+(2).
-   - **VERI\*FACTU** (remisión automática a la AEAT): nuevo `VerifactuSubmissionService` con el servicio web
-     SOAP de la AEAT (`SistemaFacturacion`), reintentos y consulta de estado. Análogo a `ecf-transmission`.
-4. **Declaración responsable** del software (fabricante del SIF) ante la AEAT — trámite, no código.
+1. **Acceso al banco de pruebas** (owner) — certificado de representante dado de alta en el entorno de
+   pruebas de la AEAT. Activar con `VERIFACTU_ENV=test` y el `.p12` del despacho subido en Ajustes; sin
+   `VERIFACTU_ENV` NADA se transmite.
+2. **Ratificar contra el set de pruebas** (con el banco ya accesible):
+   - forma exacta de `FechaHoraHusoGenRegistro` (hoy UTC `+00:00`) y del cálculo de huella;
+   - `ImporteTotal` con retención IRPF (criterio aplicado: la retención NO se resta del registro AEAT);
+   - código de error de registro duplicado (hoy `3000`) y `TipoUsoPosible*` del bloque SistemaInformatico;
+   - clientes extranjeros (hoy `IDDestinatario/NIF`; pasaportes requerirán `IDOtro`);
+   - perfil XAdES exacto (política de firma, `SigningCertificateV2`) — la firma no es exigible en
+     modalidad VERI\*FACTU, pero se emite firmado cuando hay certificado.
+3. **`VERIFACTU_SIF_NIF`** (owner) — NIF del productor del software para el bloque `SistemaInformatico` +
+   **declaración responsable** del SIF ante la AEAT (trámite, no código).
+4. **Host de producción del QR** — fijar `VERIFACTU_QR_HOST` al host ratificado (`AEAT_QR_HOST_PROD` es el
+   candidato; confirmar antes de producción).
+5. **Histórico STUBBED** — las facturas emitidas ANTES de activar `VERIFACTU_ENV` quedan STUBBED y no se
+   re-remiten automáticamente (la obligación empieza al operar como VERI\*FACTU); decidir en activación si
+   se remite algún tramo manualmente.
 
-Owner: certificado FNMT/representante de persona jurídica (sede.fnmt.gob.es o QTSP).
+Owner: certificado FNMT/representante de persona jurídica (sede.fnmt.gob.es o QTSP) + alta en el banco de
+pruebas AEAT + `VERIFACTU_SIF_NIF`.
 
 ---
 
