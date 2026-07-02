@@ -2809,6 +2809,37 @@ export const AGENT_TOOLS: AiToolDefinition[] = [
       required: ['obligationId'],
     },
   },
+  {
+    name: 'run_playbook_review',
+    description:
+      'REVISA un contrato del expediente contra un PLAYBOOK del despacho (posiciones por tema: preferida, ' +
+      'aceptables, deal-breakers) y devuelve el informe por regla: cumple / desviación (con severidad) / ' +
+      'ausente, con CITA literal al pasaje y la redacción alternativa sugerida. El informe queda GUARDADO ' +
+      '(consultable y exportable a PDF en Playbooks). Acción de ESCRITURA (consume cuota de IA y persiste ' +
+      'el informe; requiere confirmación). NO modifica el documento: el informe es el entregable. Úsala ' +
+      'cuando el usuario pida revisar un contrato contra el playbook o las posiciones del despacho. ' +
+      'Al responder, resume las desviaciones (empezando por los deal-breakers) CITANDO los pasajes.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        playbookName: {
+          type: 'string',
+          description:
+            'Nombre (o parte del nombre) del playbook del despacho a aplicar. Si el usuario no lo ' +
+            'especifica y solo hay uno, se usa ese.',
+        },
+        matterReference: {
+          type: 'string',
+          description: 'Referencia exacta del expediente (p. ej. EXP-2026-0042).',
+        },
+        documentName: {
+          type: 'string',
+          description: 'Nombre (o parte del nombre) del documento del expediente a revisar.',
+        },
+      },
+      required: ['matterReference', 'documentName'],
+    },
+  },
 ];
 
 /** Instrucciones de sistema del asistente agéntico. */
@@ -2983,6 +3014,7 @@ const TOOL_AREAS: Record<string, string> = {
   create_presentation_type: 'templates',
   list_clauses: 'clauses',
   get_closing_checklists: 'closing',
+  run_playbook_review: 'playbooks',
 };
 
 /** Áreas cotidianas: siempre disponibles aunque el mensaje no las nombre. */
@@ -2998,6 +3030,16 @@ const AREA_KEYWORDS: Record<string, string[]> = {
   leads: ['lead', 'prospecto', 'embudo', 'pipeline', 'captación', 'captacion'],
   kyc: ['kyc', 'aml', 'blanqueo', 'pep', 'diligencia debida'],
   registry: ['registro', 'registral'],
+  playbooks: [
+    'playbook',
+    'revisa el contrato',
+    'revisar el contrato',
+    'revisión del contrato',
+    'revision del contrato',
+    'posiciones del despacho',
+    'posición del despacho',
+    'posicion del despacho',
+  ],
 };
 
 /**

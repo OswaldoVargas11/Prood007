@@ -925,6 +925,90 @@ export interface TabularReviewDetail {
   updatedAt: string;
 }
 
+// ── Playbooks de revisión de contratos ────────────────────────────────────────
+
+export type PlaybookSeverity = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface PlaybookRule {
+  id?: string;
+  topic: string;
+  preferredText: string | null;
+  clauseId: string | null;
+  acceptableText: string | null;
+  dealBreakers: string | null;
+  severity: PlaybookSeverity;
+  order?: number;
+}
+
+export interface PlaybookSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  jurisdiction: 'es' | 'do' | null;
+  ruleCount: number;
+  updatedAt: string;
+}
+
+export interface PlaybookDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  jurisdiction: 'es' | 'do' | null;
+  rules: PlaybookRule[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type PlaybookFindingOutcome = 'COMPLIANT' | 'DEVIATION' | 'MISSING';
+
+export interface PlaybookFinding {
+  id: string;
+  topic: string;
+  severity: PlaybookSeverity;
+  /** Redacción alternativa sugerida (posición preferida, snapshot al lanzar la revisión). */
+  preferredText: string | null;
+  acceptableText: string | null;
+  dealBreakers: string | null;
+  order: number;
+  status: TabularCellStatus;
+  outcome: PlaybookFindingOutcome | null;
+  dealBreaker: boolean;
+  analysis: string | null;
+  confidence: 'alta' | 'media' | 'baja' | null;
+  /** Cita: fragmento literal del texto extraído + offsets verificados. */
+  snippet: string | null;
+  charStart: number | null;
+  charEnd: number | null;
+  context: string | null;
+  error: string | null;
+  model: string | null;
+  updatedAt: string;
+}
+
+export interface PlaybookReviewSummary {
+  id: string;
+  matterId: string;
+  playbookId: string | null;
+  playbookName: string;
+  documentId: string;
+  documentName: string;
+  progress: { pending: number; done: number; failed: number };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PlaybookReviewDetail {
+  id: string;
+  playbookId: string | null;
+  playbookName: string;
+  matterId: string;
+  documentId: string;
+  documentName: string;
+  findings: PlaybookFinding[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SubscriptionInfo {
   status: SubscriptionStatusValue;
   trialEndsAt: string | null;

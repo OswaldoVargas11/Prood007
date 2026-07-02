@@ -1,6 +1,7 @@
 import {
   BadgeCheck,
   BarChart3,
+  BookOpenCheck,
   Briefcase,
   CalendarClock,
   CalendarDays,
@@ -75,6 +76,13 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: LayoutTemplate,
         enabled: true,
         feature: 'templates',
+      },
+      {
+        key: 'playbooks',
+        href: '/playbooks',
+        icon: BookOpenCheck,
+        enabled: true,
+        feature: 'ai',
       },
       { key: 'presentations', href: '/presentations', icon: ClipboardList, enabled: true },
     ],

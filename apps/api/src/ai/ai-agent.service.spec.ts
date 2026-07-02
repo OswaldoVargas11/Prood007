@@ -118,6 +118,7 @@ function makeDeps(invocations: AiToolInvocation[]) {
     {} as any,
     {} as any,
     search as any,
+    {} as any,
     engine,
   );
   /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -179,6 +180,7 @@ describe('AiAgentService', () => {
       prisma as any,
       quota as any,
       audit as any,
+      {} as any,
       {} as any,
       {} as any,
       {} as any,
