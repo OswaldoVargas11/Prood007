@@ -2246,6 +2246,20 @@ export function useRefreshEcf(invoiceId: string) {
   });
 }
 
+/** Emite una rectificativa (reversa completa; e-CF nota de crédito 34) de una factura emitida. */
+export function useRectifyInvoice(invoiceId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (reason: string) =>
+      api.post<{ invoice: Invoice }>(`/ledger/invoices/${invoiceId}/rectify`, { reason }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['invoice', invoiceId] });
+      void qc.invalidateQueries({ queryKey: ['invoices'] });
+      void qc.invalidateQueries({ queryKey: ['ledger'] });
+    },
+  });
+}
+
 // ── Vistas guardadas (presets de filtros) ─────────────────────────────────────
 
 export type SavedView = {

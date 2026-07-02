@@ -60,9 +60,12 @@ export class DgiiSubmissionService {
         timestamp: this.now(),
       };
     } catch (e) {
+      // Fallo de TRANSPORTE (red, timeout, HTTP no-ok), no un rechazo del organismo: queda PENDING sin
+      // TrackId para que el cron de reintento lo retransmita con backoff. REJECTED se reserva para el
+      // acuse negativo real de la DGII; el tope de intentos del cron corta los fallos permanentes.
       return {
-        status: 'REJECTED',
-        detail: `Error transmitiendo a la DGII: ${(e as Error).message}`,
+        status: 'PENDING',
+        detail: `Error transmitiendo a la DGII (se reintentará): ${(e as Error).message}`,
         timestamp: this.now(),
       };
     }
@@ -85,10 +88,12 @@ export class DgiiSubmissionService {
         timestamp: this.now(),
       };
     } catch (e) {
+      // Fallo de TRANSPORTE al consultar el acuse: el envío sigue en trámite, NO es un rechazo. Queda
+      // PENDING y el cron de polling volverá a consultar.
       return {
-        status: 'REJECTED',
+        status: 'PENDING',
         externalId: trackId,
-        detail: (e as Error).message,
+        detail: `Error consultando el acuse en la DGII (se reintentará): ${(e as Error).message}`,
         timestamp: this.now(),
       };
     }

@@ -4,12 +4,14 @@ import { DgiiSubmissionService } from './dgii-submission.service';
 import { DgiiCredentialService } from './dgii-credential.service';
 import { EcfTransmissionService } from './ecf-transmission.service';
 import { EcfSequenceService } from './ecf-sequence.service';
+import { EcfRetryCron } from './ecf-retry.cron';
 import { DgiiController } from './dgii.controller';
 
 /**
  * Transmisión de e-CF a la DGII (RD). GATED por DGII_ENV: sin él, las facturas quedan en STUBBED (no se
  * transmite, como hasta ahora). Expone el motor + la custodia del certificado del despacho; LedgerModule
- * lo usa para transmitir tras emitir una factura DO.
+ * lo usa para transmitir tras emitir una factura DO. El cron de reintento/polling cierra el ciclo hasta
+ * el acuse final (ACCEPTED/REJECTED) sin intervención manual.
  */
 @Module({
   controllers: [DgiiController],
@@ -19,6 +21,7 @@ import { DgiiController } from './dgii.controller';
     DgiiCredentialService,
     EcfTransmissionService,
     EcfSequenceService,
+    EcfRetryCron,
   ],
   exports: [DgiiConfig, DgiiSubmissionService, EcfTransmissionService, DgiiCredentialService],
 })

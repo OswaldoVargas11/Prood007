@@ -21,6 +21,7 @@ import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { ListInvoicesQueryDto } from './dto/list-invoices.dto';
 import { PreviewInvoiceDto } from './dto/preview-invoice.dto';
 import { ProposeCostDto } from './dto/propose-cost.dto';
+import { RectifyInvoiceDto } from './dto/rectify-invoice.dto';
 import { ResolveApprovalDto } from './dto/resolve-approval.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -158,5 +159,18 @@ export class LedgerController {
   @Post('invoices/:id/pay')
   payInvoice(@CurrentUser() user: RequestUser, @Param('id') id: string) {
     return this.ledger.payInvoice(user, id);
+  }
+
+  /**
+   * Emite una factura RECTIFICATIVA que reversa por completo la factura (Verifactu R1/S · e-CF nota de
+   * crédito tipo 34). Caso principal: corregir un e-CF rechazado por la DGII. La original es inmutable.
+   */
+  @Post('invoices/:id/rectify')
+  rectifyInvoice(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+    @Body() dto: RectifyInvoiceDto,
+  ) {
+    return this.ledger.rectifyInvoice(user, id, dto);
   }
 }
