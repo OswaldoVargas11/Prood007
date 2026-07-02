@@ -1,9 +1,12 @@
 import { AiAgentService, type AgentStreamEvent } from './ai-agent.service';
 import { AGENT_TOOLS } from './ai-agent.tools';
+import { AI_MODEL_LIGHT_DEFAULT } from './ai-model-routing';
 import type {
   AiAgentHooks,
   AiAgentRequest,
   AiAgentResult,
+  AiCompletion,
+  AiCompletionRequest,
   AiEngine,
   AiToolExecutor,
   AiToolInvocation,
@@ -19,6 +22,9 @@ class FakeEngine implements AiEngine {
   lastExec?: AiToolExecutor;
   lastRequest?: AiAgentRequest;
   lastHooks?: AiAgentHooks;
+  lastCompleteRequest?: AiCompletionRequest;
+  /** Cuando se fija, `complete()` (verificador de citas) lo devuelve en vez de lanzar. */
+  completeResult: AiCompletion | null = null;
 
   constructor(private readonly invocations: AiToolInvocation[]) {}
 
@@ -28,7 +34,9 @@ class FakeEngine implements AiEngine {
   model(): string {
     return 'fake-model';
   }
-  async complete(): Promise<never> {
+  async complete(req: AiCompletionRequest): Promise<AiCompletion> {
+    this.lastCompleteRequest = req;
+    if (this.completeResult) return this.completeResult;
     throw new Error('no usado');
   }
   async runAgent(
@@ -534,5 +542,48 @@ describe('AiAgentService', () => {
     ]);
     const out = await engine.lastExec!({ name: 'create_task', input: { title: 'X' } });
     expect(JSON.parse(out.content)).toMatchObject({ status: 'requires_confirmation' });
+  });
+
+  describe('verificador de citas (AI_CITATION_CHECK)', () => {
+    const originalCheck = process.env.AI_CITATION_CHECK;
+    const originalCheckModel = process.env.AI_CITATION_CHECK_MODEL;
+
+    afterEach(() => {
+      if (originalCheck === undefined) delete process.env.AI_CITATION_CHECK;
+      else process.env.AI_CITATION_CHECK = originalCheck;
+      if (originalCheckModel === undefined) delete process.env.AI_CITATION_CHECK_MODEL;
+      else process.env.AI_CITATION_CHECK_MODEL = originalCheckModel;
+    });
+
+    it('usa el modelo LIGERO (AI_MODEL_LIGHT), no el principal del agente', async () => {
+      process.env.AI_CITATION_CHECK = 'true';
+      delete process.env.AI_CITATION_CHECK_MODEL;
+      const { service, engine, quota } = makeDeps([]);
+      engine.completeResult = {
+        text: '{"verified":true,"flagged":[]}',
+        model: AI_MODEL_LIGHT_DEFAULT,
+        usage: { inputTokens: 5, outputTokens: 2 },
+      };
+
+      await service.run(user, 'hola');
+
+      expect(engine.lastCompleteRequest?.model).toBe(AI_MODEL_LIGHT_DEFAULT);
+      expect(quota.recordUsage).toHaveBeenCalledWith(user, 5, 2, AI_MODEL_LIGHT_DEFAULT);
+    });
+
+    it('AI_CITATION_CHECK_MODEL explícito sigue teniendo prioridad sobre AI_MODEL_LIGHT', async () => {
+      process.env.AI_CITATION_CHECK = 'true';
+      process.env.AI_CITATION_CHECK_MODEL = 'claude-custom-check';
+      const { service, engine } = makeDeps([]);
+      engine.completeResult = {
+        text: '{"verified":true,"flagged":[]}',
+        model: 'claude-custom-check',
+        usage: { inputTokens: 1, outputTokens: 1 },
+      };
+
+      await service.run(user, 'hola');
+
+      expect(engine.lastCompleteRequest?.model).toBe('claude-custom-check');
+    });
   });
 });

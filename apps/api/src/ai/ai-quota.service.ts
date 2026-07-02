@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { apiError } from '../common/api-messages';
+import { AI_MODEL_LIGHT_DEFAULT } from './ai-model-routing';
 import type { RequestUser } from '../auth/auth.types';
 
 /**
@@ -23,6 +24,7 @@ import type { RequestUser } from '../auth/auth.types';
 export class AiQuotaService {
   private readonly limit: number;
   private readonly tokenLimit: number;
+  private readonly lightModel: string;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -34,6 +36,7 @@ export class AiQuotaService {
     const rawTokens = Number(config.get<string>('AI_DAILY_TOKEN_LIMIT'));
     this.tokenLimit =
       Number.isFinite(rawTokens) && rawTokens > 0 ? Math.floor(rawTokens) : 2_000_000;
+    this.lightModel = config.get<string>('AI_MODEL_LIGHT') || AI_MODEL_LIGHT_DEFAULT;
   }
 
   /**
@@ -72,16 +75,41 @@ export class AiQuotaService {
     }
   }
 
-  /** Contabiliza los tokens reales consumidos por una llamada (se llama tras responder el motor). */
-  async recordUsage(user: RequestUser, inputTokens: number, outputTokens: number): Promise<void> {
+  /**
+   * Contabiliza los tokens reales consumidos por una llamada (se llama tras responder el motor). Si
+   * `model` coincide con el modelo LIGERO configurado (`AI_MODEL_LIGHT`), además desglosa esos tokens en
+   * `lightModel*` para poder medir el ahorro de coste por tenant.
+   */
+  async recordUsage(
+    user: RequestUser,
+    inputTokens: number,
+    outputTokens: number,
+    model?: string,
+  ): Promise<void> {
     if (!inputTokens && !outputTokens) return;
     const day = new Date().toISOString().slice(0, 10);
+    const isLight = model === this.lightModel;
     await this.prisma.aiUsage.upsert({
       where: { tenantId_day: { tenantId: user.tenantId, day } },
-      create: { tenantId: user.tenantId, day, calls: 0, inputTokens, outputTokens },
+      create: {
+        tenantId: user.tenantId,
+        day,
+        calls: 0,
+        inputTokens,
+        outputTokens,
+        ...(isLight
+          ? { lightModelInputTokens: inputTokens, lightModelOutputTokens: outputTokens }
+          : {}),
+      },
       update: {
         inputTokens: { increment: inputTokens },
         outputTokens: { increment: outputTokens },
+        ...(isLight
+          ? {
+              lightModelInputTokens: { increment: inputTokens },
+              lightModelOutputTokens: { increment: outputTokens },
+            }
+          : {}),
       },
     });
   }

@@ -44,6 +44,26 @@ describe('OpenAiCompatEngine', () => {
     expect(body.messages[0]).toEqual({ role: 'system', content: 'sys' });
   });
 
+  it('complete() honra el override de modelo por-llamada (req.model), no solo el AI_MODEL del motor', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(
+      jsonRes({
+        choices: [{ message: { role: 'assistant', content: 'ok' }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+        model: 'gpt-4o-mini',
+      }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const engine = new OpenAiCompatEngine('key', config);
+
+    await engine.complete({
+      messages: [{ role: 'user', content: 'hi' }],
+      model: 'gpt-4o-mini',
+    });
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.model).toBe('gpt-4o-mini');
+  });
+
   it('runAgent resuelve el protocolo de tool-use (function calling) y acumula uso', async () => {
     const fetchMock = jest
       .fn()

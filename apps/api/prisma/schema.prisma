@@ -2214,6 +2214,11 @@ model AiUsage {
   // no sobre nº de llamadas: una llamada con adjunto de 8 MB cuesta órdenes de magnitud más que un `ask`.
   inputTokens  Int      @default(0)
   outputTokens Int      @default(0)
+  // Subconjunto de los tokens de arriba que corresponde a llamadas enrutadas al modelo LIGERO
+  // (AI_MODEL_LIGHT: resúmenes cortos, verificador de citas). Permite medir el ahorro por tenant sin
+  // desglosar la tabla por modelo (la cuota diaria sigue siendo un único tope por tenant+día).
+  lightModelInputTokens  Int @default(0)
+  lightModelOutputTokens Int @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

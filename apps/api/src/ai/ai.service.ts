@@ -15,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AiQuotaService } from './ai-quota.service';
 import { DashboardService } from '../dashboard/dashboard.service';
 import { apiError } from '../common/api-messages';
+import { resolveLightModel } from './ai-model-routing';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Respuesta de IA enriquecida con el modelo que la produjo (trazabilidad). */
@@ -65,6 +66,8 @@ export class AiService {
   /**
    * Resumen del día para el dashboard: reutiliza el agregado de `DashboardService.summary` (ya acotado
    * por tenant) y pide al modelo un brief accionable. Devuelve Markdown (lo renderiza el dashboard).
+   * Enrutado al modelo LIGERO (`AI_MODEL_LIGHT`): es un resumen corto de datos ya estructurados, no
+   * requiere el modelo principal del agente conversacional.
    */
   async dailyBrief(user: RequestUser): Promise<{ brief: string; model: string | null }> {
     await this.quota.consume(user);
@@ -89,8 +92,14 @@ export class AiService {
       system: DAILY_BRIEF_SYSTEM,
       messages: [{ role: 'user', content: context }],
       maxTokens: 700,
+      model: resolveLightModel(),
     });
-    await this.quota.recordUsage(user, res.usage?.inputTokens ?? 0, res.usage?.outputTokens ?? 0);
+    await this.quota.recordUsage(
+      user,
+      res.usage?.inputTokens ?? 0,
+      res.usage?.outputTokens ?? 0,
+      res.model,
+    );
     return { brief: res.text, model: res.model ?? this.engine.model() };
   }
 

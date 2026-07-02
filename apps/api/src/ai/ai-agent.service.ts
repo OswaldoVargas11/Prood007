@@ -53,6 +53,7 @@ import {
   type Citation,
   type CitationCheck,
 } from './ai-citations';
+import { resolveLightModel } from './ai-model-routing';
 import type { RequestUser } from '../auth/auth.types';
 
 /** Una acción de ESCRITURA propuesta por el agente y pendiente de confirmación del letrado (HITL). */
@@ -375,8 +376,9 @@ export class AiAgentService {
 
   /**
    * Verificación post-respuesta de las citas (opcional, `AI_CITATION_CHECK=true`). Reutiliza el motor con
-   * un modelo BARATO (`AI_CITATION_CHECK_MODEL`, por defecto Haiku) para señalar afirmaciones factuales sin
-   * respaldo. No bloquea la respuesta y es best-effort: cualquier fallo devuelve `undefined` (sin badge).
+   * el modelo LIGERO (`AI_CITATION_CHECK_MODEL` si se fija explícito, si no `AI_MODEL_LIGHT`) para señalar
+   * afirmaciones factuales sin respaldo. No bloquea la respuesta y es best-effort: cualquier fallo devuelve
+   * `undefined` (sin badge).
    */
   private async maybeCheckCitations(
     user: RequestUser,
@@ -390,10 +392,10 @@ export class AiAgentService {
         system: CITATION_CHECK_SYSTEM,
         messages: [{ role: 'user', content: buildCitationCheckUser(answer, citations) }],
         maxTokens: 400,
-        model: process.env.AI_CITATION_CHECK_MODEL || 'claude-haiku-4-5-20251001',
+        model: process.env.AI_CITATION_CHECK_MODEL || resolveLightModel(),
       });
       await this.quota
-        .recordUsage(user, res.usage?.inputTokens ?? 0, res.usage?.outputTokens ?? 0)
+        .recordUsage(user, res.usage?.inputTokens ?? 0, res.usage?.outputTokens ?? 0, res.model)
         .catch(() => undefined);
       return parseCitationCheck(res.text);
     } catch {
